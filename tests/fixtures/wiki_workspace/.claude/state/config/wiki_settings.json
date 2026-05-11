@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "wiki_root": ".claude/wiki",
+  "wiki_families": ["systems", "projects", "changes", "domains", "reference"],
+  "page_required_sections": ["Summary", "Authority And Recency", "Source Artifacts", "Related Pages"],
+  "max_source_artifacts_per_page": 9,
+  "context_receipts": {
+    "path": ".claude/state/runtime/wiki_context_receipts",
+    "ttl_seconds": 7200,
+    "enforce_for_wiki_writes": true
+  },
+  "semantic_maintainer": {
+    "hook_trigger_path_substrings": ["/external/", "/docs/", "/research/", "/.claude/hooks/", "/.claude/skills/", "/.claude/commands/"],
+    "hook_trigger_filenames": ["HANDOFF.md", "UPDATE.txt", "README.md"]
+  }
+}

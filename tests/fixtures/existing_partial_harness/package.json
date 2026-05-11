@@ -1,0 +1,7 @@
+{
+  "name": "existing-partial-harness-fixture",
+  "version": "0.0.1",
+  "scripts": {
+    "test": "node --test"
+  }
+}

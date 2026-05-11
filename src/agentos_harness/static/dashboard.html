@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workspace Control Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Read-only local harness</p>
+        <h1>Workspace Control Dashboard</h1>
+      </div>
+      <div class="topbar-meta" aria-label="workspace metadata">
+        <span id="repoName">Repository</span>
+        <span id="branchName">branch unavailable</span>
+        <span id="scanTime">not scanned</span>
+        <span class="badge">Read Only</span>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="hero" aria-labelledby="verdictTitle">
+        <div>
+          <p class="eyebrow">Current verdict</p>
+          <h2 id="verdictTitle">Loading</h2>
+          <p id="verdictReason">Reading local harness state.</p>
+        </div>
+        <button id="copyCommand" class="command-chip" type="button" title="Copy next command" aria-label="Copy Command">
+          <span id="nextCommand">harness analyze .</span>
+        </button>
+      </section>
+
+      <section class="metrics" aria-label="harness inventory metrics">
+        <article class="metric"><span>Wiki pages</span><strong id="metricWiki">0</strong></article>
+        <article class="metric"><span>Skills</span><strong id="metricSkills">0</strong></article>
+        <article class="metric"><span>Commands</span><strong id="metricCommands">0</strong></article>
+        <article class="metric"><span>Hooks</span><strong id="metricHooks">0</strong></article>
+        <article class="metric"><span>Projects</span><strong id="metricProjects">0</strong></article>
+        <article class="metric"><span>Open maintenance</span><strong id="metricMaintenance">0</strong></article>
+      </section>
+
+      <section class="toolbar" aria-label="dashboard controls">
+        <button id="refreshScan" type="button">Refresh Scan</button>
+        <button id="openSearch" type="button">Open Search</button>
+        <button id="exportJson" type="button">Export JSON</button>
+        <div class="segmented" role="group" aria-label="signal filter">
+          <button data-filter="all" class="active" type="button">All</button>
+          <button data-filter="blocked" type="button">Blocked</button>
+          <button data-filter="attention" type="button">Attention</button>
+          <button data-filter="healthy" type="button">Healthy</button>
+        </div>
+        <label class="search-label">
+          <span>Search</span>
+          <input id="textSearch" type="search" aria-label="Find files, commands, or sections" />
+        </label>
+      </section>
+
+      <section class="shell">
+        <nav class="rail" aria-label="dashboard sections" id="sectionRail"></nav>
+        <article class="detail" aria-live="polite">
+          <div class="detail-head">
+            <div>
+              <p class="eyebrow">Selected section</p>
+              <h2 id="sectionTitle">Overview</h2>
+              <p id="sectionSummary">Loading local scan results.</p>
+            </div>
+            <span id="visibleCount" class="badge">0 rows</span>
+          </div>
+          <div id="tabs" class="tabs" role="tablist"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Path <span class="sr-only">Copy Path</span></th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>

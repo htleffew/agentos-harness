@@ -1,0 +1,2 @@
+[console_scripts]
+harness = agentos_harness.cli:main

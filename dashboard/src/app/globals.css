@@ -1,0 +1,277 @@
+@import "tailwindcss";
+
+/* ── Agentic-OS Dashboard Design System ─────────────────────────────────────
+   Chase AI × Mission Control terminal cockpit aesthetic
+   Theme: Obsidian shell with chrome accents, electric-teal focus states
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@theme inline {
+  /* Typography */
+  --font-sans:  var(--font-geist-sans);
+  --font-mono:  var(--font-geist-mono);
+
+  /* Core palette */
+  --color-bg-base:        #0a0c0f;
+  --color-bg-surface:     #0f1318;
+  --color-bg-elevated:    #161b22;
+  --color-bg-overlay:     #1c2330;
+  --color-border:         #21262d;
+  --color-border-subtle:  #161b22;
+
+  /* Text */
+  --color-text-primary:   #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted:     #484f58;
+  --color-text-inverse:   #0a0c0f;
+
+  /* Accent — electric teal */
+  --color-accent:         #2dd4bf;
+  --color-accent-dim:     #14b8a620;
+  --color-accent-glow:    #2dd4bf40;
+
+  /* Status */
+  --color-success:        #3fb950;
+  --color-warning:        #d29922;
+  --color-danger:         #f85149;
+  --color-info:           #388bfd;
+
+  /* Domain badge colours */
+  --color-daily:          #2dd4bf;
+  --color-productivity:   #a78bfa;
+  --color-research:       #60a5fa;
+  --color-content:        #f472b6;
+  --color-community:      #fb923c;
+  --color-ops:            #facc15;
+  --color-custom:         #8b949e;
+
+  /* Sizing */
+  --sidebar-w:  16rem;
+  --header-h:   3.25rem;
+  --radius-sm:  0.25rem;
+  --radius-md:  0.5rem;
+  --radius-lg:  0.75rem;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* ── Focus ──────────────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Layout shell ───────────────────────────────────────────────────────────── */
+
+.shell {
+  display: grid;
+  grid-template-rows: var(--header-h) auto 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-areas:
+    "header     header"
+    "token-bar  token-bar"
+    "sidebar    main";
+  height: 100vh;
+  overflow: hidden;
+}
+
+.shell-header    { grid-area: header;    }
+.shell-token-bar { grid-area: token-bar; }
+.shell-sidebar   { grid-area: sidebar;   overflow-y: auto; border-right: 1px solid var(--color-border); }
+.shell-main      { grid-area: main;      overflow-y: auto; }
+
+/* ── Surface variants ───────────────────────────────────────────────────────── */
+
+.surface        { background: var(--color-bg-surface);  border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.surface-raised { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.surface-overlay{ background: var(--color-bg-overlay);  border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+
+/* ── Skill button states ────────────────────────────────────────────────────── */
+
+.skill-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+.skill-btn:hover:not(:disabled) {
+  background: var(--color-bg-overlay);
+  border-color: var(--color-accent);
+}
+.skill-btn[data-state="running"] {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent-glow), inset 0 0 16px var(--color-accent-dim);
+  animation: pulse-border 1.6s ease-in-out infinite;
+}
+.skill-btn[data-state="done"] {
+  border-color: var(--color-success);
+  animation: flash-done 0.6s ease forwards;
+}
+.skill-btn[data-state="failed"] {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg-elevated));
+}
+.skill-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Animations ─────────────────────────────────────────────────────────────── */
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 1px var(--color-accent-glow); }
+  50%       { box-shadow: 0 0 0 3px var(--color-accent-glow), 0 0 20px var(--color-accent-dim); }
+}
+
+@keyframes flash-done {
+  0%   { background: color-mix(in srgb, var(--color-success) 20%, var(--color-bg-elevated)); }
+  100% { background: var(--color-bg-elevated); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);   opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.animate-slide-in  { animation: slide-in-right 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in   { animation: fade-in 200ms ease forwards; }
+.animate-spin      { animation: spin 0.8s linear infinite; }
+
+/* ── Dot pulse (running indicator) ─────────────────────────────────────────── */
+
+.dot-pulse {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: dot-pulse-anim 1.2s ease-in-out infinite;
+}
+@keyframes dot-pulse-anim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Domain badge colours ───────────────────────────────────────────────────── */
+
+.badge-daily        { color: var(--color-daily);        border-color: var(--color-daily); }
+.badge-productivity { color: var(--color-productivity); border-color: var(--color-productivity); }
+.badge-research     { color: var(--color-research);     border-color: var(--color-research); }
+.badge-content      { color: var(--color-content);      border-color: var(--color-content); }
+.badge-community    { color: var(--color-community);    border-color: var(--color-community); }
+.badge-ops          { color: var(--color-ops);          border-color: var(--color-ops); }
+.badge-custom       { color: var(--color-custom);       border-color: var(--color-custom); }
+
+/* ── Token window bar ───────────────────────────────────────────────────────── */
+
+.token-bar-track {
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.token-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-info));
+  transition: width 400ms ease;
+}
+
+/* ── Run output panel ───────────────────────────────────────────────────────── */
+
+.run-output {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.run-output .out-assistant { color: var(--color-text-primary); }
+.run-output .out-tool      { color: var(--color-accent); }
+.run-output .out-error     { color: var(--color-danger); }
+.run-output .out-system    { color: var(--color-text-muted); }
+.run-output .out-section   { color: var(--color-success); font-weight: 600; }
+
+/* ── Harness pulse ──────────────────────────────────────────────────────────── */
+
+.harness-pulse-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.harness-pulse-dot.ok      { background: var(--color-success); }
+.harness-pulse-dot.warn    { background: var(--color-warning); }
+.harness-pulse-dot.fail    { background: var(--color-danger); }
+.harness-pulse-dot.unknown { background: var(--color-text-muted); }
+
+/* ── Misc utilities ─────────────────────────────────────────────────────────── */
+
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.glass {
+  background: color-mix(in srgb, var(--color-bg-elevated) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Command palette (cmdk) ─────────────────────────────────────────────────── */
+
+[cmdk-item] { cursor: pointer; transition: background 100ms ease; outline: none; }
+[cmdk-item][data-selected="true"],
+[cmdk-item]:hover { background: var(--color-bg-overlay); }
+[cmdk-group-heading] {
+  color: var(--color-text-muted) !important;
+  font-size: 0.65rem !important;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.5rem 1rem 0.25rem;
+  text-transform: uppercase;
+}
+
+/* ── Surface overlay (modal cards) ─────────────────────────────────────────── */
+
+.surface-overlay {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+}

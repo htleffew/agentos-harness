@@ -1,0 +1,8 @@
+{
+  "name": "fixture-web",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  }
+}
