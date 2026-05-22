@@ -1,0 +1,11 @@
+Audience: human-facing project status log.
+
+# Agentos Harness Update
+
+## Summary
+
+<Plain-language project status.>
+
+## Status History
+
+- <YYYY-MM-DD>: Project workspace initialized by distributable harness setup.
