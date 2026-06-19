@@ -331,7 +331,7 @@ def render_update_log(project_name: str) -> str:
 
 ## Status History
 
-- <YYYY-MM-DD>: Project workspace initialized by distributable harness setup.
+- <YYYY-MM-DD>: Project workspace initialized by agentos-harness setup.
 """
 
 

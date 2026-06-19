@@ -5,7 +5,7 @@ When a Write or Edit follows multiple Read operations on different files,
 this suggests a synthesis occurred. The hook captures these as wiki candidates
 for the closed-loop wiki compounding pattern.
 
-This hook is part of the distributable-harness wiki infrastructure and
+This hook is part of the agentos-harness wiki infrastructure and
 implements the Karpathy LLM Wiki pattern's automatic synthesis detection.
 """
 import json

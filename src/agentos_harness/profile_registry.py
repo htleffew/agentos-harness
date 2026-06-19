@@ -2323,7 +2323,7 @@ def _settings_json(ctx: dict[str, Any]) -> str:
         )
     return stable_json(
         {
-            "generated_by": "distributable-harness",
+            "generated_by": "agentos-harness",
             "profile": CORE_PROFILE_NAME,
             "profile_version": CORE_PROFILE_VERSION,
             "hooks": {

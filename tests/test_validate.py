@@ -216,10 +216,10 @@ def test_project_continuity_detects_empty_handoff(tmp_path: Path) -> None:
 
 
 def test_project_continuity_not_applicable_for_package_source(tmp_path: Path) -> None:
-    package_dir = tmp_path / "distributable-harness"
+    package_dir = tmp_path / "agentos-harness"
     (package_dir / "src" / "agentos_harness").mkdir(parents=True)
     (package_dir / "pyproject.toml").write_text(
-        '[project]\nname = "distributable-harness"\n',
+        '[project]\nname = "agentos-harness"\n',
         encoding="utf-8",
     )
     result = validate_project_continuity(package_dir)

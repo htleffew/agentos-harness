@@ -1,4 +1,4 @@
-"""Command-line interface for agentos-harness (v2 of distributable-harness)."""
+"""Command-line interface for agentos-harness (v2 of agentos-harness)."""
 
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ from .tool_check import TOOL_REGISTRY, detect_tools, moe_tier, parse_tools_flag,
 from .models import read_json, redact_object, stable_json, write_json
 
 
-REPO_INSTALL_SPEC = "git+https://github.com/spokeo/atlas.git@main#subdirectory=distributable-harness"
-AGENTOS_REPO_SPEC = "git+https://github.com/Spokeo/atlas.git@main#subdirectory=agentos-harness"
+REPO_INSTALL_SPEC = "git+https://github.com/htleffew/agentos-harness.git@master"
+AGENTOS_REPO_SPEC = "git+https://github.com/htleffew/agentos-harness.git@master"
 
 
 def _print_json(data: object) -> None:
@@ -43,7 +43,7 @@ def cmd_update(args: argparse.Namespace) -> int:
         "--force-reinstall",
         REPO_INSTALL_SPEC,
     ]
-    print("Updating distributable-harness from the repository...")
+    print("Updating agentos-harness from the repository...")
     print("Command:")
     print(f"  {' '.join(command)}")
     result = subprocess.run(command)

@@ -442,7 +442,7 @@ def test_apply_project_layout_keeps_copy_when_cleanup_is_denied(tmp_path: Path, 
         raise PermissionError(5, "Access is denied", str(path))
 
     monkeypatch.setattr(Path, "rename", deny_rename)
-    monkeypatch.setattr("distributable_harness.project_detector.shutil.rmtree", deny_cleanup)
+    monkeypatch.setattr("agentos_harness.project_detector.shutil.rmtree", deny_cleanup)
     result = apply_project_layout(
         tmp_path,
         {"source_path": "api", "path": "projects/api", "suggested_name": "api"},

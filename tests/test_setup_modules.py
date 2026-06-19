@@ -38,10 +38,10 @@ def test_adaptive_targets_are_stable_and_workspace_neutral() -> None:
     assert ".claude/commands/typescript-check.md" in targets
     assert ".claude/commands/monorepo-status.md" in targets
     text = "\n".join(targets.values())
-    assert "atlas_lq" not in text
-    assert "workspace_harness_2026" not in text
-    assert "sagemaker-user" not in text
-    assert "SB-" not in text
+    import re
+    assert re.search(r"/home/\w", text) is None
+    assert re.search(r"/Users/\w", text) is None
+    assert "s3://" not in text
 
 
 def test_adaptive_wiki_targets_have_required_lint_sections() -> None:

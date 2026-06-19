@@ -19,7 +19,7 @@ class LintResult:
     details: list[str] = field(default_factory=list)
 
 
-def _is_distributable_harness_package_source(root: Path) -> bool:
+def _is_agentos_harness_package_source(root: Path) -> bool:
     """Return True for this package source tree before setup is applied."""
     pyproject = root / "pyproject.toml"
     package_dir = root / "src" / "agentos_harness"
@@ -29,7 +29,7 @@ def _is_distributable_harness_package_source(root: Path) -> bool:
         content = pyproject.read_text(encoding="utf-8")
     except OSError:
         return False
-    return 'name = "agentos-harness"' in content or 'name = "distributable-harness"' in content
+    return 'name = "agentos-harness"' in content or 'name = "agentos-harness"' in content
 
 
 def _not_applicable(check: str, message: str) -> LintResult:
@@ -41,7 +41,7 @@ def check_wiki_index(root: Path) -> LintResult:
 
     Returns warn if no wiki found, fail if structural errors, pass if valid.
     """
-    if _is_distributable_harness_package_source(root):
+    if _is_agentos_harness_package_source(root):
         return _not_applicable(
             "Wiki Index",
             "package source tree has no applied generated wiki contract",
@@ -97,7 +97,7 @@ def check_wiki_index(root: Path) -> LintResult:
 def check_skill_compliance(root: Path) -> LintResult:
     from .audit import audit_skills_dir, audit_has_errors
 
-    if _is_distributable_harness_package_source(root):
+    if _is_agentos_harness_package_source(root):
         return _not_applicable(
             "Skill Compliance",
             "package source tree has no applied generated skill directory",
@@ -132,7 +132,7 @@ def check_skill_compliance(root: Path) -> LintResult:
 
 
 def check_hook_registration(root: Path) -> LintResult:
-    if _is_distributable_harness_package_source(root):
+    if _is_agentos_harness_package_source(root):
         return _not_applicable(
             "Hook Registration",
             "package source tree has no applied generated hook settings",
@@ -311,7 +311,7 @@ def check_dashboard_config(root: Path) -> LintResult:
 
 
 def check_engineering_quality_surfaces(root: Path) -> LintResult:
-    if _is_distributable_harness_package_source(root):
+    if _is_agentos_harness_package_source(root):
         return _not_applicable(
             "Engineering Quality",
             "package source tree does not own generated engineering-quality surfaces",

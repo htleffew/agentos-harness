@@ -8,4 +8,4 @@ Audience: human-facing project status log.
 
 ## Status History
 
-- <YYYY-MM-DD>: Project workspace initialized by distributable harness setup.
+- <YYYY-MM-DD>: Project workspace initialized by agentos-harness setup.

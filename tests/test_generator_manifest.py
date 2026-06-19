@@ -36,11 +36,10 @@ def test_templates_are_workspace_neutral(tmp_path) -> None:
     shutil.copytree(FIXTURES / "python_basic", workspace)
     manifest = write_manifest(workspace)
     text = "\n".join(entry.get("content", "") for entry in manifest["entries"])
-    assert "atlas_lq" not in text
-    assert "projects/internal-ds-site" not in text
-    assert "workspace_harness_2026" not in text
-    assert "sagemaker-user" not in text
-    assert "SB-" not in text
+    import re
+    assert re.search(r"/home/\w", text) is None
+    assert re.search(r"/Users/\w", text) is None
+    assert "s3://" not in text
 
 
 def test_manifest_records_profile_metadata(tmp_path) -> None:

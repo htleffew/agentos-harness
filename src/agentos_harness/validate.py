@@ -75,7 +75,7 @@ def validate_project_continuity(project_dir: Path) -> dict:
     if not project_dir.exists():
         return {"passed": False, "missing": ["project directory does not exist"]}
 
-    if _is_distributable_harness_package_source(project_dir):
+    if _is_agentos_harness_package_source(project_dir):
         return {
             "passed": True,
             "missing": [],
@@ -153,7 +153,7 @@ def validate_project_continuity(project_dir: Path) -> dict:
     return {"passed": len(missing) == 0, "missing": missing}
 
 
-def _is_distributable_harness_package_source(project_dir: Path) -> bool:
+def _is_agentos_harness_package_source(project_dir: Path) -> bool:
     """Return True for the publishable package root itself."""
     pyproject = project_dir / "pyproject.toml"
     package_dir = project_dir / "src" / "agentos_harness"
@@ -163,7 +163,7 @@ def _is_distributable_harness_package_source(project_dir: Path) -> bool:
         content = pyproject.read_text(encoding="utf-8")
     except OSError:
         return False
-    return 'name = "agentos-harness"' in content or 'name = "distributable-harness"' in content
+    return 'name = "agentos-harness"' in content or 'name = "agentos-harness"' in content
 
 
 def validate_dashboard_tasks(workspace: Path) -> dict:

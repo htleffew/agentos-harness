@@ -30,7 +30,7 @@ def _make_settings(root: Path, hooks: list[str]) -> None:
 
 def _make_package_source(root: Path) -> None:
     (root / "src" / "agentos_harness").mkdir(parents=True)
-    (root / "pyproject.toml").write_text('[project]\nname = "distributable-harness"\n', encoding="utf-8")
+    (root / "pyproject.toml").write_text('[project]\nname = "agentos-harness"\n', encoding="utf-8")
 
 
 def test_check_wiki_index_warns_when_no_wiki(tmp_path: Path) -> None:

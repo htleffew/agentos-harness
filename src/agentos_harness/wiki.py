@@ -1,7 +1,7 @@
 """Generalized wiki CLI functionality for workspace knowledge management.
 
 This module provides portable wiki infrastructure that can be adapted to any
-workspace using the distributable harness. It extracts core wiki patterns from
+workspace using the agentos-harness. It extracts core wiki patterns from
 workspace-specific implementations and makes them configurable.
 """
 

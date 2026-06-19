@@ -1,6 +1,6 @@
-# distributable-harness
+# agentos-harness
 
-`distributable-harness` installs a local AI assistant harness inside a developer
+`agentos-harness` installs a local AI assistant harness inside a developer
 repository, generating operating guides, workflow skills, slash commands, and safety
 hooks tailored to the repository's detected structure and available AI tools.
 
@@ -19,7 +19,7 @@ Optional tools detected during setup:
 ## Quick Start
 
 ```bash
-python -m pip install "git+https://github.com/spokeo/atlas.git@main#subdirectory=distributable-harness"
+python -m pip install "git+https://github.com/htleffew/agentos-harness.git@master"
 harness setup
 ```
 
@@ -40,41 +40,16 @@ prints the exact prompt to paste into an agent terminal for final validation.
 
 ## Install
 
-Install from the published wheel in `spokeo/atlas`:
+Install directly from the repository source:
 
 ```bash
-python -m pip install /path/to/distributable_harness-0.4.1-py3-none-any.whl
+python -m pip install "git+https://github.com/htleffew/agentos-harness.git@master"
 harness doctor
 ```
 
-The wheel file is available at
-`https://github.com/spokeo/atlas/tree/main/distributable-harness/dist`.
-This repository is internal to Spokeo; beta users without repository access
-should use the source install route provided with the beta invitation or request
-wheel access from the beta owner.
-
-The current source-tree package version is `0.6.3` and the current generated
-core profile version is `2.3.2`.
-Package version tracks CLI behavior and installer fixes. Profile version tracks
-the generated harness content. The current local release artifacts are
-`dist/distributable_harness-0.6.3-py3-none-any.whl` and
-`dist/distributable_harness-0.6.3.tar.gz`. They become available through the
-GitHub wheel path after the normal work-repo publication step.
-
-To use the published wheel, open that directory, download the `.whl` file, or
-clone the repository and install the artifact from
-`distributable-harness/dist/distributable_harness-0.6.3-py3-none-any.whl`.
-Use the wheel path when a Git checkout fails or when a machine needs that
-specific tested artifact. Use the source install when you need the latest source
-state before the wheel artifact has been published. For this beta, use the
-source install unless the beta owner explicitly instructs you to validate wheel
-packaging.
-
-Or install directly from the repository source:
-
-```bash
-python -m pip install "git+https://github.com/spokeo/atlas.git@main#subdirectory=distributable-harness"
-```
+`harness doctor` prints package version, Python version, Git availability, and
+detected AI tool status. Package version tracks CLI behavior and installer
+fixes; profile version tracks the generated harness content.
 
 To force a fresh reinstall from the repository after package changes:
 
@@ -85,16 +60,15 @@ harness --update
 After a successful update, run `harness setup` again from the repository that
 should receive the harness.
 
-**Windows users**: If installation fails with a git checkout error, use the wheel-based
-installation method instead. The wheel file contains only the harness package and does
-not require cloning the full repository.
+**Windows users**: If installation fails with a git checkout error, install from a
+local checkout instead (see below).
 
 <details>
 <summary>Install from local checkout (development)</summary>
 
 ```bash
-git clone https://github.com/spokeo/atlas.git
-cd atlas/distributable-harness
+git clone https://github.com/htleffew/agentos-harness.git
+cd agentos-harness
 python -m pip install -e .[dev]
 harness doctor
 ```
@@ -105,11 +79,11 @@ harness doctor
 <summary>Build wheel locally</summary>
 
 ```bash
-git clone https://github.com/spokeo/atlas.git
-cd atlas/distributable-harness
+git clone https://github.com/htleffew/agentos-harness.git
+cd agentos-harness
 pip install build
 python -m build
-# Creates dist/distributable_harness-0.6.3-py3-none-any.whl
+# Creates dist/agentos_harness-0.6.3-py3-none-any.whl
 ```
 
 </details>

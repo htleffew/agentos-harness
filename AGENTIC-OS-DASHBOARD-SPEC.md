@@ -16,7 +16,7 @@ This document specifies a unified mission-control dashboard that combines:
 
 - **Chase AI's terminal cockpit aesthetic** — domain-organized skill buttons, token telemetry, run output panel
 - **Mission Control's task management depth** — Kanban, Eisenhower matrix, brain dump with AI triage, agent crew, continuous missions, loop detection
-- **Distributable harness integration** — all enforcement hooks fire, multi-model routing is visible, skills are auto-discovered from `.claude/skills/`, activity data is sourced from `.harness/state/activity.jsonl`
+- **agentos-harness integration** — all enforcement hooks fire, multi-model routing is visible, skills are auto-discovered from `.claude/skills/`, activity data is sourced from `.harness/state/activity.jsonl`
 
 The result is a single `dashboard` command that installs as part of the harness, travels with the repo, reads the harness's existing state files as its source of truth, and wraps every dispatched agent session in a compliant preflight preamble so no hook is bypassed.
 

@@ -8,14 +8,14 @@ version = "0.7.0"
 description = "Local developer harness (agentos-harness v2): analyzer, generator, and agentic-OS dashboard."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 authors = [
-  { name = "Spokeo Data Science", email = "data-science@spokeo.com" }
+  { name = "Heather Leffew" }
 ]
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/spokeo/atlas"
+Repository = "https://github.com/htleffew/agentos-harness"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
@@ -28,7 +28,7 @@ harness = "agentos_harness.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-distributable_harness = [
+agentos_harness = [
   "static/*.html",
   "static/*.css",
   "static/*.js",

@@ -44,12 +44,7 @@ def detect_tools() -> dict[str, bool]:
     """Return {tool_key: is_present} for all tools in TOOL_REGISTRY."""
     result: dict[str, bool] = {}
     for key in TOOL_REGISTRY:
-        if key == "codex":
-            result[key] = shutil.which("codex") is not None or shutil.which("cx") is not None
-        elif key == "gemini":
-            result[key] = shutil.which("gemini") is not None or shutil.which("gx") is not None
-        else:
-            result[key] = shutil.which(key) is not None
+        result[key] = shutil.which(key) is not None
     return result
 
 

@@ -166,7 +166,7 @@ def test_no_workspace_leakage_in_skills() -> None:
     import re
     analysis = _base_analysis()
     rendered = render_profile(analysis)
-    forbidden = ["cx exec", " gx ", "JiraClient", "s3://", "atlas_lq", "spokeo"]
+    forbidden = ["JiraClient", "s3://", "/home/"]
     for path, content in rendered.items():
         if "/SKILL.md" in path or "/references/command.md" in path:
             for term in forbidden:
@@ -226,7 +226,7 @@ def test_generated_codex_context_surfaces_do_not_leak_live_launchers() -> None:
         ".claude/skills/executing-plans/references/command.md",
         ".codex/README.md",
     ]
-    forbidden = ("cx exec", " gx ", "clx", "atlas_lq")
+    forbidden = ("s3://", "/home/")
     for path in surfaces:
         content = rendered[path].lower()
         for term in forbidden:
@@ -437,7 +437,7 @@ def test_wiki_settings_json_has_no_workspace_specific_paths() -> None:
     assert ".claude/state/config/wiki_settings.json" in rendered
     wiki_settings = json.loads(rendered[".claude/state/config/wiki_settings.json"])
     settings_str = json.dumps(wiki_settings)
-    forbidden = ["atlas_lq", "spokeo", "sagemaker", "/home/", "/tmp/", "s3://"]
+    forbidden = ["sagemaker", "/home/", "/tmp/", "s3://"]
     for term in forbidden:
         assert term.lower() not in settings_str.lower(), (
             f"Workspace-specific path in wiki_settings.json: found '{term}'"

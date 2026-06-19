@@ -1,4 +1,4 @@
-"""Wiki structure validator for distributable harness.
+"""Wiki structure validator for agentos-harness.
 
 Validates structural aspects of a wiki:
 - Wiki root exists with index.md and log.md

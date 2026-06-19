@@ -1,4 +1,4 @@
-"""agentos-harness: v2 of distributable-harness with agentic-OS dashboard."""
+"""agentos-harness: v2 of agentos-harness with agentic-OS dashboard."""
 
 from __future__ import annotations
 

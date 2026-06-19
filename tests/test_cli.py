@@ -89,7 +89,7 @@ def test_setup_tools_flag_requires_one_agent(tmp_path, capsys: pytest.CaptureFix
 
 def test_setup_default_guides_user_through_apply_and_agent_prompt(tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
     with patch(
-        "distributable_harness.tool_check.detect_tools",
+        "agentos_harness.tool_check.detect_tools",
         return_value={"claude": True, "codex": True, "gemini": True},
     ), patch("builtins.input", side_effect=["", "", "y"]):
         assert main(["setup", str(tmp_path)]) == 0
@@ -113,7 +113,7 @@ def test_setup_existing_harness_fresh_choice_applies_in_guided_mode(tmp_path, ca
     (api_dir / "pyproject.toml").write_text("[project]\nname = \"api\"\n", encoding="utf-8")
 
     with patch(
-        "distributable_harness.cli.run_tool_wizard",
+        "agentos_harness.cli.run_tool_wizard",
         return_value={"claude": True, "codex": True, "gemini": True},
     ), patch("builtins.input", side_effect=["1", "o", "all", "y", "y", "y"]):
         assert main(["setup", str(tmp_path)]) == 0
@@ -134,7 +134,7 @@ def test_setup_existing_harness_fresh_choice_applies_in_guided_mode(tmp_path, ca
 
 def test_setup_json_guided_mode_stops_after_review_manifest(tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
     with patch(
-        "distributable_harness.cli.run_tool_wizard",
+        "agentos_harness.cli.run_tool_wizard",
         return_value={"claude": True, "codex": True, "gemini": True},
     ), patch("builtins.input", side_effect=["", ""]):
         assert main(["setup", str(tmp_path), "--json"]) == 0
@@ -187,7 +187,7 @@ def test_setup_apply_scaffolds_dry_run_confirmed_projects(tmp_path, capsys: pyte
 
 def test_update_reinstalls_from_repo(capsys: pytest.CaptureFixture[str]) -> None:
     result = type("Result", (), {"returncode": 0})()
-    with patch("distributable_harness.cli.subprocess.run", return_value=result) as run:
+    with patch("agentos_harness.cli.subprocess.run", return_value=result) as run:
         assert main(["--update"]) == 0
 
     command = run.call_args.args[0]
@@ -199,7 +199,7 @@ def test_update_reinstalls_from_repo(capsys: pytest.CaptureFixture[str]) -> None
         "--upgrade",
     ]
     assert "--force-reinstall" in command
-    assert "git+https://github.com/spokeo/atlas.git@main#subdirectory=distributable-harness" in command
+    assert "git+https://github.com/htleffew/agentos-harness.git@master" in command
     output = capsys.readouterr().out
     assert "Update complete." in output
     assert "harness setup" in output
@@ -222,7 +222,7 @@ def test_setup_apply_rejects_project_layout_conflict(tmp_path, capsys: pytest.Ca
 
 
 def test_setup_apply_without_dry_run_prints_next_steps(tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
-    with patch("distributable_harness.cli.detect_tools", side_effect=AssertionError("tool detection should not run")):
+    with patch("agentos_harness.cli.detect_tools", side_effect=AssertionError("tool detection should not run")):
         assert main(["setup", str(tmp_path), "--apply", "--non-interactive"]) == 1
 
     captured = capsys.readouterr()
@@ -302,7 +302,7 @@ def test_audit_invalid_skill_exits_one(tmp_path, capsys: pytest.CaptureFixture[s
 
 
 def test_check_tools_exits_zero_when_claude_present(tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
-    with patch("distributable_harness.tool_check.shutil.which") as mock_which, \
+    with patch("agentos_harness.tool_check.shutil.which") as mock_which, \
          patch("builtins.input", return_value=""):
         mock_which.side_effect = lambda name: "/usr/bin/claude" if name == "claude" else None
         result = main(["check-tools", str(tmp_path)])
@@ -310,7 +310,7 @@ def test_check_tools_exits_zero_when_claude_present(tmp_path, capsys: pytest.Cap
 
 
 def test_check_tools_exits_one_when_claude_missing(tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
-    with patch("distributable_harness.tool_check.shutil.which") as mock_which, \
+    with patch("agentos_harness.tool_check.shutil.which") as mock_which, \
          patch("builtins.input", return_value=""):
         mock_which.return_value = None
         result = main(["check-tools", str(tmp_path)])

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-STATIC = Path(__file__).parents[1] / "src/distributable_harness/static"
+STATIC = Path(__file__).parents[1] / "src/agentos_harness/static"
 
 
 def test_dashboard_html_landmarks() -> None:

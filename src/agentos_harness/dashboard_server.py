@@ -34,7 +34,7 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def _static(self, name: str, content_type: str) -> None:
-        content = resources.files("distributable_harness.static").joinpath(name).read_bytes()
+        content = resources.files("agentos_harness.static").joinpath(name).read_bytes()
         self._send(HTTPStatus.OK, content, content_type)
 
     def _route_path(self) -> str:

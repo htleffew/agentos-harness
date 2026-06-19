@@ -37,8 +37,8 @@ MEMORY_KEYWORDS = {
     "confluence": ["confluence", "page"],
     "notebook": ["notebook", "ipynb", "research"],
     "prose": ["prose", "publication", "writing"],
-    "codex": ["codex", "cx", "dispatch"],
-    "gemini": ["gemini", "gx"],
+    "codex": ["codex", "dispatch"],
+    "gemini": ["gemini"],
     "commit": ["commit", "git", "push"],
 }
 
