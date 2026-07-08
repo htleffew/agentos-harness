@@ -4,8 +4,21 @@ Audience: human-facing project status log.
 
 ## Summary
 
-<Plain-language project status.>
+Pip-installable harness installer at v0.6.3. Stable and shipping; recent work
+has focused on Windows compatibility and multi-tool-tier coverage rather than
+new capability.
 
 ## Status History
 
-- <YYYY-MM-DD>: Project workspace initialized by agentos-harness setup.
+- 2026-05-22: Project workspace initialized by agentos-harness setup.
+- 2026-06-19: Made agentos-harness vendor-agnostic (works across Claude/Codex/Gemini).
+- v0.6.1: Added generated agent-engineering-quality skill/reference/wiki page;
+  made the default non-trivial workflow explicit (/plan -> MoE plan consensus
+  -> /execute -> /loop -> MoE completion audit -> done); added blocking quality
+  gates for weak plans and missing engineering-quality evidence.
+- v0.6.2: Tightened guided setup for existing-harness fresh installs; clarified
+  migration choices as apply-time plans; fixed canonical-layout validation.
+- v0.6.3 (current, 2026-07-08 verified clean): Added Windows-safe layout-apply
+  fallback (copy+remove when an atomic rename hits access-denied); added
+  dynamic tool-tier coverage for every one-agent and two-agent permutation;
+  cleaned distributable copies out of the publishable package tree.

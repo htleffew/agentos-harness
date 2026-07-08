@@ -5,7 +5,17 @@ Project posture: `infrastructure`
 
 ## Summary
 
-<What this project owns and why it exists.>
+`agentos-harness` installs a local AI assistant harness (operating guides,
+workflow skills, slash commands, safety hooks) into a developer repository,
+tailored to that repo's detected structure and available AI tools (Claude Code,
+Codex CLI, Gemini CLI, or any two/three-tool combination). Distributed as a pip
+package (`git+https://github.com/htleffew/agentos-harness.git@master`), driven
+via `harness setup` (guided, reviews planned changes before applying) and
+`harness validate`/`harness lint` (post-apply health checks on the generated
+target repo).
+
+- Verified state: 1e77465 2026-07-08 chore: update graphify-out/ (branch master, working tree clean). Last substantive commit: 33268f7 2026-06-19 Make agentos-harness vendor-agnostic.
+- Current version: 0.6.3 (see CHANGELOG.md) -- Windows-safe layout-apply fallback, dynamic tool-tier coverage for every one/two-agent permutation, publishable-package tree cleanup.
 
 ## Current Authority
 
