@@ -868,5 +868,45 @@
     "mtime": 1781907049.3532615,
     "ast_hash": "a2b7bb1312e3eb5e5e8b545449ad68a7",
     "semantic_hash": "a2b7bb1312e3eb5e5e8b545449ad68a7"
+  },
+  "AGENTIC-OS-DASHBOARD-SPEC.md": {
+    "mtime": 1781907956.4259121,
+    "ast_hash": "00752370a2c8afd38fc5ac296904758f",
+    "semantic_hash": "00752370a2c8afd38fc5ac296904758f"
+  },
+  "CHANGELOG.md": {
+    "mtime": 1781907049.2693489,
+    "ast_hash": "95f3405ea533b20608155ed1db16103c",
+    "semantic_hash": "95f3405ea533b20608155ed1db16103c"
+  },
+  "README.md": {
+    "mtime": 1781908154.0781903,
+    "ast_hash": "0918f908ad9ce046d30f31bbca25ae4b",
+    "semantic_hash": "0918f908ad9ce046d30f31bbca25ae4b"
+  },
+  "dashboard/AGENTS.md": {
+    "mtime": 1781907049.2718656,
+    "ast_hash": "9346a4897ff955555ddedb7bebf77adb",
+    "semantic_hash": "9346a4897ff955555ddedb7bebf77adb"
+  },
+  "dashboard/CLAUDE.md": {
+    "mtime": 1781907049.2718656,
+    "ast_hash": "771faa62feb60b7de901a397aebb29b0",
+    "semantic_hash": "771faa62feb60b7de901a397aebb29b0"
+  },
+  "dashboard/README.md": {
+    "mtime": 1781907049.2728653,
+    "ast_hash": "79757e57aedd7380b71fc72547bb769b",
+    "semantic_hash": "79757e57aedd7380b71fc72547bb769b"
+  },
+  "dashboard/pnpm-workspace.yaml": {
+    "mtime": 1781907049.2768652,
+    "ast_hash": "b6e0a9c1a7b488c11a1c5812b4ed319b",
+    "semantic_hash": "b6e0a9c1a7b488c11a1c5812b4ed319b"
+  },
+  "src/agentos_harness/static/dashboard.html": {
+    "mtime": 1781907049.32555,
+    "ast_hash": "35c1ade4038bf474b35b0e29b5384375",
+    "semantic_hash": "35c1ade4038bf474b35b0e29b5384375"
   }
 }
