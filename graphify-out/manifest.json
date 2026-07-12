@@ -908,5 +908,125 @@
     "mtime": 1781907049.32555,
     "ast_hash": "35c1ade4038bf474b35b0e29b5384375",
     "semantic_hash": "35c1ade4038bf474b35b0e29b5384375"
+  },
+  "HANDOFF.md": {
+    "mtime": 1783541197.0854673,
+    "ast_hash": "baae30038a70d78791ca25cfe8929972",
+    "semantic_hash": "baae30038a70d78791ca25cfe8929972"
+  },
+  "UPDATE.txt": {
+    "mtime": 1783541216.7800436,
+    "ast_hash": "b641c0f5738dc695780dd9a594e3f351",
+    "semantic_hash": "b641c0f5738dc695780dd9a594e3f351"
+  },
+  "tests/fixtures/docs_ci_workspace/.github/workflows/ci.yml": {
+    "mtime": 1781907049.3295746,
+    "ast_hash": "5ee43f287098a75c59cfcaf57b0afc77",
+    "semantic_hash": "5ee43f287098a75c59cfcaf57b0afc77"
+  },
+  "tests/fixtures/docs_ci_workspace/README.md": {
+    "mtime": 1781907049.3300786,
+    "ast_hash": "11250b8e30dcbc313587d5522245b38a",
+    "semantic_hash": "11250b8e30dcbc313587d5522245b38a"
+  },
+  "tests/fixtures/docs_ci_workspace/docs/index.md": {
+    "mtime": 1781907049.3300786,
+    "ast_hash": "c5fb1a7b864100bd4df823a10ed9464f",
+    "semantic_hash": "c5fb1a7b864100bd4df823a10ed9464f"
+  },
+  "tests/fixtures/existing_partial_harness/.claude/commands/sample.md": {
+    "mtime": 1781907049.3310833,
+    "ast_hash": "920303b81f32cb68248dbe8c2436e541",
+    "semantic_hash": "920303b81f32cb68248dbe8c2436e541"
+  },
+  "tests/fixtures/existing_partial_harness/.claude/skills/sample-skill/SKILL.md": {
+    "mtime": 1781907049.3310833,
+    "ast_hash": "e86fb71dfe3615efee2b4d48a5266b80",
+    "semantic_hash": "e86fb71dfe3615efee2b4d48a5266b80"
+  },
+  "tests/fixtures/existing_partial_harness/AGENTS.md": {
+    "mtime": 1781907049.3310833,
+    "ast_hash": "8e1e1023b9bc1aebd1913f9dea1b578e",
+    "semantic_hash": "8e1e1023b9bc1aebd1913f9dea1b578e"
+  },
+  "tests/fixtures/existing_partial_harness/README.md": {
+    "mtime": 1781907049.3310833,
+    "ast_hash": "0a4772d5354078227ab9c0461ec7a84a",
+    "semantic_hash": "0a4772d5354078227ab9c0461ec7a84a"
+  },
+  "tests/fixtures/monorepo_mixed/README.md": {
+    "mtime": 1781907049.3330834,
+    "ast_hash": "01e5d8d1f37ae5b1e4f4ab88d1d8d07f",
+    "semantic_hash": "01e5d8d1f37ae5b1e4f4ab88d1d8d07f"
+  },
+  "tests/fixtures/notebook_workspace/README.md": {
+    "mtime": 1781907049.3355918,
+    "ast_hash": "3d3e8e3ed255067938a2618c73bbe476",
+    "semantic_hash": "3d3e8e3ed255067938a2618c73bbe476"
+  },
+  "tests/fixtures/python_basic/README.md": {
+    "mtime": 1781907049.3355918,
+    "ast_hash": "506eeb47deb723b692afc6243e6bc6d9",
+    "semantic_hash": "506eeb47deb723b692afc6243e6bc6d9"
+  },
+  "tests/fixtures/typescript_basic/README.md": {
+    "mtime": 1781907049.3376143,
+    "ast_hash": "886f1c5f7910845397c03e8db939282c",
+    "semantic_hash": "886f1c5f7910845397c03e8db939282c"
+  },
+  "tests/fixtures/wiki_workspace/.claude/wiki/Templates/page_template.md": {
+    "mtime": 1781907049.3401246,
+    "ast_hash": "63e160cb02b1d1d4ea71dfdf303025be",
+    "semantic_hash": "63e160cb02b1d1d4ea71dfdf303025be"
+  },
+  "tests/fixtures/wiki_workspace/.claude/wiki/index.md": {
+    "mtime": 1781907049.3401246,
+    "ast_hash": "7145590e027bdb80c7fdf60777d62261",
+    "semantic_hash": "7145590e027bdb80c7fdf60777d62261"
+  },
+  "tests/fixtures/wiki_workspace/.claude/wiki/log.md": {
+    "mtime": 1781907049.3401246,
+    "ast_hash": "026eb76b1abf6fe36f2c79d79d1a4c04",
+    "semantic_hash": "026eb76b1abf6fe36f2c79d79d1a4c04"
+  },
+  "tests/fixtures/wiki_workspace/.claude/wiki/wiki/projects/example-project.md": {
+    "mtime": 1781907049.34113,
+    "ast_hash": "9850fdc0cfb9477fd7326b98aa4331c8",
+    "semantic_hash": "9850fdc0cfb9477fd7326b98aa4331c8"
+  },
+  "tests/fixtures/wiki_workspace/.claude/wiki/wiki/systems/example-system.md": {
+    "mtime": 1781907049.34113,
+    "ast_hash": "f21591ec66395c73fd09e5537aa61c04",
+    "semantic_hash": "f21591ec66395c73fd09e5537aa61c04"
+  },
+  "tests/fixtures/wiki_workspace/projects/example/EXAMPLE-HANDOFF.md": {
+    "mtime": 1781907049.342129,
+    "ast_hash": "6c452b7fdeae1cf4e88b308545fa7340",
+    "semantic_hash": "6c452b7fdeae1cf4e88b308545fa7340"
+  },
+  "dashboard/public/file.svg": {
+    "mtime": 1781907049.2768652,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "dashboard/public/globe.svg": {
+    "mtime": 1781907049.2779136,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "dashboard/public/next.svg": {
+    "mtime": 1781907049.2779136,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "dashboard/public/vercel.svg": {
+    "mtime": 1781907049.2779136,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "dashboard/public/window.svg": {
+    "mtime": 1781907049.2789185,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": "a2760511c65806022ad20adf74370ff3"
   }
 }
