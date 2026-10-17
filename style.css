@@ -1,0 +1,83 @@
+/* Undercurrent — settings drawer and State Inspector. Uses SillyTavern theme variables so it follows the user's theme. */
+
+.undercurrent-settings .inline-drawer-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.undercurrent-settings .uc-status {
+    display: block;
+    opacity: 0.75;
+    margin-bottom: 2px;
+    overflow-wrap: anywhere;
+}
+
+.undercurrent-settings .uc-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.undercurrent-settings .uc-label {
+    font-weight: 600;
+}
+
+.undercurrent-settings .uc-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+}
+
+.undercurrent-settings .uc-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 6.5em;
+    gap: 4px 8px;
+    align-items: center;
+}
+
+.undercurrent-settings .uc-grid input {
+    margin: 0;
+}
+
+.undercurrent-settings .uc-value {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+}
+
+.undercurrent-settings .uc-hint {
+    opacity: 0.65;
+    line-height: 1.3;
+}
+
+.undercurrent-settings input[type="range"] {
+    width: 100%;
+}
+
+.undercurrent-settings .uc-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.undercurrent-settings .uc-buttons .menu_button {
+    flex: 1 1 auto;
+    white-space: nowrap;
+}
+
+.uc-inspector-head {
+    text-align: left;
+    margin-bottom: 6px;
+}
+
+.uc-inspector-head h3 {
+    margin: 0 0 4px;
+}
+
+.popup:has(.uc-inspector-head) .popup-input {
+    font-family: var(--monoFontFamily, ui-monospace, Consolas, monospace);
+    font-size: 0.85em;
+    white-space: pre;
+    tab-size: 2;
+}

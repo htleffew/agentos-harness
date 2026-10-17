@@ -1,0 +1,13 @@
+{
+    "display_name": "Undercurrent",
+    "loading_order": 50,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Dr. H",
+    "version": "1.0.0",
+    "homePage": "",
+    "generate_interceptor": "undercurrentInterceptor",
+    "minimum_client_version": "1.18.0"
+}
