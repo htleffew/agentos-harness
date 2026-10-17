@@ -1192,7 +1192,9 @@ async function runTaskGen(goalId, more = false, { branchTaskId = null, count } =
     saveState(st);
     refreshGoalsPanel();
     dbg('task generation', { added: r.added.map(t => t.text), skipped: r.skipped, dropped });
-    toastr.info(`${r.added.length} task(s) added${dropped.length ? `, ${dropped.length} dropped for scripting the player` : ''}.`, 'Undercurrent · Goals');
+    const nLong = dropped.filter(d => /^too detailed/.test(d.reason)).length;
+    const nUser = dropped.length - nLong;
+    toastr.info(`${r.added.length} task(s) added${nUser ? `, ${nUser} dropped for scripting the player` : ''}${nLong ? `, ${nLong} dropped as too detailed` : ''}.`, 'Undercurrent · Goals');
 }
 
 const goalsApi = {

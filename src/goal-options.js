@@ -18,18 +18,23 @@ export const HARD_LIMITS = Object.freeze({ goals: 100, tasksPerGoal: 300, depth:
 
 const TASKGEN_SYSTEM = `You plan story progress for a long-running interactive story. The player controls {{user}}. Everyone and everything else belongs to the world: {{char}}, every other character, places, objects, weather, institutions, chance.
 
-Turn the goal into an ordered, numbered list of story tasks.
+Turn the goal into an ordered, numbered list of story milestones.
 
 Rules:
-1. Every task is something that happens in the story through the world, {{char}} or another character, or a situation that arises. Name who or what acts.
-2. Never require, describe or presume {{user}}'s words, actions, thoughts, feelings or choices. Things may happen to {{user}}, or be offered, shown, said or done to {{user}}; how {{user}} responds belongs to the player. A task is complete once the world's part has happened, whatever {{user}} does about it.
-3. Extrapolate from who the characters are: the personality, history, wants and limits in the cast notes, and what the persona notes say about {{user}} as others would perceive them. Characters pursue the goal the way they actually would; nobody acts out of character to serve it.
-4. Concrete and observable on the page: a reader could point to the line where it happened. No vague tasks ("build tension", "deepen the bond").
-5. Sequenced: each task follows from the one before and fits in one to three replies. The last task is the goal achieved, seen from the world's side.
-6. Consistent with established facts and with what has already happened. Never repeat or rephrase an existing task.
-7. One sentence per task. Refer to {{user}} and {{char}} by name, never by pronoun.
+1. Every task is something that happens in the story through the world, {{char}} or another character, or a situation that arises.
+2. Never require, describe or presume {{user}}'s words, actions, thoughts, feelings, choices or appearance. Things may happen to {{user}}, or be offered, shown, said or done to {{user}}; how {{user}} responds belongs to the player. A task is complete once the world's part has happened, whatever {{user}} does about it.
+3. Extrapolate from who the characters are: the personality, history, wants and limits in the cast notes. Characters pursue the goal the way they actually would; nobody acts out of character to serve it.
+4. {{style}}
+5. Flexible: each task names an outcome, never a schedule or a script, so it can be completed many different ways in whatever scene the story is in. Use the scene and continuity notes only to stay consistent, never to pin a task to the current time, place or details. Still recognizable: a reader could tell it has happened (not "build tension").
+6. Loosely ordered from first step to last. The last task is the goal achieved, seen from the world's side.
+7. Consistent with established facts. Never repeat or rephrase an existing task.
+8. One short line per task. Refer to {{user}} and {{char}} by name, never by pronoun.
 
 Output only the numbered list, one task per line, in the form "1. task". No heading, no commentary.`;
+
+const TASKGEN_STYLE_LOOSE = 'Write each task as a loose milestone: what needs to happen, not how, where or when. Keep it to about 3 to 12 words. Leave out times, dates, days of the week, named stores or brands, vehicles, addresses, clothing, weather and exact wording unless the goal itself names them, so the story can weave each task in naturally whenever it fits. Good: "{{char}} gets the ingredients." Too rigid: "At nine on Saturday morning {{char}} drives to the corner market for a specific brand of eggs."';
+const TASKGEN_STYLE_BALANCED = 'Write each task as a short, clear step of up to about 18 words: who acts and what changes. Add a place or detail only when the step depends on it. No times, dates, brands or clothing unless the goal names them.';
+const TASKGEN_STYLE_DETAILED = 'Write each task as a specific, concrete step in one sentence: who acts, what happens and, when it matters, where. Stay consistent with established facts, and never describe {{user}}\'s appearance or clothing.';
 
 const TASKGEN_USER = `<cast>
 {{cast}}
@@ -59,6 +64,7 @@ For each task, read the recent messages and decide whether the task has CLEARLY 
 - done = true only when the text shows it happened. Planned, hinted, promised, imagined, about to happen or half done = false.
 - Text marked as {{user}}'s private thought did not happen in the story and never counts.
 - Evidence: copy {{evidence_min_words}} to 30 consecutive words EXACTLY as written in the recent messages that show the task happening. No paraphrase, no added words. If done is false, evidence is "".
+- Judge the substance, not the details: if the outcome the task describes has happened, it counts even when it happened in a different way, place, time or order than the task's wording suggests.
 - Judge each task on its own. When unsure, false.
 
 Return ONLY one JSON object, no prose, no code fence:
@@ -163,6 +169,11 @@ export const GOALS_KNOBS = [
     { key: 'goals.director_no_tasks', section: 'Director', label: 'Brief note when a goal has no tasks', type: 'text', default: 'No tasks yet: let it shape choices when it fits.', scope: 'global', help: '' },
 
     // Task generation ----------------------------------------------------------------------------------------------------
+    { key: 'goals.taskgen_style', section: 'Task generation', label: 'How specific generated tasks are', type: 'select', default: 'loose', options: ['loose', 'balanced', 'detailed'], scope: 'global', help: 'Loose: short outcome milestones the story can weave in any way (recommended). Balanced: short steps with a place or detail only when needed. Detailed: concrete one-sentence steps.' },
+    { key: 'goals.taskgen_style_loose', section: 'Task generation', label: 'Style rule: loose', type: 'textarea', default: TASKGEN_STYLE_LOOSE, scope: 'global', help: 'Inserted as {{style}} in the task generation prompt when the style is loose. Empty = default.' },
+    { key: 'goals.taskgen_style_balanced', section: 'Task generation', label: 'Style rule: balanced', type: 'textarea', default: TASKGEN_STYLE_BALANCED, scope: 'global', help: 'Inserted as {{style}} when the style is balanced. Empty = default.' },
+    { key: 'goals.taskgen_style_detailed', section: 'Task generation', label: 'Style rule: detailed', type: 'textarea', default: TASKGEN_STYLE_DETAILED, scope: 'global', help: 'Inserted as {{style}} when the style is detailed. Empty = default.' },
+    { key: 'goals.task_max_words', section: 'Task generation', label: 'Drop generated tasks longer than N words', type: 'number', default: 16, min: 0, max: 100, step: 1, scope: 'global', help: 'Over-long tasks are usually over-specified. 0 = off. If every task in a batch is too long, the batch is kept rather than lost.' },
     { key: 'goals.taskgen_count', section: 'Task generation', label: 'Tasks per Generate', type: 'number', default: 5, min: 1, max: 30, step: 1, scope: 'global', help: '' },
     { key: 'goals.taskgen_more_count', section: 'Task generation', label: 'Tasks per Generate more', type: 'number', default: 3, min: 1, max: 30, step: 1, scope: 'global', help: '' },
     { key: 'goals.taskgen_max_count', section: 'Task generation', label: 'Most tasks one request may ask for', type: 'number', default: 12, min: 1, max: 30, step: 1, scope: 'global', help: 'Caps the count argument of /uc-tasks.' },

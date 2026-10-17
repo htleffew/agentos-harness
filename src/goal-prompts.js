@@ -54,7 +54,8 @@ export function buildTaskGenMessages({ goal, branch = null, cardBlock = '', stat
         ask: fillTemplate(askTpl, { count: n }),
         count: n,
     }).replace(/<(\w+)>\s*<\/\1>\s*/g, ''); // drop sections left empty
-    return { systemPrompt: fillTemplate(o.taskgen_system, { count: n }), messages: [{ role: 'user', content }] };
+    const style = o[`taskgen_style_${o.taskgen_style}`] || o.taskgen_style_loose || '';
+    return { systemPrompt: fillTemplate(o.taskgen_system, { count: n, style }), messages: [{ role: 'user', content }] };
 }
 
 function listExisting(tasks) {
@@ -229,9 +230,32 @@ export function filterUserActorTasks(tasks, { userName = '', options } = {}) {
     return { kept, dropped };
 }
 
-/** parseTaskList + filterUserActorTasks in one step. */
+/** Word count of a task, counting a {{macro}} as one word. */
+export function taskWordCount(task) {
+    return String(task ?? '').replace(/\{\{[^}]*\}\}/g, 'X').split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+/**
+ * Drop over-long (over-specified) generated tasks when options.task_max_words > 0. If every task is too long the batch
+ * is kept as it is, so a generation is never lost entirely.
+ * @returns {{kept:string[], dropped:{task:string, reason:string}[]}}
+ */
+export function filterLongTasks(tasks, { options } = {}) {
+    const o = resolveGoalOptions(options);
+    const list = Array.isArray(tasks) ? tasks : [];
+    const max = Math.round(Number(o.task_max_words) || 0);
+    if (max <= 0) return { kept: [...list], dropped: [] };
+    const kept = list.filter(t => taskWordCount(t) <= max);
+    if (!kept.length) return { kept: [...list], dropped: [] };
+    const dropped = list.filter(t => taskWordCount(t) > max).map(task => ({ task, reason: `too detailed (over ${max} words)` }));
+    return { kept, dropped };
+}
+
+/** parseTaskList + filterUserActorTasks + filterLongTasks in one step. */
 export function tasksFromOutput(text, { userName = '', options } = {}) {
-    return filterUserActorTasks(parseTaskList(text), { userName, options });
+    const a = filterUserActorTasks(parseTaskList(text), { userName, options });
+    const b = filterLongTasks(a.kept, { options });
+    return { kept: b.kept, dropped: [...a.dropped, ...b.dropped] };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
