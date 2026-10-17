@@ -185,8 +185,17 @@ export async function dispatchGoalAction(api, a, ui) {
     switch (a.action) {
         case 'add-goal': {
             const title = String(a.value ?? '').trim();
-            if (!title) return false;
-            await mutate(g => addGoal(g, { title }, { turn, userName, options }));
+            if (!title) { api.notify?.('Type the goal in the box first, then press Add.', 'warning'); return false; }
+            let created = null;
+            let limit = 0;
+            let ran = false;
+            await mutate((g) => {
+                ran = true;
+                limit = goalOptions(g, options).max_goals;
+                created = addGoal(g, { title }, { turn, userName, options });
+            });
+            if (!ran) api.notify?.('Open a chat first: goals belong to a chat.', 'warning');
+            else if (!created) api.notify?.(`This chat already has ${limit} goals, the most allowed. Delete or finish one, or raise "Goals per chat" in All settings.`, 'warning');
             return true;
         }
         case 'goal-field': {
@@ -209,8 +218,11 @@ export async function dispatchGoalAction(api, a, ui) {
         case 'conceal-goal': ui.revealed.delete(a.goalId); return true;
         case 'add-task': {
             const text = String(a.value ?? '').trim();
-            if (!text) return false;
-            await mutate(g => addTask(g, a.goalId, text, { turn, options }));
+            if (!text) { api.notify?.('Type the task in the box first, then press Add.', 'warning'); return false; }
+            let created = null;
+            let ran = false;
+            await mutate((g) => { ran = true; created = addTask(g, a.goalId, text, { turn, options }); });
+            if (ran && !created) api.notify?.('That task was not added: it repeats an existing task, or the goal is at its task limit.', 'warning');
             return true;
         }
         case 'add-subtask': {
@@ -320,6 +332,9 @@ export function actionFromEvent(ev) {
     return null;
 }
 
+/** Panel actions that wait on a hidden model call, a popup or an import; only these are serialized. */
+export const SLOW_ACTIONS = new Set(['generate', 'generate-more', 'branch-task', 'check-goal', 'check-all', 'import-so', 'import-json', 'export-json', 'delete-goal', 'delete-task']);
+
 /**
  * Mount the panel into a container element. Returns {refresh, destroy}.
  * @param {HTMLElement} container
@@ -327,6 +342,8 @@ export function actionFromEvent(ev) {
  */
 export function mountGoalsPanel(container, api) {
     const ui = { revealed: new Set(), editing: null };
+    // Only slow actions (hidden model calls, imports) are serialized. Quick edits such as adding a goal never wait on
+    // them, and a slow action pressed while another runs says so instead of silently doing nothing.
     let busy = false;
     if (container.classList && !container.classList.contains('uc-goals')) container.classList.add('uc-goals');
     const refresh = () => {
@@ -340,15 +357,16 @@ export function mountGoalsPanel(container, api) {
         const a = actionFromEvent(ev);
         if (!a) return;
         if (ev.type === 'keydown' || ev.type === 'click') ev.preventDefault?.();
-        if (busy && a.action !== 'goal-field' && a.action !== 'task-field') return;
-        busy = true;
+        const slow = SLOW_ACTIONS.has(a.action);
+        if (slow && busy) { api.notify?.('Still working on the last request; try again when it finishes.', 'info'); return; }
+        if (slow) busy = true;
         try {
             if (await dispatchGoalAction(api, a, ui)) refresh();
         } catch (e) {
             api.notify?.(e?.message || String(e), 'error');
             refresh();
         } finally {
-            busy = false;
+            if (slow) busy = false;
         }
     };
     const types = ['click', 'change', 'keydown'];

@@ -1224,7 +1224,7 @@ const goalsApi = {
         saveState(st);
     },
     confirm: async (msg) => { const c = ctx(); return (await c.callGenericPopup(msg, c.POPUP_TYPE.CONFIRM)) === c.POPUP_RESULT.AFFIRMATIVE; },
-    notify: (msg, kind) => (kind === 'error' ? toastr.error : toastr.info)(msg, 'Undercurrent'),
+    notify: (msg, kind = 'info') => (toastr[kind] || toastr.info)(msg, 'Undercurrent'),
     onPanelMounted: (p) => { runtime.goalsPopupPanel = p; },
 };
 
