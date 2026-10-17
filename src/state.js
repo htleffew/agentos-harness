@@ -10,12 +10,16 @@ import {
     clip, normText, contentTokens, jaccard, deepClone, isPlainObject, findKeyCI, hashText,
 } from './util.js';
 import { applyIntimacyOp, emptyIntimacy, normalizeIntimacy } from './intimacy.js';
+import { emptyGoals, normalizeGoals } from './goals.js';
+import { emptyRuleState, normalizeRuleState } from './rules.js';
+import { emptyPortsState, normalizePortsState, isPortPath, applyPortOp } from './ports/port-state.js';
 
 export const STATE_VERSION = 1;
-export const SCENE_MODES = ['conversation', 'action', 'intimate', 'grief', 'argument', 'tension', 'quiet', 'travel', 'comedy'];
+// romantic / flirt (v1.1) let the Chance rules' @romance group and the director tell courtship apart from intimacy.
+export const SCENE_MODES = ['conversation', 'action', 'intimate', 'romantic', 'flirt', 'grief', 'argument', 'tension', 'quiet', 'travel', 'comedy'];
 export const OPS = ['set', 'append', 'close', 'remove'];
 
-export const LIMITS = {
+export const LIMITS_DEFAULTS = Object.freeze({
     facts: 80,
     closedKeepTurns: 30,
     charList: 12,
@@ -27,14 +31,30 @@ export const LIMITS = {
     swipeCache: 12,
     eventsHistory: 30,
     opsPerBatch: 24,
-};
+});
+
+/** Live caps (knobs state.*). Mutated in place by setLimits() so every reader sees the current values. */
+export const LIMITS = { ...LIMITS_DEFAULTS };
+
+/** Set caps from knobs: unknown keys and non-positive / non-finite values are ignored. Returns LIMITS. */
+export function setLimits(partial = {}) {
+    for (const k of Object.keys(LIMITS_DEFAULTS)) {
+        const v = partial?.[k];
+        LIMITS[k] = Number.isFinite(v) && v >= 0 ? Math.round(v) : LIMITS_DEFAULTS[k];
+    }
+    return LIMITS;
+}
+
+export function resetLimits() {
+    return setLimits({});
+}
 
 const SCENE_SCALARS = ['mode', 'place', 'time', 'weather'];
 const CHAR_SCALARS = ['role', 'ikigai', 'mood', 'last_seen', 'offscreen', 'age', 'traits', 'background', 'relation'];
 const CHAR_LISTS = ['wants', 'plans', 'goals', 'knows', 'doesnt_know', 'secrets'];
 const INTIMACY_FIELDS = ['orientation', 'style', 'phase', 'attraction', 'preferences', 'limits', 'history'];
 const THREAD_LISTS = ['offscreen', 'arcs', 'driver'];
-const STORY_KEYS = ['scene', 'characters', 'facts', 'threads'];
+const STORY_KEYS = ['scene', 'characters', 'facts', 'threads', 'ports'];
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Schema & defaults
@@ -53,6 +73,10 @@ export function createState() {
         ledger: [],
         snapshots: {},
         swipe_cache: [],
+        knob_overrides: {},
+        goals: emptyGoals(),
+        rules_state: emptyRuleState(),
+        ports: emptyPortsState(),
     };
 }
 
@@ -152,6 +176,15 @@ export function normalizeState(raw) {
         .slice(-LIMITS.ledger);
     st.snapshots = isPlainObject(raw.snapshots) ? raw.snapshots : {};
     st.swipe_cache = (Array.isArray(raw.swipe_cache) ? raw.swipe_cache : []).filter(x => isPlainObject(x) && typeof x.text_hash === 'string').slice(0, LIMITS.swipeCache);
+    // Per-chat settings overrides (knobs); values are validated by knobs.resolve(), not here.
+    st.knob_overrides = isPlainObject(raw.knob_overrides) ? { ...raw.knob_overrides } : {};
+    // Goals & Tasks: author-managed, outside the ledger/snapshots (completions reconcile via goals.reconcileCompletions).
+    // Chats saved before v1.1 have no goals block and get the default one here.
+    st.goals = normalizeGoals(raw.goals);
+    // Chance rules runtime state (cooldowns, sticky, cycles, switches); not ledgered, not in rollback snapshots.
+    st.rules_state = normalizeRuleState(raw.rules_state);
+    // Native port engines (scene intimacy, desire, psyche, reply shape, critic, drama): story state, ledgered.
+    st.ports = normalizePortsState(raw.ports);
     return st;
 }
 
@@ -181,7 +214,7 @@ export function validateStateObject(raw) {
             if (!(typeof f === 'string' || (isPlainObject(f) && typeof f.text === 'string'))) errors.push(`facts[${i}] needs a "text" string.`);
         });
     }
-    for (const k of ['threads', 'director', 'events', 'tics', 'snapshots']) {
+    for (const k of ['threads', 'director', 'events', 'tics', 'snapshots', 'knob_overrides', 'goals', 'rules_state', 'ports']) {
         if (raw[k] !== undefined && !isPlainObject(raw[k])) errors.push(`"${k}" must be an object.`);
     }
     return errors;
@@ -392,6 +425,7 @@ function scalarValue(v, max = 200) {
 function applyOne(st, op, opts) {
     if (!isPlainObject(op)) return 'op must be an object';
     if (!OPS.includes(op.op)) return `unknown op "${op.op}"`;
+    if (isPortPath(op.path)) return applyPortOp(st, op, opts);
     const p = parsePath(op.path);
     if (!p) return `path not allowed: ${JSON.stringify(op.path)}`;
     const turn = opts.turn;
@@ -592,7 +626,7 @@ export function snapshotOf(state) {
 export function restoreSnapshot(state, snap, { restoreTics = true } = {}) {
     const st = normalizeState(deepClone(state));
     const usedBeats = st.threads.used_beats;
-    const sn = normalizeState({ ...deepClone(snap), director: st.director, events: st.events });
+    const sn = normalizeState({ ...deepClone(snap), director: st.director, events: st.events, rules_state: st.rules_state });
     for (const k of STORY_KEYS) st[k] = sn[k];
     st.threads.used_beats = usedBeats;
     if (restoreTics && snap.tics) st.tics = sn.tics;

@@ -1,0 +1,340 @@
+/* Undercurrent — Goals & Tasks panel. Every rule is scoped under .uc-goals and uses SillyTavern theme variables.
+   Touch-first: 40px minimum targets, wrapping rows, no hover-only controls, no horizontal scroll at phone width. */
+
+.uc-goals {
+    --uc-g-gap: 6px;
+    --uc-g-touch: 40px;
+    --uc-g-radius: 8px;
+    --uc-g-line: var(--SmartThemeBorderColor, rgba(127, 127, 127, 0.35));
+    --uc-g-quiet: var(--SmartThemeEmColor, inherit);
+    --uc-g-accent: var(--SmartThemeQuoteColor, #e1a95f);
+    --uc-g-danger: var(--crimson70a, rgba(220, 20, 60, 0.7));
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.uc-goals *,
+.uc-goals *::before,
+.uc-goals *::after {
+    box-sizing: border-box;
+}
+
+.uc-goals .uc-goals-inner {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--uc-g-gap) * 1.5);
+}
+
+.uc-goals input,
+.uc-goals select,
+.uc-goals textarea {
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+}
+
+.uc-goals .text_pole {
+    min-height: var(--uc-g-touch);
+}
+
+/* Buttons ------------------------------------------------------------------------------------------------------------ */
+
+.uc-goals .uc-g-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: var(--uc-g-touch);
+    min-height: var(--uc-g-touch);
+    padding: 4px 8px;
+    margin: 0;
+    white-space: nowrap;
+    font-size: inherit;
+}
+
+.uc-goals .uc-g-btn[disabled] {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.uc-goals .uc-g-btn-quiet {
+    opacity: 0.7;
+    background: transparent;
+}
+
+.uc-goals .uc-g-danger:not([disabled]):hover,
+.uc-goals .uc-g-danger:not([disabled]):focus-visible {
+    background-color: var(--uc-g-danger);
+}
+
+.uc-goals .uc-g-actions,
+.uc-goals .uc-g-task-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--uc-g-gap);
+    align-items: center;
+}
+
+.uc-goals .uc-g-addrow {
+    display: flex;
+    gap: var(--uc-g-gap);
+    align-items: stretch;
+}
+
+.uc-goals .uc-g-addrow input {
+    flex: 1 1 auto;
+}
+
+/* Toolbar and chat settings ------------------------------------------------------------------------------------------ */
+
+.uc-goals .uc-g-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--uc-g-gap);
+}
+
+.uc-goals .uc-g-settings {
+    border: 1px solid var(--uc-g-line);
+    border-radius: var(--uc-g-radius);
+    padding: 4px 8px;
+}
+
+.uc-goals .uc-g-settings summary {
+    min-height: var(--uc-g-touch);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.uc-goals .uc-g-settings-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--uc-g-gap);
+    padding-bottom: 6px;
+}
+
+.uc-goals .uc-g-setting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.uc-goals .uc-g-setting input[type="number"] {
+    width: 5.5em;
+    flex: 0 0 auto;
+}
+
+/* Goal cards -------------------------------------------------------------------------------------------------------- */
+
+.uc-goals .uc-g-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.uc-goals .uc-g-goal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--uc-g-gap);
+    padding: 8px;
+    border: 1px solid var(--uc-g-line);
+    border-radius: var(--uc-g-radius);
+    background: var(--SmartThemeBlurTintColor, transparent);
+}
+
+.uc-goals .uc-g-goal[data-status="paused"],
+.uc-goals .uc-g-goal[data-status="done"] {
+    opacity: 0.75;
+}
+
+.uc-goals .uc-g-goal.is-hidden {
+    border-style: dashed;
+}
+
+.uc-goals .uc-g-goal-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.uc-goals .uc-g-num {
+    flex: 0 0 auto;
+    min-width: 1.8em;
+    text-align: center;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+}
+
+.uc-goals .uc-g-title {
+    flex: 1 1 auto;
+    font-weight: 600;
+}
+
+.uc-goals .uc-g-masked {
+    font-style: italic;
+    opacity: 0.8;
+}
+
+.uc-goals .uc-g-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--uc-g-gap) 10px;
+    align-items: center;
+}
+
+.uc-goals .uc-g-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--uc-g-touch);
+}
+
+.uc-goals .uc-g-field select {
+    width: auto;
+}
+
+.uc-goals .uc-g-desc {
+    width: 100%;
+    resize: vertical;
+}
+
+.uc-goals .uc-g-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--uc-g-line);
+    font-size: 0.85em;
+    line-height: 1.6;
+    white-space: nowrap;
+    opacity: 0.85;
+}
+
+.uc-goals .uc-g-chip-current {
+    border-color: var(--uc-g-accent);
+    color: var(--uc-g-accent);
+    opacity: 1;
+}
+
+.uc-goals .uc-g-urg-2 { border-color: var(--uc-g-accent); }
+.uc-goals .uc-g-urg-3 { border-color: var(--uc-g-danger); font-weight: 600; opacity: 1; }
+
+.uc-goals .uc-g-empty {
+    margin: 4px 0;
+    opacity: 0.7;
+    font-style: italic;
+}
+
+/* Task tree --------------------------------------------------------------------------------------------------------- */
+
+.uc-goals .uc-g-tasks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.uc-goals .uc-g-tasks .uc-g-tasks {
+    margin-left: 14px;
+    padding-left: 8px;
+    border-left: 1px solid var(--uc-g-line);
+}
+
+.uc-goals .uc-g-task-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--uc-g-touch);
+    flex-wrap: wrap;
+}
+
+.uc-goals .uc-g-check {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    margin: 9px;
+    cursor: pointer;
+}
+
+.uc-goals .uc-g-task-text {
+    flex: 1 1 10em;
+    min-width: 0;
+    padding: 6px 0;
+    cursor: text;
+}
+
+.uc-goals .uc-g-task-input {
+    flex: 1 1 10em;
+}
+
+.uc-goals .uc-g-task.is-done > .uc-g-task-row .uc-g-task-text {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.uc-goals .uc-g-task.is-current > .uc-g-task-row {
+    box-shadow: inset 3px 0 0 var(--uc-g-accent);
+    border-radius: 4px;
+}
+
+.uc-goals .uc-g-task.is-focus > .uc-g-task-row .uc-g-task-text {
+    font-weight: 600;
+}
+
+.uc-goals .uc-g-task.has-children > .uc-g-task-row .uc-g-task-text {
+    font-weight: 600;
+}
+
+.uc-goals .uc-g-task-tools {
+    padding: 4px 0 6px 40px;
+}
+
+.uc-goals .uc-g-duration {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.uc-goals .uc-g-duration input {
+    width: 4.5em;
+}
+
+/* Popup ------------------------------------------------------------------------------------------------------------- */
+
+.uc-goals.uc-goals-popup {
+    max-height: 100%;
+}
+
+/* Wider screens: settings in two columns, actions stay compact. */
+@media (min-width: 700px) {
+    .uc-goals .uc-g-settings-body {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 18px;
+    }
+
+    .uc-goals .uc-g-toolbar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .uc-goals .uc-g-newgoal {
+        flex: 1 1 18em;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .uc-goals .fa-spin {
+        animation: none;
+    }
+}

@@ -88,16 +88,33 @@ export function buildTranscript(chat, opts = {}) {
     return lines.join('\n\n');
 }
 
-/** Character card + player persona block, truncated sensibly. */
+/** Card budgets and include switches (knobs context.*). */
+export const CARD_DEFAULTS = Object.freeze({
+    descChars: 2400,
+    personalityChars: 700,
+    scenarioChars: 700,
+    personaChars: 700,
+    includeDescription: true,
+    includePersonality: true,
+    includeScenario: true,
+    includePersona: true,
+});
+
+/**
+ * Character card + player persona block, truncated sensibly.
+ * @param {object} card {name, description, personality, scenario, persona}
+ * @param {object} [opts] {userName, charName, descChars, personalityChars, scenarioChars, personaChars, include*}
+ */
 export function buildCardBlock(card = {}, opts = {}) {
-    const name = card.name || opts.charName || '{{char}}';
-    const user = opts.userName || '{{user}}';
+    const o = { ...CARD_DEFAULTS, ...Object.fromEntries(Object.entries(opts || {}).filter(([, v]) => v !== undefined)) };
+    const name = card.name || o.charName || '{{char}}';
+    const user = o.userName || '{{user}}';
     const parts = [`<character name="${name}">`];
-    if (card.description) parts.push(truncateBlock(card.description, opts.descChars ?? 2400));
-    if (card.personality) parts.push(`Personality: ${truncateBlock(card.personality, 700)}`);
-    if (card.scenario) parts.push(`Scenario: ${truncateBlock(card.scenario, 700)}`);
+    if (card.description && o.includeDescription) parts.push(truncateBlock(card.description, o.descChars));
+    if (card.personality && o.includePersonality) parts.push(`Personality: ${truncateBlock(card.personality, o.personalityChars)}`);
+    if (card.scenario && o.includeScenario) parts.push(`Scenario: ${truncateBlock(card.scenario, o.scenarioChars)}`);
     parts.push('</character>');
-    if (card.persona) parts.push(`<player name="${user}">\n${truncateBlock(card.persona, 700)}\n</player>`);
+    if (card.persona && o.includePersona) parts.push(`<player name="${user}">\n${truncateBlock(card.persona, o.personaChars)}\n</player>`);
     return parts.join('\n');
 }
 
@@ -106,6 +123,7 @@ export function summarizeState(state, opts = {}) {
     if (!state) return '(no state yet)';
     const turn = opts.turn ?? state.turn ?? 0;
     const maxFacts = opts.maxFacts ?? 15;
+    const maxCharacters = opts.maxCharacters ?? 14;
     const L = [];
     const sc = state.scene || {};
     L.push(`Turn ${turn}. Scene: ${sc.mode || 'conversation'}${sc.place ? ` · ${sc.place}` : ''}${sc.time ? ` · ${sc.time}` : ''}${sc.weather ? ` · ${sc.weather}` : ''}`);
@@ -113,7 +131,7 @@ export function summarizeState(state, opts = {}) {
     const chars = Object.entries(state.characters || {});
     if (chars.length) {
         L.push('Characters:');
-        for (const [name, c] of chars.slice(0, 14)) {
+        for (const [name, c] of chars.slice(0, maxCharacters)) {
             const bits = [];
             if (c.role) bits.push(c.role);
             if (c.ikigai) bits.push(`ikigai: ${clip(c.ikigai, 80)}`);

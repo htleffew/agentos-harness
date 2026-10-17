@@ -7,91 +7,65 @@
         <div class="inline-drawer-content">
             <small id="uc_status" class="uc-status"></small>
 
-            <label class="checkbox_label" for="uc_enabled">
-                <input id="uc_enabled" type="checkbox" />
-                <span>Enabled</span>
-            </label>
+            <div class="uc-ess">
+                <label class="checkbox_label uc-touch" for="uc_enabled">
+                    <input id="uc_enabled" type="checkbox" data-uc-knob="core.enabled" />
+                    <span>Enabled</span>
+                </label>
+            </div>
 
-            <div class="uc-row">
+            <div class="uc-ess uc-row">
                 <label for="uc_mode">Mode</label>
-                <select id="uc_mode" class="text_pole">
+                <select id="uc_mode" class="text_pole" data-uc-knob="core.mode">
                     <option value="separate">Separate passes (director before, scribe after)</option>
                     <option value="inreply">In-reply (main model appends a hidden record)</option>
                 </select>
             </div>
 
             <div class="uc-row">
-                <label for="uc_cadence">Director cadence</label>
-                <select id="uc_cadence" class="text_pole">
-                    <option value="every">Every player turn</option>
-                    <option value="2">Every 2 turns</option>
-                    <option value="3">Every 3 turns</option>
-                    <option value="stall">Only on stall, event or /uc-direct</option>
-                </select>
+                <label for="uc_profile_select">Settings profile</label>
+                <select id="uc_profile_select" class="text_pole"></select>
+                <small class="uc-hint">Balanced · Quiet &amp; intimate · Chaotic · Cinematic thriller · Slice of life · Low latency, or your own (save them in All settings).</small>
             </div>
 
-            <label class="checkbox_label" for="uc_prereply" title="On: the director runs before each reply (adds latency, sees your message). Off: it plans the next turn in the background right after each reply.">
-                <input id="uc_prereply" type="checkbox" />
-                <span>Run the director before the reply</span>
-            </label>
-
-            <div class="uc-row">
-                <label for="uc_drama">Drama <span id="uc_drama_value" class="uc-value"></span></label>
-                <input id="uc_drama" type="range" min="0" max="2" step="0.1" />
+            <div class="uc-ess uc-row">
+                <label for="uc_drama">Drama <output class="uc-value" data-uc-out="events.drama"></output></label>
+                <input id="uc_drama" type="range" min="0" max="2" step="0.1" data-uc-knob="events.drama" />
                 <small class="uc-hint">0 = no random events · 1 = default · 2 = twice as eventful</small>
             </div>
 
-            <div class="uc-row">
-                <span class="uc-label">Events</span>
-                <div class="uc-inline">
-                    <label class="checkbox_label" for="uc_ev_pulse" title="Ambient life in the scene"><input id="uc_ev_pulse" type="checkbox" /><span>Pulse</span></label>
-                    <label class="checkbox_label" for="uc_ev_twist" title="Complications and reversals"><input id="uc_ev_twist" type="checkbox" /><span>Twist</span></label>
-                    <label class="checkbox_label" for="uc_ev_curiosity" title="Mysteries and questions planted"><input id="uc_ev_curiosity" type="checkbox" /><span>Curiosity</span></label>
-                </div>
+            <div class="uc-ess">
+                <label class="checkbox_label uc-touch" for="uc_intimacy" title="Per-character sexual personality, preferences and hard limits; changes only on in-story evidence.">
+                    <input id="uc_intimacy" type="checkbox" data-uc-knob="intimacy.enabled" />
+                    <span>Intimacy engine</span>
+                </label>
             </div>
 
-            <label class="checkbox_label" for="uc_intimacy" title="Per-character sexual personality, preferences and hard limits; changes only on in-story evidence.">
-                <input id="uc_intimacy" type="checkbox" />
-                <span>Intimacy engine</span>
-            </label>
-
-            <label class="checkbox_label" for="uc_ticguard" title="Code-only repetition, slop, echo and stall detection with short corrections.">
-                <input id="uc_ticguard" type="checkbox" />
-                <span>Tic guard</span>
-            </label>
-
-            <div id="uc_profile_row" class="uc-row">
-                <label for="uc_profile">Hidden-pass connection</label>
-                <select id="uc_profile" class="text_pole"></select>
-                <small class="uc-hint">A Connection Manager profile for the director and scribe, e.g. a cheaper model.</small>
+            <div class="uc-ess">
+                <label class="checkbox_label uc-touch" for="uc_ticguard" title="Code-only repetition, slop, echo and stall detection with short corrections.">
+                    <input id="uc_ticguard" type="checkbox" data-uc-knob="ticguard.enabled" />
+                    <span>Tic guard</span>
+                </label>
             </div>
 
-            <div class="uc-grid">
-                <label for="uc_timeout">Hidden-pass timeout (s)</label>
-                <input id="uc_timeout" class="text_pole" type="number" min="5" max="300" step="1" />
-                <label for="uc_maxtokens">Hidden-pass max tokens</label>
-                <input id="uc_maxtokens" class="text_pole" type="number" min="200" max="8000" step="50" />
-                <label for="uc_stall">Stall after (turns)</label>
-                <input id="uc_stall" class="text_pole" type="number" min="2" max="20" step="1" />
-            </div>
-
-            <label class="checkbox_label" for="uc_debug">
-                <input id="uc_debug" type="checkbox" />
-                <span>Debug logging (browser console)</span>
-            </label>
+            <div id="uc_goals_mount"></div>
+            <div id="uc_rules_mount"></div>
 
             <div class="uc-buttons">
-                <div id="uc_open_inspector" class="menu_button menu_button_icon" title="View and edit this chat's hidden state">
+                <div class="menu_button menu_button_icon uc-touch" data-uc-action="knobs" role="button" tabindex="0" title="Every setting, prompt template and profile">
+                    <i class="fa-solid fa-sliders"></i><span>All settings</span>
+                </div>
+                <div class="menu_button menu_button_icon uc-touch" data-uc-action="inspector" role="button" tabindex="0" title="View and edit this chat's hidden state">
                     <i class="fa-solid fa-magnifying-glass"></i><span>State Inspector</span>
                 </div>
-                <div id="uc_reseed" class="menu_button menu_button_icon" title="Read the character card again for the intimacy profile (in-story evidence is kept)">
+                <div class="menu_button menu_button_icon uc-touch" data-uc-action="reseed" role="button" tabindex="0" title="Read the character card again for the intimacy profile (in-story evidence is kept)">
                     <i class="fa-solid fa-seedling"></i><span>Re-seed character</span>
                 </div>
-                <div id="uc_clear" class="menu_button menu_button_icon redWarningBG" title="Forget all hidden state for this chat">
+                <div class="menu_button menu_button_icon uc-touch redWarningBG" data-uc-action="clear" role="button" tabindex="0" title="Forget all hidden state for this chat">
                     <i class="fa-solid fa-eraser"></i><span>Clear chat state</span>
                 </div>
             </div>
-            <small class="uc-hint">Commands: /uc-state · /uc-reset · /uc-direct &lt;note&gt; · /uc-pause · /uc-resume</small>
+            <small class="uc-hint">Commands: /uc-knobs · /uc-set &lt;key&gt; &lt;value&gt; [chat=true] · /uc-get &lt;key&gt; · /uc-profile &lt;name&gt; · /uc-state · /uc-reset · /uc-direct &lt;note&gt; · /uc-pause [chat=true] · /uc-resume · /uc-goal · /uc-tasks · /uc-rules · /uc-pack · /uc-roll test · /uc-drama · /uc-beat · /uc-question · /uc-ask · /uc-psyche · /uc-scene · /uc-peek on|off</small>
         </div>
     </div>
 </div>

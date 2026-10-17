@@ -1,0 +1,27 @@
+<div id="undercurrent_rules" class="undercurrent-rules-drawer">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Undercurrent · Chance rules</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <small class="uc-rules-hint">Trigger → action rules that add short sparks to the hidden note, hints for the director, or
+                separate injections. Lines are built from each character's own profile and never script your character. Import
+                LoreBary plugins here; their JavaScript is never run.</small>
+            <div class="uc-rules">
+                <div class="uc-rules-bar">
+                    <button type="button" class="menu_button" data-act="add">Add rule</button>
+                    <button type="button" class="menu_button" data-act="pick-lorebary" title="LoreBary plugin or lorebook JSON">Import LoreBary</button>
+                    <button type="button" class="menu_button" data-act="pick-pack">Import pack</button>
+                    <button type="button" class="menu_button" data-act="test" data-needs="testRoll">Test roll</button>
+                    <input type="file" accept=".json,application/json" data-file="lorebary" hidden>
+                    <input type="file" accept=".json,application/json" data-file="pack" hidden>
+                </div>
+                <div data-slot="report"></div>
+                <div data-slot="editor"></div>
+                <div data-slot="test"></div>
+                <div data-slot="packs"></div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -9,8 +9,78 @@
 //   opening  — the reply opening the same way as recent replies
 //   stall    — no new facts / place / time / characters for K turns (or replies nearly identical)
 
-import { tokens, STOPWORDS, escapeRegex, jaccard, contentTokens, clip, isPlainObject } from './util.js';
+import { tokens, STOPWORDS, escapeRegex, jaccard, contentTokens, clip, isPlainObject, renderTemplate, mergeConfig } from './util.js';
 import { privateThoughts, publicPart } from './context.js';
+
+/** Every threshold, window and correction phrasing (knobs ticguard.*). Defaults reproduce v1.0 behavior. */
+export const TICGUARD_DEFAULTS = Object.freeze({
+    detect: Object.freeze({ repeats: true, slop: true, echo: true, mindread: true, opening: true, samey: true }),
+    ngramMin: 3,
+    ngramMax: 6,
+    maxRepeats: 5,
+    repeatMinPhrases: 1,
+    echoMinWords: 4,
+    echoMaxWords: 10,
+    echoMax: 3,
+    mindreadMinWords: 3,
+    mindreadMax: 2,
+    openingWindow: 3,
+    openingWords: 3,
+    openingClassRun: 2,
+    sameyThreshold: 0.55,
+    slopRecent: 3,
+    decay: 0.5,
+    countsMax: 40,
+    maxLevel: 3,
+    level2Streak: 2,
+    level3Streak: 3,
+    maxLines: 4,
+    slopItemsSoft: 3,
+    slopItemsFirm: 4,
+    repeatItems: 3,
+    verbs: Object.freeze({ 1: 'Avoid', 2: 'Stop using', 3: 'Banned now' }),
+    text: Object.freeze({
+        mindread: '{{user}}\'s *asterisk* thoughts are private: nobody hears or reacts to "{{uc_phrase}}".',
+        slop: '{{uc_verb}}: {{uc_items}} — write the concrete, scene-specific detail instead.',
+        repeatSoft: 'Don\'t recycle phrasing: {{uc_items}}.',
+        repeatFirm: 'Repeated from earlier replies: {{uc_items}}. New wording, new gestures.',
+        echo: 'Don\'t parrot {{user}}\'s words ("{{uc_phrase}}"); answer them.',
+        opening: 'Open differently from recent replies (not "{{uc_phrase}}…").',
+        samey: 'The last replies are near-identical in content: change the situation, not just the words.',
+    }),
+});
+
+export const TIC_TEXT_PLACEHOLDERS = [
+    { name: 'uc_phrase', help: 'The offending phrase (mind-read, echo, opening).' },
+    { name: 'uc_items', help: 'Quoted, comma-separated phrases (slop, repeats).' },
+    { name: 'uc_verb', help: 'The escalation verb for the current level (slop line).' },
+];
+
+export function ticguardConfig(config) {
+    return mergeConfig(TICGUARD_DEFAULTS, config);
+}
+
+/**
+ * Turn the user's custom ban list (one phrase per entry; "/regex/" for a regular expression) and optional raw slop
+ * entries into slop-list entries, appended to `base`. The result is memoized so compiled regexes are reused.
+ */
+const mergedCache = new Map();
+export function mergeSlopList(base = [], customBans = [], customEntries = []) {
+    const bans = (Array.isArray(customBans) ? customBans : []).map(x => String(x ?? '').trim()).filter(Boolean);
+    const extra = (Array.isArray(customEntries) ? customEntries : []).filter(e => isPlainObject(e) && typeof e.pattern === 'string' && e.pattern);
+    if (!bans.length && !extra.length) return base;
+    const key = JSON.stringify([bans, extra]);
+    const hit = mergedCache.get(key);
+    if (hit && hit.base === base) return hit.list;
+    const own = bans.map((b) => {
+        const m = b.match(/^\/(.+)\/([a-z]*)$/);
+        return m ? { pattern: m[1], kind: 'regex', note: 'custom ban' } : { pattern: b, note: 'custom ban' };
+    });
+    const list = [...(base || []), ...own, ...extra.map(e => ({ note: 'custom', ...e }))];
+    if (mergedCache.size > 20) mergedCache.clear();
+    mergedCache.set(key, { base, list });
+    return list;
+}
 
 export function ngrams(toks, n) {
     const out = [];
@@ -78,13 +148,13 @@ export function matchSlop(text, list) {
 }
 
 /** Spans of 4+ words from the player's spoken/public text repeated in the reply. */
-export function detectEcho(reply, userMessage, { n = 4, max = 3 } = {}) {
+export function detectEcho(reply, userMessage, { n = 4, max = 3, maxLen = 10 } = {}) {
     const pub = publicPart(userMessage);
     const ut = tokens(pub);
     if (ut.length < n) return [];
     const rset = new Set(ngrams(tokens(reply), n));
     const found = [];
-    for (let len = Math.min(10, ut.length); len >= n; len--) {
+    for (let len = Math.min(Math.max(n, maxLen), ut.length); len >= n; len--) {
         const rs = len === n ? rset : new Set(ngrams(tokens(reply), len));
         for (const g of ngrams(ut, len)) {
             if (!rs.has(g) || !meaningful(g)) continue;
@@ -121,12 +191,16 @@ export function openingSignature(text) {
 }
 
 /** True when the reply opens like one of the recent replies (same first 3 words), or the 3 latest share one class. */
-export function detectOpeningRepeat(reply, previous) {
-    const cur = openingSignature(reply);
+export function detectOpeningRepeat(reply, previous, { window = 3, words = 3, classRun = 2 } = {}) {
+    const sig = t => {
+        const o = openingSignature(t);
+        return words === 3 ? o : { ...o, words: tokens(String(t ?? '').trim()).slice(0, words).join(' ') };
+    };
+    const cur = sig(reply);
     if (!cur.words) return null;
-    const prev = (previous || []).slice(-3).map(openingSignature);
+    const prev = window > 0 ? (previous || []).slice(-window).map(sig) : [];
     if (prev.some(p => p.words === cur.words)) return { words: cur.words, kind: 'same words' };
-    if (prev.length >= 2 && prev.slice(-2).every(p => p.cls === cur.cls) && cur.cls !== 'narration') return { words: cur.words, kind: `always opens with ${cur.cls}` };
+    if (classRun > 0 && prev.length >= classRun && prev.slice(-classRun).every(p => p.cls === cur.cls) && cur.cls !== 'narration') return { words: cur.words, kind: `always opens with ${cur.cls}` };
     return null;
 }
 
@@ -153,22 +227,27 @@ export function similarityStall(reply, previous, threshold = 0.55) {
  * @param {object} p.tics current tic state
  * @returns {{findings:object, tics:object}}
  */
-export function analyzeReply({ reply, previous = [], userMessage = '', slopList = [], tics = {} }) {
+export function analyzeReply({ reply, previous = [], userMessage = '', slopList = [], tics = {}, config }) {
+    const cfg = ticguardConfig(config);
+    const on = k => cfg.detect?.[k] !== false;
+    const repeats = on('repeats') ? findRepeatedNgrams(reply, previous, { minN: cfg.ngramMin, maxN: Math.max(cfg.ngramMin, cfg.ngramMax), max: cfg.maxRepeats }) : [];
     const findings = {
-        repeats: findRepeatedNgrams(reply, previous),
+        repeats: repeats.length >= Math.max(1, cfg.repeatMinPhrases) ? repeats : [],
         slop: [],
-        echo: detectEcho(reply, userMessage),
-        mindread: detectMindRead(reply, userMessage),
-        opening: detectOpeningRepeat(reply, previous),
-        samey: similarityStall(reply, previous),
+        echo: on('echo') ? detectEcho(reply, userMessage, { n: cfg.echoMinWords, maxLen: cfg.echoMaxWords, max: cfg.echoMax }) : [],
+        mindread: on('mindread') ? detectMindRead(reply, userMessage, { n: cfg.mindreadMinWords, max: cfg.mindreadMax }) : [],
+        opening: on('opening') ? detectOpeningRepeat(reply, previous, { window: cfg.openingWindow, words: cfg.openingWords, classRun: cfg.openingClassRun }) : null,
+        samey: on('samey') ? similarityStall(reply, previous, cfg.sameyThreshold) : false,
     };
     const counts = { ...(isPlainObject(tics.counts) ? tics.counts : {}) };
     // Slop: weak patterns (min > 1) need hits across this reply + recent replies.
-    const recentHits = new Map();
-    for (const p of previous.slice(-3)) for (const h of matchSlop(p, slopList)) recentHits.set(h.pattern, (recentHits.get(h.pattern) || 0) + h.count);
-    for (const h of matchSlop(reply, slopList)) {
-        const total = h.count + (recentHits.get(h.pattern) || 0);
-        if (total >= h.min) findings.slop.push(h);
+    if (on('slop')) {
+        const recentHits = new Map();
+        for (const p of (cfg.slopRecent > 0 ? previous.slice(-cfg.slopRecent) : [])) for (const h of matchSlop(p, slopList)) recentHits.set(h.pattern, (recentHits.get(h.pattern) || 0) + h.count);
+        for (const h of matchSlop(reply, slopList)) {
+            const total = h.count + (recentHits.get(h.pattern) || 0);
+            if (total >= h.min) findings.slop.push(h);
+        }
     }
     const keys = [
         ...findings.slop.map(h => `slop:${h.pattern}`),
@@ -182,56 +261,66 @@ export function analyzeReply({ reply, previous = [], userMessage = '', slopList 
     // Decay: entries not seen this reply fade.
     for (const k of Object.keys(counts)) {
         if (!keys.includes(k)) {
-            counts[k] = Math.max(0, counts[k] - 0.5);
+            counts[k] = Math.max(0, counts[k] - cfg.decay);
             if (counts[k] === 0) delete counts[k];
         }
     }
     // Bound the table.
-    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 40);
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, cfg.countsMax);
     const dirty = keys.length > 0;
     const streak = dirty ? (tics.streak || 0) + 1 : 0;
-    const level = dirty ? Math.min(3, streak) : Math.max(0, (tics.level || 0) - 1);
+    const level = dirty ? escalationLevel(streak, cfg) : Math.max(0, (tics.level || 0) - 1);
     const next = {
         ...tics,
         counts: Object.fromEntries(entries),
         streak,
         level,
     };
-    next.pending = correctionLines(findings, next);
+    next.pending = correctionLines(findings, next, cfg);
     return { findings, tics: next };
+}
+
+/** Correction level for a streak of dirty replies: 1 = nudge, 2 = firm, 3 = hard ban (capped at maxLevel). */
+export function escalationLevel(streak, config) {
+    const cfg = ticguardConfig(config);
+    if (streak <= 0) return 0;
+    const lvl = streak >= cfg.level3Streak ? 3 : streak >= cfg.level2Streak ? 2 : 1;
+    return Math.max(0, Math.min(cfg.maxLevel, lvl));
 }
 
 /**
  * Short, escalating corrections for the next reply. Level 1 = nudge, 2 = firm, 3 = hard ban. At most 4 lines.
  */
-export function correctionLines(findings, tics) {
+export function correctionLines(findings, tics, config) {
+    const cfg = ticguardConfig(config);
     const level = tics?.level || 0;
     const counts = tics?.counts || {};
     if (!findings || level === 0) return [];
+    const t = (k, vars) => renderTemplate(cfg.text?.[k] ?? TICGUARD_DEFAULTS.text[k], vars);
     const lines = [];
-    const verb = level >= 3 ? 'Banned now' : level === 2 ? 'Stop using' : 'Avoid';
+    const verb = cfg.verbs?.[Math.min(3, level)] ?? TICGUARD_DEFAULTS.verbs[Math.min(3, level)];
     if (findings.mindread?.length) {
-        lines.push(`{{user}}'s *asterisk* thoughts are private: nobody hears or reacts to "${findings.mindread[0]}".`);
+        lines.push(t('mindread', { uc_phrase: findings.mindread[0] }));
     }
     if (findings.slop?.length) {
         const items = findings.slop
             .sort((a, b) => (counts[`slop:${b.pattern}`] || 0) - (counts[`slop:${a.pattern}`] || 0))
-            .slice(0, level >= 2 ? 4 : 3)
+            .slice(0, level >= 2 ? cfg.slopItemsFirm : cfg.slopItemsSoft)
             .map(h => `"${h.match}"`);
-        lines.push(`${verb}: ${items.join(', ')} — write the concrete, scene-specific detail instead.`);
+        lines.push(t('slop', { uc_verb: verb, uc_items: items.join(', ') }));
     }
     if (findings.repeats?.length) {
-        const items = findings.repeats.slice(0, 3).map(r => `"${r}"`).join(', ');
-        lines.push(level >= 2 ? `Repeated from earlier replies: ${items}. New wording, new gestures.` : `Don't recycle phrasing: ${items}.`);
+        const items = findings.repeats.slice(0, cfg.repeatItems).map(r => `"${r}"`).join(', ');
+        lines.push(t(level >= 2 ? 'repeatFirm' : 'repeatSoft', { uc_items: items }));
     }
     if (findings.echo?.length) {
-        lines.push(`Don't parrot {{user}}'s words ("${findings.echo[0]}"); answer them.`);
+        lines.push(t('echo', { uc_phrase: findings.echo[0] }));
     }
     if (findings.opening) {
-        lines.push(`Open differently from recent replies (not "${findings.opening.words}…").`);
+        lines.push(t('opening', { uc_phrase: findings.opening.words }));
     }
-    if (findings.samey && lines.length < 4) {
-        lines.push('The last replies are near-identical in content: change the situation, not just the words.');
+    if (findings.samey && lines.length < cfg.maxLines) {
+        lines.push(t('samey', {}));
     }
-    return lines.slice(0, 4);
+    return lines.filter(Boolean).slice(0, cfg.maxLines);
 }

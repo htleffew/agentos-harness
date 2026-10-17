@@ -6,7 +6,7 @@
     "js": "index.js",
     "css": "style.css",
     "author": "Dr. H",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "homePage": "",
     "generate_interceptor": "undercurrentInterceptor",
     "minimum_client_version": "1.18.0"

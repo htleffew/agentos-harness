@@ -1,0 +1,580 @@
+{
+  "format": "undercurrent-rules",
+  "version": 1,
+  "pack": {
+    "id": "intimate_craft",
+    "name": "Intimate craft",
+    "description": "Specialist one-liners for intimate scenes only: pacing, sound, specificity, power, consent as behavior, humor, aftercare. Cooldown 3, at most 2 per turn.",
+    "default_enabled": true,
+    "max_per_turn": 2
+  },
+  "rules": [
+    {
+      "id": "ic_slow",
+      "name": "Pacing: slow",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Pacing: slow to one specific sensation and stay with it for a few lines before moving on."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_urgent",
+      "name": "Pacing: urgent",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Pacing: let urgency show in shorter sentences, cut-off words and interrupted dialogue."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_sound",
+      "name": "Sound",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Sound: give the moment one real noise (breath, fabric, furniture, a laugh) instead of adjectives."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_specific",
+      "name": "Specificity",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Specificity: one exact physical detail (where, how much pressure, what temperature) beats three general ones."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_pref",
+      "name": "Their taste",
+      "priority": 4,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Let {{random_present}}'s taste for {{pref:any}} shape what they do next, specifically and without announcing it."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_limit",
+      "name": "Their limits",
+      "priority": 4,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "{{random_present}} avoids {{limit}} without fuss; their limits hold in the heat of it."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_humor",
+      "name": "Humor",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Humor is allowed: an awkward angle, a cramp, a shared laugh can make the moment more real, not less."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_lead",
+      "name": "Who leads",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Whoever is leading does it in their own style (commanding, coaxing, playful), consistent with who they are."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_offer",
+      "name": "Offer, not take",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Let control shift for a beat if it fits: {{random_present}} offers rather than takes, and watches for the answer."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_check_in",
+      "name": "Consent as behavior",
+      "priority": 4,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Consent is behavior: {{random_present}} checks in their own way (a look, a pause, a murmured question) and waits for a real answer."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_stop",
+      "name": "Stopping is real",
+      "priority": 4,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "If {{user}} hesitates, pulls back or says no, {{random_present}} stops and responds like a person, not a script."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_voice",
+      "name": "Voices hold",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Dialogue stays in each character's own voice during sex: their vocabulary, their humor, their nerve."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_explicit",
+      "name": "Plain words",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Be explicit where the scene calls for it: plain words over euphemism, matched to {{char}}'s vocabulary."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_char_thought",
+      "name": "{{char}} surprised",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "A first-person *thought* from {{char}} catches one thing {{char}} did not expect to feel."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_room",
+      "name": "The room exists",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Keep the room in it: something creaks, the light is wrong, something falls; bodies exist in {{place}}."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_aftercare",
+      "name": "Aftercare in character",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Afterward, {{random_present}} handles the comedown in character: water, a blanket, a joke, silence or awkwardness."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_history",
+      "name": "History shows",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Let what has already happened between these characters show: familiarity, a callback, a changed habit."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_one_beat",
+      "name": "One beat",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "One beat: end on a moment of contact or a question {{user}} can answer, not on a conclusion."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_their_side",
+      "name": "Their side only",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Stay on {{random_present}}'s side of it: what they do, see, hear and say; never narrate {{user}}'s sensations."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_mood",
+      "name": "Mood colors touch",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "{{random_present}} is {{mood}}; let that mood color how they touch and what they say."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    },
+    {
+      "id": "ic_break_rhythm",
+      "name": "Break the rhythm",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 30
+        }
+      ],
+      "cooldown": 3,
+      "action": {
+        "type": "inject",
+        "pool": [
+          "Break the rhythm with one unguarded moment, tender or intense, whichever {{random_present}} would actually show."
+        ],
+        "pick": "random",
+        "placement": "note"
+      }
+    }
+  ]
+}

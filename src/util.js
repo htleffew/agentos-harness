@@ -140,3 +140,38 @@ export function makeRng(seed) {
 export function escapeRegex(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Prompt templates. Undercurrent placeholders look like {{uc_name}}. Every other {{macro}} (e.g. {{user}}, {{char}})
+// is left untouched for SillyTavern's own substituteParams. Unknown {{uc_*}} placeholders render as ''.
+
+const UC_PLACEHOLDER = /\{\{\s*(uc_[a-z0-9_]+)\s*\}\}/gi;
+
+/** Fill {{uc_*}} placeholders from `vars` (keys without braces, e.g. { uc_taste: '...' }). Never throws. */
+export function renderTemplate(template, vars = {}) {
+    return String(template ?? '').replace(UC_PLACEHOLDER, (_, name) => {
+        const v = vars[name.toLowerCase()];
+        return v === undefined || v === null ? '' : String(v);
+    });
+}
+
+/** The {{uc_*}} placeholder names used in a template, lowercased and de-duplicated, in order of first use. */
+export function templatePlaceholders(template) {
+    const out = [];
+    for (const m of String(template ?? '').matchAll(UC_PLACEHOLDER)) {
+        const n = m[1].toLowerCase();
+        if (!out.includes(n)) out.push(n);
+    }
+    return out;
+}
+
+/** Merge a partial config over defaults one level deep (nested plain objects are merged, arrays replaced). */
+export function mergeConfig(defaults, partial) {
+    const out = { ...defaults };
+    if (!isPlainObject(partial)) return out;
+    for (const [k, v] of Object.entries(partial)) {
+        if (v === undefined) continue;
+        out[k] = isPlainObject(v) && isPlainObject(defaults[k]) ? { ...defaults[k], ...v } : v;
+    }
+    return out;
+}

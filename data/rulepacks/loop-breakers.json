@@ -1,0 +1,322 @@
+{
+  "format": "undercurrent-rules",
+  "version": 1,
+  "pack": {
+    "id": "loop_breakers",
+    "name": "Loop breakers",
+    "description": "Periodic hints to the hidden director (not shown to the writer directly): change place or time, bring someone in, reveal something new. Every N turns with a chance.",
+    "default_enabled": true
+  },
+  "rules": [
+    {
+      "id": "lb_move_place",
+      "name": "Change of place",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 7,
+          "offset": 0
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 45
+        }
+      ],
+      "cooldown": 6,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "If the scene has sat in one spot for a while, move it: a reason to go somewhere else that grows out of what is already happening."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_time_cut",
+      "name": "Time cut",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 9,
+          "offset": 3
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 40
+        }
+      ],
+      "cooldown": 8,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "Consider a time cut past dead time to the next moment that matters, leaving every choice that belongs to {{user}} intact."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_arrival",
+      "name": "Someone arrives",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 8,
+          "offset": 5
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 40
+        }
+      ],
+      "cooldown": 8,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "Bring someone in: a person with their own agenda who arrives for a reason already set up in the story."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_new_info",
+      "name": "New information",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 6,
+          "offset": 2
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 45
+        }
+      ],
+      "cooldown": 6,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "Reveal one new piece of information that changes what someone present wants or believes."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_consequence",
+      "name": "Consequence comes due",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 10,
+          "offset": 4
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 50
+        }
+      ],
+      "cooldown": 8,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "Something done earlier comes due now: a cost, a reward, or a person who noticed."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_irreversible",
+      "name": "A decision that sticks",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 11,
+          "offset": 6
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 40
+        }
+      ],
+      "cooldown": 10,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "Have {{random_npc}} make a decision this turn that cannot easily be undone."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_deadline",
+      "name": "Deadline",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 12,
+          "offset": 7
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 35
+        }
+      ],
+      "cooldown": 12,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "Introduce time pressure: something must happen by a specific hour, and everyone present knows it."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_reversal",
+      "name": "Reversal",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 10,
+          "offset": 8
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 35
+        }
+      ],
+      "cooldown": 10,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "Flip one expectation the recent replies set up, consistent with everything established."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_want_shift",
+      "name": "A want shifts",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 7,
+          "offset": 4
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 40
+        }
+      ],
+      "cooldown": 8,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "{{random_present}}'s want ({{want:any}}) shifts or sharpens because of what just happened; let the plan change."
+        ],
+        "pick": "random"
+      }
+    },
+    {
+      "id": "lb_register",
+      "name": "Break the register",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "every_n",
+          "n": 8,
+          "offset": 1
+        },
+        {
+          "type": "not_scene_mode",
+          "modes": [
+            "@intimate"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 40
+        }
+      ],
+      "cooldown": 8,
+      "action": {
+        "type": "director_hint",
+        "pool": [
+          "The emotional register has held for several turns; let {{random_present}}, now {{mood}}, break it with an unexpected reaction."
+        ],
+        "pick": "random"
+      }
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+/* Undercurrent — Chance rules panel. Everything is scoped under .uc-rules; colors come from SillyTavern theme variables. */
+
+.undercurrent-rules-drawer .uc-rules-hint {
+    display: block;
+    opacity: 0.7;
+    line-height: 1.35;
+    margin-bottom: 6px;
+}
+
+.uc-rules {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.uc-rules .menu_button {
+    margin: 0;
+    padding: 4px 10px;
+    min-height: 32px;
+    white-space: nowrap;
+}
+
+.uc-rules-bar,
+.uc-rules .uc-pack-actions,
+.uc-rules .uc-rule-actions,
+.uc-rules .uc-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.uc-rules-bar .menu_button {
+    flex: 1 1 auto;
+}
+
+.uc-rules .uc-pack {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127, 127, 127, 0.35));
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+.uc-rules .uc-pack > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    min-height: 34px;
+    list-style: none;
+}
+
+.uc-rules .uc-pack > summary::-webkit-details-marker {
+    display: none;
+}
+
+.uc-rules .uc-pack > summary::after {
+    content: "▸";
+    margin-left: auto;
+    opacity: 0.6;
+}
+
+.uc-rules .uc-pack[open] > summary::after {
+    content: "▾";
+}
+
+.uc-rules .uc-pack-name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.uc-rules .uc-pack-count,
+.uc-rules .uc-rule-meta,
+.uc-rules .uc-pack-desc,
+.uc-rules .uc-test-kind,
+.uc-rules .uc-test-vars {
+    opacity: 0.7;
+    font-size: 0.9em;
+}
+
+.uc-rules .uc-pack-desc {
+    margin: 4px 0;
+    line-height: 1.35;
+}
+
+.uc-rules .uc-pack.is-off .uc-pack-name,
+.uc-rules .uc-rule.is-off .uc-rule-name {
+    opacity: 0.5;
+}
+
+.uc-rules .uc-rule-list {
+    list-style: none;
+    margin: 6px 0 2px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.uc-rules .uc-rule {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 0;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(127, 127, 127, 0.2));
+    min-width: 0;
+}
+
+.uc-rules .uc-rule-toggle,
+.uc-rules .uc-pack-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    min-height: 28px;
+}
+
+.uc-rules input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.uc-rules .uc-rule-meta,
+.uc-rules .uc-rule-note {
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+}
+
+.uc-rules .uc-rule-note {
+    font-size: 0.9em;
+    color: var(--warning, #d9a400);
+}
+
+.uc-rules .uc-badge {
+    font-style: normal;
+    font-size: 0.8em;
+    opacity: 0.7;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 0 4px;
+    margin-left: 4px;
+}
+
+.uc-rules .uc-rule-editor textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--monoFontFamily, ui-monospace, Consolas, monospace);
+    font-size: 0.85em;
+    white-space: pre;
+    tab-size: 2;
+    min-height: 14em;
+}
+
+.uc-rules .uc-editor-head {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.uc-rules .uc-errors {
+    color: var(--fullred, #e05252);
+    margin: 4px 0;
+    padding-left: 1.2em;
+    font-size: 0.9em;
+}
+
+.uc-rules .uc-report,
+.uc-rules .uc-test {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127, 127, 127, 0.35));
+    border-radius: 6px;
+    padding: 6px 8px;
+    overflow-wrap: anywhere;
+}
+
+.uc-rules .uc-report-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.uc-rules .uc-report-close {
+    margin-left: auto;
+    min-height: 28px;
+    padding: 0 8px;
+}
+
+.uc-rules .uc-report-notes,
+.uc-rules .uc-report-list ul,
+.uc-rules .uc-test-list {
+    margin: 4px 0;
+    padding-left: 1.2em;
+    line-height: 1.35;
+    font-size: 0.9em;
+}
+
+.uc-rules .uc-report-list > ul {
+    max-height: 16em;
+    overflow-y: auto;
+}
+
+.uc-rules .uc-rules-empty {
+    opacity: 0.6;
+    margin: 4px 0;
+}
+
+@media (max-width: 600px) {
+    .uc-rules .uc-rule-actions .menu_button,
+    .uc-rules .uc-pack-actions .menu_button,
+    .uc-rules .uc-editor-actions .menu_button {
+        flex: 1 1 30%;
+        min-height: 38px;
+    }
+}

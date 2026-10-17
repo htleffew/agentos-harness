@@ -1,0 +1,24 @@
+<!-- Undercurrent — Goals & Tasks fragment. Included inside the Undercurrent settings drawer (see INTEGRATION_GOALS.md).
+     Global knobs (goals.*) are rendered by the central settings panel from GOALS_KNOBS; this fragment only hosts the
+     per-chat panel. Element ids are prefixed uc_goals_. -->
+<div id="uc_goals_section" class="uc-goals-section">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Goals &amp; Tasks</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <small class="uc-hint">Goals the story or a character works toward. Tasks are what the world does to get there; your own choices are never scripted. Settings for checks, urgency and prompts are under Goals in the Undercurrent settings.</small>
+            <div class="uc-buttons">
+                <div id="uc_goals_open" class="menu_button menu_button_icon" title="Open the goals panel in a large window">
+                    <i class="fa-solid fa-bullseye"></i><span>Open goals</span>
+                </div>
+                <div id="uc_goals_check" class="menu_button menu_button_icon" title="Check every active goal's current task now">
+                    <i class="fa-solid fa-clipboard-check"></i><span>Check now</span>
+                </div>
+            </div>
+            <div id="uc_goals_panel" class="uc-goals"></div>
+            <small class="uc-hint">Commands: /uc-goal add|list|done|undone|remove|pause|resume|hide|show · /uc-tasks [goal] generate|more [n] | check</small>
+        </div>
+    </div>
+</div>
