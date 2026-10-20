@@ -1,0 +1,12 @@
+{
+    "display_name": "SuperObjective Enhanced",
+    "loading_order": 5,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "ForgottenGlory + Enhanced",
+    "version": "2.1.0",
+    "homePage": "",
+    "auto_update": false
+}
