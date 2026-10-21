@@ -1,0 +1,407 @@
+{
+  "temperature": 0.6,
+  "frequency_penalty": 0,
+  "presence_penalty": 0,
+  "top_p": 0.95,
+  "top_k": 0,
+  "top_a": 0,
+  "min_p": 0,
+  "repetition_penalty": 1,
+  "max_context_unlocked": true,
+  "openai_max_context": 65536,
+  "openai_max_tokens": 8192,
+  "names_behavior": 0,
+  "send_if_empty": "",
+  "impersonation_prompt": "[{{user}}'s player explicitly asked you to write {{user}}'s next message: the one exception to the rule that {{user}} belongs to the player.\nWrite {{user}}'s next turn only, the way {{user}} is written in this chat: actions as narration, spoken words in \"double quotes\", private thoughts in *asterisks*. One beat, in {{user}}'s usual length and voice.\nWrite nothing for {{char}} or anyone else, and stop at the end of {{user}}'s turn. No <UC> section, no <think> section, no commentary.]",
+  "new_chat_prompt": "[Start a new Chat]",
+  "new_group_chat_prompt": "[Start a new group chat. Group members: {{group}}]",
+  "new_example_chat_prompt": "[Example Chat]",
+  "continue_nudge_prompt": "[Continue your last message without repeating its original content.]",
+  "bias_preset_selected": "Default (none)",
+  "wi_format": "{0}",
+  "scenario_format": "{{scenario}}",
+  "personality_format": "{{personality}}",
+  "group_nudge_prompt": "[Write the next reply only as {{char}}.]",
+  "stream_openai": true,
+  "prompts": [
+    {
+      "identifier": "main",
+      "name": "UC · Main — identity, law, format",
+      "system_prompt": true,
+      "marker": false,
+      "role": "system",
+      "content": "[[uc_identity]]\n\n[[uc_law]]\n\n[[uc_format]]",
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "injection_trigger": [],
+      "forbid_overrides": true
+    },
+    {
+      "identifier": "uc_rules",
+      "name": "UC · Rules — world, intimacy, prose",
+      "system_prompt": false,
+      "marker": false,
+      "role": "system",
+      "content": "[[uc_world]]\n\n[[uc_intimacy]]\n\n[[uc_prose]]",
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "injection_trigger": [],
+      "forbid_overrides": false
+    },
+    {
+      "identifier": "uc_style",
+      "name": "UC · Style — story config, lenses, model notes",
+      "system_prompt": false,
+      "marker": false,
+      "role": "system",
+      "content": "[[uc_config]]\n\n[[uc_style]]\n\n[[uc_model]]",
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "injection_trigger": [],
+      "forbid_overrides": false
+    },
+    {
+      "identifier": "uc_lore_open",
+      "name": "UC · <lore>",
+      "system_prompt": false,
+      "marker": false,
+      "role": "system",
+      "content": "<lore>",
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "injection_trigger": [],
+      "forbid_overrides": false
+    },
+    {
+      "identifier": "worldInfoBefore",
+      "name": "World Info (before)",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "charDescription",
+      "name": "Char Description",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "charPersonality",
+      "name": "Char Personality",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "scenario",
+      "name": "Scenario",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "dialogueExamples",
+      "name": "Chat Examples",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "worldInfoAfter",
+      "name": "World Info (after)",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "uc_persona_open",
+      "name": "UC · </lore> <player_persona>",
+      "system_prompt": false,
+      "marker": false,
+      "role": "system",
+      "content": "</lore>\n<player_persona name=\"{{user}}\">",
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "injection_trigger": [],
+      "forbid_overrides": false
+    },
+    {
+      "identifier": "personaDescription",
+      "name": "Persona Description",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "uc_persona_close",
+      "name": "UC · </player_persona>",
+      "system_prompt": false,
+      "marker": false,
+      "role": "system",
+      "content": "</player_persona>",
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "injection_trigger": [],
+      "forbid_overrides": false
+    },
+    {
+      "identifier": "chatHistory",
+      "name": "Chat History",
+      "system_prompt": true,
+      "marker": true
+    },
+    {
+      "identifier": "uc_turn",
+      "name": "UC · Turn block (in-chat @ depth 1)",
+      "system_prompt": false,
+      "marker": false,
+      "role": "system",
+      "content": "[[uc_cast]]\n\n[[uc_recall]]\n\n[[uc_directive]]\n\n[[uc_think]]\n\n[[uc_envelope]]\n\n[[uc_final]]",
+      "injection_position": 1,
+      "injection_depth": 1,
+      "injection_order": 101,
+      "injection_trigger": [],
+      "forbid_overrides": true
+    }
+  ],
+  "prompt_order": [
+    {
+      "character_id": 100000,
+      "order": [
+        {
+          "identifier": "main",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_rules",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_style",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_lore_open",
+          "enabled": true
+        },
+        {
+          "identifier": "worldInfoBefore",
+          "enabled": true
+        },
+        {
+          "identifier": "charDescription",
+          "enabled": true
+        },
+        {
+          "identifier": "charPersonality",
+          "enabled": true
+        },
+        {
+          "identifier": "scenario",
+          "enabled": true
+        },
+        {
+          "identifier": "dialogueExamples",
+          "enabled": true
+        },
+        {
+          "identifier": "worldInfoAfter",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_persona_open",
+          "enabled": true
+        },
+        {
+          "identifier": "personaDescription",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_persona_close",
+          "enabled": true
+        },
+        {
+          "identifier": "chatHistory",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_turn",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "character_id": 100001,
+      "order": [
+        {
+          "identifier": "main",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_rules",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_style",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_lore_open",
+          "enabled": true
+        },
+        {
+          "identifier": "worldInfoBefore",
+          "enabled": true
+        },
+        {
+          "identifier": "charDescription",
+          "enabled": true
+        },
+        {
+          "identifier": "charPersonality",
+          "enabled": true
+        },
+        {
+          "identifier": "scenario",
+          "enabled": true
+        },
+        {
+          "identifier": "dialogueExamples",
+          "enabled": true
+        },
+        {
+          "identifier": "worldInfoAfter",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_persona_open",
+          "enabled": true
+        },
+        {
+          "identifier": "personaDescription",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_persona_close",
+          "enabled": true
+        },
+        {
+          "identifier": "chatHistory",
+          "enabled": true
+        },
+        {
+          "identifier": "uc_turn",
+          "enabled": true
+        }
+      ]
+    }
+  ],
+  "assistant_prefill": "",
+  "assistant_impersonation": "",
+  "use_sysprompt": false,
+  "squash_system_messages": true,
+  "media_inlining": true,
+  "continue_prefill": false,
+  "continue_postfix": " ",
+  "function_calling": false,
+  "enable_web_search": false,
+  "request_images": false,
+  "show_thoughts": false,
+  "reasoning_effort": "medium",
+  "seed": -1,
+  "n": 1,
+  "extensions": {
+    "regex_scripts": [
+      {
+        "id": "18018055-bd1c-5fa6-9e20-afa57b562548",
+        "scriptName": "UC envelope (display)",
+        "findRegex": "/<UC>([\\s\\S]*?)(?:<\\/UC>|$)/gi",
+        "replaceString": "<details class=\"uc-env-src\"><summary>uc</summary>$1</details>",
+        "trimStrings": [],
+        "placement": [
+          2
+        ],
+        "disabled": false,
+        "markdownOnly": true,
+        "promptOnly": false,
+        "runOnEdit": true,
+        "substituteRegex": 0,
+        "minDepth": null,
+        "maxDepth": null
+      },
+      {
+        "id": "d3a1b58f-29e4-5078-8b7d-18a5663878fc",
+        "scriptName": "UC envelope (prompt)",
+        "findRegex": "/<UC>[\\s\\S]*?(?:<\\/UC>|$)/gi",
+        "replaceString": "",
+        "trimStrings": [],
+        "placement": [
+          2
+        ],
+        "disabled": false,
+        "markdownOnly": false,
+        "promptOnly": true,
+        "runOnEdit": true,
+        "substituteRegex": 0,
+        "minDepth": 3,
+        "maxDepth": null
+      },
+      {
+        "id": "548fec4d-29e7-574f-a28a-08b7de70f786",
+        "scriptName": "Thinking box",
+        "findRegex": "/^\\s*<think>([\\s\\S]*?)<\\/think>\\s*/i",
+        "replaceString": "<details class=\"uc-think\"><summary>Thinking</summary>\n\n$1\n\n</details>\n\n",
+        "trimStrings": [],
+        "placement": [
+          2
+        ],
+        "disabled": false,
+        "markdownOnly": true,
+        "promptOnly": false,
+        "runOnEdit": true,
+        "substituteRegex": 0,
+        "minDepth": null,
+        "maxDepth": null
+      },
+      {
+        "id": "fa6f6c7c-b6ba-58c5-8a3e-a237dd990538",
+        "scriptName": "Thinking strip",
+        "findRegex": "/<think>[\\s\\S]*?<\\/think>\\s*/gi",
+        "replaceString": "",
+        "trimStrings": [],
+        "placement": [
+          2
+        ],
+        "disabled": false,
+        "markdownOnly": false,
+        "promptOnly": true,
+        "runOnEdit": true,
+        "substituteRegex": 0,
+        "minDepth": null,
+        "maxDepth": null
+      },
+      {
+        "id": "6d8d2921-0ad1-5552-8e63-2a1342201987",
+        "scriptName": "Rule-tag leak strip",
+        "findRegex": "/\\[\\[uc_[a-z0-9_]*\\]\\]|<\\/?uc_[a-z0-9_]*>/g",
+        "replaceString": "",
+        "trimStrings": [],
+        "placement": [
+          2
+        ],
+        "disabled": false,
+        "markdownOnly": true,
+        "promptOnly": true,
+        "runOnEdit": true,
+        "substituteRegex": 0,
+        "minDepth": null,
+        "maxDepth": null
+      }
+    ],
+    "undercurrent2": {
+      "version": "2.0.0",
+      "model_family": "deepseek_r1",
+      "requires_extension": true
+    }
+  }
+}

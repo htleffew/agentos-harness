@@ -1,0 +1,260 @@
+{
+  "format": "undercurrent2-rules",
+  "version": 1,
+  "pack": {
+    "id": "curiosity_hooks",
+    "name": "Curiosity hooks",
+    "description": "Small unanswered questions: an unexplained detail, a slip, a message not fully shared. Off by default (Events already has a curiosity roll); turn it on for more mystery.",
+    "default_enabled": false
+  },
+  "rules": [
+    {
+      "id": "ch_asks_user",
+      "name": "Wants to know",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} wants to know something about {{user}} they have not been told, and asks, or tries to find out sideways."
+      ]
+    },
+    {
+      "id": "ch_detail",
+      "name": "Unexplained detail",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 7
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "Plant one unexplained, concrete detail in {{place}}: a mark, a mismatch, an absence. No explanation yet."
+      ]
+    },
+    {
+      "id": "ch_missing_context",
+      "name": "Missing context",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 6
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} says something that only makes sense with information nobody has shared here yet."
+      ]
+    },
+    {
+      "id": "ch_overreacts",
+      "name": "Overreaction",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 6
+        }
+      ],
+      "cooldown": 9,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} reacts to a topic more strongly than it deserves; leave the reason unsaid."
+      ]
+    },
+    {
+      "id": "ch_object",
+      "name": "Stray object",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 5
+        }
+      ],
+      "cooldown": 10,
+      "pick": "random",
+      "pool": [
+        "An object turns up in {{place}} that belongs to someone not present; who and why stay open."
+      ]
+    },
+    {
+      "id": "ch_small_lie",
+      "name": "Small lie",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 5
+        }
+      ],
+      "cooldown": 10,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} tells a small, checkable lie about something tied to {{want:any}}."
+      ]
+    },
+    {
+      "id": "ch_message",
+      "name": "Message not shared",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 5
+        }
+      ],
+      "cooldown": 10,
+      "pick": "random",
+      "pool": [
+        "A message, letter or call arrives for {{random_present}}; they take it in and do not share all of it."
+      ]
+    },
+    {
+      "id": "ch_callback",
+      "name": "Changed callback",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "turn_min",
+          "n": 6
+        },
+        {
+          "type": "chance",
+          "pct": 6
+        }
+      ],
+      "cooldown": 9,
+      "pick": "random",
+      "pool": [
+        "Bring back something established earlier and show it has changed since; do not explain the change yet."
+      ]
+    },
+    {
+      "id": "ch_local_knowledge",
+      "name": "Local knowledge",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 5
+        }
+      ],
+      "cooldown": 9,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} knows something about {{place}} that nobody else here does, and hints at it."
+      ]
+    },
+    {
+      "id": "ch_char_gap",
+      "name": "{{char}} wonders",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "present",
+          "names": "char"
+        },
+        {
+          "type": "chance",
+          "pct": 7
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "{{char}} notices a gap in what {{char}} knows about {{user}} and turns it over in a private first-person *thought*."
+      ]
+    }
+  ]
+}

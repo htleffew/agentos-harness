@@ -1,0 +1,310 @@
+{
+  "format": "undercurrent2-rules",
+  "version": 1,
+  "pack": {
+    "id": "npc_initiative",
+    "name": "NPC initiative",
+    "description": "Characters act on their own recorded wants without waiting for {{user}}. Lines resolve only when someone present has a want in the story state.",
+    "default_enabled": true
+  },
+  "rules": [
+    {
+      "id": "ni_pursue",
+      "name": "Pursues a want",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 14
+        }
+      ],
+      "cooldown": 4,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} acts on wanting {{want:any}}: one concrete step this turn, whether or not it suits anyone else.",
+        "{{random_npc}} spends this moment on {{want:any}}, visibly and on their own initiative."
+      ]
+    },
+    {
+      "id": "ni_asks",
+      "name": "Asks for something",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} asks for something that serves {{want:any}}: directly, in their own voice, expecting an answer."
+      ]
+    },
+    {
+      "id": "ni_friction",
+      "name": "Gets in the way",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 9
+        }
+      ],
+      "cooldown": 6,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}}'s pursuit of {{want:any}} gets in someone's way; let the friction be visible and small."
+      ]
+    },
+    {
+      "id": "ni_offer",
+      "name": "Offers a deal",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} offers {{user}} a trade, favor or deal that would move them closer to {{want:any}}."
+      ]
+    },
+    {
+      "id": "ni_char_own_sake",
+      "name": "{{char}} acts for themself",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "present",
+          "names": "char"
+        },
+        {
+          "type": "chance",
+          "pct": 12
+        }
+      ],
+      "cooldown": 4,
+      "pick": "random",
+      "pool": [
+        "{{char}} does one thing this turn for their own sake, toward {{want:char}}, not only in reaction to {{user}}.",
+        "{{char}} brings up {{want:char}} unprompted, because it matters to {{char}} today."
+      ]
+    },
+    {
+      "id": "ni_plan_slips",
+      "name": "Plan slips out",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} lets slip part of a plan tied to {{want:any}}: a call half-heard, a list, an errand."
+      ]
+    },
+    {
+      "id": "ni_mood_drives",
+      "name": "Mood drives the move",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 9
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} is {{mood}}, and it changes how they go after {{want:any}}: rushed, careless, sharp or tender, whichever fits."
+      ]
+    },
+    {
+      "id": "ni_has_to_go",
+      "name": "Somewhere to be",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 7
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} has somewhere to be for the sake of {{want:any}} and starts to leave, or stays at a visible cost."
+      ]
+    },
+    {
+      "id": "ni_ally",
+      "name": "Looks for help",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 7
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} looks for help in {{place}} with {{want:any}}, and picks someone for a reason."
+      ]
+    },
+    {
+      "id": "ni_rival",
+      "name": "Works against another",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 6
+        }
+      ],
+      "cooldown": 9,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} quietly works against someone else present to get {{want:any}}."
+      ]
+    },
+    {
+      "id": "ni_routine",
+      "name": "Own routine",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "present",
+          "names": "any_npc"
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} carries on with their own routine in {{place}}: work, food, a call; they only half pay attention.",
+        "{{random_npc}} is busy with something of their own when the moment starts, and finishes it first."
+      ]
+    },
+    {
+      "id": "ni_refuses",
+      "name": "Says no",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 7
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "{{random_npc}} turns down a request that conflicts with {{want:any}}, with a reason that sounds like them."
+      ]
+    }
+  ]
+}

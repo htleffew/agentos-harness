@@ -1,0 +1,785 @@
+{
+  "_doc": "Tic guard detection data (never sent to a model). kind 'phrase' = case-insensitive literal, word-bounded; kind 'regex' = JS RegExp source (flags g,i,m added). 'min' = hits needed across this reply and the recent ones before it is reported. 'generic' applies to every model; a family list is added on top. 'families' maps a family key to regexes tested against ctx.model.family and ctx.model.id (first match wins, in order). Ported from Undercurrent v1 shared/slop.json (sources listed there: Worldhopper negative constraints, Celia anti-isms, DeepSeek filler bans, GLM anti-slop lists, widely reported roleplay tics).",
+  "version": 1,
+  "families": [
+    {
+      "key": "deepseek_r1",
+      "match": [
+        "deepseek.*(?:^|[^a-z0-9])r1(?![0-9])",
+        "deepseek.*reason"
+      ]
+    },
+    {
+      "key": "deepseek_v4",
+      "match": [
+        "deepseek"
+      ]
+    },
+    {
+      "key": "glm",
+      "match": [
+        "glm",
+        "zhipu",
+        "z-ai"
+      ]
+    },
+    {
+      "key": "kimi",
+      "match": [
+        "kimi",
+        "moonshot"
+      ]
+    },
+    {
+      "key": "mimo_pro",
+      "match": [
+        "mimo.*2[._-]?6",
+        "mimo.*pro"
+      ]
+    },
+    {
+      "key": "mimo",
+      "match": [
+        "mimo"
+      ]
+    }
+  ],
+  "lists": {
+    "generic": [
+      {
+        "pattern": "shivers? (?:ran |run |running |went |going )?(?:down|up) (?:her|his|their|my|your) spine",
+        "kind": "regex",
+        "note": "stock body reaction"
+      },
+      {
+        "pattern": "(?:a )?breath (?:she|he|they|I) didn'?t (?:know|realize) (?:she|he|they|I) (?:was|were) holding",
+        "kind": "regex",
+        "note": "stock body reaction"
+      },
+      {
+        "pattern": "breath (?:hitch(?:es|ed)?|catch(?:es)?|caught) in (?:her|his|their|my) throat",
+        "kind": "regex",
+        "note": "stock body reaction"
+      },
+      {
+        "pattern": "\\bpupils (?:blown|dilat(?:e|ed|ing))\\b",
+        "kind": "regex",
+        "note": "stock body reaction"
+      },
+      {
+        "pattern": "couldn'?t help but",
+        "kind": "regex",
+        "note": "filler construction"
+      },
+      {
+        "pattern": "white[- ]knuckled?",
+        "kind": "regex",
+        "note": "stock body reaction"
+      },
+      {
+        "pattern": "a muscle (?:jump(?:ed|s|ing)?|tick(?:ed|s|ing)?|twitch(?:ed|es|ing)?) in (?:his|her|their) jaw",
+        "kind": "regex",
+        "note": "stock body reaction"
+      },
+      {
+        "pattern": "the ghost of a (?:smile|smirk|laugh)",
+        "kind": "regex",
+        "note": "stock expression"
+      },
+      {
+        "pattern": "huffed? a (?:laugh|breath)",
+        "kind": "regex",
+        "note": "stock gesture"
+      },
+      {
+        "pattern": "(?:a )?(?:small|strangled|soft|low|choked) sound (?:escap|left|came)",
+        "kind": "regex",
+        "note": "vague sound instead of the actual noise"
+      },
+      {
+        "pattern": "voice (?:was |is )?(?:a )?(?:velvet(?:y)?|silk(?:en|y)?|honey(?:ed)?|gravel(?:ly)?|husky|throaty)",
+        "kind": "regex",
+        "note": "voice as texture"
+      },
+      {
+        "pattern": "(?:a )?low (?:rumble|growl|purr)",
+        "kind": "regex",
+        "note": "voice as animal"
+      },
+      {
+        "pattern": "barely (?:above )?a whisper",
+        "kind": "regex",
+        "note": "stock dialogue tag"
+      },
+      {
+        "pattern": "(?:something )?(?:deep )?(?:inside|within) (?:her|him|them|me) (?:broke|shifted|cracked|stirred|snapped)",
+        "kind": "regex",
+        "note": "vague interior event"
+      },
+      {
+        "pattern": "before (?:she|he|they|I) could stop (?:herself|himself|themselves|myself)",
+        "kind": "regex",
+        "note": "stock impulse"
+      },
+      {
+        "pattern": "the air (?:was |is |grew |hung )?(?:thick|heavy|charged|electric)",
+        "kind": "regex",
+        "note": "atmosphere filler"
+      },
+      {
+        "pattern": "the silence (?:stretched|settled|hung|thickened)",
+        "kind": "regex",
+        "note": "atmosphere filler"
+      },
+      {
+        "pattern": "the world (?:seemed to |seems to )?(?:fell|falls|fall|tilted|tilts|narrowed|narrows|stopped|stops) (?:away)?",
+        "kind": "regex",
+        "note": "cosmic fluff"
+      },
+      {
+        "pattern": "everything else (?:faded|fades|ceased|disappeared|fell away)",
+        "kind": "regex",
+        "note": "cosmic fluff"
+      },
+      {
+        "pattern": "like a physical (?:blow|thing|weight|touch)",
+        "kind": "regex",
+        "note": "stock simile"
+      },
+      {
+        "pattern": "ozone",
+        "kind": "phrase",
+        "note": "atmosphere filler"
+      },
+      {
+        "pattern": "petrichor",
+        "kind": "phrase",
+        "note": "atmosphere filler"
+      },
+      {
+        "pattern": "dust motes",
+        "kind": "phrase",
+        "note": "atmosphere filler"
+      },
+      {
+        "pattern": "metallic tang",
+        "kind": "phrase",
+        "note": "atmosphere filler"
+      },
+      {
+        "pattern": "(?:a )?testament to",
+        "kind": "regex",
+        "note": "word-level slop"
+      },
+      {
+        "pattern": "tapestry of",
+        "kind": "phrase",
+        "note": "word-level slop"
+      },
+      {
+        "pattern": "symphony of",
+        "kind": "phrase",
+        "note": "word-level slop"
+      },
+      {
+        "pattern": "dance as old as time",
+        "kind": "phrase",
+        "note": "word-level slop"
+      },
+      {
+        "pattern": "\\bpredatory (?:grin|smile|smirk|gaze|look)",
+        "kind": "regex",
+        "note": "approving 'predatory'"
+      },
+      {
+        "pattern": "\\b(?:primal|feral) (?:need|hunger|desire|growl|instinct)",
+        "kind": "regex",
+        "note": "approving 'primal/feral'"
+      },
+      {
+        "pattern": "\\bimpossibly (?:soft|warm|gentle|tender|close|slow)",
+        "kind": "regex",
+        "note": "intensifier"
+      },
+      {
+        "pattern": "\\ba beat (?:passed|passes|of silence)\\b|^\\s*a beat\\.",
+        "kind": "regex",
+        "note": "'a beat' as pause"
+      },
+      {
+        "pattern": "(?:for )?a long moment",
+        "kind": "regex",
+        "note": "pause filler",
+        "min": 2
+      },
+      {
+        "pattern": "reckless abandon",
+        "kind": "phrase",
+        "note": "word-level slop"
+      },
+      {
+        "pattern": "silent invitation",
+        "kind": "phrase",
+        "note": "word-level slop"
+      },
+      {
+        "pattern": "(?:smirk|smile) (?:playing|tugging) at (?:the corners? of )?(?:her|his|their) lips",
+        "kind": "regex",
+        "note": "stock expression"
+      },
+      {
+        "pattern": "mischievous (?:glint|sparkle|twinkle)",
+        "kind": "regex",
+        "note": "stock expression"
+      },
+      {
+        "pattern": "eyes (?:glinting|sparkling|twinkling|dancing) with",
+        "kind": "regex",
+        "note": "stock expression"
+      },
+      {
+        "pattern": "(?:feeling|felt) (?:seen|heard)\\b",
+        "kind": "regex",
+        "note": "vacuous affirmation"
+      },
+      {
+        "pattern": "undeniable connection",
+        "kind": "phrase",
+        "note": "vacuous affirmation"
+      },
+      {
+        "pattern": "(?:no one|nobody)(?:'s| has) ever (?:said|done) (?:that|something like that) (?:to|for) me",
+        "kind": "regex",
+        "note": "stock line"
+      },
+      {
+        "pattern": "\\b(?:weaponi[sz]ed|short-circuit(?:ed|ing)?)\\b",
+        "kind": "regex",
+        "note": "mechanical verb for feeling"
+      },
+      {
+        "pattern": "\\b(?:it|this|that) (?:wasn'?t|isn'?t) (?:a |an )?\\w+[.,;]? (?:it|this|that) (?:was|is)\\b",
+        "kind": "regex",
+        "note": "contrast framing (not X, Y)"
+      },
+      {
+        "pattern": "\\bnot (?:with )?(?:a |an )?\\w+,? but (?:with )?(?:a |an )?\\w+",
+        "kind": "regex",
+        "note": "contrast framing (not X but Y)",
+        "min": 2
+      },
+      {
+        "pattern": "\\bhalf \\w+, half \\w+",
+        "kind": "regex",
+        "note": "hedged double"
+      },
+      {
+        "pattern": "somewhere between \\w+ and \\w+",
+        "kind": "regex",
+        "note": "hedged double"
+      },
+      {
+        "pattern": "a (?:promise|warning) and a (?:threat|promise)",
+        "kind": "regex",
+        "note": "hedged double"
+      },
+      {
+        "pattern": "that (?:familiar|specific|particular) (?:ache|look|way|warmth|feeling)",
+        "kind": "regex",
+        "note": "borrowed familiarity"
+      },
+      {
+        "pattern": "(?:the|this|that) particular way (?:she|he|they)",
+        "kind": "regex",
+        "note": "borrowed familiarity"
+      },
+      {
+        "pattern": "(?:a )?mix(?:ture)? of \\w+ and \\w+",
+        "kind": "regex",
+        "note": "'a mix of X and Y' feeling",
+        "min": 2
+      },
+      {
+        "pattern": "\\b(?:electric|crackling|palpable) tension\\b|tension (?:crackled|crackles)",
+        "kind": "regex",
+        "note": "stock tension"
+      },
+      {
+        "pattern": "maybe,? just maybe",
+        "kind": "regex",
+        "note": "stock line"
+      },
+      {
+        "pattern": "\\bever the \\w+\\b",
+        "kind": "regex",
+        "note": "stock construction",
+        "min": 2
+      },
+      {
+        "pattern": "(?:what will you do|the choice is yours|what do you do)\\??\\s*$",
+        "kind": "regex",
+        "note": "menu/handover ending"
+      },
+      {
+        "pattern": "it'?s not a (?:question|request)",
+        "kind": "regex",
+        "note": "stock line"
+      },
+      {
+        "pattern": "the night is (?:still )?young",
+        "kind": "regex",
+        "note": "stock line"
+      },
+      {
+        "pattern": "stark contrast",
+        "kind": "phrase",
+        "note": "word-level slop"
+      },
+      {
+        "pattern": "(?:her|his|their) (?:face|expression) (?:was |is )?a (?:mask|canvas) of",
+        "kind": "regex",
+        "note": "face as mask/canvas"
+      },
+      {
+        "pattern": "(?:expression|face) (?:unreadable|carefully blank|carefully neutral)",
+        "kind": "regex",
+        "note": "stock expression"
+      },
+      {
+        "pattern": "\\b(?:she|he|they) (?:let|lets) (?:the words?|it|that) hang\\b",
+        "kind": "regex",
+        "note": "pause filler"
+      },
+      {
+        "pattern": "time (?:seemed to )?(?:slowed|stopped|stood still)",
+        "kind": "regex",
+        "note": "cosmic fluff"
+      },
+      {
+        "pattern": "\\bpregnant pause\\b",
+        "kind": "regex",
+        "note": "pause filler"
+      },
+      {
+        "pattern": "foreheads? (?:pressed|resting) (?:together|against)",
+        "kind": "regex",
+        "note": "stock gesture"
+      },
+      {
+        "pattern": "tuck(?:ed|s|ing)? (?:a strand of )?(?:her|his) hair behind (?:her|his) ear",
+        "kind": "regex",
+        "note": "stock gesture"
+      },
+      {
+        "pattern": "\\bmine\\.\\s*$|\"mine\\.\"",
+        "kind": "regex",
+        "note": "possessive tic line",
+        "min": 2
+      },
+      {
+        "pattern": "(?:smells?|smelled|scent) (?:like|of) (?:cedar|sandalwood|cardamom|vanilla and)",
+        "kind": "regex",
+        "note": "smell as scenery"
+      },
+      {
+        "pattern": "\\bthe ritual of\\b",
+        "kind": "regex",
+        "note": "ritual of the mundane"
+      },
+      {
+        "pattern": "\\bunhurried\\b",
+        "kind": "regex",
+        "note": "default movement descriptor"
+      },
+      {
+        "pattern": "\\b(?:delicious(?:ly)?|exquisite(?:ly)?) (?:friction|ache|torture)",
+        "kind": "regex",
+        "note": "stock erotic phrasing"
+      },
+      {
+        "pattern": "\\bswollen (?:lips|folds)\\b",
+        "kind": "regex",
+        "note": "stock erotic phrasing"
+      }
+    ],
+    "deepseek_v4": [
+      {
+        "pattern": "somewhere,? (?:in the distance,? )?(?:a|an|the) (?:dog|siren|door|clock|car|bird)",
+        "kind": "regex",
+        "note": "cutaway to background life"
+      },
+      {
+        "pattern": "\\b(?:elsewhere|meanwhile|in another part of)\\b",
+        "kind": "regex",
+        "note": "attention shift away from the scene (Celia anti-Deepseekism)",
+        "min": 2
+      },
+      {
+        "pattern": "a dog barks? (?:somewhere|in the distance)",
+        "kind": "regex",
+        "note": "cutaway to background life"
+      },
+      {
+        "pattern": "(?:a )?distant siren",
+        "kind": "regex",
+        "note": "cutaway to background life"
+      },
+      {
+        "pattern": "\\bfor now\\.",
+        "kind": "regex",
+        "note": "DeepSeek ending tic",
+        "min": 2
+      },
+      {
+        "pattern": "\\band yet\\b",
+        "kind": "regex",
+        "note": "DeepSeek tic",
+        "min": 2
+      },
+      {
+        "pattern": "\\bsomething primal\\b",
+        "kind": "regex",
+        "note": "DeepSeek tell"
+      },
+      {
+        "pattern": "(?:a )?low chuckle",
+        "kind": "regex",
+        "note": "DeepSeek tell"
+      },
+      {
+        "pattern": "^\\s*\"?(?:Look|So|But hey|But honestly|But seriously|Or maybe),",
+        "kind": "regex",
+        "note": "filler opener (First Proper DeepSeek V3 bans)"
+      },
+      {
+        "pattern": "\\*\\*[A-Z][A-Z !]{2,}\\*\\*",
+        "kind": "regex",
+        "note": "bold caps emphasis in narration"
+      },
+      {
+        "pattern": "\\b(?:knuckles|fingers) whiten(?:ed|ing)?\\b",
+        "kind": "regex",
+        "note": "stock tension gesture"
+      },
+      {
+        "pattern": "tast(?:e|ed|ing) (?:of )?copper",
+        "kind": "regex",
+        "note": "stock sensory"
+      },
+      {
+        "pattern": "(?:his|her) eyes darken(?:ed|ing|s)?",
+        "kind": "regex",
+        "note": "stock arousal tell"
+      },
+      {
+        "pattern": "\\bthe weight of (?:it|his|her|their|the) (?:words?|gaze|stare|silence)",
+        "kind": "regex",
+        "note": "weight of words"
+      }
+    ],
+    "deepseek_r1": [
+      {
+        "pattern": "somewhere,? (?:in the distance,? )?(?:a|an|the) (?:dog|siren|door|clock|car|bird)",
+        "kind": "regex",
+        "note": "cutaway to background life"
+      },
+      {
+        "pattern": "\\b(?:elsewhere|meanwhile|in another part of)\\b",
+        "kind": "regex",
+        "note": "attention shift away from the scene",
+        "min": 2
+      },
+      {
+        "pattern": "\\bfor now\\.",
+        "kind": "regex",
+        "note": "ending tic",
+        "min": 2
+      },
+      {
+        "pattern": "\\bsomething primal\\b",
+        "kind": "regex",
+        "note": "R1 tell"
+      },
+      {
+        "pattern": "(?:his|her) eyes darken(?:ed|ing|s)?",
+        "kind": "regex",
+        "note": "stock arousal tell"
+      },
+      {
+        "pattern": "\\b(?:knuckles|fingers) whiten(?:ed|ing)?\\b",
+        "kind": "regex",
+        "note": "stock tension gesture"
+      },
+      {
+        "pattern": "tast(?:e|ed|ing) (?:of )?copper",
+        "kind": "regex",
+        "note": "stock sensory"
+      },
+      {
+        "pattern": "the scent of (?:ozone|rain|copper|iron)",
+        "kind": "regex",
+        "note": "R1 sensory filler"
+      },
+      {
+        "pattern": "\\b(?:clinical|surgical) precision\\b",
+        "kind": "regex",
+        "note": "R1 mechanical framing"
+      },
+      {
+        "pattern": "\\bcalculat(?:ed|ing) (?:gaze|look|smile)\\b",
+        "kind": "regex",
+        "note": "mechanical framing"
+      },
+      {
+        "pattern": "\\b(?:like|as if) (?:a|an) (?:predator|wolf|cat) (?:circling|stalking)",
+        "kind": "regex",
+        "note": "predator simile"
+      },
+      {
+        "pattern": "\\b(?:fractur|splinter)(?:es|ed|ing) (?:the silence|the air)",
+        "kind": "regex",
+        "note": "R1 melodrama verb"
+      },
+      {
+        "pattern": "^\\s*(?:Okay|Alright),? (?:so|let me|I need to)",
+        "kind": "regex",
+        "note": "leaked reasoning in reply"
+      }
+    ],
+    "glm": [
+      {
+        "pattern": "with the (?:\\w+ )?(?:ease|precision|patience|care|weariness) of (?:someone|a man|a woman|a person) who",
+        "kind": "regex",
+        "note": "'with the X of someone who' (white-lotus GLM)"
+      },
+      {
+        "pattern": "(?:the )?line of (?:his|her|their) (?:mouth|jaw) (?:tighten(?:s|ed)?|harden(?:s|ed)?|stay(?:s|ed)? flat)",
+        "kind": "regex",
+        "note": "Stabs GLM banned physical"
+      },
+      {
+        "pattern": "\\banalytical gaze\\b",
+        "kind": "regex",
+        "note": "Stabs GLM banned physical"
+      },
+      {
+        "pattern": "\\b(?:deliberate|economical|measured) (?:movements?|slowness|steps?)\\b",
+        "kind": "regex",
+        "note": "Stabs GLM banned movement"
+      },
+      {
+        "pattern": "\\b(?:fluid|smooth|measured) and (?:precise|efficient|controlled)\\b",
+        "kind": "regex",
+        "note": "Stabs GLM banned movement"
+      },
+      {
+        "pattern": "\\bdid not look back\\b|\\bdidn'?t look back\\b",
+        "kind": "regex",
+        "note": "Stabs GLM banned exit"
+      },
+      {
+        "pattern": "\\bin (?:this|that) moment\\b",
+        "kind": "regex",
+        "note": "Stabs GLM banned",
+        "min": 2
+      },
+      {
+        "pattern": "\\b(?:was|became) a (?:\\w+ )?thing\\b",
+        "kind": "regex",
+        "note": "vague 'thing'",
+        "min": 2
+      },
+      {
+        "pattern": "\\bplayful challenge\\b",
+        "kind": "regex",
+        "note": "Stabs GLM misc"
+      },
+      {
+        "pattern": "\\buniquely (?:her|him|his|hers|them|theirs)\\b",
+        "kind": "regex",
+        "note": "Stabs GLM misc"
+      },
+      {
+        "pattern": "\\bcrimson beads\\b",
+        "kind": "regex",
+        "note": "Stabs GLM misc"
+      },
+      {
+        "pattern": "\\bwords (?:are|were) flat\\b|\\bflat words\\b",
+        "kind": "regex",
+        "note": "Stabs GLM misc"
+      },
+      {
+        "pattern": "\\bhit (?:her|him|them|me) like a\\b",
+        "kind": "regex",
+        "note": "emotion as blow"
+      },
+      {
+        "pattern": "\\btorn between\\b",
+        "kind": "regex",
+        "note": "Stabs GLM emotion"
+      },
+      {
+        "pattern": "\\barousal pool(?:s|ed|ing)\\b",
+        "kind": "regex",
+        "note": "Stabs GLM emotion"
+      },
+      {
+        "pattern": "\\b(?:fuzzy|warm|pleasant) (?:haze|fog|blur)\\b",
+        "kind": "regex",
+        "note": "vague haze"
+      },
+      {
+        "pattern": "\\bI(?:'m| am) aware of\\b",
+        "kind": "regex",
+        "note": "Stabs GLM pattern"
+      },
+      {
+        "pattern": "\\bthe corner of (?:his|her) mouth (?:lift(?:s|ed)|quirk(?:s|ed)|twitch(?:es|ed))",
+        "kind": "regex",
+        "note": "GLM stock expression"
+      }
+    ],
+    "kimi": [
+      {
+        "pattern": "—[^—\\n]{1,60}—[^—\\n]{1,60}—",
+        "kind": "regex",
+        "note": "em-dash chain"
+      },
+      {
+        "pattern": "\\bsomething (?:shifts|shifted|loosens|loosened|settles|settled) in (?:her|his|their) (?:chest|face|expression|eyes)",
+        "kind": "regex",
+        "note": "vague interior shift"
+      },
+      {
+        "pattern": "\\bthe weight of (?:it|that|this|everything|the moment)\\b",
+        "kind": "regex",
+        "note": "weight of",
+        "min": 2
+      },
+      {
+        "pattern": "\\b(?:doesn'?t|didn'?t) answer\\. (?:Doesn'?t|Didn'?t) need to\\.",
+        "kind": "regex",
+        "note": "negation cascade"
+      },
+      {
+        "pattern": "\\bnot (?:quite )?a (?:smile|laugh)\\. (?:Not quite|But close)",
+        "kind": "regex",
+        "note": "negation cascade"
+      },
+      {
+        "pattern": "\\bthe kind of \\w+ that\\b",
+        "kind": "regex",
+        "note": "'the kind of X that' expository",
+        "min": 2
+      },
+      {
+        "pattern": "\\bthat'?s (?:the|a) (?:thing|problem|point)\\.",
+        "kind": "regex",
+        "note": "Kimi aphorism tic",
+        "min": 2
+      },
+      {
+        "pattern": "\\bwhich is (?:to say|its own kind of)\\b",
+        "kind": "regex",
+        "note": "Kimi narratorial commentary"
+      },
+      {
+        "pattern": "\\bsomehow\\b",
+        "kind": "regex",
+        "note": "hedge filler",
+        "min": 2
+      },
+      {
+        "pattern": "\\bquiet (?:certainty|devastation|intensity|fury)\\b",
+        "kind": "regex",
+        "note": "'quiet' as intensifier"
+      }
+    ],
+    "mimo": [
+      {
+        "pattern": "\\b(?:a )?(?:wave|surge|rush|flood) of (?:\\w+ )?(?:emotion|warmth|relief|heat|desire)\\b",
+        "kind": "regex",
+        "note": "emotion washing over"
+      },
+      {
+        "pattern": "(?:washed|crashed|flooded|surged) (?:over|through) (?:her|him|them)",
+        "kind": "regex",
+        "note": "emotion washing over"
+      },
+      {
+        "pattern": "\\bher heart (?:skipped|did a little) (?:a beat|flip)",
+        "kind": "regex",
+        "note": "stock romance"
+      },
+      {
+        "pattern": "\\b(?:her|his) cheeks (?:flushed|turned) (?:a )?(?:deep|bright)? ?(?:crimson|scarlet|pink)",
+        "kind": "regex",
+        "note": "stock blush"
+      },
+      {
+        "pattern": "\\bbutterflies in (?:her|his) stomach\\b",
+        "kind": "regex",
+        "note": "stock romance"
+      },
+      {
+        "pattern": "\\b(?:little|tiny) (?:did|does) (?:she|he|they) know\\b",
+        "kind": "regex",
+        "note": "omniscient foreshadowing"
+      },
+      {
+        "pattern": "\\b(?:as|the) (?:sun|moon) (?:dipped|hung|rose) (?:low )?(?:over|in|on) the horizon",
+        "kind": "regex",
+        "note": "stock scene-setting"
+      },
+      {
+        "pattern": "\\bthe rest,? as they say,? (?:is|was) history\\b",
+        "kind": "regex",
+        "note": "stock closer"
+      }
+    ],
+    "mimo_pro": [
+      {
+        "pattern": "\\b(?:a )?(?:wave|surge|rush|flood) of (?:\\w+ )?(?:emotion|warmth|relief|heat|desire)\\b",
+        "kind": "regex",
+        "note": "emotion washing over"
+      },
+      {
+        "pattern": "(?:washed|crashed|flooded|surged) (?:over|through) (?:her|him|them)",
+        "kind": "regex",
+        "note": "emotion washing over"
+      },
+      {
+        "pattern": "\\b(?:little|tiny) (?:did|does) (?:she|he|they) know\\b",
+        "kind": "regex",
+        "note": "omniscient foreshadowing"
+      },
+      {
+        "pattern": "\\bthe kind of \\w+ that\\b",
+        "kind": "regex",
+        "note": "'the kind of X that' expository",
+        "min": 2
+      },
+      {
+        "pattern": "\\bsomething (?:shifts|shifted) (?:between them|in the air)\\b",
+        "kind": "regex",
+        "note": "vague shift"
+      },
+      {
+        "pattern": "\\b(?:charged|loaded|heavy) silence\\b",
+        "kind": "regex",
+        "note": "atmosphere filler"
+      },
+      {
+        "pattern": "\\b(?:she|he|they) (?:exhales?|exhaled) (?:slowly|a slow breath|shakily)\\b",
+        "kind": "regex",
+        "note": "stock breath"
+      },
+      {
+        "pattern": "\\bthe tension (?:in the room|between them) (?:was|is) (?:thick|palpable)",
+        "kind": "regex",
+        "note": "stock tension"
+      }
+    ]
+  }
+}

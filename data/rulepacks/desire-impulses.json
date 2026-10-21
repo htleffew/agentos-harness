@@ -1,0 +1,335 @@
+{
+  "format": "undercurrent2-rules",
+  "version": 1,
+  "pack": {
+    "id": "desire_impulses",
+    "name": "Desire impulses",
+    "description": "Impulses drawn from each present character's own intimacy profile (likes only; a limit or dislike always wins). Only while attraction is live or the scene is intimate.",
+    "default_enabled": true
+  },
+  "rules": [
+    {
+      "id": "di_body_first",
+      "name": "Impulse shows in the body",
+      "priority": 4,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 18
+        }
+      ],
+      "cooldown": 4,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} lets an impulse toward {{pref:any}} show in the body first: a held glance, a shift closer, a breath caught.",
+        "Something in the moment brushes against {{random_present}}'s taste for {{pref:any}}; it shows in one unguarded physical detail.",
+        "{{random_present}} is thinking about {{pref:any}} and it leaks out in posture, hands or voice before any words do."
+      ]
+    },
+    {
+      "id": "di_acts",
+      "name": "Desire prompts action",
+      "priority": 4,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 14
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "Desire prompts action: {{random_present}} makes one small, deliberate move toward {{pref:any}}, in their own style.",
+        "{{random_present}} stops waiting and acts on wanting {{pref:any}}: one clear, in-character move, then room for an answer."
+      ]
+    },
+    {
+      "id": "di_holds_back",
+      "name": "Wants it, holds back",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 6,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} wants {{pref:any}} right now and visibly chooses not to act on it this moment; let the effort show.",
+        "{{random_present}} reaches toward {{pref:any}}, then catches the impulse and redirects it into something smaller."
+      ]
+    },
+    {
+      "id": "di_says_it",
+      "name": "Says something about it",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 12
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} says one thing out loud that hints at wanting {{pref:any}}: oblique or blunt, whichever fits who they are.",
+        "{{random_present}} names what they want ({{pref:any}}) in their own vocabulary, without dressing it up."
+      ]
+    },
+    {
+      "id": "di_place_trigger",
+      "name": "The place feeds it",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 6,
+      "pick": "random",
+      "pool": [
+        "A detail in {{place}} reminds {{random_present}} of {{pref:any}}; it colors the next thing they do.",
+        "{{random_present}} uses something in {{place}} as an excuse to get closer to {{pref:any}}."
+      ]
+    },
+    {
+      "id": "di_mood_collides",
+      "name": "Mood bends desire",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} is {{mood}}, and that mood bends how wanting {{pref:any}} comes out: let the two collide in one beat."
+      ]
+    },
+    {
+      "id": "di_wrong_guess",
+      "name": "Acts on an assumption",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} acts on an assumption shaped by their taste for {{pref:any}}; let it land slightly off and let them adjust."
+      ]
+    },
+    {
+      "id": "di_char_initiates",
+      "name": "{{char}} initiates",
+      "priority": 4,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "present",
+          "names": "char"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 12
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "{{char}} leans into wanting {{pref:char}}: a specific suggestion, touch or invitation in {{char}}'s own voice, then a pause.",
+        "{{char}} turns a private wish for {{pref:char}} into one concrete, in-character move."
+      ]
+    },
+    {
+      "id": "di_char_thought",
+      "name": "{{char}}'s private want",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "present",
+          "names": "char"
+        },
+        {
+          "type": "chance",
+          "pct": 14
+        }
+      ],
+      "cooldown": 4,
+      "pick": "random",
+      "pool": [
+        "{{char}}'s private first-person *thought* circles {{pref:char}} for a moment, frankly and in {{char}}'s own words.",
+        "A first-person *thought* from {{char}}: one honest, specific line about wanting {{pref:char}}."
+      ]
+    },
+    {
+      "id": "di_precise",
+      "name": "Make the want precise",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 4,
+      "pick": "random",
+      "pool": [
+        "Make {{random_present}}'s want concrete: the exact thing about {{pref:any}} that pulls at them, shown through what they do."
+      ]
+    },
+    {
+      "id": "di_limits_hold",
+      "name": "Limits stay theirs",
+      "priority": 3,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} steers toward {{pref:any}} and away from {{limit}} without comment; their limits stay theirs."
+      ]
+    },
+    {
+      "id": "di_interrupted",
+      "name": "Ordinary interruption",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "attraction"
+        },
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 6
+        }
+      ],
+      "cooldown": 10,
+      "pick": "random",
+      "pool": [
+        "Just as {{random_present}} moves toward {{pref:any}}, something ordinary interrupts: a sound, a knock, a buzzing phone. They choose what to do with it."
+      ]
+    }
+  ]
+}

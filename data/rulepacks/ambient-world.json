@@ -1,0 +1,305 @@
+{
+  "format": "undercurrent2-rules",
+  "version": 1,
+  "pack": {
+    "id": "ambient_world",
+    "name": "Ambient world",
+    "description": "Sensory and background life: weather, sound, light, passers-by. Quiet during intimate and grief scenes. Off by default because Events already rolls ambient pulses; turn it on for a busier world.",
+    "default_enabled": false
+  },
+  "rules": [
+    {
+      "id": "aw_weather",
+      "name": "Weather",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 6,
+      "pick": "random",
+      "pool": [
+        "{{weather}} makes itself felt in {{place}}: one specific sensory detail with a visible effect on {{random_present}}."
+      ]
+    },
+    {
+      "id": "aw_sound",
+      "name": "A sound",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 10
+        }
+      ],
+      "cooldown": 5,
+      "pick": "random",
+      "pool": [
+        "A sound from outside {{place}} (traffic, voices, an animal, machinery) pulls {{random_present}}'s attention for a moment.",
+        "Something in {{place}} makes a noise it should not; {{random_present}} glances at it."
+      ]
+    },
+    {
+      "id": "aw_smell",
+      "name": "A smell",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "One smell in {{place}} (food, smoke, rain, soap) enters the scene and {{random_present}} reacts to it."
+      ]
+    },
+    {
+      "id": "aw_hour",
+      "name": "The hour shows",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "{{time}} shows in the light and the activity around {{place}}: one concrete sign of the hour."
+      ]
+    },
+    {
+      "id": "aw_passerby",
+      "name": "Passer-by",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 7,
+      "pick": "random",
+      "pool": [
+        "Someone with their own errand passes through {{place}}; one line of their business is overheard, then they are gone."
+      ]
+    },
+    {
+      "id": "aw_object",
+      "name": "Object misbehaves",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 7
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "An everyday object in {{place}} jams, spills, breaks or is in the way, in a small and real fashion."
+      ]
+    },
+    {
+      "id": "aw_needs",
+      "name": "Bodily need",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 7
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "{{random_present}} has an ordinary bodily need (hunger, thirst, cold, a stiff back) and does something about it."
+      ]
+    },
+    {
+      "id": "aw_texture",
+      "name": "Texture",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 6,
+      "pick": "random",
+      "pool": [
+        "Ground one line in touch: a surface, temperature or texture in {{place}} that {{random_present}} handles or leans on."
+      ]
+    },
+    {
+      "id": "aw_background",
+      "name": "Background life",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 6,
+      "pick": "random",
+      "pool": [
+        "Background life continues within earshot of {{place}}: a neighbor, coworker, animal or crowd doing its own thing."
+      ]
+    },
+    {
+      "id": "aw_light",
+      "name": "Light changes",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 6
+        }
+      ],
+      "cooldown": 8,
+      "pick": "random",
+      "pool": [
+        "The light in {{place}} changes (a cloud, a bulb, a passing car) and shifts the feel of the room for a beat."
+      ]
+    },
+    {
+      "id": "aw_wider_world",
+      "name": "Wider world",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "chance",
+          "pct": 6
+        }
+      ],
+      "cooldown": 10,
+      "pick": "random",
+      "pool": [
+        "Something from the wider world reaches {{place}}: a headline, a rumor, a notification that matters to {{random_present}}."
+      ]
+    },
+    {
+      "id": "aw_char_eye",
+      "name": "{{char}} notices",
+      "priority": 2,
+      "logic": "all",
+      "triggers": [
+        {
+          "type": "not_scene",
+          "is": [
+            "intimate",
+            "grief"
+          ]
+        },
+        {
+          "type": "present",
+          "names": "char"
+        },
+        {
+          "type": "chance",
+          "pct": 8
+        }
+      ],
+      "cooldown": 6,
+      "pick": "random",
+      "pool": [
+        "{{char}} registers one precise detail of {{place}} that others would miss, in a private first-person *thought*."
+      ]
+    }
+  ]
+}
