@@ -20,6 +20,21 @@ for JSON in plain text and parses it.
 Source check: TauriTavern (main, SillyTavern compat 1.19.0) ships the same `world-info.js` events and the same
 `getContext()` functions, and stores lorebooks as raw JSON. The tablet run confirms it in practice.
 
-## TauriTavern on Android
+## TauriTavern on Android (TauriTavern 2.4.0, SillyTavern 1.19.0, nano-gpt), 2026-11-15
 
-Pending: paste the copied log here as `results/tauritavern-android.txt`.
+9 generations (7 messages, 2 swipes) in a chat that already had 43 messages.
+
+| # | Result |
+| --- | --- |
+| 1 | Pass. Entries were added to the chat, entry A was removed after the scan, entry D was rewritten, and the prompt that was sent matched every time. |
+| 2 | Pass. Swipes rolled again. |
+| 3 | **Different from desktop.** The wait timer on entry C was set to `start 40, end 44` on every generation while the chat grew from 44 to 57 messages, and C fired every time. World Info was being handed a fixed window of 40 messages, so its message count never advanced and its timers never took effect. |
+| 4 | Pass. Both `nested-ok` and `plain` appeared. |
+| 5 | Pass. Create, edit, save and read back all worked; custom data was kept. |
+
+Also: every event and `getContext()` function the extension uses is present. `generateRaw` works, with and without
+a JSON schema. A lorebook that is both added by the extension and turned on in World Info is sent once.
+
+What changed because of test 3: from 1.1.0 the Roleplay Instructions extension does its own timing, counted in
+replies from the records it keeps on each reply. It no longer depends on World Info's sticky, cooldown or delay
+while it is on.

@@ -40,5 +40,4 @@ lorebook in World Info.
 
 ## Results
 
-Desktop SillyTavern 1.19.0 results are in `results/desktop-sillytavern-1.19.0.txt`. TauriTavern (Android) results go in
-`results/tauritavern-android.txt` once the log is pasted back.
+Desktop SillyTavern 1.19.0 results are in `results/desktop-sillytavern-1.19.0.txt`. TauriTavern (Android) results are summarised in `RESULTS.md`.
