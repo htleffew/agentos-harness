@@ -19,3 +19,5 @@ Setup used for 1.0.0:
 | `t_ui2.js` | AI writer, checks, saving, pronouns, What Was Sent, both "under each reply" modes |
 | `t_50.js` | 50 replies with a limit of 2: prompt and record match on every reply |
 | `t_shots.js` | Screenshots at tablet and phone size |
+| `t_import.js` | A lorebook the extension did not write: one note per reply, file left unchanged |
+| `t_edit.js` | Deleting messages, branching, editing the newest reply, swiping after a delete |

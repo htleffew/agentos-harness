@@ -61,6 +61,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 1.0.0. Version 1: Random Instructions. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 1.0.1. Version 1: Random Instructions. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Instruction sets are ordinary lorebooks. With this extension off, a set still works if you turn the lorebook on in World Info, without limits, checking or the What Was Sent record.')));
 }

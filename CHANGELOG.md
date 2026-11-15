@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1 (2026-11-15)
+
+- Deleting messages or opening a branch now brings the waiting list and the timers in line with the chat as it
+  stands: re-sends that belonged to deleted replies are dropped, timers started by deleted replies are cleared,
+  and the state of the newest remaining reply is restored.
+- Editing the newest reply checks it again. New button: "Check this reply again".
+- Swiping a reply after deleting later messages repeats that reply's own instructions.
+- New button on the waiting note: "Do not send these again".
+
 ## 1.0.0 (2026-11-15)
 
 First release. Version 1: Random Instructions.

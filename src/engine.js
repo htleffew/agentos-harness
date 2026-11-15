@@ -108,10 +108,65 @@ function applyLimit(world, fresh, continuing) {
     return fresh.filter(e => !keep.includes(e));
 }
 
+/** The record on the newest reply. While a swipe is being written it is found on the reply's earlier swipes. */
 function lastRecord() {
     const chat = ctx().chat || [];
     const m = chat[chat.length - 1];
-    return m && !m.is_user ? m.extra?.[KEY] : null;
+    if (!m || m.is_user) return null;
+    if (m.extra?.[KEY]?.items) return m.extra[KEY];
+    const infos = Array.isArray(m.swipe_info) ? m.swipe_info : [];
+    for (let i = infos.length - 1; i >= 0; i--) if (infos[i]?.extra?.[KEY]?.items) return infos[i].extra[KEY];
+    return null;
+}
+
+/** Every record still in the chat, by the time it was made. */
+function liveRecordTimes() {
+    const times = new Set();
+    for (const m of ctx().chat || []) {
+        if (m.extra?.[KEY]?.time) times.add(m.extra[KEY].time);
+        for (const info of Array.isArray(m.swipe_info) ? m.swipe_info : []) if (info?.extra?.[KEY]?.time) times.add(info.extra[KEY].time);
+    }
+    return times;
+}
+
+/**
+ * Bring the waiting list in line with the chat as it stands now. Called after messages are deleted, when a chat
+ * or branch opens, and before each scan.
+ * - Anything waiting to be sent again whose reply is gone from this chat is dropped.
+ * - If the newest reply still says an instruction is overdue, that instruction is put back on the list.
+ */
+function reconcile() {
+    const cs = chatState();
+    if (!cs) return;
+    const times = liveRecordTimes();
+    const kept = cs.overdue.filter(o => !o.from || times.has(o.from));
+    const chat = ctx().chat || [];
+    const last = chat[chat.length - 1];
+    const rec = last && !last.is_user ? last.extra?.[KEY] : null;
+    for (const it of rec?.items || []) {
+        if (!['overdue', 'queued'].includes(it.status) || kept.some(o => o.key === it.key)) continue;
+        kept.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time });
+    }
+    if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
+}
+
+/**
+ * After messages are deleted or a branch opens, clear "keep sending" and "wait" timers that were started by replies
+ * that are no longer in the chat. World Info clears most of these itself; this also covers the ones it protects.
+ */
+function clearTimersFromRemovedReplies() {
+    const timed = ctx().chatMetadata?.timedWorldInfo;
+    if (!timed) return;
+    const managed = managedWorlds();
+    const length = (ctx().chat || []).filter(m => !m.is_system).length;
+    let removed = false;
+    for (const type of ['sticky', 'cooldown']) {
+        for (const [key, value] of Object.entries(timed[type] || {})) {
+            const world = key.slice(0, key.lastIndexOf('.'));
+            if (managed.has(world) && Number(value?.start) >= length) { delete timed[type][key]; removed = true; }
+        }
+    }
+    if (removed) saveChatState();
 }
 
 function onScanDone(args) {
@@ -138,11 +193,15 @@ function onScanDone(args) {
         const len = scanLength(type);
         const items = [];
         const find = key => sorted.find(e => keyOf(e) === key && managed.has(e.world) && !e.disable);
-        const isRepeat = type === 'continue' || (['swipe', 'regenerate'].includes(type) && cs.lastScan && cs.lastScan.len === len && !pickAgain);
+        reconcile();
+        // Swipe, regenerate and continue send the same instructions again. The list comes from the last scan when it
+        // was for this same reply, and otherwise from the record kept on the reply itself.
+        const sameReply = cs.lastScan && cs.lastScan.len === len;
+        const own = type === 'continue' || (type === 'swipe' && !sameReply) ? lastRecord() : null;
+        const isRepeat = type === 'continue' || (['swipe', 'regenerate'].includes(type) && !pickAgain && (sameReply || !!own));
 
         if (isRepeat) {
-            // Swipe, regenerate and continue send the same instructions again.
-            const before = type === 'continue' ? (lastRecord()?.items || []) : (cs.lastScan.items || []);
+            const before = own ? (own.items || []) : (type === 'continue' ? [] : (cs.lastScan.items || []));
             for (const e of fired) map.delete(keyOf(e));
             for (const it of before) {
                 const e = find(it.key);
@@ -252,16 +311,17 @@ function stickyContinues(key) {
     return nextScan < Number(t.end);
 }
 
-function queueResend(cs, it, misses) {
+function queueResend(cs, it, misses, from) {
+    it.resend = misses;
     cs.overdue = cs.overdue.filter(o => o.key !== it.key);
-    cs.overdue.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses });
+    cs.overdue.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from });
 }
 
-function markMissed(cs, it) {
+function markMissed(cs, it, from) {
     const st = settings();
     if (stickyContinues(it.key)) { it.status = 'continuing'; return false; }
     if ((it.misses || 0) >= st.check.maxResend) { it.status = 'missed'; return false; }
-    queueResend(cs, it, (it.misses || 0) + 1);
+    queueResend(cs, it, (it.misses || 0) + 1, from);
     it.status = 'overdue';
     return true;
 }
@@ -317,8 +377,10 @@ async function runCheck(id) {
     rec.items.forEach((it, i) => {
         const r = byId.get(`a${i + 1}`);
         if (!r) return;
-        if (r.done === true && quoteFound(reply, r.quote)) { it.status = 'done'; it.quote = String(r.quote).trim(); }
-        else { it.quote = ''; if (markMissed(cs, it)) anyOverdue = true; }
+        if (r.done === true && quoteFound(reply, r.quote)) {
+            it.status = 'done'; it.quote = String(r.quote).trim();
+            cs.overdue = cs.overdue.filter(o => !(o.key === it.key && (!o.from || o.from === rec.time)));
+        } else { it.quote = ''; if (markMissed(cs, it, rec.time)) anyOverdue = true; }
     });
     const u = byId.get('user');
     rec.agency = u && u.done === true && quoteFound(reply, u.quote) ? { quote: String(u.quote).trim() } : null;
@@ -421,7 +483,7 @@ export function sendAgain(id, index) {
     const cs = chatState();
     const it = ctx().chat?.[id]?.extra?.[KEY]?.items?.[index];
     if (!cs || !it) return;
-    queueResend(cs, it, it.status === 'done' ? 0 : Math.min(2, (it.misses || 0) + 1));
+    queueResend(cs, it, it.status === 'done' ? 0 : Math.min(2, (it.misses || 0) + 1), ctx().chat[id].extra[KEY].time);
     it.status = 'queued';
     touch(id);
 }
@@ -432,7 +494,7 @@ export function undoDone(id, index) {
     if (!cs || !it) return;
     it.quote = '';
     it.status = 'sent';
-    markMissed(cs, it);
+    markMissed(cs, it, ctx().chat[id].extra[KEY].time);
     touch(id);
 }
 
@@ -443,6 +505,25 @@ export function cancelResend(id, index) {
     cs.overdue = cs.overdue.filter(o => o.key !== it.key);
     it.status = 'sent';
     touch(id);
+}
+
+/** Check a reply again, for example after you edited it. */
+export function checkAgain(id) {
+    const rec = ctx().chat?.[id]?.extra?.[KEY];
+    if (!rec?.items?.length || rec.checking || settings().check.mode === 'off') return;
+    const run = runCheck(id).catch(e => { console.warn(LOG, 'check failed', e); return null; });
+    checkPromise = run;
+    run.then(() => { if (checkPromise === run) checkPromise = null; });
+}
+
+/** Stop everything that is waiting to be sent again. */
+export function clearQueue() {
+    const cs = chatState();
+    if (!cs) return;
+    const keys = new Set(cs.overdue.map(o => o.key));
+    cs.overdue = [];
+    for (const m of ctx().chat || []) for (const it of m.extra?.[KEY]?.items || []) if (keys.has(it.key) && ['overdue', 'queued'].includes(it.status)) it.status = 'sent';
+    touch(-1);
 }
 
 /** Roll this reply's instructions again and write a new reply. */
@@ -476,9 +557,16 @@ export function init() {
     on('CHAT_CHANGED', () => {
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();
-        if (isChatOpen()) applyPronouns();
+        if (isChatOpen()) { applyPronouns(); if (settings().enabled) { reconcile(); clearTimersFromRemovedReplies(); } }
         changed('chat');
     });
-    for (const name of ['MESSAGE_SWIPED', 'MESSAGE_DELETED', 'MESSAGE_UPDATED', 'MESSAGE_EDITED']) on(name, () => changed('messages'));
+    for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
+    on('MESSAGE_DELETED', () => { if (settings().enabled) { reconcile(); clearTimersFromRemovedReplies(); } changed('messages'); });
+    on('MESSAGE_EDITED', (id) => {
+        // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
+        id = Number(id);
+        if (settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
+        changed('messages');
+    });
     return missing;
 }

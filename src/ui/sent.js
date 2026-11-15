@@ -1,6 +1,6 @@
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
-import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList } from '../engine.js';
+import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue } from '../engine.js';
 import { settings } from '../store.js';
 import { ctx, KEY, isChatOpen } from '../st.js';
 
@@ -35,7 +35,9 @@ function recordBody(id, rec, isLast, withButtons) {
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
         rec.items.map((it, i) => itemRow(id, rec, it, i, withButtons)),
-        withButtons && isLast ? h('div', { class: 'ri-row' }, button('Pick again and write a new reply', () => pickAgainNow(), { title: 'Roll the instructions for this reply again and swipe to a new reply' })) : null,
+        withButtons && isLast ? h('div', { class: 'ri-row' },
+            button('Pick again and write a new reply', () => pickAgainNow(), { title: 'Roll the instructions for this reply again and swipe to a new reply' }),
+            settings().check.mode === 'off' ? null : button('Check this reply again', () => checkAgain(id), { kind: 'ghost', title: 'Use this after you edit the reply by hand' })) : null,
     ];
 }
 
@@ -53,7 +55,8 @@ export function renderSent(body) {
     if (!isChatOpen()) return;
     const st = settings();
     const waiting = overdueList();
-    if (waiting.length) body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `Waiting to be sent again with the next reply: ${waiting.map(o => o.name).join(', ')}.`));
+    if (waiting.length) body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `Waiting to be sent again with the next reply: ${waiting.map(o => o.name).join(', ')}.`,
+        h('div', { class: 'ri-row ri-row-tight' }, button('Do not send these again', () => clearQueue(), { kind: 'ghost' }))));
     if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Checking is off, so replies are not checked. Turn on "Check that it happened" in Settings to see Done and Overdue here.'));
     const records = recentRecords(30);
     if (!records.length) {

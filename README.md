@@ -64,6 +64,23 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
   `{{random::...}}` list of its versions. Per-reply limits, the no-repeat cycle, checking and What Was Sent need
   the extension.
 
+## Editing, deleting, branching
+
+The record of what was sent lives on each reply, so it follows the reply wherever it goes.
+
+| You do this | What happens |
+| --- | --- |
+| Edit the newest reply | It is checked again. If your edit made the instruction happen, it shows Done and is taken off the waiting list. |
+| Edit an older message | Nothing changes. Old replies are never re-checked on their own. |
+| Delete messages | Their records go with them. Anything waiting to be sent again because of a deleted reply is dropped. "Keep sending" and "wait" timers started by deleted replies are cleared. The chat carries on from the state of the newest reply that is left. |
+| Delete only the reply that carried a reminder | You are back one step: the earlier reminder is waiting again. |
+| Swipe or regenerate any newest reply | The same instructions and versions are sent again, also after you deleted later messages. |
+| Branch a chat | The branch keeps which sets are on, your pronouns, and the records up to the branch point, and continues from the state at that reply. The original chat is untouched. |
+
+You do not need to assign instruction sets in SillyTavern's World Info selector. "On for this chat" in the panel
+is enough. If a set is also turned on in World Info it is still sent only once, but it then stays on wherever
+World Info has it on, whatever the panel switch says.
+
 ## Where things are stored
 
 | What | Where |
