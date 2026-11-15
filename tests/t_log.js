@@ -113,6 +113,18 @@ const clearLog = (page) => page.evaluate(async (B) => (await import(`${B}/src/lo
         e = await log(page);
         console.log(e.map(x => `${x.what} | ${x.ok} | ${x.result}`));
         assert(e.some(x => x.what === 'Check that it happened' && x.ok === true && /marked 1 of 1 instruction as done/.test(x.result)), 'log: the check after a reply is logged with its result');
+        // ----- the line about {{user}}'s words is said once per reply
+        await L.makeSet(page, 'Once ' + Date.now(), [{ name: 'A', versions: ['A1'] }, { name: 'B', versions: ['B1'] }, { name: 'C', versions: ['C1'] }]);
+        L.resetLog(); await L.send(page, 'Again'); await L.waitChecks(page);
+        const req = L.chatRequests().slice(-1)[0];
+        const said = (L.text(req).match(/theirs to write/g) || []).length;
+        const got = L.marks(req).sort().join('');
+        const recs = (await L.records(page)).slice(-1)[0].rec.items.map(x => /theirs to write\.\]$/.test(x.text));
+        console.log('user line said', said, 'times; notes', got, recs);
+        assert(said === 1 && got === 'A1B1C1' && recs.filter(Boolean).length === 1 && recs[recs.length - 1] === true, 'once: three notes in one reply carry the line about {{user}} once, on the last note, and What Was Sent shows the same');
+        await page.evaluate(() => globalThis.SillyTavern.getContext().swipe.right()); await L.idle(page); await L.waitChecks(page);
+        const req2 = L.chatRequests().slice(-1)[0];
+        assert((L.text(req2).match(/theirs to write/g) || []).length === 1 && L.marks(req2).sort().join('') === 'A1B1C1', 'once: a swipe sends the same three notes with the line once');
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 300));
     } finally { await browser.close(); }
 })().catch(e => { console.error('ERROR', e); process.exitCode = 1; });

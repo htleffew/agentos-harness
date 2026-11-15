@@ -5,7 +5,24 @@ import { request } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
-import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
+import { USER_LINE, parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
+
+const sentEntries = new Map();   // key -> the lorebook entry whose text is being sent in this reply
+
+/**
+ * The line about {{user}}'s words closes every note as it is stored, so a set works with the extension off.
+ * When several notes go out in one reply, the line is said once, on the last of them.
+ */
+function sayUserLineOnce(items) {
+    const tail = `${sub(USER_LINE)}]`;
+    const having = items.filter(it => typeof it.text === 'string' && it.text.endsWith(tail));
+    for (const it of having.slice(0, -1)) {
+        it.text = `${it.text.slice(0, -tail.length)}]`;
+        const entry = sentEntries.get(it.key);
+        if (entry) entry.content = it.text;
+    }
+    sentEntries.clear();
+}
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
 let pending = null;        // what was sent for the reply being written: { items, type }
@@ -167,6 +184,7 @@ function pickVersion(cs, key, versions) {
 function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = null) {
     const text = sub(wrapText(sentAs, version, misses));
     entry.content = text;
+    sentEntries.set(keyOf(entry), entry);
     const item = { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
     // A story event also keeps what the dice picked, and the state of its categories after this event.
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
@@ -365,6 +383,7 @@ function onScanDone(args) {
             }
         }
 
+        sayUserLineOnce(items);
         cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         pending = { items, type, states };
         rerollCat = null;

@@ -2,7 +2,7 @@
 import { loadBook, saveBook, refreshWorldList, worldNames } from './st.js';
 import { settings, saveSettings, FORMS } from './store.js';
 
-const USER_LINE = " {{user}}'s words, choices and thoughts are theirs to write.";
+export const USER_LINE = " {{user}}'s words, choices and thoughts are theirs to write.";
 
 /** How an instruction is sent. role: 0 system, 1 user, 2 assistant, null keeps the entry's own role. */
 export const SENT_AS = {

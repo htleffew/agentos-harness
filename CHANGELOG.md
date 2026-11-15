@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.1.1 (2026-11-15)
+
+- The line "{{user}}'s words, choices and thoughts are theirs to write." was added to every note, so a reply with
+  several notes repeated it each time. It is now said once per reply, on the last note. What Was Sent shows the
+  text exactly as it went out. Stored lorebook entries still each end with the line, so a set keeps working with
+  the extension off.
+
 ## 4.1.0 (2026-11-15)
 
 Flags instead of hard stops, a Log tab, and real reasons when AI writing fails. From tablet feedback.
