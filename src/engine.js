@@ -1,0 +1,484 @@
+// What happens on each reply: which instructions are sent, which version, the record of what was sent,
+// and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
+import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, ask, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
+import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
+import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS } from './books.js';
+
+let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
+let pending = null;        // what was sent for the reply being written: { items, type }
+let pickAgain = false;     // set by "Pick again": the next swipe rolls fresh instead of repeating
+let checkPromise = null;
+const rawByKey = new Map(); // "lorebook.uid" -> { content, role } as stored, for lorebooks this extension did not write
+const listeners = new Set();
+
+export function onChange(fn) { listeners.add(fn); }
+function changed(what, id) {
+    for (const fn of listeners) { try { fn(what, id); } catch (e) { console.error(LOG, e); } }
+}
+
+const keyOf = e => `${e.world}.${e.uid}`;
+const managedWorlds = () => new Set(Object.keys(settings().sets));
+
+// ---------- before the scan: add this chat's instruction sets ----------
+
+async function onEntriesLoaded(lore) {
+    try {
+        const st = settings();
+        if (!st.enabled || !lore) return;
+        const managed = managedWorlds();
+        const arrays = [lore.globalLore, lore.characterLore, lore.chatLore, lore.personaLore].filter(Array.isArray);
+        const cs = chatState();
+        if (cs && Array.isArray(lore.chatLore)) {
+            const present = new Set(arrays.flat().map(e => e.world));
+            for (const name of cs.activeSets) {
+                if (!managed.has(name) || present.has(name)) continue;
+                const data = await loadBook(name).catch(() => null);
+                if (!data?.entries) continue;
+                lore.chatLore.push(...Object.values(data.entries).map(e => ({ ...e, world: name })));
+            }
+        }
+        for (const arr of arrays) {
+            for (const e of arr) if (managed.has(e.world)) rawByKey.set(keyOf(e), { content: e.content, role: e.role });
+        }
+        // Requests that are not a reply from the character (impersonate, background requests) carry no instructions.
+        if (gen && !gen.dryRun && gen.skip) {
+            for (const arr of arrays) {
+                for (let i = arr.length - 1; i >= 0; i--) if (managed.has(arr[i].world)) arr.splice(i, 1);
+            }
+        }
+    } catch (e) { console.error(LOG, 'entries-loaded', e); }
+}
+
+// ---------- after the scan: limits, re-sends, picked versions, the record ----------
+
+function versionsOf(entry) {
+    const saved = entry.extensions?.ri;
+    if (saved && Array.isArray(saved.versions) && saved.versions.length) {
+        return { sentAs: SENT_AS[saved.sentAs] ? saved.sentAs : 'plain', versions: saved.versions.map(v => typeof v === 'string' ? v : String(v.text ?? '')).filter(Boolean) };
+    }
+    const raw = rawByKey.get(keyOf(entry));
+    const p = parseContent(raw?.content ?? entry.content, raw?.role ?? entry.role);
+    return { sentAs: p.sentAs, versions: p.versions };
+}
+
+/** Pick a version. Every version is used once before any is used again. */
+function pickVersion(cs, key, versions) {
+    let used = (cs.used[key] || []).filter(i => i < versions.length);
+    let options = versions.map((_, i) => i).filter(i => !used.includes(i));
+    if (!options.length) {
+        const last = cs.picks[key]?.idx;
+        used = [];
+        options = versions.map((_, i) => i).filter(i => versions.length === 1 || i !== last);
+    }
+    const idx = options[rollInt(options.length)];
+    used.push(idx);
+    cs.used[key] = used;
+    cs.picks[key] = { idx, text: versions[idx] };
+    return versions[idx];
+}
+
+function makeItem(entry, sentAs, version, misses, kind) {
+    const text = sub(wrapText(sentAs, version, misses));
+    entry.content = text;
+    return { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, status: 'sent', quote: '' };
+}
+
+/** Apply "How many instructions can be sent per reply" for one instruction set. Returns the new instructions to hold back. */
+function applyLimit(world, fresh, continuing) {
+    const o = setOptions(world);
+    if (o.limit === 'none' || !fresh.length) return [];
+    const weight = e => e.groupWeight ?? 100;
+    let keep = fresh;
+    if (o.limit === 'one') {
+        keep = continuing.length ? [] : pickWeighted(fresh, weight, 1);
+    } else if (o.limit === 'max') {
+        keep = pickWeighted(fresh, weight, Math.max(0, o.max - continuing.length));
+    } else if (o.limit === 'together') {
+        const groupOf = e => String(e.extensions?.ri?.sendTogether || '').trim() || `\u0000solo ${e.uid}`;
+        const active = new Set(continuing.map(groupOf));
+        if (active.size) {
+            keep = fresh.filter(e => active.has(groupOf(e)));
+        } else {
+            const groups = [...new Set(fresh.map(groupOf))];
+            const best = g => Math.max(...fresh.filter(e => groupOf(e) === g).map(weight));
+            const chosen = pickWeighted(groups, best, 1)[0];
+            keep = fresh.filter(e => groupOf(e) === chosen);
+        }
+    }
+    return fresh.filter(e => !keep.includes(e));
+}
+
+function lastRecord() {
+    const chat = ctx().chat || [];
+    const m = chat[chat.length - 1];
+    return m && !m.is_user ? m.extra?.[KEY] : null;
+}
+
+function onScanDone(args) {
+    try {
+        const st = settings();
+        if (!st.enabled || !gen || gen.dryRun || gen.handled) return;
+        if (args?.state?.next) return; // more passes follow; work on the final result only
+        const map = args?.activated?.entries;
+        if (!(map instanceof Map)) return;
+        gen.handled = true;
+        const cs = chatState();
+        if (!cs) return;
+        const managed = managedWorlds();
+        const sorted = Array.isArray(args.sortedEntries) ? args.sortedEntries : [];
+        const fired = [...map.values()].filter(e => managed.has(e.world));
+        const isSticky = e => !!args.timedEffects?.isEffectActive?.('sticky', e);
+        const type = gen.type;
+
+        if (gen.skip) {
+            for (const e of fired) map.delete(keyOf(e));
+            return;
+        }
+
+        const len = scanLength(type);
+        const items = [];
+        const find = key => sorted.find(e => keyOf(e) === key && managed.has(e.world) && !e.disable);
+        const isRepeat = type === 'continue' || (['swipe', 'regenerate'].includes(type) && cs.lastScan && cs.lastScan.len === len && !pickAgain);
+
+        if (isRepeat) {
+            // Swipe, regenerate and continue send the same instructions again.
+            const before = type === 'continue' ? (lastRecord()?.items || []) : (cs.lastScan.items || []);
+            for (const e of fired) map.delete(keyOf(e));
+            for (const it of before) {
+                const e = find(it.key);
+                if (!e) continue;
+                let misses = it.misses || 0;
+                const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
+                if (od) { misses = od.misses; cs.overdue = cs.overdue.filter(o => o !== od); }
+                map.set(it.key, e);
+                items.push(makeItem(e, it.sentAs, it.version, misses, 'repeat'));
+            }
+        } else {
+            pickAgain = false;
+            const continuing = fired.filter(isSticky);
+            let fresh = fired.filter(e => !isSticky(e));
+            const overdue = cs.overdue.filter(o => find(o.key));
+
+            // Hold back new instructions while one is overdue, or apply each set's per-reply limit.
+            let held = [];
+            if (overdue.length && st.check.holdNew) {
+                held = fresh;
+            } else {
+                for (const world of new Set(fresh.map(e => e.world))) {
+                    held.push(...applyLimit(world, fresh.filter(e => e.world === world), continuing.filter(e => e.world === world)));
+                }
+            }
+            for (const e of held) map.delete(keyOf(e));
+            fresh = fresh.filter(e => !held.includes(e));
+
+            // Send overdue instructions again, ahead of new ones.
+            const resent = new Set();
+            for (const od of overdue) {
+                const e = find(od.key);
+                map.set(od.key, e);
+                resent.add(od.key);
+                items.push(makeItem(e, od.sentAs, od.version, od.misses, 'resend'));
+            }
+            cs.overdue = [];
+
+            for (const e of [...continuing, ...fresh]) {
+                const key = keyOf(e);
+                if (resent.has(key)) continue;
+                const { sentAs, versions } = versionsOf(e);
+                if (!versions.length) { map.delete(key); continue; }
+                const kept = continuing.includes(e) ? cs.picks[key]?.text : null;
+                const version = kept && versions.includes(kept) ? kept : pickVersion(cs, key, versions);
+                items.push(makeItem(e, sentAs, version, 0, continuing.includes(e) ? 'continuing' : 'new'));
+            }
+        }
+
+        cs.lastScan = { len, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses })) };
+        pending = { items, type };
+        saveChatState();
+    } catch (e) { console.error(LOG, 'scan-done', e); }
+}
+
+// ---------- after the reply: keep the record, check that it happened ----------
+
+const SENT_BLOCK = /\s*<sent_instructions>[\s\S]*?<\/sent_instructions>/g;
+export const stripSentBlock = text => String(text ?? '').replace(SENT_BLOCK, '');
+
+function attach(message, rec) {
+    if (!message.extra || typeof message.extra !== 'object') message.extra = {};
+    message.extra[KEY] = rec;
+    const info = Array.isArray(message.swipe_info) ? message.swipe_info[message.swipe_id] : null;
+    if (info) {
+        if (!info.extra || typeof info.extra !== 'object') info.extra = {};
+        info.extra[KEY] = rec;
+    }
+}
+
+function onMessageReceived(id, type) {
+    try {
+        if (!pending || type === 'first_message') return;
+        const m = ctx().chat?.[id];
+        if (!m || m.is_user || m.is_system) return;
+        const rec = { v: 1, items: pending.items, type: pending.type, time: Date.now(), agency: null, checking: false, note: '' };
+        pending = null;
+        if (!rec.items.length) return;
+        attach(m, rec);
+        try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+        changed('sent', id);
+        const run = runCheck(id).catch(e => { console.warn(LOG, 'check failed', e); return null; });
+        checkPromise = run;
+        run.then((regen) => {
+            if (checkPromise === run) checkPromise = null;
+            if (regen) autoRegenerate(regen).catch(e => console.warn(LOG, 'new reply failed', e));
+        });
+    } catch (e) { console.error(LOG, 'message-received', e); }
+}
+
+const norm = s => String(s ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+function quoteFound(reply, quote) {
+    const q = norm(quote);
+    if (q.split(' ').filter(Boolean).length < 2) return false;
+    const r = norm(reply);
+    if (r.includes(q)) return true;
+    // A quote with "..." in the middle: every part must be in the reply.
+    const parts = String(quote).split(/\.{3,}|…/).map(norm).filter(p => p.split(' ').length >= 2);
+    return parts.length > 1 && parts.every(p => r.includes(p));
+}
+
+function stickyContinues(key) {
+    const t = ctx().chatMetadata?.timedWorldInfo?.sticky?.[key];
+    if (!t) return false;
+    const nextScan = (ctx().chat || []).filter(m => !m.is_system).length + 1;
+    return nextScan < Number(t.end);
+}
+
+function queueResend(cs, it, misses) {
+    cs.overdue = cs.overdue.filter(o => o.key !== it.key);
+    cs.overdue.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses });
+}
+
+function markMissed(cs, it) {
+    const st = settings();
+    if (stickyContinues(it.key)) { it.status = 'continuing'; return false; }
+    if ((it.misses || 0) >= st.check.maxResend) { it.status = 'missed'; return false; }
+    queueResend(cs, it, (it.misses || 0) + 1);
+    it.status = 'overdue';
+    return true;
+}
+
+async function runCheck(id) {
+    const st = settings();
+    const c = ctx();
+    const chatId = c.getCurrentChatId();
+    const m = c.chat?.[id];
+    const rec = m?.extra?.[KEY];
+    if (!rec) return;
+    const stale = () => ctx().getCurrentChatId() !== chatId || ctx().chat?.[id]?.extra?.[KEY] !== rec;
+    const finish = () => {
+        rec.checking = false;
+        if (st.showUnder === 'saved') writeIntoMessage(id);
+        try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+        saveChatState();
+        changed('checked', id);
+    };
+    if (st.check.mode === 'off') { finish(); return; }
+
+    rec.checking = true;
+    changed('sent', id);
+    const reply = stripSentBlock(m.mes);
+    const n = names();
+    const lines = rec.items.map((it, i) => `ID a${i + 1}: ${sub(toStore(it.version))}`);
+    if (st.check.agency !== 'off') lines.push(`ID user: The reply writes spoken words, actions, decisions, thoughts or feelings for ${n.user}.`);
+    const user = [
+        'Below is one reply from a roleplay and a list of instructions that were given for that reply. Decide for each instruction whether the reply carried it out.',
+        '', 'REPLY:', '"""', reply, '"""', '', 'INSTRUCTIONS:', ...lines, '',
+        'Answer with only a JSON list, one object per ID, in this form:',
+        '[{"id": "a1", "done": true, "quote": "words copied exactly from the REPLY that show it happened"}]',
+        'Rules: "quote" is 3 to 25 words copied exactly from the REPLY. When an instruction was not carried out, use "done": false and "quote": "".',
+    ].join('\n');
+
+    let results = null;
+    try {
+        const answer = await ask({ system: 'You check whether instructions were carried out in a roleplay reply. You answer with JSON only.', user, tokens: 500, profileId: st.profileId });
+        results = parseJson(answer);
+    } catch (e) {
+        rec.note = `The check could not run: ${e?.cause?.message || e?.message || e}`;
+    }
+    if (stale()) return;
+    const cs = chatState();
+    if (!Array.isArray(results) || !cs) {
+        if (!rec.note) rec.note = 'The check gave no usable answer, so nothing was marked.';
+        finish();
+        return;
+    }
+    rec.note = '';
+    const byId = new Map(results.filter(r => r && typeof r === 'object').map(r => [String(r.id), r]));
+    let anyOverdue = false;
+    rec.items.forEach((it, i) => {
+        const r = byId.get(`a${i + 1}`);
+        if (!r) return;
+        if (r.done === true && quoteFound(reply, r.quote)) { it.status = 'done'; it.quote = String(r.quote).trim(); }
+        else { it.quote = ''; if (markMissed(cs, it)) anyOverdue = true; }
+    });
+    const u = byId.get('user');
+    rec.agency = u && u.done === true && quoteFound(reply, u.quote) ? { quote: String(u.quote).trim() } : null;
+    finish();
+
+    // Optional: regenerate right away, once per reply.
+    const wantRegen = (anyOverdue && st.check.regenOnMiss) || (rec.agency && st.check.agency === 'regen');
+    if (!wantRegen || !cs.lastScan || cs.autoRegenLen === cs.lastScan.len) return null;
+    return { id, rec, chatId, missed: anyOverdue };
+}
+
+/** Optional: write a new reply right away, once per reply. Runs after the check has fully finished. */
+async function autoRegenerate({ id, rec, chatId, missed }) {
+    // The check can finish while SillyTavern is still closing the reply. Wait for it, then make sure nothing moved on.
+    for (let waited = 0; isGenerating() && waited < 15000; waited += 200) await new Promise(r => setTimeout(r, 200));
+    const c = ctx();
+    const cs = chatState();
+    if (!cs || isGenerating() || c.getCurrentChatId() !== chatId || id !== (c.chat || []).length - 1 || c.chat[id]?.extra?.[KEY] !== rec) return;
+    cs.autoRegenLen = cs.lastScan?.len;
+    saveChatState();
+    toast('info', missed ? 'An instruction did not happen. Writing a new reply.' : 'The reply wrote for you. Writing a new reply.');
+    await triggerSwipe();
+}
+
+// ---------- "Saved in the message" display mode ----------
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+export function statusLabel(it) {
+    switch (it.status) {
+        case 'done': return 'Done';
+        case 'overdue': return `Overdue ${Math.min((it.misses || 0) + 1, 9)}: will be sent again`;
+        case 'missed': return 'Missed: stopped sending';
+        case 'continuing': return 'Not yet: still being sent';
+        case 'queued': return 'Will be sent again';
+        default: return 'Sent';
+    }
+}
+
+function writeIntoMessage(id) {
+    const c = ctx();
+    const m = c.chat?.[id];
+    const rec = m?.extra?.[KEY];
+    if (!m || !rec?.items?.length) return;
+    const rows = rec.items.map(it => `<li><b>${esc(statusLabel(it))}.</b> ${esc(it.text)}${it.quote ? ` <i>Shown by: "${esc(it.quote)}"</i>` : ''}</li>`).join('');
+    const block = `\n\n<sent_instructions><details><summary>What was sent with this reply (${rec.items.length})</summary><ul>${rows}</ul></details></sent_instructions>`;
+    m.mes = stripSentBlock(m.mes) + block;
+    if (Array.isArray(m.swipes) && typeof m.swipe_id === 'number' && m.swipes[m.swipe_id] !== undefined) m.swipes[m.swipe_id] = m.mes;
+    try { c.updateMessageBlock?.(id, m); } catch { /* shown on the next redraw */ }
+}
+
+function onPromptReady(data) {
+    try {
+        if (!Array.isArray(data?.chat)) return;
+        for (const msg of data.chat) {
+            if (typeof msg.content === 'string' && msg.content.includes('<sent_instructions>')) msg.content = stripSentBlock(msg.content);
+            else if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string' && part.text.includes('<sent_instructions>')) part.text = stripSentBlock(part.text);
+        }
+    } catch (e) { console.error(LOG, 'prompt-ready', e); }
+}
+
+const REGEX_ID = 'roleplay-instructions-hide-sent';
+
+/** A SillyTavern regex script that keeps the saved "what was sent" section out of prompts even if this extension is removed. */
+export function ensureRegexScript() {
+    const root = ctx().extensionSettings;
+    if (!Array.isArray(root.regex)) root.regex = [];
+    if (root.regex.some(s => s?.id === REGEX_ID)) return false;
+    root.regex.push({
+        id: REGEX_ID,
+        scriptName: 'Roleplay Instructions: keep "what was sent" out of prompts',
+        findRegex: '/\\s*<sent_instructions>[\\s\\S]*?<\\/sent_instructions>/g',
+        replaceString: '', trimStrings: [], placement: [2], disabled: false, markdownOnly: false, promptOnly: true,
+        runOnEdit: false, substituteRegex: 0, minDepth: null, maxDepth: null,
+    });
+    saveSettings();
+    return true;
+}
+
+// ---------- actions from the What Was Sent tab ----------
+
+/** Recent replies that carried instructions, newest first. */
+export function recentRecords(limit = 30) {
+    const chat = ctx().chat || [];
+    const out = [];
+    for (let i = chat.length - 1; i >= 0 && out.length < limit; i--) {
+        const rec = chat[i]?.extra?.[KEY];
+        if (rec?.items?.length) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
+    }
+    return out;
+}
+
+function touch(id) {
+    try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+    saveChatState();
+    changed('checked', id);
+}
+
+export function sendAgain(id, index) {
+    const cs = chatState();
+    const it = ctx().chat?.[id]?.extra?.[KEY]?.items?.[index];
+    if (!cs || !it) return;
+    queueResend(cs, it, it.status === 'done' ? 0 : Math.min(2, (it.misses || 0) + 1));
+    it.status = 'queued';
+    touch(id);
+}
+
+export function undoDone(id, index) {
+    const cs = chatState();
+    const it = ctx().chat?.[id]?.extra?.[KEY]?.items?.[index];
+    if (!cs || !it) return;
+    it.quote = '';
+    it.status = 'sent';
+    markMissed(cs, it);
+    touch(id);
+}
+
+export function cancelResend(id, index) {
+    const cs = chatState();
+    const it = ctx().chat?.[id]?.extra?.[KEY]?.items?.[index];
+    if (!cs || !it) return;
+    cs.overdue = cs.overdue.filter(o => o.key !== it.key);
+    it.status = 'sent';
+    touch(id);
+}
+
+/** Roll this reply's instructions again and write a new reply. */
+export async function pickAgainNow() {
+    if (isGenerating()) { toast('info', 'Wait for the current reply to finish.'); return; }
+    pickAgain = true;
+    await triggerSwipe();
+}
+
+export function overdueList() {
+    return chatState()?.overdue || [];
+}
+
+// ---------- wiring ----------
+
+export function init() {
+    const missing = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE'].filter(n => !on(n, n === 'WORLDINFO_SCAN_DONE' ? onScanDone : onEntriesLoaded));
+    on('GENERATION_STARTED', (type, opts, dryRun) => {
+        gen = { type: String(type || 'normal'), dryRun: !!dryRun, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false };
+        if (!dryRun && !gen.skip) pending = null;
+    });
+    on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
+        if (dryRun || !settings().enabled || !checkPromise) return;
+        // Let a running check finish first, so an instruction that did not happen can be sent again with this reply.
+        await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
+    });
+    on('MESSAGE_RECEIVED', onMessageReceived);
+    on('GENERATION_ENDED', () => { gen = null; });
+    on('GENERATION_STOPPED', () => { gen = null; pending = null; pickAgain = false; });
+    on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);
+    on('CHAT_CHANGED', () => {
+        gen = null; pending = null; pickAgain = false; checkPromise = null;
+        rawByKey.clear();
+        if (isChatOpen()) applyPronouns();
+        changed('chat');
+    });
+    for (const name of ['MESSAGE_SWIPED', 'MESSAGE_DELETED', 'MESSAGE_UPDATED', 'MESSAGE_EDITED']) on(name, () => changed('messages'));
+    return missing;
+}

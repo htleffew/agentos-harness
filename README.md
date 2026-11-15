@@ -1,0 +1,86 @@
+# Roleplay Instructions
+
+A standalone SillyTavern / TauriTavern extension. Version 1: **Random Instructions**.
+
+You build *instruction sets*. Each instruction has several *versions* of the same order ("{{char}} must pay
+{{user}} a compliment"). During a chat, an instruction is sent at random with the chance and timing you set, one
+version at a time. The extension then checks whether it happened, and sends it again with firmer wording if it
+did not.
+
+Every instruction set is an ordinary lorebook, so SillyTavern's World Info does the chance and timing. The
+extension adds the easy editor, the AI writer, per-reply limits, the check, and a record of exactly what was sent.
+
+- Works with any preset. Chat Completion. Needs SillyTavern 1.19 or later, or a TauriTavern build on 1.19.
+- Depends on no other extension.
+- Everything lives in one panel in the Extensions menu. Nothing is added to the chat screen unless you turn on
+  "Show what was sent under each reply".
+
+## Install
+
+1. **Extensions > Install extension**
+2. Repository URL: `https://github.com/htleffew/agentos-harness`
+3. Branch: `roleplay-instructions-v1`
+4. Install, then reload the app.
+
+## First use (2 minutes)
+
+1. Open a chat. Open **Extensions > Roleplay Instructions**. Press **Expand** for a full-screen panel.
+2. Press **Add instruction set** and give it a name. Or press **Open a lorebook** to use one you already have
+   (for example `char_feelings_bank`).
+3. Press **Add instruction**. Give it a name.
+4. Press **Write versions with AI**, type one sentence about what should happen, press **Write the versions**,
+   tick the ones you like, press **Add the ticked versions**. Or press **Add a version yourself**.
+5. Press **Save instruction**. Turn on **On for this chat**. Send a message.
+6. Look at the **What Was Sent** tab to see what was sent with each reply and whether it happened.
+
+## The three tabs
+
+| Tab | What it is for |
+| --- | --- |
+| Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
+| What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
+| Settings | Pronouns for this chat, which AI connection writes and checks, how checking and re-sending work, and the optional section under each reply. |
+
+## Things worth knowing
+
+- **Timing is shown in replies.** World Info counts messages (yours and the reply each count 1). The panel
+  converts for you: "Keep sending for 2 replies" is saved as `sticky 5`; "Wait 5 replies" is saved as
+  `cooldown 11` (or `9` when the instruction also keeps sending, because World Info starts that wait one reply
+  later).
+- **How often.** Each set shows how many replies will start a new instruction. Around 35% feels lively; over
+  55% feels crowded. Seven instructions at 5% each is about 30%.
+- **Swipes and regenerate** send the same instructions and versions again. Press **Pick again** in What Was
+  Sent to roll fresh ones.
+- **Versions do not repeat** until every version of that instruction has been used once.
+- **{{user}} never acts.** A version where {{user}} acts, speaks, decides, thinks or feels is marked "Must fix"
+  and cannot be saved.
+- **Names and pronouns** are placeholders. Tap the name and pronoun buttons while editing. Set pronouns once
+  per chat in Settings. One instruction set then works with any character and persona.
+- **Checking** uses one short AI request after each reply that carried an instruction. Pick a small, cheap
+  model for it in Settings > AI connection for writing and checking. If you send your next message while a check
+  is still running, the extension waits for it (20 seconds at most) so a missed instruction can go out again.
+- **Background requests** (summaries, impersonate) never carry instructions and never use up timers.
+- **With the extension off**, a set still works if you turn the lorebook on in World Info: each entry holds a
+  `{{random::...}}` list of its versions. Per-reply limits, the no-repeat cycle, checking and What Was Sent need
+  the extension.
+
+## Where things are stored
+
+| What | Where |
+| --- | --- |
+| Instructions and versions | In the lorebook file. Each entry has `extensions.ri` (versions, sent as, who does it, notes). |
+| Which lorebooks are instruction sets, per-reply limits, settings | SillyTavern extension settings (`roleplay_instructions`). |
+| Which sets are on, pronouns, what is waiting to be sent again | In the chat file (chat metadata). |
+| What was sent with each reply | On the message itself (`extra.roleplay_instructions`). |
+
+## Tests
+
+`tests/` holds the scripts used to check this version against a local SillyTavern 1.19.0 with a mock model:
+sending and version cycling, checking and re-sends, swipes, per-reply limits, quiet requests, keep and wait
+timing, the AI writer and its checks, the saved lorebook text, both "under each reply" modes, and a 50-reply
+run. See `tests/README.md`.
+
+## Roadmap
+
+Version 2 adds Random Story Events, Version 3 Random Writing Style, Version 4 Character Goals. Each is its own
+branch (`roleplay-instructions-v2` and so on).

@@ -1,0 +1,13 @@
+{
+    "display_name": "Roleplay Instructions",
+    "loading_order": 60,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Dr. H",
+    "version": "1.0.0",
+    "homePage": "https://github.com/htleffew/agentos-harness/tree/roleplay-instructions-v1",
+    "auto_update": false,
+    "minimum_client_version": "1.19.0"
+}
