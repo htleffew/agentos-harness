@@ -43,10 +43,12 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
 
 ## Things worth knowing
 
-- **Timing is shown in replies.** World Info counts messages (yours and the reply each count 1). The panel
-  converts for you: "Keep sending for 2 replies" is saved as `sticky 5`; "Wait 5 replies" is saved as
-  `cooldown 11` (or `9` when the instruction also keeps sending, because World Info starts that wait one reply
-  later).
+- **Timing is counted in replies, by the extension.** "Keep sending for 2 replies" and "Wait 5 replies" mean
+  exactly that. The extension reads what was sent from the record on each reply, so timing stays right after
+  swipes, deletes and branches, and in long chats where a summarizer or context limit hands World Info only the
+  most recent messages. (World Info's own sticky and cooldown count the messages it is handed; when that is a
+  fixed window, they freeze. This was seen on a TauriTavern tablet.) The same numbers are still saved in the
+  lorebook as `sticky` and `cooldown` for use with the extension off.
 - **How often.** Each set shows how many replies will start a new instruction. Around 35% feels lively; over
   55% feels crowded. Seven instructions at 5% each is about 30%.
 - **Swipes and regenerate** send the same instructions and versions again. Press **Pick again** in What Was
@@ -62,7 +64,8 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
 - **Background requests** (summaries, impersonate) never carry instructions and never use up timers.
 - **With the extension off**, a set still works if you turn the lorebook on in World Info: each entry holds a
   `{{random::...}}` list of its versions. Per-reply limits, the no-repeat cycle, checking and What Was Sent need
-  the extension.
+  the extension. Timing then comes from World Info's own counters, which stop working in chats longer than the
+  window of messages your setup sends.
 
 ## Editing, deleting, branching
 

@@ -4,7 +4,7 @@ import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgai
 import { settings } from '../store.js';
 import { ctx, KEY, isChatOpen } from '../st.js';
 
-const KIND = { new: 'New', continuing: 'Kept sending', resend: 'Sent again', repeat: 'Same as before the swipe' };
+const KIND = { new: 'New', continuing: 'Kept sending', resend: 'Sent again', repeat: 'New' };
 
 function statusChip(it, checking) {
     if (checking && it.status === 'sent') return chip('Checking...', 'ri-chip-wait');
@@ -24,7 +24,7 @@ function itemRow(id, rec, it, index, withButtons) {
         h('div', { class: 'ri-sent-top' }, h('span', { class: 'ri-sent-name' }, it.name), statusChip(it, rec.checking)),
         h('div', { class: 'ri-grid' },
             kv('Instruction set', it.world),
-            kv('Why it was sent', `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}`),
+            kv('Why it was sent', `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
             kv('Exact text sent', it.text),
             it.quote ? kv('Shown by this part of the reply', `"${it.quote}"`) : null),
         buttons.length ? h('div', { class: 'ri-row ri-row-tight' }, buttons) : null);

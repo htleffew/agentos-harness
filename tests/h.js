@@ -10,6 +10,8 @@ async function open({ width = 1280, height = 900 } = {}) {
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => globalThis.SillyTavern?.getContext && document.getElementById('send_textarea') && !document.getElementById('preloader'), null, { timeout: 90000 });
     await page.waitForTimeout(1500);
+    // Test-only: hand World Info a window of the last N messages (0 = everything), like a summarizer does.
+    await page.evaluate((w) => localStorage.setItem('ri_test_window', w), process.env.RI_WINDOW || '0');
     // First-run popup(s)
     for (let i = 0; i < 4; i++) {
         const ok = await page.$('dialog[open] .popup-button-ok');

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 (2026-11-15)
+
+- Timing ("keep sending", "wait", "do not send before reply") is now done by the extension from the records on the
+  replies. Found on a TauriTavern tablet: World Info was handed a fixed window of 40 messages, so its own sticky
+  and cooldown counters never advanced. Timing now works in chats of any length and with any summarizer or
+  context limit, and follows swipes, deletes and branches exactly.
+- A reply that carried no instruction is recorded too, so swiping it sends nothing again.
+- Tests run with and without a message window.
+
 ## 1.0.1 (2026-11-15)
 
 - Deleting messages or opening a branch now brings the waiting list and the timers in line with the chat as it

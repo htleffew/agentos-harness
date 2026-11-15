@@ -2,7 +2,7 @@ const L = require('./lib.js');
 (async () => {
     L.sync(); L.mode({});
     const { browser, page, errors } = await L.open();
-    await L.setupApi(page); await L.setSettings(page, { check: { mode: 'off' } });
+    await L.setupApi(page); await L.setSettings(page, { check: { mode: 'off' } }); await page.evaluate((w) => localStorage.setItem('ri_test_window', w), process.env.RI_WINDOW || '0');
     for (const [keep, wait] of [[2, 2], [1, 1], [0, 2], [0, 1], [3, 0], [1, 3]]) {
         await L.openChat(page); L.resetLog();
         await L.makeSet(page, `tF${keep}${wait}` + Date.now(), [{ name: 'F', versions: ['F1', 'F2', 'F3', 'F4'], keep, wait }]);

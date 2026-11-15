@@ -2,13 +2,15 @@
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, ask, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
-import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS } from './books.js';
+import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
 let pending = null;        // what was sent for the reply being written: { items, type }
 let pickAgain = false;     // set by "Pick again": the next swipe rolls fresh instead of repeating
 let checkPromise = null;
 const rawByKey = new Map(); // "lorebook.uid" -> { content, role } as stored, for lorebooks this extension did not write
+const timing = new Map();   // "lorebook.uid" -> { keep, wait } in replies, as set on the instruction
+let plan = { continuing: new Map() }; // for the scan that follows: instructions that keep sending -> their version
 const listeners = new Set();
 
 export function onChange(fn) { listeners.add(fn); }
@@ -18,6 +20,76 @@ function changed(what, id) {
 
 const keyOf = e => `${e.world}.${e.uid}`;
 const managedWorlds = () => new Set(Object.keys(settings().sets));
+
+// ---------- timing, counted in replies from the records kept on the replies ----------
+//
+// World Info's own "sticky", "cooldown" and "delay" count the messages it is handed for the scan. Setups that hand
+// it only a window of recent messages (a summarizer, a context limit) freeze that count, and the timers stop
+// working. So while the extension is on it does the timing itself: it reads what was sent with each reply from the
+// records on the replies. That also makes timing follow deletes, branches and swipes exactly.
+
+/** What the chat's records say, up to the reply that is about to be written. */
+function history(type = 'normal') {
+    const chat = ctx().chat || [];
+    let end = chat.length;
+    if (type === 'swipe' || type === 'continue') end -= 1; // the reply being rewritten does not count yet
+    let replies = 0;
+    const last = new Map(); // key -> { start: reply number where it last started, version }
+    for (let i = 0; i < end; i++) {
+        const m = chat[i];
+        if (!m || m.is_user || m.is_system) continue;
+        if (i === 0) continue; // the greeting is not a reply
+        replies++;
+        for (const it of m.extra?.[KEY]?.items || []) {
+            const prev = last.get(it.key);
+            if (it.kind === 'continuing' && prev) prev.version = it.version;
+            else last.set(it.key, { start: replies, version: it.version });
+        }
+    }
+    return { next: replies + 1, last };
+}
+
+const groupsOf = e => String(e.group || '').split(',').map(g => g.trim()).filter(Boolean);
+
+/** Decide, before the scan, which instructions keep sending, which are waiting, and which are free to roll. */
+function applyTiming(entries, cs) {
+    const h = history(gen && !gen.dryRun ? gen.type : 'normal');
+    const queued = new Set((cs?.overdue || []).map(o => o.key));
+    const state = new Map();
+    plan = { continuing: new Map() };
+    for (const e of entries) {
+        const key = keyOf(e);
+        const keep = stickyToKeep(e.sticky);
+        const wait = cooldownToWait(e.cooldown, e.sticky);
+        const notBefore = delayToReplyNumber(e.delay);
+        timing.set(key, { keep, wait });
+        e.sticky = null; e.cooldown = null; e.delay = null; // the extension does the timing for this scan
+        if (e.disable) continue;
+        const l = h.last.get(key);
+        const since = l ? h.next - l.start : Infinity;
+        if (since <= keep && !queued.has(key)) { state.set(e, 'continuing'); plan.continuing.set(key, l.version); }
+        else if (since <= keep + wait || (notBefore > 1 && h.next < notBefore)) state.set(e, 'waiting');
+    }
+    // An instruction that keeps sending holds its Only-one group: the others in that group wait.
+    const busy = new Set(entries.filter(e => state.get(e) === 'continuing').flatMap(groupsOf));
+    for (const e of entries) {
+        if (!e.disable && !state.has(e) && groupsOf(e).some(g => busy.has(g))) state.set(e, 'waiting');
+    }
+    for (const e of entries) {
+        const st = state.get(e);
+        if (st === 'continuing') { e.content = `@@activate\n${e.content || ''}`; e.useProbability = false; }
+        else if (st === 'waiting') e.content = `@@dont_activate\n${e.content || ''}`;
+    }
+}
+
+/** True when this instruction will be sent with the next reply anyway because it keeps sending. */
+function keepsGoing(key) {
+    const t = timing.get(key);
+    if (!t?.keep) return false;
+    const h = history('normal');
+    const l = h.last.get(key);
+    return !!l && h.next - l.start <= t.keep;
+}
 
 // ---------- before the scan: add this chat's instruction sets ----------
 
@@ -45,7 +117,9 @@ async function onEntriesLoaded(lore) {
             for (const arr of arrays) {
                 for (let i = arr.length - 1; i >= 0; i--) if (managed.has(arr[i].world)) arr.splice(i, 1);
             }
+            return;
         }
+        if (cs) applyTiming(arrays.flat().filter(e => managed.has(e.world)), cs);
     } catch (e) { console.error(LOG, 'entries-loaded', e); }
 }
 
@@ -77,10 +151,10 @@ function pickVersion(cs, key, versions) {
     return versions[idx];
 }
 
-function makeItem(entry, sentAs, version, misses, kind) {
+function makeItem(entry, sentAs, version, misses, kind, repeat = false) {
     const text = sub(wrapText(sentAs, version, misses));
     entry.content = text;
-    return { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, status: 'sent', quote: '' };
+    return { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
 }
 
 /** Apply "How many instructions can be sent per reply" for one instruction set. Returns the new instructions to hold back. */
@@ -150,25 +224,6 @@ function reconcile() {
     if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
 }
 
-/**
- * After messages are deleted or a branch opens, clear "keep sending" and "wait" timers that were started by replies
- * that are no longer in the chat. World Info clears most of these itself; this also covers the ones it protects.
- */
-function clearTimersFromRemovedReplies() {
-    const timed = ctx().chatMetadata?.timedWorldInfo;
-    if (!timed) return;
-    const managed = managedWorlds();
-    const length = (ctx().chat || []).filter(m => !m.is_system).length;
-    let removed = false;
-    for (const type of ['sticky', 'cooldown']) {
-        for (const [key, value] of Object.entries(timed[type] || {})) {
-            const world = key.slice(0, key.lastIndexOf('.'));
-            if (managed.has(world) && Number(value?.start) >= length) { delete timed[type][key]; removed = true; }
-        }
-    }
-    if (removed) saveChatState();
-}
-
 function onScanDone(args) {
     try {
         const st = settings();
@@ -182,7 +237,7 @@ function onScanDone(args) {
         const managed = managedWorlds();
         const sorted = Array.isArray(args.sortedEntries) ? args.sortedEntries : [];
         const fired = [...map.values()].filter(e => managed.has(e.world));
-        const isSticky = e => !!args.timedEffects?.isEffectActive?.('sticky', e);
+        const isSticky = e => plan.continuing.has(keyOf(e));
         const type = gen.type;
 
         if (gen.skip) {
@@ -210,7 +265,7 @@ function onScanDone(args) {
                 const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
                 if (od) { misses = od.misses; cs.overdue = cs.overdue.filter(o => o !== od); }
                 map.set(it.key, e);
-                items.push(makeItem(e, it.sentAs, it.version, misses, 'repeat'));
+                items.push(makeItem(e, it.sentAs, it.version, misses, it.kind && it.kind !== 'repeat' ? it.kind : 'new', true));
             }
         } else {
             pickAgain = false;
@@ -245,13 +300,13 @@ function onScanDone(args) {
                 if (resent.has(key)) continue;
                 const { sentAs, versions } = versionsOf(e);
                 if (!versions.length) { map.delete(key); continue; }
-                const kept = continuing.includes(e) ? cs.picks[key]?.text : null;
+                const kept = continuing.includes(e) ? plan.continuing.get(key) : null;
                 const version = kept && versions.includes(kept) ? kept : pickVersion(cs, key, versions);
                 items.push(makeItem(e, sentAs, version, 0, continuing.includes(e) ? 'continuing' : 'new'));
             }
         }
 
-        cs.lastScan = { len, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses })) };
+        cs.lastScan = { len, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind })) };
         pending = { items, type };
         saveChatState();
     } catch (e) { console.error(LOG, 'scan-done', e); }
@@ -279,8 +334,9 @@ function onMessageReceived(id, type) {
         if (!m || m.is_user || m.is_system) return;
         const rec = { v: 1, items: pending.items, type: pending.type, time: Date.now(), agency: null, checking: false, note: '' };
         pending = null;
-        if (!rec.items.length) return;
+        // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
+        if (!rec.items.length) return;
         try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
         changed('sent', id);
         const run = runCheck(id).catch(e => { console.warn(LOG, 'check failed', e); return null; });
@@ -304,13 +360,6 @@ function quoteFound(reply, quote) {
     return parts.length > 1 && parts.every(p => r.includes(p));
 }
 
-function stickyContinues(key) {
-    const t = ctx().chatMetadata?.timedWorldInfo?.sticky?.[key];
-    if (!t) return false;
-    const nextScan = (ctx().chat || []).filter(m => !m.is_system).length + 1;
-    return nextScan < Number(t.end);
-}
-
 function queueResend(cs, it, misses, from) {
     it.resend = misses;
     cs.overdue = cs.overdue.filter(o => o.key !== it.key);
@@ -319,7 +368,7 @@ function queueResend(cs, it, misses, from) {
 
 function markMissed(cs, it, from) {
     const st = settings();
-    if (stickyContinues(it.key)) { it.status = 'continuing'; return false; }
+    if (keepsGoing(it.key)) { it.status = 'continuing'; return false; }
     if ((it.misses || 0) >= st.check.maxResend) { it.status = 'missed'; return false; }
     queueResend(cs, it, (it.misses || 0) + 1, from);
     it.status = 'overdue';
@@ -557,11 +606,11 @@ export function init() {
     on('CHAT_CHANGED', () => {
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();
-        if (isChatOpen()) { applyPronouns(); if (settings().enabled) { reconcile(); clearTimersFromRemovedReplies(); } }
+        if (isChatOpen()) { applyPronouns(); if (settings().enabled) reconcile(); }
         changed('chat');
     });
     for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
-    on('MESSAGE_DELETED', () => { if (settings().enabled) { reconcile(); clearTimersFromRemovedReplies(); } changed('messages'); });
+    on('MESSAGE_DELETED', () => { if (settings().enabled) reconcile(); changed('messages'); });
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);

@@ -1,0 +1,1 @@
+{ "display_name": "RI test window", "loading_order": 5, "requires": [], "optional": [], "js": "index.js", "author": "test", "version": "0.0.1", "generate_interceptor": "riTestWindow" }
