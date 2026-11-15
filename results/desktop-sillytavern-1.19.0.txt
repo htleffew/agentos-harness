@@ -1,0 +1,126 @@
+19:08:10 TEST 5 create lorebook: saved and read back 8 entries (expected 8); listed in getWorldInfoNames: true
+19:08:11 --- automatic checks ---
+19:08:11 user agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36
+19:08:11 TauriTavern: no; mainApi: openai; chat completion source: custom
+19:08:11 /version: {"agent":"SillyTavern:1.19.0:Cohee#1207","pkgVersion":"1.19.0","gitRevision":"06bde93","gitBranch":"release","commitDate":"2026-09-14 21:01:34 +0200","isLatest":true}
+19:08:11 event WORLDINFO_ENTRIES_LOADED: present
+19:08:11 event WORLDINFO_SCAN_DONE: present
+19:08:11 event WORLD_INFO_ACTIVATED: present
+19:08:11 event WORLDINFO_FORCE_ACTIVATE: present
+19:08:11 event GENERATION_STARTED: present
+19:08:11 event GENERATION_AFTER_COMMANDS: present
+19:08:11 event GENERATION_ENDED: present
+19:08:11 event CHAT_COMPLETION_PROMPT_READY: present
+19:08:11 event MESSAGE_RECEIVED: present
+19:08:11 event MESSAGE_SWIPED: present
+19:08:11 event MESSAGE_DELETED: present
+19:08:11 event CHAT_CHANGED: present
+19:08:11 event CHARACTER_MESSAGE_RENDERED: present
+19:08:11 context.loadWorldInfo: present
+19:08:11 context.saveWorldInfo: present
+19:08:11 context.getWorldInfoNames: present
+19:08:11 context.updateWorldInfoList: present
+19:08:11 context.reloadWorldInfoEditor: present
+19:08:11 context.generateRaw: present
+19:08:11 context.ConnectionManagerRequestService: present
+19:08:11 context.substituteParams: present
+19:08:11 context.saveMetadata: present
+19:08:11 context.setExtensionPrompt: present
+19:08:11 context.callGenericPopup: present
+19:08:11 context.messageFormatter: present
+19:08:11 context.updateMessageBlock: present
+19:08:11 context.variables: present
+19:08:11 context.getTokenCountAsync: present
+19:08:11 TEST 5 edit and save: PASS (chance 50 -> 51; added entry kept: true; custom entry data kept: true; custom lorebook data kept: true)
+19:08:11 TEST 4 nested macro via substituteParams, 30 tries gave: ["plain","nested-ok"] (want "nested-ok" and "plain")
+19:08:11 connection profiles: 0 (none)
+19:08:11 --- automatic checks done ---
+19:08:14 --- AI connection check (2 short requests) ---
+19:08:14 generateRaw plain: "[\"one\",\"two\"]"
+19:08:14 generateRaw with JSON schema: "{}"
+19:08:14 --- AI connection check done ---
+19:08:18 GEN 1 start type=normal messages=1 seed=seed11618 timers before: sticky[-] cooldown[-]
+19:08:18 GEN 1 after-commands type=normal messages=1
+19:08:19 GEN 1 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:19 GEN 1 scan-done final: fired=CDEG stickyActive=- rewrote D; (TEST 1b)
+19:08:19 GEN 1 activated event: CDEG | E text: [ri-test E nested-ok] | timers after: sticky[-] cooldown[2:2-6]
+19:08:19 GEN 1 PROMPT SENT contains: CDEG | [ri-test D rewritten-seed11618] | [ri-test E nested-ok] | A present: false (want false when "remove A" is on)
+19:08:19 message received id=2 type=normal messages=3 timers: sticky[-] cooldown[2:2-6]
+19:08:19 GEN 1 ended
+19:08:20 GEN 2 start type=normal messages=3 seed=seed83365 timers before: sticky[-] cooldown[2:2-6]
+19:08:20 GEN 2 after-commands type=normal messages=3
+19:08:20 GEN 2 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:20 GEN 2 scan-done final: fired=DEF stickyActive=- rewrote D; (TEST 1b)
+19:08:20 GEN 2 activated event: DEF | E text: [ri-test E plain] | timers after: sticky[-] cooldown[2:2-6]
+19:08:20 GEN 2 PROMPT SENT contains: DEF | [ri-test D rewritten-seed83365] | [ri-test E plain] | A present: false (want false when "remove A" is on)
+19:08:20 message received id=4 type=normal messages=5 timers: sticky[-] cooldown[2:2-6]
+19:08:20 GEN 2 ended
+19:08:21 GEN 3 start type=normal messages=5 seed=seed9784 timers before: sticky[-] cooldown[2:2-6]
+19:08:21 GEN 3 after-commands type=normal messages=5
+19:08:21 GEN 3 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:21 GEN 3 scan-done final: fired=CDEG stickyActive=- rewrote D; (TEST 1b)
+19:08:21 GEN 3 activated event: CDEG | E text: [ri-test E plain] | timers after: sticky[-] cooldown[2:6-10]
+19:08:21 GEN 3 PROMPT SENT contains: CDEG | [ri-test D rewritten-seed9784] | [ri-test E plain] | A present: false (want false when "remove A" is on)
+19:08:21 message received id=6 type=normal messages=7 timers: sticky[-] cooldown[2:6-10]
+19:08:21 GEN 3 ended
+19:08:22 GEN 4 start type=normal messages=7 seed=seed58398 timers before: sticky[-] cooldown[2:6-10]
+19:08:22 GEN 4 after-commands type=normal messages=7
+19:08:22 GEN 4 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:22 GEN 4 scan-done final: fired=ADEF stickyActive=- removed A; rewrote D; (TEST 1b)
+19:08:22 GEN 4 activated event: DEF | E text: [ri-test E nested-ok] | timers after: sticky[-] cooldown[2:6-10]
+19:08:22 GEN 4 PROMPT SENT contains: DEF | [ri-test D rewritten-seed58398] | [ri-test E nested-ok] | A present: false (want false when "remove A" is on)
+19:08:22 message received id=8 type=normal messages=9 timers: sticky[-] cooldown[2:6-10]
+19:08:22 GEN 4 ended
+19:08:23 GEN 5 start type=normal messages=9 seed=seed11761 timers before: sticky[-] cooldown[2:6-10]
+19:08:23 GEN 5 after-commands type=normal messages=9
+19:08:23 GEN 5 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:23 GEN 5 scan-done final: fired=ACDEH stickyActive=- removed A; rewrote D; (TEST 1b)
+19:08:23 GEN 5 activated event: CDEH | E text: [ri-test E nested-ok] | timers after: sticky[-] cooldown[2:10-14]
+19:08:23 GEN 5 PROMPT SENT contains: CDEH | [ri-test D rewritten-seed11761] | [ri-test E nested-ok] | A present: false (want false when "remove A" is on)
+19:08:23 message received id=10 type=normal messages=11 timers: sticky[-] cooldown[2:10-14]
+19:08:24 GEN 5 ended
+19:08:24 GEN 6 start type=normal messages=11 seed=seed88077 timers before: sticky[-] cooldown[2:10-14]
+19:08:24 GEN 6 after-commands type=normal messages=11
+19:08:25 GEN 6 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:25 GEN 6 scan-done final: fired=ADEG stickyActive=- removed A; rewrote D; (TEST 1b)
+19:08:25 GEN 6 activated event: DEG | E text: [ri-test E nested-ok] | timers after: sticky[-] cooldown[2:10-14]
+19:08:25 GEN 6 PROMPT SENT contains: DEG | [ri-test D rewritten-seed88077] | [ri-test E nested-ok] | A present: false (want false when "remove A" is on)
+19:08:25 message received id=12 type=normal messages=13 timers: sticky[-] cooldown[2:10-14]
+19:08:25 GEN 6 ended
+19:08:26 swiped id=12 timers: sticky[-] cooldown[2:10-14]
+19:08:26 GEN 7 start type=swipe messages=13 seed=seed56054 timers before: sticky[-] cooldown[2:10-14]
+19:08:26 GEN 7 after-commands type=swipe messages=13
+19:08:26 GEN 7 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:26 GEN 7 scan-done final: fired=DEG stickyActive=- rewrote D; (TEST 1b)
+19:08:26 GEN 7 activated event: DEG | E text: [ri-test E nested-ok] | timers after: sticky[-] cooldown[2:10-14]
+19:08:26 GEN 7 PROMPT SENT contains: DEG | [ri-test D rewritten-seed56054] | [ri-test E nested-ok] | A present: false (want false when "remove A" is on)
+19:08:26 message received id=12 type=swipe messages=13 timers: sticky[-] cooldown[2:10-14]
+19:08:26 GEN 7 ended
+19:08:27 swiped id=12 timers: sticky[-] cooldown[2:10-14]
+19:08:27 GEN 8 start type=swipe messages=13 seed=seed26028 timers before: sticky[-] cooldown[2:10-14]
+19:08:27 GEN 8 after-commands type=swipe messages=13
+19:08:27 GEN 8 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:27 GEN 8 scan-done final: fired=ABDEG stickyActive=- removed A; rewrote D; (TEST 1b)
+19:08:27 GEN 8 activated event: BDEG | E text: [ri-test E plain] | timers after: sticky[1:12-15] cooldown[2:10-14]
+19:08:27 GEN 8 PROMPT SENT contains: BDEG | [ri-test D rewritten-seed26028] | [ri-test E plain] | A present: false (want false when "remove A" is on)
+19:08:27 message received id=12 type=swipe messages=13 timers: sticky[1:12-15] cooldown[2:10-14]
+19:08:27 GEN 8 ended
+19:08:28 swiped id=12 timers: sticky[1:12-15] cooldown[2:10-14]
+19:08:28 GEN 9 start type=swipe messages=13 seed=seed57081 timers before: sticky[1:12-15] cooldown[2:10-14]
+19:08:28 GEN 9 after-commands type=swipe messages=13
+19:08:28 GEN 9 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:28 GEN 9 scan-done final: fired=DEF stickyActive=- rewrote D; (TEST 1b)
+19:08:28 GEN 9 activated event: DEF | E text: [ri-test E plain] | timers after: sticky[-] cooldown[2:10-14]
+19:08:28 GEN 9 PROMPT SENT contains: DEF | [ri-test D rewritten-seed57081] | [ri-test E plain] | A present: false (want false when "remove A" is on)
+19:08:28 message received id=12 type=swipe messages=13 timers: sticky[-] cooldown[2:10-14]
+19:08:28 GEN 9 ended
+19:08:29 message deleted, chat length now 12, timers: sticky[-] cooldown[2:10-14]
+19:08:30 GEN 10 start type=normal messages=12 seed=seed20318 timers before: sticky[-] cooldown[2:10-14]
+19:08:30 GEN 10 after-commands type=normal messages=12
+19:08:30 GEN 10 entries-loaded: added 8 test entries to this chat (TEST 1a)
+19:08:30 GEN 10 scan-done final: fired=ADEF stickyActive=- removed A; rewrote D; (TEST 1b)
+19:08:30 GEN 10 activated event: DEF | E text: [ri-test E plain] | timers after: sticky[-] cooldown[2:10-14]
+19:08:30 GEN 10 PROMPT SENT contains: DEF | [ri-test D rewritten-seed20318] | [ri-test E plain] | A present: false (want false when "remove A" is on)
+19:08:30 message received id=13 type=normal messages=14 timers: sticky[-] cooldown[2:10-14]
+19:08:30 GEN 10 ended
+ERRORS []

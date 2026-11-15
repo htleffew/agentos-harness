@@ -1,0 +1,12 @@
+{
+    "display_name": "Roleplay Instructions: compatibility test",
+    "loading_order": 60,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Dr. H",
+    "version": "0.1.0",
+    "homePage": "https://github.com/htleffew/agentos-harness/tree/roleplay-instructions-step0-test",
+    "auto_update": false
+}

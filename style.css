@@ -1,0 +1,5 @@
+#ri_test_panel .ri-test-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+#ri_test_panel .ri-test-row .menu_button { min-height: 44px; padding: 8px 14px; white-space: normal; }
+#ri_test_panel textarea { width: 100%; min-height: 260px; font-family: monospace; font-size: 12px; }
+#ri_test_panel .ri-test-help { opacity: 0.85; font-size: 0.9em; margin: 6px 0; line-height: 1.4; }
+#ri_test_panel ol { margin: 4px 0 4px 20px; padding: 0; }
