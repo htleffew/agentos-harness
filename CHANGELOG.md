@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0.0 (2026-11-15)
+
+Version 2: Random Story Events.
+
+- New tab with story event sets: categories of short items, saved as a lorebook.
+- Dice pick from every category that is on. Per category: new pick every time, keep for a random number of events,
+  or keep one chosen item; items per pick; use every item before repeating; wait before an item returns; never
+  use tagged items; always-include items; weights.
+- Write items with AI for one category from a few words about the story.
+- "Roll an example event" shows the exact text the AI would receive.
+- Events use everything from Version 1: timing in replies, per-chat on and off, the check with re-sends, What Was
+  Sent (now with what the dice picked), swipes repeat, deletes and branches rewind the rotation.
+- The lorebook entry holds a `{{random}}` list per category, so a set still gives plain random events with the
+  extension off.
+
 ## 1.1.0 (2026-11-15)
 
 - Timing ("keep sending", "wait", "do not send before reply") is now done by the extension from the records on the

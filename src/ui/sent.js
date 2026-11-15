@@ -25,6 +25,7 @@ function itemRow(id, rec, it, index, withButtons) {
         h('div', { class: 'ri-grid' },
             kv('Instruction set', it.world),
             kv('Why it was sent', `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
+            Array.isArray(it.parts) && it.parts.length ? kv('What the dice picked', it.parts.map(p => `${p.name}: ${p.items.join(' and ')}`).join('  |  ')) : null,
             kv('Exact text sent', it.text),
             it.quote ? kv('Shown by this part of the reply', `"${it.quote}"`) : null),
         buttons.length ? h('div', { class: 'ri-row ri-row-tight' }, buttons) : null);

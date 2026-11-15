@@ -1,6 +1,6 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension. Version 1: **Random Instructions**.
+A standalone SillyTavern / TauriTavern extension. Version 2: **Random Instructions** and **Random Story Events**.
 
 You build *instruction sets*. Each instruction has several *versions* of the same order ("{{char}} must pay
 {{user}} a compliment"). During a chat, an instruction is sent at random with the chance and timing you set, one
@@ -19,7 +19,7 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v1`
+3. Branch: `roleplay-instructions-v2`
 4. Install, then reload the app.
 
 ## First use (2 minutes)
@@ -33,10 +33,40 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
 5. Press **Save instruction**. Turn on **On for this chat**. Send a message.
 6. Look at the **What Was Sent** tab to see what was sent with each reply and whether it happened.
 
-## The three tabs
+## Random Story Events (new in Version 2)
+
+A story event set holds lists of story ingredients sorted into categories, for example Situation, Complication,
+Who drives it, Tone. When an event fires, dice pick one item from each category that is on, and the AI gets one
+order: an event must happen in this reply, built from those parts, fitted to what the story has established.
+
+1. Open the **Random Story Events** tab and press **Add story event set**.
+2. Tap a category to open it. Type items, or press **Write items with AI** and give it a few words about the
+   kind of story.
+3. Press **Roll an example event** to see exactly what the AI would receive. Press it again to see items rotate.
+4. Set the chance and the wait at the top, press **Save story event set**, and turn on **On for this chat**.
+
+Each category has its own settings:
+
+| Setting | What it does |
+| --- | --- |
+| How it changes | New pick every time, Keep for a random number of events, or Keep until I turn it off (you choose the item). |
+| Items per pick | How many items from the category go into one event. One category with 3 items per pick works as a classic mixed premise list. |
+| Use every item before repeating | No item comes back until all the others have had a turn. |
+| Wait before an item can return | A just-used item sits out this many events. |
+| Never use items tagged | Leaves out items that carry any of these tags. |
+| Always include (on an item) | That item is in every fresh pick; the dice fill the rest. |
+| Weight (on an item) | A higher weight is picked more often. |
+
+The dice are the extension's own. The AI never chooses the items. What was picked is shown in What Was Sent, the
+event is checked like any instruction, and the state of every category is kept on the reply, so swipes repeat the
+same event and deleting or branching rewinds the rotation correctly. `{{user}}` can never be the one who drives
+an event.
+
+## The tabs
 
 | Tab | What it is for |
 | --- | --- |
+| Random Story Events | Your story event sets: categories, items, dice settings and when an event happens. |
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
 | Settings | Pronouns for this chat, which AI connection writes and checks, how checking and re-sending work, and the optional section under each reply. |
@@ -102,5 +132,6 @@ run. See `tests/README.md`.
 
 ## Roadmap
 
-Version 2 adds Random Story Events, Version 3 Random Writing Style, Version 4 Character Goals. Each is its own
-branch (`roleplay-instructions-v2` and so on).
+Version 3 adds Random Writing Style and Version 4 adds Character Goals, each on its own branch. Planned for a
+later 2.x: "never together" tag pairs, saved sets of category settings, and Keep / Pick again buttons for a
+single picked item in What Was Sent.

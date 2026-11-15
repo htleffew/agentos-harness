@@ -2,6 +2,7 @@
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, ask, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
+import { isEvent, rollEvent } from './events.js';
 import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
@@ -35,6 +36,7 @@ function history(type = 'normal') {
     if (type === 'swipe' || type === 'continue') end -= 1; // the reply being rewritten does not count yet
     let replies = 0;
     const last = new Map(); // key -> { start: reply number where it last started, version }
+    const events = new Map(); // key -> the category state stored with that event set's latest event
     for (let i = 0; i < end; i++) {
         const m = chat[i];
         if (!m || m.is_user || m.is_system) continue;
@@ -44,9 +46,10 @@ function history(type = 'normal') {
             const prev = last.get(it.key);
             if (it.kind === 'continuing' && prev) prev.version = it.version;
             else last.set(it.key, { start: replies, version: it.version });
+            if (it.event) events.set(it.key, it.event);
         }
     }
-    return { next: replies + 1, last };
+    return { next: replies + 1, last, events };
 }
 
 const groupsOf = e => String(e.group || '').split(',').map(g => g.trim()).filter(Boolean);
@@ -56,7 +59,7 @@ function applyTiming(entries, cs) {
     const h = history(gen && !gen.dryRun ? gen.type : 'normal');
     const queued = new Set((cs?.overdue || []).map(o => o.key));
     const state = new Map();
-    plan = { continuing: new Map() };
+    plan = { continuing: new Map(), events: h.events };
     for (const e of entries) {
         const key = keyOf(e);
         const keep = stickyToKeep(e.sticky);
@@ -151,10 +154,13 @@ function pickVersion(cs, key, versions) {
     return versions[idx];
 }
 
-function makeItem(entry, sentAs, version, misses, kind, repeat = false) {
+function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = null) {
     const text = sub(wrapText(sentAs, version, misses));
     entry.content = text;
-    return { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
+    const item = { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
+    // A story event also keeps what the dice picked, and the state of its categories after this event.
+    if (extra?.event) { item.event = extra.event; item.parts = extra.parts; }
+    return item;
 }
 
 /** Apply "How many instructions can be sent per reply" for one instruction set. Returns the new instructions to hold back. */
@@ -219,7 +225,7 @@ function reconcile() {
     const rec = last && !last.is_user ? last.extra?.[KEY] : null;
     for (const it of rec?.items || []) {
         if (!['overdue', 'queued'].includes(it.status) || kept.some(o => o.key === it.key)) continue;
-        kept.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time });
+        kept.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time, event: it.event, parts: it.parts });
     }
     if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
 }
@@ -265,7 +271,7 @@ function onScanDone(args) {
                 const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
                 if (od) { misses = od.misses; cs.overdue = cs.overdue.filter(o => o !== od); }
                 map.set(it.key, e);
-                items.push(makeItem(e, it.sentAs, it.version, misses, it.kind && it.kind !== 'repeat' ? it.kind : 'new', true));
+                items.push(makeItem(e, it.sentAs, it.version, misses, it.kind && it.kind !== 'repeat' ? it.kind : 'new', true, it));
             }
         } else {
             pickAgain = false;
@@ -291,13 +297,25 @@ function onScanDone(args) {
                 const e = find(od.key);
                 map.set(od.key, e);
                 resent.add(od.key);
-                items.push(makeItem(e, od.sentAs, od.version, od.misses, 'resend'));
+                items.push(makeItem(e, od.sentAs, od.version, od.misses, 'resend', false, od));
             }
             cs.overdue = [];
 
             for (const e of [...continuing, ...fresh]) {
                 const key = keyOf(e);
                 if (resent.has(key)) continue;
+                if (isEvent(e)) {
+                    // A story event: an event that keeps sending repeats its text; a new one rolls the dice.
+                    const ri = e.extensions.ri;
+                    const sentAs = ri.sentAs === 'ooc' ? 'ooc' : 'system';
+                    const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
+                    const prev = plan.events?.get(key) || null;
+                    if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
+                    const rolled = rollEvent(ri, prev);
+                    if (!rolled) { map.delete(key); continue; }
+                    items.push(makeItem(e, sentAs, rolled.text, 0, 'new', false, { event: rolled.state, parts: rolled.parts }));
+                    continue;
+                }
                 const { sentAs, versions } = versionsOf(e);
                 if (!versions.length) { map.delete(key); continue; }
                 const kept = continuing.includes(e) ? plan.continuing.get(key) : null;
@@ -306,7 +324,7 @@ function onScanDone(args) {
             }
         }
 
-        cs.lastScan = { len, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind })) };
+        cs.lastScan = { len, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts })) };
         pending = { items, type };
         saveChatState();
     } catch (e) { console.error(LOG, 'scan-done', e); }
@@ -363,7 +381,7 @@ function quoteFound(reply, quote) {
 function queueResend(cs, it, misses, from) {
     it.resend = misses;
     cs.overdue = cs.overdue.filter(o => o.key !== it.key);
-    cs.overdue.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from });
+    cs.overdue.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from, event: it.event, parts: it.parts });
 }
 
 function markMissed(cs, it, from) {

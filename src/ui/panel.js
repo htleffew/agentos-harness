@@ -3,12 +3,14 @@ import { h, clear, toggle, button } from './dom.js';
 import { settings, saveSettings } from '../store.js';
 import { onChange } from '../engine.js';
 import { renderInstructions } from './sets.js';
+import { renderEvents } from './events.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
 import { renderSettings } from './settings.js';
 import { isChatOpen } from '../st.js';
 
 const TABS = [
     { id: 'instructions', label: 'Random Instructions', accent: 'cyan' },
+    { id: 'events', label: 'Random Story Events', accent: 'blue' },
     { id: 'sent', label: 'What Was Sent', accent: 'sky' },
     { id: 'settings', label: 'Settings', accent: 'green' },
 ];
@@ -16,6 +18,7 @@ const TABS = [
 export const app = {
     tab: 'instructions',
     route: { view: 'sets' },   // inside Random Instructions: sets | set | edit
+    eroute: { view: 'list' },  // inside Random Story Events: list | edit
     cache: {},                 // lorebook name -> data, for counts on the cards
     root: null,
     body: null,
@@ -70,6 +73,7 @@ export function render() {
     if (!isChatOpen() && app.tab !== 'settings') app.body.appendChild(h('div', { class: 'ri-note' }, 'No chat is open. Open a chat to turn instruction sets on for it and to see what was sent.'));
 
     if (app.tab === 'instructions') renderInstructions(app.body, app);
+    else if (app.tab === 'events') renderEvents(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
     else renderSettings(app.body, app);
 
@@ -99,10 +103,11 @@ export function mount(missing) {
 
     let timer = null;
     onChange((what) => {
-        if (what === 'chat') { app.route = { view: 'sets' }; app.cache = {}; }
+        if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.cache = {}; }
         refreshUnderReplies();
         // Typing in the editor must not be interrupted by a redraw.
         if (app.tab === 'instructions' && app.route.view === 'edit' && what !== 'chat') return;
+        if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;
         clearTimeout(timer);
         timer = setTimeout(render, 80);
     });

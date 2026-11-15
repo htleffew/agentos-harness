@@ -51,14 +51,14 @@ function renderSets(body, app) {
             catch (e) { toast('error', e.message); }
         }, { kind: 'primary' }),
         button('Open a lorebook', async () => {
-            const options = worldNames().filter(n => !sets.includes(n)).sort((a, b) => a.localeCompare(b));
+            const options = worldNames().filter(n => !settings().sets[n]).sort((a, b) => a.localeCompare(b));
             if (!options.length) { toast('info', 'Every lorebook you have is already in this list.'); return; }
             app.route = { view: 'sets', picking: true };
             app.render();
         }, { title: 'Use a lorebook you already have as an instruction set' })));
 
     if (app.route.picking) {
-        const options = worldNames().filter(n => !sets.includes(n)).sort((a, b) => a.localeCompare(b));
+        const options = worldNames().filter(n => !settings().sets[n]).sort((a, b) => a.localeCompare(b));
         let chosen = options[0];
         body.appendChild(h('div', { class: 'ri-card ri-pick' },
             field('Lorebook to open as an instruction set', 'The lorebook file is left as it is until you edit one of its instructions.',

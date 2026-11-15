@@ -93,6 +93,52 @@ export async function writeVersions({ ins, seed, count, includeCard }) {
     return out;
 }
 
+/**
+ * Ask the model for items for one category of a story event set. Returns [{ text, swaps }].
+ * category: { name, driver }, theme: what the story is like, existing: item texts already in the list.
+ */
+export async function writeItems({ category, theme, count, includeCard, existing, others }) {
+    const st = settings();
+    const lines = [
+        `Write ${count} items for one list of story ingredients. A roleplay AI is later given one item from each list and must make an event happen from them.`,
+        '',
+        `This list: ${category.name}`,
+        others.length ? `The other lists: ${others.join(', ')}` : '',
+        `Kind of story: ${theme}`,
+        '',
+        'Rules for every item:',
+        '- A short phrase of 2 to 12 words. Plain, literal wording. Concrete enough to act on.',
+        '- It fits the name of this list and leaves the other lists free.',
+        '- General enough to fit many scenes: leave out specific names, places and times of day.',
+        '- [[user]] is only ever someone things happen to. Every action, spoken line, decision, thought and feeling belongs to someone other than [[user]].',
+        '- Where a name is needed use [[char]] for the main character and [[user]] for the other person, with the double square brackets, and write real names nowhere.',
+        '- Each item is clearly different from the others.',
+    ];
+    if (existing.length) lines.push('', 'Items that already exist (write new ones that differ from these):', ...existing.slice(0, 60).map(v => `- ${v}`));
+    if (includeCard) { const card = cardText(); if (card) lines.push('', 'About the character and the story, for tone only:', card); }
+    lines.push('', 'Return only a JSON list of strings, for example ["first item", "second item"].');
+    let answer;
+    try {
+        answer = await ask({ system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 200 + count * 60), profileId: st.profileId });
+    } catch (e) {
+        throw new Error(`The AI connection did not answer: ${e?.cause?.message || e?.message || e}`);
+    }
+    let list = parseJson(answer);
+    if (list && !Array.isArray(list)) list = Object.values(list).find(Array.isArray) || null;
+    if (!Array.isArray(list)) list = String(answer).split('\n').map(l => l.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, '').replace(/^"|"[,]?$/g, '').trim()).filter(l => l.length > 3);
+    const seen = new Set(existing.map(v => v.toLowerCase()));
+    const out = [];
+    for (const raw of list) {
+        if (typeof raw !== 'string') continue;
+        const swapped = swapNames(tidy(raw).replace(/[.]+$/, ''));
+        if (!swapped.text || seen.has(swapped.text.toLowerCase())) continue;
+        seen.add(swapped.text.toLowerCase());
+        out.push({ text: swapped.text, swaps: swapped.swaps });
+    }
+    if (!out.length) throw new Error('The AI answered, but no items could be read from the answer. Try again, or pick another AI connection in Settings.');
+    return out;
+}
+
 /** Rewrite one version, keeping its meaning. Returns the new text. */
 export async function rewriteVersion({ ins, text }) {
     const res = await writeVersions({ ins: { ...ins, versions: ins.versions }, seed: `The same thing as this version, worded and staged in a new way: ${text}`, count: 1, includeCard: false });

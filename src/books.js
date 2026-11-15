@@ -189,7 +189,7 @@ export function readInstruction(entry) {
     };
 }
 
-function blankEntry(uid) {
+export function blankEntry(uid) {
     return {
         uid, key: [], keysecondary: [], comment: '', content: '',
         constant: true, vectorized: false, selective: true, selectiveLogic: 0, addMemo: true,
@@ -262,16 +262,17 @@ export function writeInstruction(data, ins) {
 
 // ---------- instruction sets ----------
 
-export function knownSets() {
+/** Lorebooks in the list. kind: 'instructions' (Random Instructions) or 'events' (Random Story Events). */
+export function knownSets(kind = 'instructions') {
     const st = settings();
     const exists = new Set(worldNames());
-    return Object.keys(st.sets).filter(n => exists.has(n)).sort((a, b) => a.localeCompare(b));
+    return Object.keys(st.sets).filter(n => exists.has(n) && (st.sets[n].kind || 'instructions') === kind).sort((a, b) => a.localeCompare(b));
 }
 
 export function setOptions(name) {
     const st = settings();
     const o = st.sets[name] || {};
-    return { limit: LIMITS[o.limit] ? o.limit : 'none', max: Math.max(1, Math.round(Number(o.max) || 2)) };
+    return { limit: LIMITS[o.limit] ? o.limit : 'none', max: Math.max(1, Math.round(Number(o.max) || 2)), kind: o.kind === 'events' ? 'events' : 'instructions' };
 }
 
 export async function loadSet(name) {
@@ -283,7 +284,7 @@ export async function loadSet(name) {
 
 export async function saveSet(name, data) {
     const o = setOptions(name);
-    data.extensions = { ...(data.extensions || {}), ri: { v: 1, limit: o.limit, max: o.max } };
+    data.extensions = { ...(data.extensions || {}), ri: { v: 1, limit: o.limit, max: o.max, kind: o.kind } };
     await saveBook(name, data);
 }
 
@@ -291,14 +292,14 @@ export function cleanSetName(name) {
     return String(name ?? '').replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-export async function createSet(name) {
+export async function createSet(name, kind = 'instructions', data = { entries: {} }) {
     name = cleanSetName(name);
-    if (!name) throw new Error('Type a name for the instruction set.');
-    if (worldNames().includes(name)) throw new Error(`A lorebook named "${name}" already exists. Use "Open a lorebook" to add it.`);
+    if (!name) throw new Error('Type a name first.');
+    if (worldNames().includes(name)) throw new Error(`A lorebook named "${name}" already exists. Pick another name.`);
     const st = settings();
-    st.sets[name] = { limit: 'none', max: 2 };
+    st.sets[name] = { limit: 'none', max: 2, kind };
     saveSettings();
-    await saveSet(name, { entries: {} });
+    await saveSet(name, data);
     await refreshWorldList();
     return name;
 }
@@ -309,7 +310,7 @@ export async function adoptSet(name) {
     if (!data) throw new Error(`The lorebook "${name}" could not be read.`);
     const st = settings();
     const saved = data.extensions?.ri;
-    st.sets[name] = { limit: LIMITS[saved?.limit] ? saved.limit : 'none', max: Math.max(1, Number(saved?.max) || 2) };
+    st.sets[name] = { limit: LIMITS[saved?.limit] ? saved.limit : 'none', max: Math.max(1, Number(saved?.max) || 2), kind: saved?.kind === 'events' ? 'events' : 'instructions' };
     saveSettings();
     return name;
 }
