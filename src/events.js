@@ -22,7 +22,7 @@ export function defaultCategories() {
     return [
         newCategory('Situation'),
         newCategory('Complication'),
-        newCategory('Who drives it', ['{{char}}', 'a named character who is present, other than {{user}}', 'someone new who arrives', 'the surroundings: weather, a place, an object, an animal or a crowd'], { driver: true }),
+        newCategory('Who drives it', ['{{char}}', 'any character other than {{user}}, one already in the story or a new arrival', 'any female character other than {{user}}, one already in the story or a new arrival', 'any male character other than {{user}}, one already in the story or a new arrival', 'the surroundings: weather, a place, an object, an animal or a crowd'], { driver: true }),
         newCategory('Tone'),
     ];
 }

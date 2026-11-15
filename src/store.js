@@ -16,7 +16,7 @@ const DEFAULTS = {
     profileId: '',               // AI connection for writing and checking ('' = same as the chat)
     check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' },
     showUnder: 'off',            // 'off' | 'display' | 'saved'
-    writer: { count: 10, includeCard: false },
+    writer: { count: 10, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },
     expanded: false,
 };

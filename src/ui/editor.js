@@ -5,6 +5,7 @@ import { settings, saveSettings, pronounForms } from '../store.js';
 import { validateVersion, swapNames } from '../validate.js';
 import { writeVersions, rewriteVersion, nameHint } from '../writer.js';
 import { toast, confirmBox, sub, names, isChatOpen } from '../st.js';
+import { contextField } from './context.js';
 
 const opts = (map) => Object.entries(map).map(([value, v]) => ({ value, label: v.label }));
 
@@ -89,7 +90,7 @@ export function renderEditor(body, app) {
             field('Where it is placed', 'Closer to the newest message is followed more strongly.', select(positions, draft.position, (v) => { draft.position = Number(v); dirty(); redraw(); })),
             draft.position === 4 ? field('Messages from the newest message', '0 places it after the newest message. 1 places it just before the newest message.', numberInput(draft.depth, { min: 0, max: 100, unit: '' }, (n) => { draft.depth = n; dirty(); })) : null),
         h('div', { class: 'ri-grid2' },
-            field('Who does it', 'Used when versions are written with AI. {{user}} is never offered here: you write your own actions.', select(opts(ACTORS), draft.actor, (v) => { draft.actor = v; dirty(); })),
+            field('Who does it', 'Used when versions are written with AI. The "already in the story or new" choices always have someone who can do it. {{user}} is never offered here: you write your own actions.', select(opts(ACTORS), draft.actor, (v) => { draft.actor = v; dirty(); })),
             field('Who it happens to', 'Used when versions are written with AI.', select(opts(TARGETS), draft.target, (v) => { draft.target = v; dirty(); }))),
         field('Exactly what the AI will receive', isChatOpen() ? 'Shown with the first version, filled in for this chat.' : 'Shown with the first version. Open a chat to see names filled in.',
             h('div', { class: 'ri-preview' }, sub(wrapText(draft.sentAs, example, 0))))));
@@ -130,7 +131,7 @@ export function renderEditor(body, app) {
         h('div', { class: 'ri-help' }, 'Each version is one way to give the order. Write it as an order: say who must do what. Every version is used once before any repeats.'),
         versionsBox,
         h('div', { class: 'ri-row' },
-            button('Write versions with AI', () => { ui.sheet = { seed: ui.lastSeed || '', count: settings().writer.count, includeCard: settings().writer.includeCard, replace: false, results: null, busy: false, error: '' }; redraw(); }, { kind: 'primary' }),
+            button('Write versions with AI', () => { ui.sheet = { seed: ui.lastSeed || '', count: settings().writer.count, replace: false, results: null, busy: false, error: '' }; redraw(); }, { kind: 'primary' }),
             button('Add a version yourself', () => { ui.adding = true; ui.editing = -1; redraw(); }))));
 
     // ----- Notes -----
@@ -191,8 +192,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
             textArea(sheet.seed, (v) => { sheet.seed = v; }, { rows: 3, placeholder: 'Example: {{char}} picks a fight with {{user}} over something small.' })));
         box.appendChild(h('div', { class: 'ri-grid2' },
             field('How many versions to write', '', numberInput(sheet.count, { min: 1, max: 30, unit: 'versions' }, (n) => { sheet.count = n; })),
-            field('Show the AI the character card', 'Turn on to match the character and story. Uses more tokens.',
-                select([{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }], sheet.includeCard ? 'yes' : 'no', (v) => { sheet.includeCard = v === 'yes'; }))));
+            contextField()));
         if (sheet.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, sheet.error));
         box.appendChild(h('div', { class: 'ri-row' },
             button(sheet.busy ? 'Writing...' : 'Write the versions', async () => {
@@ -200,10 +200,10 @@ function writerSheet(app, draft, ui, redraw, dirty) {
                 if (!sheet.seed.trim()) { sheet.error = 'Type what should happen first.'; redraw(); return; }
                 sheet.busy = true; sheet.error = ''; redraw();
                 const st = settings();
-                st.writer.count = sheet.count; st.writer.includeCard = sheet.includeCard; saveSettings();
+                st.writer.count = sheet.count; saveSettings();
                 ui.lastSeed = sheet.seed;
                 try {
-                    const list = await writeVersions({ ins: draft, seed: sheet.seed.trim(), count: sheet.count, includeCard: sheet.includeCard });
+                    const list = await writeVersions({ ins: draft, seed: sheet.seed.trim(), count: sheet.count, context: settings().writer.context });
                     sheet.results = list.map(r => ({ text: r.text, swaps: r.swaps, keep: validateVersion(r.text).blocks.length === 0, editing: false }));
                 } catch (e) { sheet.error = e.message; }
                 sheet.busy = false; redraw();

@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.2.0 (2026-11-15)
+
+- "What to show the AI" when it writes versions or items: character card, scenario, your persona, chat summary,
+  the most recent chat messages (you choose how many). Tick any of them; the choice is remembered. Before, one
+  switch sent the card, scenario and persona together and nothing from the chat.
+- Who does it / Who it happens to: three new choices that leave "already in the story or new" open: any
+  character, any female character, any male character (other than you). New story event sets offer the same
+  three under "Who drives it".
+
 ## 3.1.0 (2026-11-15)
 
 Everything that was left out of 2.0.0 and 3.0.0, for story events and writing style alike.

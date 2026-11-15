@@ -3,6 +3,7 @@ import { ask, parseJson, ctx, names } from './st.js';
 import { settings, pronounForms, FORMS } from './store.js';
 import { ACTORS, TARGETS, SENT_AS } from './books.js';
 import { swapNames } from './validate.js';
+import { stripSentBlock } from './engine.js';
 
 function pronounLine(role, label) {
     const forms = pronounForms(role);
@@ -10,15 +11,47 @@ function pronounLine(role, label) {
     return `[[${role}]] = ${label}'s name. ${tokens} = ${label}'s pronouns (in this chat: ${forms.join(', ')}). For the start of a sentence use a capital, for example [[${role}.They]] or [[${role}.Their]].`;
 }
 
-function cardText() {
+/** What the AI writer can be shown, in the order it is offered. */
+export const CONTEXT_PARTS = [
+    ['card', 'Character card (description and personality)'],
+    ['scenario', 'Scenario'],
+    ['persona', 'Your persona'],
+    ['summary', 'Chat summary'],
+    ['recent', 'The most recent chat messages'],
+];
+
+/** The chat summary, when a summary extension keeps one in this chat. */
+export function findSummary() {
     try {
-        const f = ctx().getCharacterCardFields?.() || {};
-        const parts = [f.description && `Description: ${f.description}`, f.personality && `Personality: ${f.personality}`, f.scenario && `Scenario: ${f.scenario}`, f.persona && `About {{user}}: ${f.persona}`].filter(Boolean);
-        return parts.join('\n').slice(0, 6000);
+        const prompts = ctx().extensionPrompts || {};
+        return Object.entries(prompts).filter(([key, v]) => /memory|summar/i.test(key) && String(v?.value || '').trim()).map(([, v]) => String(v.value).trim()).join('\n').slice(0, 6000);
     } catch { return ''; }
 }
 
-export function buildWriterPrompt({ ins, seed, count, includeCard, existing }) {
+const fill = (text) => { try { return ctx().substituteParams(String(text ?? '')); } catch { return String(text ?? ''); } };
+
+/** The parts of the story the user ticked, as text for the writer prompt. */
+function contextText(c = {}) {
+    const out = [];
+    try {
+        const f = ctx().getCharacterCardFields?.() || {};
+        if (c.card && f.description) out.push(`Character description: ${fill(f.description)}`);
+        if (c.card && f.personality) out.push(`Character personality: ${fill(f.personality)}`);
+        if (c.scenario && f.scenario) out.push(`Scenario: ${fill(f.scenario)}`);
+        if (c.persona && f.persona) out.push(`About the other person: ${fill(f.persona)}`);
+        if (c.summary) { const sum = findSummary(); if (sum) out.push(`Summary of the story so far: ${sum}`); }
+        if (c.recent) {
+            const count = Math.max(1, Math.min(50, Math.round(Number(c.recentCount) || 10)));
+            const lines = (ctx().chat || []).filter(m => !m.is_system && m.mes).slice(-count).map(m => `${m.name}: ${stripSentBlock(m.mes).replace(/\s+/g, ' ').trim().slice(0, 1500)}`);
+            if (lines.length) out.push(`The most recent messages of the chat, oldest first:\n${lines.join('\n')}`);
+        }
+    } catch { /* leave out what cannot be read */ }
+    return out.join('\n\n').slice(0, 24000);
+}
+
+const STORY_LEAD = 'What is known about the story. Use it so that what you write fits these people and this moment, and still use the placeholders for names:';
+
+export function buildWriterPrompt({ ins, seed, count, context, existing }) {
     const actor = ACTORS[ins.actor] || ACTORS.char;
     const target = TARGETS[ins.target] || TARGETS.user;
     const lines = [
@@ -44,7 +77,7 @@ export function buildWriterPrompt({ ins, seed, count, includeCard, existing }) {
         `  ${pronounLine('user', 'the other person')}`,
     ];
     if (existing.length) lines.push('', 'Versions that already exist (write new ones that differ from these):', ...existing.slice(0, 30).map(v => `- ${brackets(v)}`));
-    if (includeCard) { const card = cardText(); if (card) lines.push('', 'About the character and the story, for tone only:', card); }
+    { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
     lines.push('', 'Return only a JSON list of strings, for example ["first version", "second version"].');
     // The prompt uses [[char]] where a saved version uses {{char}}, so SillyTavern leaves the placeholders alone on the way out.
     return brackets(lines.filter(l => l !== null && l !== undefined).join('\n'));
@@ -63,10 +96,10 @@ function tidy(text) {
 }
 
 /** Ask the model for versions. Returns [{ text, swaps }]. Throws with a plain message when it fails. */
-export async function writeVersions({ ins, seed, count, includeCard }) {
+export async function writeVersions({ ins, seed, count, context }) {
     const st = settings();
     const existing = ins.versions.map(v => v.text);
-    const prompt = buildWriterPrompt({ ins, seed, count, includeCard, existing });
+    const prompt = buildWriterPrompt({ ins, seed, count, context, existing });
     let answer;
     try {
         answer = await ask({ system: 'You write short instructions that are sent to a roleplay AI model during a chat. You answer with JSON only.', user: prompt, tokens: Math.min(4000, 200 + count * 120), profileId: st.profileId });
@@ -97,7 +130,7 @@ export async function writeVersions({ ins, seed, count, includeCard }) {
  * Ask the model for items for one category of a story event set. Returns [{ text, swaps }].
  * category: { name, driver }, theme: what the story is like, existing: item texts already in the list.
  */
-export async function writeItems({ category, theme, count, includeCard, existing, others, style = false }) {
+export async function writeItems({ category, theme, count, context, existing, others, style = false }) {
     const st = settings();
     const lines = style ? [
         `Write ${count} items for one list of writing style choices. A roleplay AI is later told to write its reply using one item from the list.`,
@@ -128,7 +161,7 @@ export async function writeItems({ category, theme, count, includeCard, existing
         '- Each item is clearly different from the others.',
     ];
     if (existing.length) lines.push('', 'Items that already exist (write new ones that differ from these):', ...existing.slice(0, 60).map(v => `- ${v}`));
-    if (includeCard) { const card = cardText(); if (card) lines.push('', 'About the character and the story, for tone only:', card); }
+    { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
     lines.push('', 'Return only a JSON list of strings, for example ["first item", "second item"].');
     let answer;
     try {
@@ -154,7 +187,7 @@ export async function writeItems({ category, theme, count, includeCard, existing
 
 /** Rewrite one version, keeping its meaning. Returns the new text. */
 export async function rewriteVersion({ ins, text }) {
-    const res = await writeVersions({ ins: { ...ins, versions: ins.versions }, seed: `The same thing as this version, worded and staged in a new way: ${text}`, count: 1, includeCard: false });
+    const res = await writeVersions({ ins: { ...ins, versions: ins.versions }, seed: `The same thing as this version, worded and staged in a new way: ${text}`, count: 1, context: settings().writer.context });
     return res[0];
 }
 

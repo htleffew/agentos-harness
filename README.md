@@ -123,6 +123,12 @@ warning that it belongs in Random Story Events.
 - **Versions do not repeat** until every version of that instruction has been used once.
 - **{{user}} never acts.** A version where {{user}} acts, speaks, decides, thinks or feels is marked "Must fix"
   and cannot be saved.
+- **What the AI writer can read.** When you write versions or items with AI, tick what it may read: character
+  card, scenario, your persona, chat summary, the most recent chat messages. That is how it writes things that
+  fit where your story is right now.
+- **Who does it.** Besides the character, someone who is present, someone new, or the surroundings, you can pick
+  "any character", "any female character" or "any male character", each "already in the story or new". The AI
+  then uses someone who is there, or brings someone in, so the order can always be carried out.
 - **Names and pronouns** are placeholders. Tap the name and pronoun buttons while editing. Set pronouns once
   per chat in Settings. One instruction set then works with any character and persona.
 - **Checking** uses one short AI request after each reply that carried an instruction. Pick a small, cheap

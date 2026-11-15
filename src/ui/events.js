@@ -7,6 +7,7 @@ import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { validateVersion, swapNames } from '../validate.js';
 import { writeItems } from '../writer.js';
 import { toast, confirmBox, inputBox, sub } from '../st.js';
+import { contextField } from './context.js';
 
 const EVENTS = {
     kind: 'events', type: 'event', route: 'eroute', make: newEvent, tick: 'events', set: 'story event set', sets: 'story event sets', Set: 'Story event set',
@@ -101,7 +102,7 @@ function renderList(body, app) {
 
 function itemFlags(cat, text) {
     const { blocks, warns } = validateVersion(text);
-    if (cat.driver && /\{\{user/i.test(text)) blocks.push('{{user}} cannot be the one who drives an event. Name someone else, or the surroundings.');
+    if (cat.driver && /\{\{user/i.test(text.replace(/other than \{\{user\}\}/gi, ''))) blocks.push('{{user}} cannot be the one who drives an event. Name someone else, or the surroundings.');
     // Items are short phrases, so the checks for full orders that do not apply here are left out.
     const keep = warns.filter(w => !/makes this optional/.test(w));
     if (cfg.kind === 'style' && /\b(arrives?|appears?|enters?|bursts? in|interrupts?|attacks?|a stranger|a storm|a letter|a knock|discovers?|finds? out|confess(?:es)?|reveals?)\b/i.test(text)) keep.push('This reads like something that happens in the story. Writing style items change how the reply is written. Story happenings belong in Random Story Events.');
@@ -176,7 +177,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     addBox.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); addItem(); } });
     body.push(h('div', { class: 'ri-control' }, addBox), h('div', { class: 'ri-row' },
         button('Add this item', addItem),
-        button('Write items with AI', () => { ui.ai = { theme: app[cfg.route].lastTheme || '', count: 12, includeCard: false, busy: false, error: '', results: null }; redraw(); }, { kind: 'primary' })));
+        button('Write items with AI', () => { ui.ai = { theme: app[cfg.route].lastTheme || '', count: 12, busy: false, error: '', results: null }; redraw(); }, { kind: 'primary' })));
 
     if (ui.ai) body.push(aiBox(app, draft, cat, ui, redraw, dirty));
 
@@ -200,7 +201,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
             field(cfg.themeLabel, cfg.themeHelp, textInput(ai.theme, (v) => { ai.theme = v; }, { placeholder: cfg.themePlaceholder })),
             h('div', { class: 'ri-grid2' },
                 field('How many items to write', '', numberInput(ai.count, { min: 1, max: 40, unit: 'items' }, (n) => { ai.count = n; })),
-                field('Show the AI the character card', 'Turn on to match the character and story. Uses more tokens.', select([{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }], ai.includeCard ? 'yes' : 'no', (v) => { ai.includeCard = v === 'yes'; }))));
+                contextField()));
         if (ai.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, ai.error));
         box.appendChild(h('div', { class: 'ri-row' },
             button(ai.busy ? 'Writing...' : 'Write the items', async () => {
@@ -209,7 +210,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                 ai.busy = true; ai.error = ''; redraw();
                 app[cfg.route].lastTheme = ai.theme;
                 try {
-                    const list = await writeItems({ style: cfg.kind === 'style', category: cat, theme: ai.theme.trim(), count: ai.count, includeCard: ai.includeCard, existing: cat.items.map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
+                    const list = await writeItems({ style: cfg.kind === 'style', category: cat, theme: ai.theme.trim(), count: ai.count, context: settings().writer.context, existing: cat.items.map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
                     ai.results = list.map(x => ({ text: x.text, keep: itemFlags(cat, x.text).blocks.length === 0 }));
                 } catch (e) { ai.error = e.message; }
                 ai.busy = false; redraw();
