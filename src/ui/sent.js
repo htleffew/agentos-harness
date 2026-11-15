@@ -15,7 +15,7 @@ function statusChip(it, checking) {
 function itemRow(id, rec, it, index, withButtons) {
     const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
     const buttons = [];
-    if (withButtons) {
+    if (withButtons && !it.noCheck) {
         if (it.status === 'done') buttons.push(button('Undo done', () => undoDone(id, index), { kind: 'ghost', title: 'Mark it as not done, so it is sent again' }));
         if (it.status === 'overdue' || it.status === 'queued') buttons.push(button('Do not send again', () => cancelResend(id, index), { kind: 'ghost' }));
         else buttons.push(button('Send again', () => sendAgain(id, index), { kind: 'ghost', title: 'Send this instruction again with the next reply' }));
@@ -44,6 +44,7 @@ function recordBody(id, rec, isLast, withButtons) {
 
 function summaryLine(rec) {
     const n = rec.items.length;
+    if (rec.items.every(i => i.noCheck)) return 'writing style sent';
     const done = rec.items.filter(i => i.status === 'done').length;
     const waiting = rec.items.filter(i => ['overdue', 'queued'].includes(i.status)).length;
     const parts = [`${n} ${n === 1 ? 'instruction' : 'instructions'} sent`];

@@ -262,6 +262,8 @@ export function writeInstruction(data, ins) {
 
 // ---------- instruction sets ----------
 
+export const KINDS = ['instructions', 'events', 'style'];
+
 /** Lorebooks in the list. kind: 'instructions' (Random Instructions) or 'events' (Random Story Events). */
 export function knownSets(kind = 'instructions') {
     const st = settings();
@@ -272,7 +274,7 @@ export function knownSets(kind = 'instructions') {
 export function setOptions(name) {
     const st = settings();
     const o = st.sets[name] || {};
-    return { limit: LIMITS[o.limit] ? o.limit : 'none', max: Math.max(1, Math.round(Number(o.max) || 2)), kind: o.kind === 'events' ? 'events' : 'instructions' };
+    return { limit: LIMITS[o.limit] ? o.limit : 'none', max: Math.max(1, Math.round(Number(o.max) || 2)), kind: KINDS.includes(o.kind) ? o.kind : 'instructions' };
 }
 
 export async function loadSet(name) {
@@ -310,7 +312,7 @@ export async function adoptSet(name) {
     if (!data) throw new Error(`The lorebook "${name}" could not be read.`);
     const st = settings();
     const saved = data.extensions?.ri;
-    st.sets[name] = { limit: LIMITS[saved?.limit] ? saved.limit : 'none', max: Math.max(1, Number(saved?.max) || 2), kind: saved?.kind === 'events' ? 'events' : 'instructions' };
+    st.sets[name] = { limit: LIMITS[saved?.limit] ? saved.limit : 'none', max: Math.max(1, Number(saved?.max) || 2), kind: KINDS.includes(saved?.kind) ? saved.kind : 'instructions' };
     saveSettings();
     return name;
 }

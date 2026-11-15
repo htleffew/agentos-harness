@@ -2,7 +2,7 @@
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, ask, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
-import { isEvent, rollEvent } from './events.js';
+import { isEvent, isStyle, rollEvent } from './events.js';
 import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
@@ -48,6 +48,8 @@ function history(type = 'normal') {
             else last.set(it.key, { start: replies, version: it.version });
             if (it.event) events.set(it.key, it.event);
         }
+        // Writing style sets keep their category state on the reply even when nothing was sent that time.
+        for (const [key, st] of Object.entries(m.extra?.[KEY]?.states || {})) events.set(key, st);
     }
     return { next: replies + 1, last, events };
 }
@@ -159,7 +161,8 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     entry.content = text;
     const item = { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
     // A story event also keeps what the dice picked, and the state of its categories after this event.
-    if (extra?.event) { item.event = extra.event; item.parts = extra.parts; }
+    if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
+    if (extra?.noCheck) item.noCheck = true;
     return item;
 }
 
@@ -253,6 +256,7 @@ function onScanDone(args) {
 
         const len = scanLength(type);
         const items = [];
+        let states = {};
         const find = key => sorted.find(e => keyOf(e) === key && managed.has(e.world) && !e.disable);
         reconcile();
         // Swipe, regenerate and continue send the same instructions again. The list comes from the last scan when it
@@ -263,6 +267,7 @@ function onScanDone(args) {
 
         if (isRepeat) {
             const before = own ? (own.items || []) : (type === 'continue' ? [] : (cs.lastScan.items || []));
+            states = (own ? own.states : cs.lastScan.states) || {};
             for (const e of fired) map.delete(keyOf(e));
             for (const it of before) {
                 const e = find(it.key);
@@ -275,8 +280,19 @@ function onScanDone(args) {
             }
         } else {
             pickAgain = false;
-            const continuing = fired.filter(isSticky);
-            let fresh = fired.filter(e => !isSticky(e));
+            // Writing style is sent with every reply and stands apart from limits, holds and re-sends.
+            const styles = fired.filter(isStyle);
+            for (const e of styles) {
+                const key = keyOf(e);
+                const ri = e.extensions.ri;
+                const rolled = rollEvent(ri, plan.events?.get(key) || null);
+                states[key] = rolled.state;
+                if (!rolled.text) { map.delete(key); continue; }
+                items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', rolled.text, 0, 'new', false, { parts: rolled.parts, noCheck: true }));
+            }
+            const orders = fired.filter(e => !isStyle(e));
+            const continuing = orders.filter(isSticky);
+            let fresh = orders.filter(e => !isSticky(e));
             const overdue = cs.overdue.filter(o => find(o.key));
 
             // Hold back new instructions while one is overdue, or apply each set's per-reply limit.
@@ -324,8 +340,8 @@ function onScanDone(args) {
             }
         }
 
-        cs.lastScan = { len, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts })) };
-        pending = { items, type };
+        cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck })) };
+        pending = { items, type, states };
         saveChatState();
     } catch (e) { console.error(LOG, 'scan-done', e); }
 }
@@ -351,10 +367,12 @@ function onMessageReceived(id, type) {
         const m = ctx().chat?.[id];
         if (!m || m.is_user || m.is_system) return;
         const rec = { v: 1, items: pending.items, type: pending.type, time: Date.now(), agency: null, checking: false, note: '' };
+        if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
         if (!rec.items.length) return;
+        if (rec.items.every(it => it.noCheck)) { try { ctx().saveChat?.(); } catch { /* saved with the next change */ } changed('sent', id); return; }
         try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
         changed('sent', id);
         const run = runCheck(id).catch(e => { console.warn(LOG, 'check failed', e); return null; });
@@ -414,7 +432,8 @@ async function runCheck(id) {
     changed('sent', id);
     const reply = stripSentBlock(m.mes);
     const n = names();
-    const lines = rec.items.map((it, i) => `ID a${i + 1}: ${sub(toStore(it.version))}`);
+    const lines = rec.items.map((it, i) => it.noCheck ? null : `ID a${i + 1}: ${sub(toStore(it.version))}`).filter(Boolean);
+    if (!lines.length) { finish(); return; }
     if (st.check.agency !== 'off') lines.push(`ID user: The reply writes spoken words, actions, decisions, thoughts or feelings for ${n.user}.`);
     const user = [
         'Below is one reply from a roleplay and a list of instructions that were given for that reply. Decide for each instruction whether the reply carried it out.',
@@ -477,6 +496,7 @@ async function autoRegenerate({ id, rec, chatId, missed }) {
 const esc = s => String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
 export function statusLabel(it) {
+    if (it.noCheck) return 'Sent (writing style is not checked)';
     switch (it.status) {
         case 'done': return 'Done';
         case 'overdue': return `Overdue ${Math.min((it.misses || 0) + 1, 9)}: will be sent again`;

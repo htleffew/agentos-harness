@@ -22,6 +22,7 @@ Setup used for 1.0.0:
 | `t_import.js` | A lorebook the extension did not write: one note per reply, file left unchanged |
 | `t_edit.js` | Deleting messages, branching, editing the newest reply, swiping after a delete |
 | `t_events.js` | Story events: every dice rule, swipe repeat, delete rewind, saved text, AI items, example roll |
+| `t_style.js` | Writing style: per-category timing, rest, scope line, swipe, delete, overdue instruction, the panel |
 | `t_native.js` | Shows World Info's own timers freezing when it is handed a window of messages (extension off) |
 
 Set `RI_WINDOW=6` to run any script with World Info handed only the last 6 messages. This needs the small test

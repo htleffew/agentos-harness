@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.0.0 (2026-11-15)
+
+Version 3: Random Writing Style.
+
+- New tab with writing style sets. One style order is sent with every reply while a set is on for the chat.
+- Eight starting categories: {{char}}'s mood, Prose style, In the manner of this author, Writing habits, Sense to
+  lead with, Pacing, Rule for this reply, Point of view and tense (locked).
+- Each category has its own timing in replies: keep one item, keep for a random number of replies, or new every
+  time; plus a chance to sit out and a rest after each pick.
+- "Words added after the pick" per category, used by mood to say how the mood applies.
+- The style order carries a scope line (story prose only; formatted blocks keep their format) and "a required
+  instruction wins over any style choice".
+- Style is recorded in What Was Sent, is not checked by AI, keeps going while an instruction is overdue, and
+  stays outside per-reply limits.
+- Write items with AI for style categories, with a description of each starting category for the AI.
+
 ## 2.0.0 (2026-11-15)
 
 Version 2: Random Story Events.

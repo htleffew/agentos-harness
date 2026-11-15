@@ -1,6 +1,7 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension. Version 2: **Random Instructions** and **Random Story Events**.
+A standalone SillyTavern / TauriTavern extension. Version 3: **Random Instructions**, **Random Story Events** and
+**Random Writing Style**.
 
 You build *instruction sets*. Each instruction has several *versions* of the same order ("{{char}} must pay
 {{user}} a compliment"). During a chat, an instruction is sent at random with the chance and timing you set, one
@@ -19,7 +20,7 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v2`
+3. Branch: `roleplay-instructions-v3`
 4. Install, then reload the app.
 
 ## First use (2 minutes)
@@ -62,11 +63,34 @@ event is checked like any instruction, and the state of every category is kept o
 same event and deleting or branching rewinds the rotation correctly. `{{user}}` can never be the one who drives
 an event.
 
+## Random Writing Style (new in Version 3)
+
+A writing style set changes how replies are written and leaves the events of the story alone. While a set is on
+for a chat, one style order goes out with every reply, built from the categories that are on.
+
+1. Open the **Random Writing Style** tab and press **Add writing style set**. It comes with eight categories:
+   {{char}}'s mood (17 temperaments) and Prose style are on; In the manner of this author, Writing habits, Sense to
+   lead with, Pacing and Rule for this reply are off until you turn them on; Point of view and tense is locked so
+   your preset's point of view is never changed by accident.
+2. Open a category to set how long its pick lasts. Each category has its own timing, counted in replies:
+   keep one item until you turn it off, keep a pick for a random number of replies (for example 4 to 8), or pick
+   new every time. A category can also sit out by chance, and rest after each pick ("Rule for this reply" rests
+   1 reply, so a rule is never used twice in a row).
+3. Press **Roll the next reply's style** a few times to see what stays and what changes.
+4. Save, and turn on **On for this chat**.
+
+The style order says that it applies to the story prose only, that tagged or formatted blocks keep their exact
+format and position, that events, facts and choices stay as they would otherwise be, and that a required
+instruction wins over any style choice. Writing style is recorded in What Was Sent and is not checked by AI,
+since it is sent again with every reply anyway. It keeps going while an instruction is overdue, and it does not
+count toward per-reply limits. "Write items with AI" works for every category, including author names.
+
 ## The tabs
 
 | Tab | What it is for |
 | --- | --- |
 | Random Story Events | Your story event sets: categories, items, dice settings and when an event happens. |
+| Random Writing Style | Your writing style sets: categories such as mood and prose style, each with its own timing. |
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
 | Settings | Pronouns for this chat, which AI connection writes and checks, how checking and re-sending work, and the optional section under each reply. |
@@ -132,6 +156,6 @@ run. See `tests/README.md`.
 
 ## Roadmap
 
-Version 3 adds Random Writing Style and Version 4 adds Character Goals, each on its own branch. Planned for a
+Version 4 adds Character Goals, on its own branch. Planned for a
 later 2.x: "never together" tag pairs, saved sets of category settings, and Keep / Pick again buttons for a
 single picked item in What Was Sent.

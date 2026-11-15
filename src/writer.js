@@ -97,9 +97,22 @@ export async function writeVersions({ ins, seed, count, includeCard }) {
  * Ask the model for items for one category of a story event set. Returns [{ text, swaps }].
  * category: { name, driver }, theme: what the story is like, existing: item texts already in the list.
  */
-export async function writeItems({ category, theme, count, includeCard, existing, others }) {
+export async function writeItems({ category, theme, count, includeCard, existing, others, style = false }) {
     const st = settings();
-    const lines = [
+    const lines = style ? [
+        `Write ${count} items for one list of writing style choices. A roleplay AI is later told to write its reply using one item from the list.`,
+        '',
+        `This list: ${category.name}`,
+        category.hint ? `What an item in this list is: ${category.hint}` : '',
+        others.length ? `The other lists: ${others.join(', ')}` : '',
+        `What the writer wants: ${theme}`,
+        '',
+        'Rules for every item:',
+        '- It changes how the prose is written and leaves the events of the story alone.',
+        '- Plain, literal wording that says what to do. One short phrase or sentence.',
+        '- Where a name is needed use [[char]] for the main character and [[user]] for the other person, with the double square brackets, and write real names nowhere' + (/author/i.test(category.name) ? ' (author names are the exception in this list).' : '.'),
+        '- Each item is clearly different from the others.',
+    ] : [
         `Write ${count} items for one list of story ingredients. A roleplay AI is later given one item from each list and must make an event happen from them.`,
         '',
         `This list: ${category.name}`,
