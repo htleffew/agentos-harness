@@ -1,7 +1,7 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension. Version 3: **Random Instructions**, **Random Story Events** and
-**Random Writing Style**.
+A standalone SillyTavern / TauriTavern extension. Version 4: **Random Instructions**, **Random Story Events**,
+**Random Writing Style** and **Character Goals**.
 
 You build *instruction sets*. Each instruction has several *versions* of the same order ("{{char}} must pay
 {{user}} a compliment"). During a chat, an instruction is sent at random with the chance and timing you set, one
@@ -20,7 +20,7 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v3`
+3. Branch: `roleplay-instructions-v4`
 4. Install, then reload the app.
 
 ## First use (2 minutes)
@@ -98,12 +98,40 @@ Rules that can be counted are checked against each reply without AI and shown in
 (per paragraph), `rule:max-words-200` (any number works). A style item that reads like a story happening gets a
 warning that it belongs in Random Story Events.
 
+## Character Goals (new in Version 4)
+
+A goal gives the character something to work toward in one chat. Goals are only ever for the character.
+
+1. Open the **Character Goals** tab in a chat. Type the goal as one loose sentence, or press **Write a goal
+   with AI** (it can read the card, scenario, persona, chat summary and recent messages, as you tick them).
+2. Add **one-time steps** (each happens once, in any order) and **repeatable actions** (sent again and again).
+   Keep them short and loose: "compliment {{user}}" works better than a compliment about one thing in one place.
+   Tasks over 8 words, or tied to a place, time or object, get a warning.
+3. Turn the goal **On**.
+
+What happens then:
+
+| Part | When it is sent | When it is done |
+| --- | --- | --- |
+| The goal | With every reply (you can change that) | When every one-time step is done, or when you press "Mark the goal done". Then nothing more is sent. |
+| A one-time step | Picked at random when a task is due. Once sent, it is sent again with every reply, as Overdue and then Final, until it happens. It never gives up. | When the check finds the words in a reply that show it. You can also press "Mark done" or "Undo done". |
+| A repeatable action | Picked at random when a task is due, for one reply. Then it waits a number of replies (6 to 10 unless you change it). | Never. It is not checked. |
+
+At most one task is sent at a time, and a task is due with the chance you set (35% of replies to start with).
+What is done is read from the replies themselves, so deleting the reply that finished a step un-ticks it, and a
+branch carries on from where it branched. The goal stands apart from per-reply limits and from instructions that
+are waiting to be sent again. With checking turned off in Settings, steps are not ticked off on their own.
+
+**Save this goal to my list** keeps a goal with its steps and actions for other chats. "When the goal is done"
+can be set to start the next goal from that list.
+
 ## The tabs
 
 | Tab | What it is for |
 | --- | --- |
 | Random Story Events | Your story event sets: categories, items, dice settings and when an event happens. |
 | Random Writing Style | Your writing style sets: categories such as mood and prose style, each with its own timing. |
+| Character Goals | This chat's goal for the character, its one-time steps and repeatable actions. |
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
 | Settings | Pronouns for this chat, which AI connection writes and checks, how checking and re-sending work, and the optional section under each reply. |
@@ -175,4 +203,4 @@ run. See `tests/README.md`.
 
 ## Roadmap
 
-Version 4 adds Character Goals, on its own branch.
+All four versions are built. Later, unscheduled: importing Lorebary plugin exports, and foreshadowed delayed events.

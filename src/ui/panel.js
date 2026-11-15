@@ -4,6 +4,7 @@ import { settings, saveSettings } from '../store.js';
 import { onChange } from '../engine.js';
 import { renderInstructions } from './sets.js';
 import { renderEvents, renderStyle } from './events.js';
+import { renderGoals } from './goals.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
 import { renderSettings } from './settings.js';
 import { isChatOpen } from '../st.js';
@@ -12,7 +13,8 @@ const TABS = [
     { id: 'instructions', label: 'Random Instructions', accent: 'cyan' },
     { id: 'events', label: 'Random Story Events', accent: 'blue' },
     { id: 'style', label: 'Random Writing Style', accent: 'green' },
-    { id: 'sent', label: 'What Was Sent', accent: 'sky' },
+    { id: 'goals', label: 'Character Goals', accent: 'sky' },
+    { id: 'sent', label: 'What Was Sent', accent: 'blue' },
     { id: 'settings', label: 'Settings', accent: 'cyan' },
 ];
 
@@ -77,6 +79,7 @@ export function render() {
     if (app.tab === 'instructions') renderInstructions(app.body, app);
     else if (app.tab === 'events') renderEvents(app.body, app);
     else if (app.tab === 'style') renderStyle(app.body, app);
+    else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
     else renderSettings(app.body, app);
 
@@ -112,6 +115,7 @@ export function mount(missing) {
         if (app.tab === 'instructions' && app.route.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'style' && app.sroute.view === 'edit' && what !== 'chat') return;
+        if (app.tab === 'goals' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
         clearTimeout(timer);
         timer = setTimeout(render, 80);
     });

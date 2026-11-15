@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.0.0 (2026-11-15)
+
+Version 4: Character Goals.
+
+- New tab: one goal for the character per chat, one-time steps and repeatable actions.
+- The goal goes with every reply. At most one task at a time, with the chance you set.
+- One-time steps finish in any order and are ticked off when the check finds the words that show it. A step that
+  was sent is sent again with every reply, as Overdue and then Final, until it happens.
+- Repeatable actions are sent for one reply and then wait a number of replies. They are not checked.
+- Write a goal with AI (goal, 5 steps, 5 actions), shown in full for review.
+- Warnings keep tasks short and loose (8 words, no place, time or object).
+- A list of saved goals to reuse in other chats; "start the next goal from my list" when a goal is done.
+- What is done is read from the replies, so deletes and branches rewind it.
+
 ## 3.2.0 (2026-11-15)
 
 - "What to show the AI" when it writes versions or items: character card, scenario, your persona, chat summary,

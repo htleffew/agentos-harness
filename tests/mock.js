@@ -10,6 +10,9 @@ function answer(body) {
     const all = msgs.map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join('\n');
     const m = mode();
     if (/Reply with exactly this JSON/.test(all)) return '["one","two"]';
+    if (/Return only a JSON object with the keys/i.test(all)) {
+        return m.goal || JSON.stringify({ goal: '[[char]] wants [[user]] to trust [[char.them]].', actions: ['compliment [[user]]', 'ask [[user]] a question', 'touch [[user]] on the arm', 'smile at [[user]]', 'agree with [[user]]'], steps: ['tell [[user]] a secret', 'apologise to [[user]]', 'ask [[user]] for help', 'give [[user]] a gift while out on a date at the restaurant tonight', 'make [[user]] a promise'] });
+    }
     if (/Return only a JSON list of strings/i.test(all)) {
         if (m.writer) return m.writer;
         const k = Number((all.match(/Write (\d+) /) || [0, 5])[1]);

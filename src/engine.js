@@ -3,6 +3,7 @@
 import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, ask, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
+import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
@@ -21,7 +22,7 @@ function changed(what, id) {
 }
 
 const keyOf = e => `${e.world}.${e.uid}`;
-const managedWorlds = () => new Set(Object.keys(settings().sets));
+const managedWorlds = () => new Set([...Object.keys(settings().sets), GOAL_WORLD]);
 
 // ---------- timing, counted in replies from the records kept on the replies ----------
 //
@@ -115,6 +116,11 @@ async function onEntriesLoaded(lore) {
                 lore.chatLore.push(...Object.values(data.entries).map(e => ({ ...e, world: name })));
             }
         }
+        // The character goal travels as one entry that is made here for each scan.
+        if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
+            const g = goals();
+            if (g?.on && String(g.goal || '').trim() && !goalDone(g, goalProgress(gen && !gen.dryRun ? gen.type : 'normal'))) lore.chatLore.push(goalEntry());
+        }
         for (const arr of arrays) {
             for (const e of arr) if (managed.has(e.world)) rawByKey.set(keyOf(e), { content: e.content, role: e.role });
         }
@@ -164,6 +170,7 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     // A story event also keeps what the dice picked, and the state of its categories after this event.
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
     if (extra?.noCheck) item.noCheck = true;
+    if (extra && 'goalTask' in extra) { item.goalTask = extra.goalTask; item.checkText = extra.checkText; }
     return item;
 }
 
@@ -300,7 +307,14 @@ function onScanDone(args) {
                 if (!rolled.text) { map.delete(key); continue; }
                 items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', rolled.text, 0, 'new', false, { parts: rolled.parts, noCheck: true }));
             }
-            const orders = fired.filter(e => !isStyle(e));
+            // The character goal also stands apart: the goal line goes with every reply, and it has at most one task.
+            for (const e of fired.filter(isGoal)) {
+                const g = goals();
+                const order = g ? buildGoalOrder(g, goalProgress(type)) : null;
+                if (!order) { map.delete(keyOf(e)); continue; }
+                items.push(makeItem(e, 'system', order.version, order.misses, 'new', false, { noCheck: order.noCheck, goalTask: order.task, checkText: order.checkText }));
+            }
+            const orders = fired.filter(e => !isStyle(e) && !isGoal(e));
             const continuing = orders.filter(isSticky);
             let fresh = orders.filter(e => !isSticky(e));
             const overdue = cs.overdue.filter(o => find(o.key));
@@ -350,7 +364,7 @@ function onScanDone(args) {
             }
         }
 
-        cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck })) };
+        cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         pending = { items, type, states };
         rerollCat = null;
         saveChatState();
@@ -447,7 +461,7 @@ async function runCheck(id) {
     changed('sent', id);
     const reply = stripSentBlock(m.mes);
     const n = names();
-    const lines = rec.items.map((it, i) => it.noCheck ? null : `ID a${i + 1}: ${sub(toStore(it.version))}`).filter(Boolean);
+    const lines = rec.items.map((it, i) => it.noCheck ? null : `ID a${i + 1}: ${sub(toStore(it.checkText || it.version))}`).filter(Boolean);
     if (!lines.length) { finish(); return; }
     if (st.check.agency !== 'off') lines.push(`ID user: The reply writes spoken words, actions, decisions, thoughts or feelings for ${n.user}.`);
     const user = [
@@ -481,8 +495,12 @@ async function runCheck(id) {
         if (r.done === true && quoteFound(reply, r.quote)) {
             it.status = 'done'; it.quote = String(r.quote).trim();
             cs.overdue = cs.overdue.filter(o => !(o.key === it.key && (!o.from || o.from === rec.time)));
+        } else if ('goalTask' in it) {
+            // A one-time step of the character goal: it is sent again with every reply until it happens.
+            it.quote = ''; it.status = 'pending';
         } else { it.quote = ''; if (markMissed(cs, it, rec.time)) anyOverdue = true; }
     });
+    if (rec.items.some(it => it.goalTask && it.status === 'done') && advanceIfDone()) toast('success', 'The goal is done. The next goal from your list has started.');
     const u = byId.get('user');
     rec.agency = u && u.done === true && quoteFound(reply, u.quote) ? { quote: String(u.quote).trim() } : null;
     finish();
@@ -511,8 +529,10 @@ async function autoRegenerate({ id, rec, chatId, missed }) {
 const esc = s => String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
 export function statusLabel(it) {
+    if ('goalTask' in it && it.noCheck) return it.goalTask?.type === 'action' ? 'Sent (repeatable actions are not checked)' : it.goalTask ? 'Sent (not checked)' : 'Sent (goal line)';
     if (it.noCheck) return 'Sent (writing style is not checked)';
     switch (it.status) {
+        case 'pending': return 'Not yet: it is sent again with the next reply';
         case 'done': return 'Done';
         case 'overdue': return `Overdue ${Math.min((it.misses || 0) + 1, 9)}: will be sent again`;
         case 'missed': return 'Missed: stopped sending';

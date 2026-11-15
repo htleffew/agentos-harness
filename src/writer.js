@@ -185,6 +185,44 @@ export async function writeItems({ category, theme, count, context, existing, ot
     return out;
 }
 
+/**
+ * Ask the model for a goal for the character, with repeatable actions and one-time steps.
+ * Returns { goal, actions: [text], steps: [text] }.
+ */
+export async function writeGoal({ about, context }) {
+    const st = settings();
+    const lines = [
+        'Write one goal for the main character of a roleplay, with small tasks that serve it.',
+        '',
+        about ? `What the goal is about: ${about}` : 'Choose a goal that fits the character and the story.',
+        '',
+        'Return three things:',
+        '- "goal": one plain sentence saying what [[char]] is working toward, for example "[[char]] wants [[user]] to trust [[char.them]]".',
+        '- "actions": 5 small things [[char]] does again and again along the way.',
+        '- "steps": 5 things that each happen once and move the goal forward. They can happen in any order.',
+        '',
+        'Rules for every action and step:',
+        '- A verb, who it is done to, and at most a loose manner. 8 words at most. For example "compliment [[user]]" or "tell [[user]] a secret".',
+        '- It completes the sentence "[[char]] must ...", so it starts with a verb in its plain form.',
+        '- Loose and general, so it fits any scene: leave out places, times, clothing, objects and names.',
+        '- [[char]] is the one who does it. [[user]] is only ever the one it is done to.',
+        '- Use [[char]] and [[user]] with the double square brackets wherever a name is needed, and write real names nowhere. For pronouns of the character use [[char.they]], [[char.them]], [[char.their]].',
+    ];
+    { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
+    lines.push('', 'Return only a JSON object with the keys "goal", "actions" and "steps".');
+    let answer;
+    try {
+        answer = await ask({ system: 'You plan goals for a character in a roleplay. You answer with JSON only.', user: brackets(lines.join('\n')), tokens: 900, profileId: st.profileId });
+    } catch (e) {
+        throw new Error(`The AI connection did not answer: ${e?.cause?.message || e?.message || e}`);
+    }
+    const obj = parseJson(String(answer).slice(String(answer).indexOf('{')));
+    const fix = t => swapNames(tidy(String(t ?? '')).replace(/[.]+$/, '')).text;
+    const list = v => (Array.isArray(v) ? v : []).filter(x => typeof x === 'string').map(fix).filter(Boolean);
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || !obj.goal) throw new Error('The AI answered, but no goal could be read from the answer. Try again, or pick another AI connection in Settings.');
+    return { goal: fix(obj.goal), actions: list(obj.actions), steps: list(obj.steps) };
+}
+
 /** Rewrite one version, keeping its meaning. Returns the new text. */
 export async function rewriteVersion({ ins, text }) {
     const res = await writeVersions({ ins: { ...ins, versions: ins.versions }, seed: `The same thing as this version, worded and staged in a new way: ${text}`, count: 1, context: settings().writer.context });

@@ -25,6 +25,7 @@ Setup used for 1.0.0:
 | `t_style.js` | Writing style: per-category timing, rest, scope line, swipe, delete, overdue instruction, the panel |
 | `t_extras.js` | Never together, linger chance, saved settings per chat, Pick again / Lock / Keep on one item, rule checks |
 | `t_context.js` | What the AI writer is shown (card, scenario, persona, summary, recent messages); who-does-it choices |
+| `t_goals.js` | Character goals: steps in any order, action waits, re-sends that never give up, swipe, delete, the panel |
 | `t_native.js` | Shows World Info's own timers freezing when it is handed a window of messages (extension off) |
 
 Set `RI_WINDOW=6` to run any script with World Info handed only the last 6 messages. This needs the small test

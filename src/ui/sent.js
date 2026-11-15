@@ -11,7 +11,7 @@ const KIND = { new: 'New', continuing: 'Kept sending', resend: 'Sent again', rep
 
 function statusChip(it, checking) {
     if (checking && it.status === 'sent') return chip('Checking...', 'ri-chip-wait');
-    const cls = { done: 'ri-chip-done', overdue: 'ri-chip-warn', missed: 'ri-chip-bad', continuing: 'ri-chip-wait', queued: 'ri-chip-warn' }[it.status] || '';
+    const cls = { done: 'ri-chip-done', overdue: 'ri-chip-warn', pending: 'ri-chip-warn', missed: 'ri-chip-bad', continuing: 'ri-chip-wait', queued: 'ri-chip-warn' }[it.status] || '';
     return chip(statusLabel(it), cls);
 }
 
@@ -45,7 +45,7 @@ function partRows(it, isLast, withButtons) {
 function itemRow(id, rec, it, index, withButtons) {
     const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
     const buttons = [];
-    if (withButtons && !it.noCheck) {
+    if (withButtons && !it.noCheck && !('goalTask' in it)) {
         if (it.status === 'done') buttons.push(button('Undo done', () => undoDone(id, index), { kind: 'ghost', title: 'Mark it as not done, so it is sent again' }));
         if (it.status === 'overdue' || it.status === 'queued') buttons.push(button('Do not send again', () => cancelResend(id, index), { kind: 'ghost' }));
         else buttons.push(button('Send again', () => sendAgain(id, index), { kind: 'ghost', title: 'Send this instruction again with the next reply' }));
@@ -53,7 +53,7 @@ function itemRow(id, rec, it, index, withButtons) {
     return h('div', { class: 'ri-sentitem' },
         h('div', { class: 'ri-sent-top' }, h('span', { class: 'ri-sent-name' }, it.name), statusChip(it, rec.checking)),
         h('div', { class: 'ri-grid' },
-            kv('Instruction set', it.world),
+            'goalTask' in it ? (it.goalTask ? kv(it.goalTask.type === 'step' ? 'One-time step' : 'Repeatable action', it.goalTask.text) : null) : kv('Instruction set', it.world),
             kv('Why it was sent', `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
             kv('Exact text sent', it.text),
             Array.isArray(it.rules) && it.rules.length ? kv('Rules checked', it.rules.map(r => `${r.ok ? 'Followed' : 'Not followed'}: ${r.label}`).join('  |  ')) : null,
@@ -75,7 +75,7 @@ function recordBody(id, rec, isLast, withButtons) {
 
 function summaryLine(rec) {
     const n = rec.items.length;
-    if (rec.items.every(i => i.noCheck)) return 'writing style sent';
+    if (rec.items.every(i => i.noCheck)) return rec.items.some(i => 'goalTask' in i) ? (rec.items.length > 1 ? 'goal and writing style sent' : 'goal sent') : 'writing style sent';
     const done = rec.items.filter(i => i.status === 'done').length;
     const waiting = rec.items.filter(i => ['overdue', 'queued'].includes(i.status)).length;
     const parts = [`${n} ${n === 1 ? 'instruction' : 'instructions'} sent`];

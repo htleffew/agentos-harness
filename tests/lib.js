@@ -1,7 +1,7 @@
 const fs = require('fs');
 const h = require('./h.js');
 const BASE = '/scripts/extensions/third-party/roleplay-instructions';
-const sync = () => require('child_process').execSync('rm -rf /tmp/src/st/data/default-user/extensions/roleplay-instructions && mkdir -p /tmp/src/st/data/default-user/extensions/roleplay-instructions && cp -r /home/claude/ri/v3/. /tmp/src/st/data/default-user/extensions/roleplay-instructions/');
+const sync = () => require('child_process').execSync('rm -rf /tmp/src/st/data/default-user/extensions/roleplay-instructions && mkdir -p /tmp/src/st/data/default-user/extensions/roleplay-instructions && cp -r /home/claude/ri/v4/. /tmp/src/st/data/default-user/extensions/roleplay-instructions/');
 const mode = (m) => fs.writeFileSync('/tmp/mock-mode.json', JSON.stringify(m || {}));
 const resetLog = () => { try { fs.unlinkSync('/tmp/mock-requests.jsonl'); } catch { } };
 const requests = () => { try { return fs.readFileSync('/tmp/mock-requests.jsonl', 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; } };
