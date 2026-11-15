@@ -1,6 +1,7 @@
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
-import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, ask, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
+import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
+import { request } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
@@ -474,10 +475,15 @@ async function runCheck(id) {
 
     let results = null;
     try {
-        const answer = await ask({ system: 'You check whether instructions were carried out in a roleplay reply. You answer with JSON only.', user, tokens: 500, profileId: st.profileId });
-        results = parseJson(answer);
+        const res = await request({ what: 'Check that it happened', system: 'You check whether instructions were carried out in a roleplay reply. You answer with JSON only.', user, tokens: 500, profileId: st.profileId });
+        results = parseJson(res.text);
+        if (Array.isArray(results)) {
+            const asked = results.filter(r => r && typeof r === 'object' && String(r.id) !== 'user');
+            res.note(`The AI marked ${asked.filter(r => r.done).length} of ${asked.length} ${asked.length === 1 ? 'instruction' : 'instructions'} as done. One is only counted when its quote is found in the reply.`, true);
+        }
+        else res.note('The answer could not be read as a list, so nothing was marked.', false);
     } catch (e) {
-        rec.note = `The check could not run: ${e?.cause?.message || e?.message || e}`;
+        rec.note = `The check could not run: ${e?.message || e}`;
     }
     if (stale()) return;
     const cs = chatState();

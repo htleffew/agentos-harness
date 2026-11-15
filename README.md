@@ -134,6 +134,7 @@ can be set to start the next goal from that list.
 | Character Goals | This chat's goal for the character, its one-time steps and repeatable actions. |
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
+| Log | Every request made to the AI: what was sent, what came back, how long it took and, when it failed, why. Copy it or save it as a file. |
 | Settings | Pronouns for this chat, which AI connection writes and checks, how checking and re-sending work, and the optional section under each reply. |
 
 ## Things worth knowing
@@ -149,8 +150,12 @@ can be set to start the next goal from that list.
 - **Swipes and regenerate** send the same instructions and versions again. Press **Pick again** in What Was
   Sent to roll fresh ones.
 - **Versions do not repeat** until every version of that instruction has been used once.
-- **{{user}} never acts.** A version where {{user}} acts, speaks, decides, thinks or feels is marked "Must fix"
-  and cannot be saved.
+- **{{user}} never acts.** A version where {{user}} is the subject of the order, is made to speak or decide, or
+  has their reply or thoughts written is marked "Check". It is a flag: in the AI review it starts unticked, you can
+  tick it, and it saves. {{user}} as the place or the target ("the bridge under {{user}} must crack") is clean.
+- **When AI writing fails, the message says why**, and the Log tab holds the whole answer. Models that think before
+  they answer can use up the room for the answer; "Give the AI more room to answer" in Settings fixes that, and it
+  turns itself on when a second try with more room works.
 - **What the AI writer can read.** When you write versions or items with AI, tick what it may read: character
   card, scenario, your persona, chat summary, the most recent chat messages. That is how it writes things that
   fit where your story is right now.

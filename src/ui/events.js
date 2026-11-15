@@ -4,7 +4,7 @@ import { h, button, toggle, select, numberInput, textInput, textArea, field, sec
 import { knownSets, loadSet, saveSet, createSet, forgetSet, wrapText, SENT_AS } from '../books.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
-import { validateVersion, swapNames } from '../validate.js';
+import { validateVersion, swapNames, userDrives } from '../validate.js';
 import { writeItems } from '../writer.js';
 import { toast, confirmBox, inputBox, sub } from '../st.js';
 import { contextField } from './context.js';
@@ -101,12 +101,12 @@ function renderList(body, app) {
 // ---------- one event set ----------
 
 function itemFlags(cat, text) {
-    const { blocks, warns } = validateVersion(text);
-    if (cat.driver && /\{\{user/i.test(text.replace(/other than \{\{user\}\}/gi, ''))) blocks.push('{{user}} cannot be the one who drives an event. Name someone else, or the surroundings.');
+    const { blocks, checks, warns } = validateVersion(text);
+    if (cat.driver && userDrives(text)) checks.push('This item makes {{user}} the one who drives the event. Events work best when someone else, or the surroundings, drives them. If it reads right to you, keep it.');
     // Items are short phrases, so the checks for full orders that do not apply here are left out.
     const keep = warns.filter(w => !/makes this optional/.test(w));
     if (cfg.kind === 'style' && /\b(arrives?|appears?|enters?|bursts? in|interrupts?|attacks?|a stranger|a storm|a letter|a knock|discovers?|finds? out|confess(?:es)?|reveals?)\b/i.test(text)) keep.push('This reads like something that happens in the story. Writing style items change how the reply is written. Story happenings belong in Random Story Events.');
-    return { blocks, node: (blocks.length || keep.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), keep.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null };
+    return { blocks, checks, node: (blocks.length || checks.length || keep.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), checks.map(c => h('div', { class: 'ri-flag ri-flag-check' }, `Check: ${c}`)), keep.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null };
 }
 
 function categoryCard(app, draft, cat, index, redraw, dirty) {
@@ -153,7 +153,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
             return;
         }
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: it.on, title: 'Tick to let the dice use this item', onchange: () => { it.on = tick.checked; dirty(); } });
-        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : ''}` },
+        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` },
             h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(it.text))),
             flags.node,
             h('div', { class: 'ri-row ri-row-tight' },
@@ -211,20 +211,20 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                 app[cfg.route].lastTheme = ai.theme;
                 try {
                     const list = await writeItems({ style: cfg.kind === 'style', category: cat, theme: ai.theme.trim(), count: ai.count, context: settings().writer.context, existing: cat.items.map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
-                    ai.results = list.map(x => ({ text: x.text, keep: itemFlags(cat, x.text).blocks.length === 0 }));
+                    ai.results = list.map(x => ({ text: x.text, keep: (f => f.blocks.length === 0 && f.checks.length === 0)(itemFlags(cat, x.text)) }));
                 } catch (e) { ai.error = e.message; }
                 ai.busy = false; redraw();
             }, { kind: 'primary', disabled: ai.busy }),
             button('Cancel', () => { ui.ai = null; redraw(); }, { kind: 'ghost', disabled: ai.busy })));
         return box;
     }
-    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the items to add. Everything the AI wrote is shown here; nothing is added until you press the button.'));
+    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the items to add. Everything the AI wrote is shown here; nothing is added until you press the button. An item marked "Check" starts unticked: tick it if it reads right to you.'));
     const list = h('div', { class: 'ri-versions' });
     ai.results.forEach((x) => {
         const flags = itemFlags(cat, x.text);
         if (flags.blocks.length) x.keep = false;
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: x.keep, disabled: flags.blocks.length > 0, onchange: () => { x.keep = tick.checked; } });
-        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : ''}` }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(x.text))), flags.node));
+        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(x.text))), flags.node));
     });
     box.append(list, h('div', { class: 'ri-row' },
         button('Add the ticked items', () => {
@@ -312,7 +312,7 @@ function renderEdit(body, app) {
 
     const save = async () => {
         const blocked = draft.categories.flatMap(c => c.items.filter(i => itemFlags(c, i.text).blocks.length).map(() => c.name));
-        if (blocked.length) { toast('error', `${blocked.length} ${blocked.length === 1 ? 'item is' : 'items are'} marked "Must fix" (in ${[...new Set(blocked)].join(', ')}). Edit or delete ${blocked.length === 1 ? 'it' : 'them'} first.`); return; }
+        if (blocked.length) { toast('error', `${blocked.length} ${blocked.length === 1 ? 'item is' : 'items are'} empty (in ${[...new Set(blocked)].join(', ')}). Type something or delete ${blocked.length === 1 ? 'it' : 'them'} first.`); return; }
         const fixedMissing = draft.categories.find(c => c.on && c.mode === 'keepFixed' && !c.items.some(i => i.on && i.id === c.fixed));
         if (fixedMissing) { toast('info', `Choose the item to keep in "${fixedMissing.name}", or change how it changes.`); return; }
         try {

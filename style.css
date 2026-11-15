@@ -132,6 +132,7 @@
 .ri-versions { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .ri-version { background: var(--ri-bg); border: 1px solid var(--ri-line); border-radius: 10px; padding: 10px 12px; }
 .ri-version-blocked { border-color: rgba(255, 0, 127, 0.6); }
+.ri-version-flagged { border-color: rgba(176, 38, 255, 0.55); }
 .ri-version-editing { border-color: var(--ri-accent); }
 .ri-vnum { color: var(--ri-label); font-size: 0.7em; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 5px; }
 .ri-vbody { color: var(--ri-text); word-break: break-word; }
@@ -147,6 +148,7 @@
 .ri-flags { margin-top: 6px; }
 .ri-flag { font-size: 0.86em; border-radius: 7px; padding: 5px 9px; margin-top: 4px; }
 .ri-flag-block { color: #ff9cc0; background: rgba(255, 0, 127, 0.1); border: 1px solid rgba(255, 0, 127, 0.4); }
+.ri-flag-check { color: #dcb8ff; background: rgba(176, 38, 255, 0.1); border: 1px solid rgba(176, 38, 255, 0.45); }
 .ri-flag-warn { color: var(--ri-yellow); background: rgba(255, 230, 0, 0.06); border: 1px solid rgba(255, 230, 0, 0.3); }
 .ri-flag-info { color: var(--ri-sky); background: rgba(116, 211, 235, 0.06); border: 1px solid rgba(116, 211, 235, 0.3); }
 
@@ -189,3 +191,13 @@
 @media (prefers-reduced-motion: reduce) {
     .ri-root *, .ri-root *::before { animation: none !important; transition: none !important; }
 }
+
+/* Log tab */
+.ri-log-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ri-log-what { color: var(--ri-text); font-weight: 600; }
+.ri-log-result { color: var(--ri-text-2); font-size: 0.9em; }
+.ri-log-fail { color: var(--ri-yellow); font-size: 0.9em; }
+.ri-log-failed { border-color: rgba(255, 230, 0, 0.35); }
+.ri-log-list { margin: 4px 0 8px 18px; padding: 0; color: var(--ri-text-2); font-size: 0.88em; }
+.ri-log-label { color: var(--ri-label); font-size: 0.72em; letter-spacing: 0.12em; text-transform: uppercase; margin: 10px 0 4px; }
+.ri-pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8em; background: var(--ri-bg); border: 1px solid var(--ri-line); border-radius: 8px; padding: 9px 10px; max-height: 320px; overflow: auto; color: var(--ri-text-2); }

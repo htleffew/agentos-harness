@@ -12,13 +12,13 @@ const onOff = (value, onChange) => select([{ value: 'on', label: 'On' }, { value
 
 /** Checks on a task: {{user}} must not act, and tasks stay short and loose. */
 function taskFlags(text) {
-    const { blocks } = validateVersion(`{{char}} must ${text}`);
+    const { blocks, checks } = validateVersion(`{{char}} must ${text}`);
     const warns = [];
     const words = String(text).replace(/\{\{[^}]*\}\}/g, 'x').trim().split(/\s+/).filter(Boolean).length;
     if (words > 8) warns.push(`${words} words. Shorten it to 8 or fewer: a verb, who it is done to, and at most a loose manner.`);
     const detail = String(text).match(/\b(while|during|tonight|today|tomorrow|morning|evening|night|at the|in the|on the|wearing|dress|shirt|restaurant|kitchen|bedroom|park|car)\b/i);
     if (detail) warns.push(`"${detail[0]}" ties this to a place, time or object. Loose tasks fit any scene: "compliment {{user}}" works better than a compliment about one thing in one place.`);
-    return (blocks.length || warns.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), warns.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null;
+    return (blocks.length || checks.length || warns.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), checks.map(c => h('div', { class: 'ri-flag ri-flag-check' }, `Check: ${c}`)), warns.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null;
 }
 
 function taskList(g, key, ui, redraw, rowExtras) {

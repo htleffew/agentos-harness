@@ -86,23 +86,36 @@ export function listProfiles() {
 }
 
 function stripThinking(text) {
-    return String(text ?? '').replace(/<\s*(think|thinking|reasoning)\s*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '').trim();
+    // Closed thinking blocks, then a thinking block that was cut off before it closed.
+    return String(text ?? '').replace(/<\s*(think|thinking|reasoning)\s*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '').replace(/<\s*(think|thinking|reasoning)\s*>[\s\S]*$/i, '').trim();
 }
 
 /**
  * Send one background request and return the text of the answer.
  * With a connection profile: ConnectionManagerRequestService. Otherwise generateRaw on the chat's own connection.
  */
-export async function ask({ system = '', user = '', tokens = 600, profileId = '' }) {
+export async function askFull({ system = '', user = '', tokens = 600, profileId = '' }) {
     const c = ctx();
     const messages = [{ role: 'user', content: String(user) }];
+    let raw = '';
+    let reasoning = '';
     if (profileId && listProfiles().some(p => p.id === String(profileId))) {
         const msgs = [...(system ? [{ role: 'system', content: String(system) }] : []), ...messages];
         const r = await c.ConnectionManagerRequestService.sendRequest(String(profileId), msgs, tokens, { stream: false, extractData: true, includePreset: true, includeInstruct: true });
-        return stripThinking(typeof r === 'string' ? r : (r?.content ?? ''));
+        raw = String(typeof r === 'string' ? r : (r?.content ?? ''));
+        reasoning = String((r && typeof r === 'object' && r.reasoning) || '');
+    } else {
+        raw = String(await c.generateRaw({ prompt: messages, systemPrompt: String(system), responseLength: tokens, trimNames: false }) ?? '');
     }
-    const text = await c.generateRaw({ prompt: messages, systemPrompt: String(system), responseLength: tokens, trimNames: false });
-    return stripThinking(text);
+    const text = stripThinking(raw);
+    // How many characters were the model thinking: a reasoning field, or thinking tags inside the answer.
+    const thinking = reasoning.length + (raw.length - text.length > 0 && /<\s*(think|thinking|reasoning)\s*>/i.test(raw) ? raw.length - text.length : 0);
+    return { text, raw: reasoning ? `[thinking]\n${reasoning}\n[answer]\n${raw}` : raw, thinking };
+}
+
+/** The text of the answer only. */
+export async function ask(options) {
+    return (await askFull(options)).text;
 }
 
 /** Pull the first JSON list or object out of a model answer. Returns null when there is none. */

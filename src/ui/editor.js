@@ -30,8 +30,8 @@ function insertRow(getBox) {
 }
 
 function flagsFor(text) {
-    const { blocks, warns } = validateVersion(text);
-    return { blocks, warns, node: (blocks.length || warns.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), warns.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null };
+    const { blocks, checks, warns } = validateVersion(text);
+    return { blocks, checks, warns, node: (blocks.length || checks.length || warns.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), checks.map(c => h('div', { class: 'ri-flag ri-flag-check' }, `Check: ${c}`)), warns.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null };
 }
 
 /** Editing one version in place. */
@@ -106,7 +106,7 @@ export function renderEditor(body, app) {
                 versionEditor(v.text, (t) => { v.text = t; ui.editing = -1; dirty(); redraw(); }, () => { ui.editing = -1; redraw(); })));
             return;
         }
-        versionsBox.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : ''}` },
+        versionsBox.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` },
             h('div', { class: 'ri-vnum' }, `Version ${i + 1} of ${draft.versions.length}`, v.keep ? chip('Kept: AI will not replace it', 'ri-chip-keep') : null),
             h('div', { class: 'ri-vbody' }, versionText(v.text)),
             flags.node,
@@ -143,7 +143,7 @@ export function renderEditor(body, app) {
         if (!draft.name.trim()) { toast('info', 'Give the instruction a name first.'); return; }
         if (draft.when === 'words' && !draft.words.trim()) { toast('info', 'Type the words that allow this instruction, or choose "Always allowed".'); return; }
         if (draft.when === 'pattern' && !/^\/.+\/[a-z]*$/i.test(draft.pattern.trim())) { toast('info', 'Write the pattern like /text/i, or choose "Always allowed".'); return; }
-        if (blocked) { toast('error', `${blocked} ${blocked === 1 ? 'version has' : 'versions have'} {{user}} acting. Edit or delete ${blocked === 1 ? 'it' : 'them'} first (marked "Must fix").`); return; }
+        if (blocked) { toast('error', `${blocked} ${blocked === 1 ? 'version is' : 'versions are'} empty. Type something in ${blocked === 1 ? 'it' : 'them'} or delete ${blocked === 1 ? 'it' : 'them'} first.`); return; }
         try {
             const data = await loadSet(name);
             if (!data) throw new Error('The lorebook could not be read.');
@@ -204,7 +204,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
                 ui.lastSeed = sheet.seed;
                 try {
                     const list = await writeVersions({ ins: draft, seed: sheet.seed.trim(), count: sheet.count, context: settings().writer.context });
-                    sheet.results = list.map(r => ({ text: r.text, swaps: r.swaps, keep: validateVersion(r.text).blocks.length === 0, editing: false }));
+                    sheet.results = list.map(r => ({ text: r.text, swaps: r.swaps, keep: (f => f.blocks.length === 0 && f.checks.length === 0)(validateVersion(r.text)), editing: false }));
                 } catch (e) { sheet.error = e.message; }
                 sheet.busy = false; redraw();
             }, { kind: 'primary', disabled: sheet.busy }),
@@ -214,7 +214,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
     }
 
     // Review what came back.
-    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the versions to add. Versions marked "Must fix" have {{user}} acting and cannot be added until you edit them.'));
+    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the versions to add. A version marked "Check" may have {{user}} acting. It starts unticked: read it, and tick it if it reads right to you.'));
     const list = h('div', { class: 'ri-versions' });
     sheet.results.forEach((r, i) => {
         const flags = flagsFor(r.text);
@@ -224,7 +224,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
             return;
         }
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: r.keep, disabled: flags.blocks.length > 0, onchange: () => { r.keep = tick.checked; } });
-        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : ''}` },
+        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` },
             h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(r.text))),
             r.swaps ? h('div', { class: 'ri-flag ri-flag-info' }, `${r.swaps} ${r.swaps === 1 ? 'name was' : 'names were'} swapped for a placeholder (shown as a coloured label).`) : null,
             flags.node,

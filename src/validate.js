@@ -2,14 +2,26 @@
 import { names, regexScripts } from './st.js';
 
 const USER = '\\{\\{user(?:\\.[Tt]hey)?\\}\\}';
-const ACT_VERBS = 'must|should|shall|will|would|can|could|may|might|has to|needs to|is going to|decides|chooses|agrees|refuses|accepts|says|asks|tells|replies|answers|responds|whispers|shouts|admits|confesses|thinks|feels|wants|realizes|realises|notices|knows|believes|wonders|remembers|smiles|laughs|cries|nods|blushes|kisses|hugs|touches|grabs|takes|gives|walks|runs|leaves|enters|sits|stands|looks|turns|moves|reaches|opens|closes|pulls|pushes|does|goes|comes|makes|lets|starts|begins|tries';
-const MADE_VERBS = 'say|speak|answer|reply|respond|decide|choose|agree|refuse|accept|admit|confess|feel|think|want|realize|realise|believe|laugh|cry|smile|blush|nod';
+// Words that make {{user}} the one acting when {{user}} is the subject of the order.
+const ACT_VERBS = 'must|should|shall|will|would|has to|needs to|is going to|decides|chooses|agrees|refuses|accepts|says|asks|tells|replies|answers|responds|whispers|shouts|admits|confesses|thinks|feels|wants|realizes|realises|notices|knows|believes|wonders|remembers|smiles|laughs|cries|nods|blushes|kisses|hugs|touches|grabs|takes|gives|walks|runs|leaves|enters|sits|stands|looks|turns|moves|reaches|opens|closes|pulls|pushes|does|goes|comes|makes|lets|starts|begins|tries';
+// Being made to speak or decide. Reactions someone else can cause ("make {{user}} laugh") are left alone.
+const MADE_VERBS = 'say|speak|answer|reply|respond|decide|choose|agree|refuse|accept|admit|confess';
 
+// {{user}} is flagged only as the subject of the order: at the start of a sentence, or joined to the subject with "and".
+// A mention anywhere else is someone or something else acting: "the bridge under {{user}} must crack",
+// "{{char}} must ask what {{user}} wants", "before {{user}} can react".
 const USER_ACTS = [
-    new RegExp(`${USER}\\s+(?:then\\s+|also\\s+|now\\s+|quickly\\s+|slowly\\s+|finally\\s+|suddenly\\s+)?(?:${ACT_VERBS})\\b`, 'i'),
+    new RegExp(`(?:^|[.!?;:]\\s+|\\n\\s*|\\b(?:and|then|but)\\s+)(?:then,?\\s+|next,?\\s+)?${USER}\\s+(?:then\\s+|also\\s+|now\\s+|quickly\\s+|slowly\\s+|finally\\s+|suddenly\\s+)?(?:${ACT_VERBS})\\b`, 'i'),
     new RegExp(`\\b(?:make|makes|making|have|has|having)\\s+\\{\\{user\\}\\}\\s+(?:${MADE_VERBS})\\b`, 'i'),
     new RegExp('\\b(?:write|writes|describe|describes|narrate|narrates|decide|decides|voice|voices|speak for|speaks for)\\b[^.]{0,40}\\{\\{user\\}\\}\'s\\s+(?:reply|response|answer|decision|choice|choices|thoughts|feelings|reaction|dialogue|words|actions)\\b', 'i'),
 ];
+
+const userActs = (s) => USER_ACTS.some(re => re.test(s));
+
+/** In a list of who drives an event: true when the item is {{user}} themself ("{{user}}'s rival" is someone else). */
+export function userDrives(text) {
+    return /^\s*\{\{user(?:\.[A-Za-z]+)?\}\}(?!['’]s)/i.test(String(text ?? ''));
+}
 
 const HEDGES = /\b(might|could|maybe|perhaps|possibly|consider|considers|try to|tries to|attempt to|attempts to|if appropriate|when appropriate|if the moment allows|if it fits|if possible|feel free|optionally|can choose|may want|should)\b/i;
 
@@ -62,14 +74,17 @@ function regexHits(text) {
 
 /**
  * Look for problems in one version.
- * blocks: must be fixed before saving. warns: shown, saving is still allowed.
+ * blocks: only an empty version, which cannot be saved.
+ * checks: {{user}} may be acting. Shown as "Check"; you decide, and saving is allowed.
+ * warns: advice on wording. Saving is allowed.
  */
 export function validateVersion(text) {
     const s = String(text ?? '').trim();
     const blocks = [];
+    const checks = [];
     const warns = [];
-    if (!s) { blocks.push('This version is empty.'); return { blocks, warns }; }
-    if (USER_ACTS.some(re => re.test(s))) blocks.push('{{user}} acts, speaks, decides, thinks or feels here. Rewrite it so that someone else acts and {{user}} is only who it happens to.');
+    if (!s) { blocks.push('This version is empty.'); return { blocks, checks, warns }; }
+    if (userActs(s)) checks.push('{{user}} may be acting, speaking, deciding, thinking or feeling here. If so, rewrite it so that someone else acts and {{user}} is only who it happens to. If it reads right to you, keep it.');
     const hedge = s.match(HEDGES);
     if (hedge) warns.push(`"${hedge[0]}" makes this optional. Orders work better: say it must happen.`);
     const n = names();
@@ -79,5 +94,5 @@ export function validateVersion(text) {
         }
     }
     warns.push(...wordingHits(s), ...regexHits(s));
-    return { blocks, warns };
+    return { blocks, checks, warns };
 }

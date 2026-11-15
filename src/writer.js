@@ -1,5 +1,6 @@
 // "Write versions with AI": one background request that returns a list of versions for one instruction.
-import { ask, parseJson, ctx, names } from './st.js';
+import { parseJson, ctx, names } from './st.js';
+import { request } from './ai.js';
 import { settings, pronounForms, FORMS } from './store.js';
 import { ACTORS, TARGETS, SENT_AS } from './books.js';
 import { swapNames } from './validate.js';
@@ -95,34 +96,51 @@ function tidy(text) {
     return s;
 }
 
+const began = (answer) => { const t = String(answer ?? '').replace(/\s+/g, ' ').trim(); return t.length > 140 ? `${t.slice(0, 140)}...` : t; };
+
+/** Turn a model answer into a list of strings, and say how it was read. */
+function readList(answer, minLength) {
+    let list = parseJson(answer);
+    if (list && !Array.isArray(list)) list = Object.values(list).find(Array.isArray) || null;
+    if (Array.isArray(list)) return { list, how: 'Read as a JSON list.' };
+    // Fall back to one per line.
+    list = String(answer).split('\n').map(l => l.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, '').replace(/^"|"[,]?$/g, '').trim()).filter(l => l.length > minLength);
+    return { list, how: 'The answer was not a JSON list, so it was read one line at a time.' };
+}
+
+/** Why nothing usable came out of an answer that was not empty. */
+function whyNone(kind, answer, read, dropped) {
+    if (read.list.length && dropped.same === read.list.length) return `The AI wrote ${read.list.length} ${kind}, and every one matches ${kind === 'versions' ? 'a version this instruction already has' : 'an item already in the list'}. Change what you asked for, or delete some of the existing ones.`;
+    if (read.list.length && dropped.notText === read.list.length) return `The AI answered with a list, but the things in it were not plain text, so no ${kind} could be read. The answer began: "${began(answer)}". The Log tab has the whole answer.`;
+    return `The AI answered, but no ${kind} could be read from the answer. It began: "${began(answer)}". The Log tab has the whole answer.`;
+}
+
 /** Ask the model for versions. Returns [{ text, swaps }]. Throws with a plain message when it fails. */
 export async function writeVersions({ ins, seed, count, context }) {
     const st = settings();
     const existing = ins.versions.map(v => v.text);
     const prompt = buildWriterPrompt({ ins, seed, count, context, existing });
-    let answer;
-    try {
-        answer = await ask({ system: 'You write short instructions that are sent to a roleplay AI model during a chat. You answer with JSON only.', user: prompt, tokens: Math.min(4000, 200 + count * 120), profileId: st.profileId });
-    } catch (e) {
-        throw new Error(`The AI connection did not answer: ${e?.cause?.message || e?.message || e}`);
-    }
-    let list = parseJson(answer);
-    if (list && !Array.isArray(list)) list = Object.values(list).find(Array.isArray) || null;
-    if (!Array.isArray(list)) {
-        // Fall back to one version per line.
-        list = String(answer).split('\n').map(l => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/^"|"[,]?$/g, '').trim()).filter(l => l.length > 15);
-    }
+    const res = await request({ what: `Write ${count} ${count === 1 ? 'version' : 'versions'} for "${ins.name || 'an instruction'}"`, system: 'You write short instructions that are sent to a roleplay AI model during a chat. You answer with JSON only.', user: prompt, tokens: Math.min(4000, 300 + count * 150), profileId: st.profileId });
+    const answer = res.text;
+    const read = readList(answer, 15);
     const seen = new Set(existing.map(v => v.toLowerCase()));
+    const dropped = { same: 0, notText: 0 };
     const out = [];
-    for (const raw of list) {
-        if (typeof raw !== 'string') continue;
+    for (const raw of read.list) {
+        if (typeof raw !== 'string') { dropped.notText++; continue; }
         const swapped = swapNames(tidy(raw));
         const text = swapped.text;
-        if (!text || seen.has(text.toLowerCase())) continue;
+        if (!text) continue;
+        if (seen.has(text.toLowerCase())) { dropped.same++; continue; }
         seen.add(text.toLowerCase());
         out.push({ text, swaps: swapped.swaps });
     }
-    if (!out.length) throw new Error('The AI answered, but no versions could be read from the answer. Try again, or pick another AI connection in Settings.');
+    if (!out.length) {
+        const why = whyNone('versions', answer, read, dropped);
+        res.note(why, false, [read.how]);
+        throw new Error(why);
+    }
+    res.note(`${out.length} ${out.length === 1 ? 'version' : 'versions'} read${dropped.same ? `, ${dropped.same} left out because they match versions you already have` : ''}.`, true, [read.how]);
     return out;
 }
 
@@ -163,25 +181,26 @@ export async function writeItems({ category, theme, count, context, existing, ot
     if (existing.length) lines.push('', 'Items that already exist (write new ones that differ from these):', ...existing.slice(0, 60).map(v => `- ${v}`));
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
     lines.push('', 'Return only a JSON list of strings, for example ["first item", "second item"].');
-    let answer;
-    try {
-        answer = await ask({ system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 200 + count * 60), profileId: st.profileId });
-    } catch (e) {
-        throw new Error(`The AI connection did not answer: ${e?.cause?.message || e?.message || e}`);
-    }
-    let list = parseJson(answer);
-    if (list && !Array.isArray(list)) list = Object.values(list).find(Array.isArray) || null;
-    if (!Array.isArray(list)) list = String(answer).split('\n').map(l => l.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, '').replace(/^"|"[,]?$/g, '').trim()).filter(l => l.length > 3);
+    const res = await request({ what: `Write ${count} items for the list "${category.name}"`, system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 300 + count * 80), profileId: st.profileId });
+    const answer = res.text;
+    const read = readList(answer, 3);
     const seen = new Set(existing.map(v => v.toLowerCase()));
+    const dropped = { same: 0, notText: 0 };
     const out = [];
-    for (const raw of list) {
-        if (typeof raw !== 'string') continue;
+    for (const raw of read.list) {
+        if (typeof raw !== 'string') { dropped.notText++; continue; }
         const swapped = swapNames(tidy(raw).replace(/[.]+$/, ''));
-        if (!swapped.text || seen.has(swapped.text.toLowerCase())) continue;
+        if (!swapped.text) continue;
+        if (seen.has(swapped.text.toLowerCase())) { dropped.same++; continue; }
         seen.add(swapped.text.toLowerCase());
         out.push({ text: swapped.text, swaps: swapped.swaps });
     }
-    if (!out.length) throw new Error('The AI answered, but no items could be read from the answer. Try again, or pick another AI connection in Settings.');
+    if (!out.length) {
+        const why = whyNone('items', answer, read, dropped);
+        res.note(why, false, [read.how]);
+        throw new Error(why);
+    }
+    res.note(`${out.length} ${out.length === 1 ? 'item' : 'items'} read${dropped.same ? `, ${dropped.same} left out because they are already in the list` : ''}.`, true, [read.how]);
     return out;
 }
 
@@ -210,17 +229,19 @@ export async function writeGoal({ about, context }) {
     ];
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
     lines.push('', 'Return only a JSON object with the keys "goal", "actions" and "steps".');
-    let answer;
-    try {
-        answer = await ask({ system: 'You plan goals for a character in a roleplay. You answer with JSON only.', user: brackets(lines.join('\n')), tokens: 900, profileId: st.profileId });
-    } catch (e) {
-        throw new Error(`The AI connection did not answer: ${e?.cause?.message || e?.message || e}`);
-    }
-    const obj = parseJson(String(answer).slice(String(answer).indexOf('{')));
+    const res = await request({ what: 'Write a goal', system: 'You plan goals for a character in a roleplay. You answer with JSON only.', user: brackets(lines.join('\n')), tokens: 1100, profileId: st.profileId });
+    const answer = res.text;
+    const obj = parseJson(String(answer).slice(Math.max(0, String(answer).indexOf('{'))));
     const fix = t => swapNames(tidy(String(t ?? '')).replace(/[.]+$/, '')).text;
     const list = v => (Array.isArray(v) ? v : []).filter(x => typeof x === 'string').map(fix).filter(Boolean);
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || !obj.goal) throw new Error('The AI answered, but no goal could be read from the answer. Try again, or pick another AI connection in Settings.');
-    return { goal: fix(obj.goal), actions: list(obj.actions), steps: list(obj.steps) };
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || !obj.goal) {
+        const why = `The AI answered, but no goal could be read from the answer. It began: "${began(answer)}". The Log tab has the whole answer.`;
+        res.note(why, false);
+        throw new Error(why);
+    }
+    const goal = { goal: fix(obj.goal), actions: list(obj.actions), steps: list(obj.steps) };
+    res.note(`A goal with ${goal.actions.length} repeatable actions and ${goal.steps.length} one-time steps was read.`, true);
+    return goal;
 }
 
 /** Rewrite one version, keeping its meaning. Returns the new text. */

@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.1.0 (2026-11-15)
+
+Flags instead of hard stops, a Log tab, and real reasons when AI writing fails. From tablet feedback.
+
+- "Must fix" is gone for {{user}}. A version, item or task where {{user}} may be acting is marked "Check". It starts
+  unticked in the AI review, you can tick it, and it saves. Only an empty version still stops a save.
+- The check itself is much narrower. {{user}} is flagged only as the subject of the order (at the start of a
+  sentence, or joined to the subject with "and"), when made to speak or decide, or when the order asks for
+  {{user}}'s reply or thoughts to be written. "The bridge under {{user}} must crack", "{{char}} must ask what
+  {{user}} wants" and "before {{user}} can react" are clean. Before, almost any {{user}} followed by a verb was
+  flagged.
+- In Random Story Events, a list that drives the event flagged every item that named {{user}}. Now only an item
+  that is {{user}} themself is flagged; "{{user}}'s landlord" is clean.
+- New Log tab: every request to the AI (versions, items, goals, the reply check) with the connection used, the room
+  for the answer, how long it took, what was sent and what came back. Copy, save as a file, clear. Kept on the
+  device, last 120 requests.
+- Failure messages say what happened: an empty answer, a model that used its whole room on thinking, an answer that
+  could not be read (with how it began), every version matching one you already have, or the connection's own error.
+- SillyTavern reports an answer with no text as "No message generated". That is now treated as an empty answer and
+  tried once more with more room. When the second try works, "Give the AI more room to answer" turns itself on in
+  Settings, so later requests work the first time. The setting can also be turned on by hand for models that think
+  before they answer.
+- Thinking that was cut off before its closing tag is removed from answers.
+
 ## 4.0.0 (2026-11-15)
 
 Version 4: Character Goals.

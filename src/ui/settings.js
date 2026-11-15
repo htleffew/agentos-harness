@@ -26,7 +26,9 @@ export function renderSettings(body, app) {
     const profiles = listProfiles();
     body.appendChild(section('AI connection for writing and checking',
         field('Which AI connection to use', profiles.length ? 'Used when you write versions with AI and when a reply is checked. A small, fast model is enough.' : 'You have no connection profiles yet, so the chat\'s own connection is used. Make one in SillyTavern\'s Connection Profiles to use a cheaper model here.',
-            select([{ value: '', label: 'Same connection as the chat' }, ...profiles.map(p => ({ value: p.id, label: `Connection profile: ${p.name}` }))], st.profileId, (v) => { st.profileId = v; save(); }))));
+            select([{ value: '', label: 'Same connection as the chat' }, ...profiles.map(p => ({ value: p.id, label: `Connection profile: ${p.name}` }))], st.profileId, (v) => { st.profileId = v; save(); })),
+        field('Give the AI more room to answer', 'Turn this on for models that think before they answer (DeepSeek, GLM, Kimi and others). Without it, the thinking can use up the room and the answer comes back empty. It turns itself on when an empty answer is fixed by a second try with more room.',
+            select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
 
     body.appendChild(section('Check that it happened',
         field('Check each reply that was sent an instruction', 'On: after the reply, one short AI request checks whether each instruction happened, and finds the words that show it. Off: nothing is checked or sent again.',
@@ -61,6 +63,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 4.0.0. Version 4: Random Instructions, Random Story Events, Random Writing Style and Character Goals. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 4.1.0. Version 4: Random Instructions, Random Story Events, Random Writing Style and Character Goals. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Instruction sets are ordinary lorebooks. With this extension off, a set still works if you turn the lorebook on in World Info, without limits, checking or the What Was Sent record.')));
 }

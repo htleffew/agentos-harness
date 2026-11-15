@@ -7,6 +7,8 @@ import { renderEvents, renderStyle } from './events.js';
 import { renderGoals } from './goals.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
 import { renderSettings } from './settings.js';
+import { renderLog } from './log.js';
+import { onLog } from '../log.js';
 import { isChatOpen } from '../st.js';
 
 const TABS = [
@@ -15,6 +17,7 @@ const TABS = [
     { id: 'style', label: 'Random Writing Style', accent: 'green' },
     { id: 'goals', label: 'Character Goals', accent: 'sky' },
     { id: 'sent', label: 'What Was Sent', accent: 'blue' },
+    { id: 'log', label: 'Log', accent: 'sky' },
     { id: 'settings', label: 'Settings', accent: 'cyan' },
 ];
 
@@ -74,13 +77,14 @@ export function render() {
     app.body = h('div', { class: 'ri-body' });
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));
-    if (!isChatOpen() && app.tab !== 'settings') app.body.appendChild(h('div', { class: 'ri-note' }, 'No chat is open. Open a chat to turn instruction sets on for it and to see what was sent.'));
+    if (!isChatOpen() && app.tab !== 'settings' && app.tab !== 'log') app.body.appendChild(h('div', { class: 'ri-note' }, 'No chat is open. Open a chat to turn instruction sets on for it and to see what was sent.'));
 
     if (app.tab === 'instructions') renderInstructions(app.body, app);
     else if (app.tab === 'events') renderEvents(app.body, app);
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
+    else if (app.tab === 'log') renderLog(app.body, app);
     else renderSettings(app.body, app);
 
     app.root.append(head, tabs, app.body);
@@ -108,6 +112,7 @@ export function mount(missing) {
     tryMount();
 
     let timer = null;
+    onLog(() => { if (app.tab === 'log') { clearTimeout(timer); timer = setTimeout(render, 80); } });
     onChange((what) => {
         if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.cache = {}; }
         refreshUnderReplies();
