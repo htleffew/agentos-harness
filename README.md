@@ -57,6 +57,14 @@ Each category has its own settings:
 | Never use items tagged | Leaves out items that carry any of these tags. |
 | Always include (on an item) | That item is in every fresh pick; the dice fill the rest. |
 | Weight (on an item) | A higher weight is picked more often. |
+| Chance to change once that time is over | For "Keep for a random number": 100 changes the pick as soon as the time is up; a lower number lets it stay on a little longer. |
+| Never together (on the set) | Pairs of tags, written `past+future, calm+frantic`. When one is picked, items with the other tag are left out of that roll. |
+| Saved category settings (on the set) | Save how the categories are set up under a name, such as "Slow burn", and choose one per chat while the set itself stays as it is. |
+
+In **What Was Sent**, every picked item has three buttons: **Pick again** (a different item for that category
+only, with a new reply), **Lock for this chat** (use this pick for the rest of the chat), and **Keep until I turn
+it off** (change the set so that category always uses this item). These settings and buttons work the same way
+for Random Writing Style.
 
 The dice are the extension's own. The AI never chooses the items. What was picked is shown in What Was Sent, the
 event is checked like any instruction, and the state of every category is kept on the reply, so swipes repeat the
@@ -84,6 +92,11 @@ format and position, that events, facts and choices stay as they would otherwise
 instruction wins over any style choice. Writing style is recorded in What Was Sent and is not checked by AI,
 since it is sent again with every reply anyway. It keeps going while an instruction is overdue, and it does not
 count toward per-reply limits. "Write items with AI" works for every category, including author names.
+
+Rules that can be counted are checked against each reply without AI and shown in What Was Sent as "Followed" or
+"Not followed". Give an item one of these tags: `rule:no-dialogue`, `rule:mostly-dialogue`, `rule:max-sentences-2`
+(per paragraph), `rule:max-words-200` (any number works). A style item that reads like a story happening gets a
+warning that it belongs in Random Story Events.
 
 ## The tabs
 
@@ -156,6 +169,4 @@ run. See `tests/README.md`.
 
 ## Roadmap
 
-Version 4 adds Character Goals, on its own branch. Planned for a
-later 2.x: "never together" tag pairs, saved sets of category settings, and Keep / Pick again buttons for a
-single picked item in What Was Sent.
+Version 4 adds Character Goals, on its own branch.

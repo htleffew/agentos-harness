@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.1.0 (2026-11-15)
+
+Everything that was left out of 2.0.0 and 3.0.0, for story events and writing style alike.
+
+- "Never together": pairs of tags that are never picked in the same roll.
+- Saved category settings under a name, with a per-chat choice of which one to use.
+- "Chance to change once that time is over" for categories that keep a pick for a random time.
+- What Was Sent: Pick again, Lock for this chat and Keep until I turn it off on every picked item.
+- Rules checked without AI from `rule:` tags (no dialogue, mostly dialogue, sentences per paragraph, word count).
+- Warning on writing style items that read like story happenings.
+
 ## 3.0.0 (2026-11-15)
 
 Version 3: Random Writing Style.

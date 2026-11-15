@@ -55,6 +55,8 @@ export function chatState() {
     if (!cs.used || typeof cs.used !== 'object') cs.used = {};
     if (!Array.isArray(cs.overdue)) cs.overdue = [];
     if (cs.lastScan === undefined) cs.lastScan = null;
+    if (!cs.locks || typeof cs.locks !== 'object') cs.locks = {};       // "lorebook.uid" -> { categoryId: [itemIds] } picks locked for this chat
+    if (!cs.presets || typeof cs.presets !== 'object') cs.presets = {};   // lorebook name -> name of the saved category settings this chat uses
     return cs;
 }
 

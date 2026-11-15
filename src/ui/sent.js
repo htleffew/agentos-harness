@@ -1,6 +1,9 @@
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
-import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue } from '../engine.js';
+import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue, rerollPartNow, setLock, isLocked } from '../engine.js';
+import { loadSet, saveSet } from '../books.js';
+import { writeEvent, readEvent } from '../events.js';
+import { toast } from '../st.js';
 import { settings } from '../store.js';
 import { ctx, KEY, isChatOpen } from '../st.js';
 
@@ -10,6 +13,33 @@ function statusChip(it, checking) {
     if (checking && it.status === 'sent') return chip('Checking...', 'ri-chip-wait');
     const cls = { done: 'ri-chip-done', overdue: 'ri-chip-warn', missed: 'ri-chip-bad', continuing: 'ri-chip-wait', queued: 'ri-chip-warn' }[it.status] || '';
     return chip(statusLabel(it), cls);
+}
+
+/** "Keep until I turn it off": change the set itself so this category always uses this item. */
+async function keepInSet(it, part) {
+    try {
+        const data = await loadSet(it.world);
+        const entry = data?.entries?.[it.uid];
+        if (!entry?.extensions?.ri?.categories) throw new Error('The set could not be read.');
+        const ev = readEvent(entry, String(entry.comment || '').replace(/^(Story event|Writing style): /, ''));
+        const cat = ev.categories.find(c => c.id === part.catId);
+        if (!cat) throw new Error('That category is no longer in the set.');
+        cat.mode = 'keepFixed'; cat.fixed = part.ids[0];
+        writeEvent(data, ev);
+        await saveSet(it.world, data);
+        toast('success', `"${part.name}" now keeps "${part.items[0]}" until you turn it off in the set.`);
+    } catch (e) { toast('error', `Could not change the set: ${e.message}`); }
+}
+
+function partRows(it, isLast, withButtons) {
+    return h('div', { class: 'ri-parts' }, it.parts.map(part => {
+        const locked = part.catId ? isLocked(it.key, part.catId) : false;
+        const buttons = withButtons && part.catId ? h('div', { class: 'ri-row ri-row-tight' },
+            isLast ? button('Pick again', () => rerollPartNow(it.key, part.catId), { kind: 'ghost', title: 'Pick a different item for this category only, and write a new reply' }) : null,
+            button(locked ? 'Unlock for this chat' : 'Lock for this chat', () => setLock(it.key, part.catId, locked ? null : part.ids), { kind: 'ghost', title: locked ? 'Let the dice pick for this category again in this chat' : 'Use this pick for the rest of this chat. The set itself is unchanged.' }),
+            button('Keep until I turn it off', () => keepInSet(it, part), { kind: 'ghost', title: 'Change the set so this category always uses this item, in every chat' })) : null;
+        return h('div', { class: 'ri-part' }, h('span', { class: 'ri-k' }, part.name), h('span', { class: 'ri-v' }, part.items.join(' and '), locked ? chip('Locked for this chat', 'ri-chip-keep') : null), buttons);
+    }));
 }
 
 function itemRow(id, rec, it, index, withButtons) {
@@ -25,9 +55,10 @@ function itemRow(id, rec, it, index, withButtons) {
         h('div', { class: 'ri-grid' },
             kv('Instruction set', it.world),
             kv('Why it was sent', `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
-            Array.isArray(it.parts) && it.parts.length ? kv('What the dice picked', it.parts.map(p => `${p.name}: ${p.items.join(' and ')}`).join('  |  ')) : null,
             kv('Exact text sent', it.text),
+            Array.isArray(it.rules) && it.rules.length ? kv('Rules checked', it.rules.map(r => `${r.ok ? 'Followed' : 'Not followed'}: ${r.label}`).join('  |  ')) : null,
             it.quote ? kv('Shown by this part of the reply', `"${it.quote}"`) : null),
+        Array.isArray(it.parts) && it.parts.length ? [h('div', { class: 'ri-label' }, 'What the dice picked'), partRows(it, rec === recentRecords(1)[0]?.rec, withButtons)] : null,
         buttons.length ? h('div', { class: 'ri-row ri-row-tight' }, buttons) : null);
 }
 

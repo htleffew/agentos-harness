@@ -165,6 +165,11 @@
 .ri-sent-name { color: var(--ri-text); font-weight: 600; }
 @keyframes ri-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
+/* Picked items in What Was Sent */
+.ri-parts { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.ri-part { background: var(--ri-bg); border: 1px solid var(--ri-line); border-radius: 9px; padding: 8px 10px; }
+.ri-part .ri-k { display: block; }
+
 /* Under each reply */
 .ri-under { margin-top: 8px; margin-bottom: 28px; padding: 0; border: 0; background: transparent; font-size: 0.9em; }
 .ri-under .ri-card { margin: 0; }

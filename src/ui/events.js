@@ -2,7 +2,7 @@
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
 import { knownSets, loadSet, saveSet, createSet, forgetSet, wrapText, SENT_AS } from '../books.js';
-import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent } from '../events.js';
+import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { validateVersion, swapNames } from '../validate.js';
 import { writeItems } from '../writer.js';
@@ -104,6 +104,7 @@ function itemFlags(cat, text) {
     if (cat.driver && /\{\{user/i.test(text)) blocks.push('{{user}} cannot be the one who drives an event. Name someone else, or the surroundings.');
     // Items are short phrases, so the checks for full orders that do not apply here are left out.
     const keep = warns.filter(w => !/makes this optional/.test(w));
+    if (cfg.kind === 'style' && /\b(arrives?|appears?|enters?|bursts? in|interrupts?|attacks?|a stranger|a storm|a letter|a knock|discovers?|finds? out|confess(?:es)?|reveals?)\b/i.test(text)) keep.push('This reads like something that happens in the story. Writing style items change how the reply is written. Story happenings belong in Random Story Events.');
     return { blocks, node: (blocks.length || keep.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), keep.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null };
 }
 
@@ -128,6 +129,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         field('How it changes', modeHelp[cat.mode], select(Object.keys(MODES).map(value => ({ value, label: modeLabel[value] })), cat.mode, (v) => { cat.mode = v; dirty(); redraw(); })),
         cat.mode === 'keepRandom' ? field(`Keep the pick for at least (${tick})`, '', numberInput(cat.keepMin, { min: 1, max: 200, unit: tick }, (n) => { cat.keepMin = n; if (cat.keepMax < n) cat.keepMax = n; dirty(); })) : null,
         cat.mode === 'keepRandom' ? field(`Keep the pick for at most (${tick})`, 'A number between the two is rolled each time.', numberInput(cat.keepMax, { min: 1, max: 200, unit: tick }, (n) => { cat.keepMax = Math.max(n, cat.keepMin); dirty(); })) : null,
+        cat.mode === 'keepRandom' ? field('Chance to change once that time is over (%)', `100 changes the pick as soon as the time is up. 30 lets it stay on a little longer: each of the following ${tick} it has a 30% chance to change.`, numberInput(cat.changeChance, { min: 1, max: 100, unit: '%' }, (n) => { cat.changeChance = n; dirty(); })) : null,
         cat.mode === 'keepFixed' ? field('Item to keep', tick === 'events' ? 'Every event uses this item.' : 'Every reply uses this item.', select([{ value: '', label: usable.length ? 'Choose an item' : 'Add an item first' }, ...usable.map(i => ({ value: i.id, label: i.text.slice(0, 70) }))], cat.fixed || '', (v) => { cat.fixed = v; dirty(); })) : null,
         cat.mode === 'keepFixed' ? null : field('Items per pick', tick === 'events' ? 'How many items from this category go into one event.' : 'How many items from this category are used at the same time.', numberInput(cat.count, { min: 1, max: 5, unit: 'items' }, (n) => { cat.count = n; dirty(); })),
         cat.mode === 'keepFixed' ? null : field('Use every item before repeating', 'On: no item comes back until all the others have had a turn.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.useAll ? 'on' : 'off', (v) => { cat.useAll = v === 'on'; dirty(); })),
@@ -162,6 +164,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     });
     if (!cat.items.length) list.appendChild(h('div', { class: 'ri-empty' }, 'No items yet. Type one below, or press "Write items with AI".'));
     body.push(h('div', { class: 'ri-label' }, 'Items (a higher weight is picked more often)'), list);
+    body.push(h('div', { class: 'ri-help' }, `Tags are your own words for grouping items, separated by commas. They are used by "Never use items tagged" and "Never together".${cfg.kind === 'style' ? ' Four tags are also checked against the reply and shown in What Was Sent: rule:no-dialogue, rule:mostly-dialogue, rule:max-sentences-2 and rule:max-words-200 (any number works).' : ''}`));
 
     const addBox = textInput(ui.adding, (v) => { ui.adding = v; }, { placeholder: cfg.itemPlaceholder });
     const addItem = () => {
@@ -268,11 +271,35 @@ function renderEdit(body, app) {
             draft.categories.push(cat); r.open[cat.id] = true; dirty(); redraw();
         }))));
 
+    // Never together
+    const pairs = pairList(draft.neverTogether);
+    body.appendChild(section('Never together',
+        field('Pairs of tags that are never picked together', pairs.length ? `In use: ${pairs.map(p => `"${p[0]}" with "${p[1]}"`).join(', ')}.` : 'Write each pair as tag+tag and separate pairs with commas, for example: past+future, calm+frantic. When one item is picked, items with the other tag are left out of that roll.',
+            textInput(draft.neverTogether || '', (v) => { draft.neverTogether = v; dirty(); }, { placeholder: 'No pairs' }))));
+
+    // Saved category settings
+    const names = Object.keys(draft.presets || {}).sort((a, b) => a.localeCompare(b));
+    const csNow = chatState();
+    const inUse = csNow?.presets?.[name] && names.includes(csNow.presets[name]) ? csNow.presets[name] : '';
+    body.appendChild(section('Saved category settings',
+        h('div', { class: 'ri-help' }, 'Save how the categories are set up right now (which are on, how long each pick lasts, and so on) under a name, for example "Slow burn". Items are not part of it. A chat can then use one of the saved setups while the set itself stays as it is.'),
+        h('div', { class: 'ri-row' }, button('Save the current settings under a name', async () => {
+            const n = await inputBox('Name for these settings (for example: Slow burn):');
+            if (!n) return;
+            draft.presets = { ...(draft.presets || {}), [n]: snapshotSettings(draft.categories) };
+            dirty(); redraw();
+        })),
+        names.map(n => h('div', { class: 'ri-version' }, h('div', { class: 'ri-vbody' }, n), h('div', { class: 'ri-row ri-row-tight' },
+            button('Load into the editor', () => { loadSettings(draft.categories, draft.presets[n]); dirty(); redraw(); toast('info', `The categories now use "${n}". Press Save to keep it that way for every chat.`); }, { kind: 'ghost' }),
+            button('Delete', () => { delete draft.presets[n]; dirty(); redraw(); }, { kind: 'danger' })))),
+        csNow && names.length ? field('Settings used in this chat', 'Applies right away to this chat only. Saved settings you just added can be chosen here after you press Save.',
+            select([{ value: '', label: "The set's own settings" }, ...names.map(n => ({ value: n, label: n }))], inUse, (v) => { if (v) csNow.presets[name] = v; else delete csNow.presets[name]; saveChatState(); })) : null));
+
     // Try it
     const preview = h('div', { class: 'ri-preview' }, r.example || 'Press the button to see one example of what the AI would receive.');
     body.appendChild(section('Try it',
         h('div', { class: 'ri-row' }, button(cfg.example, () => {
-            const rolled = rollEvent({ type: cfg.type, categories: draft.categories }, r.exampleState || null);
+            const rolled = rollEvent({ type: cfg.type, categories: draft.categories, neverTogether: draft.neverTogether }, r.exampleState || null);
             if (!rolled) { r.example = 'Nothing to roll yet. Turn on a category and give it at least one item.'; r.exampleState = null; }
             else if (!rolled.text) { r.example = 'For this reply no category is in use (resting, or left out by chance), so nothing would be sent.'; r.exampleState = rolled.state; }
             else { r.example = sub(wrapText(draft.sentAs, rolled.text, 0)); r.exampleState = rolled.state; }

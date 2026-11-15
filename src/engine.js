@@ -2,12 +2,13 @@
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, ask, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
-import { isEvent, isStyle, rollEvent } from './events.js';
+import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
 import { parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
 let pending = null;        // what was sent for the reply being written: { items, type }
 let pickAgain = false;     // set by "Pick again": the next swipe rolls fresh instead of repeating
+let rerollCat = null;      // set by "Pick again" on one picked item: { key, catId } to re-pick on the next swipe
 let checkPromise = null;
 const rawByKey = new Map(); // "lorebook.uid" -> { content, role } as stored, for lorebooks this extension did not write
 const timing = new Map();   // "lorebook.uid" -> { keep, wait } in replies, as set on the instruction
@@ -276,7 +277,16 @@ function onScanDone(args) {
                 const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
                 if (od) { misses = od.misses; cs.overdue = cs.overdue.filter(o => o !== od); }
                 map.set(it.key, e);
-                items.push(makeItem(e, it.sentAs, it.version, misses, it.kind && it.kind !== 'repeat' ? it.kind : 'new', true, it));
+                let src = it;
+                if (rerollCat && rerollCat.key === it.key && Array.isArray(it.parts)) {
+                    // "Pick again" for one picked item: that category gets a new pick, everything else stays.
+                    const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[e.world]), it.parts, it.event || states[it.key], rerollCat.catId);
+                    if (again) {
+                        src = { ...it, version: again.text, parts: again.parts, event: it.event ? again.state : it.event };
+                        if (!it.event) states = { ...states, [it.key]: again.state };
+                    }
+                }
+                items.push(makeItem(e, src.sentAs, src.version, misses, src.kind && src.kind !== 'repeat' ? src.kind : 'new', true, src));
             }
         } else {
             pickAgain = false;
@@ -285,7 +295,7 @@ function onScanDone(args) {
             for (const e of styles) {
                 const key = keyOf(e);
                 const ri = e.extensions.ri;
-                const rolled = rollEvent(ri, plan.events?.get(key) || null);
+                const rolled = rollEvent(withPreset(ri, cs.presets?.[e.world]), plan.events?.get(key) || null, { locks: cs.locks?.[key] });
                 states[key] = rolled.state;
                 if (!rolled.text) { map.delete(key); continue; }
                 items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', rolled.text, 0, 'new', false, { parts: rolled.parts, noCheck: true }));
@@ -327,7 +337,7 @@ function onScanDone(args) {
                     const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
-                    const rolled = rollEvent(ri, prev);
+                    const rolled = rollEvent(withPreset(ri, cs.presets?.[e.world]), prev, { locks: cs.locks?.[key] });
                     if (!rolled) { map.delete(key); continue; }
                     items.push(makeItem(e, sentAs, rolled.text, 0, 'new', false, { event: rolled.state, parts: rolled.parts }));
                     continue;
@@ -342,6 +352,7 @@ function onScanDone(args) {
 
         cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck })) };
         pending = { items, type, states };
+        rerollCat = null;
         saveChatState();
     } catch (e) { console.error(LOG, 'scan-done', e); }
 }
@@ -372,6 +383,10 @@ function onMessageReceived(id, type) {
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
         if (!rec.items.length) return;
+        for (const it of rec.items) {
+            const tags = (it.parts || []).flatMap(p => p.rules || []);
+            if (tags.length) it.rules = checkRules(stripSentBlock(m.mes), tags);
+        }
         if (rec.items.every(it => it.noCheck)) { try { ctx().saveChat?.(); } catch { /* saved with the next change */ } changed('sent', id); return; }
         try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
         changed('sent', id);
@@ -613,6 +628,27 @@ export function clearQueue() {
     touch(-1);
 }
 
+/** Pick again for one picked item of the newest reply, and write a new reply. */
+export async function rerollPartNow(key, catId) {
+    if (isGenerating()) { toast('info', 'Wait for the current reply to finish.'); return; }
+    rerollCat = { key, catId };
+    await triggerSwipe();
+}
+
+/** Lock one category's pick for this chat, or unlock it (ids = null). */
+export function setLock(key, catId, ids) {
+    const cs = chatState();
+    if (!cs) return;
+    if (ids && ids.length) { cs.locks[key] = { ...(cs.locks[key] || {}), [catId]: [...ids] }; }
+    else if (cs.locks[key]) { delete cs.locks[key][catId]; if (!Object.keys(cs.locks[key]).length) delete cs.locks[key]; }
+    saveChatState();
+    changed('checked', -1);
+}
+
+export function isLocked(key, catId) {
+    return !!chatState()?.locks?.[key]?.[catId];
+}
+
 /** Roll this reply's instructions again and write a new reply. */
 export async function pickAgainNow() {
     if (isGenerating()) { toast('info', 'Wait for the current reply to finish.'); return; }
@@ -639,7 +675,7 @@ export function init() {
     });
     on('MESSAGE_RECEIVED', onMessageReceived);
     on('GENERATION_ENDED', () => { gen = null; });
-    on('GENERATION_STOPPED', () => { gen = null; pending = null; pickAgain = false; });
+    on('GENERATION_STOPPED', () => { gen = null; pending = null; pickAgain = false; rerollCat = null; });
     on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);
     on('CHAT_CHANGED', () => {
         gen = null; pending = null; pickAgain = false; checkPromise = null;
