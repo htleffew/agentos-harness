@@ -35,7 +35,7 @@ const setField = (page, label, value) => page.evaluate(([label, value]) => { con
         assert(review.length === 5, 'writer: 5 versions came back');
         assert(review[0].text === 'Seraphina must pay User a compliment about his work.' && review[0].flags.some(f => /swapped/.test(f)), 'writer: names swapped for placeholders, pronoun shown for this chat');
         assert(review[1].flags.some(f => /might/.test(f)) && review[1].checked, 'writer: hedge is flagged as a warning');
-        assert(review[2].disabled && !review[2].checked && review[2].flags.some(f => /Must fix/.test(f)), 'writer: {{user}} acting is blocked');
+        assert(!review[2].disabled && !review[2].checked && review[2].flags.some(f => /^Check:/.test(f)) && !review[2].flags.some(f => /Must fix/.test(f)), 'writer: {{user}} acting is flagged, starts unticked, and can be ticked');
         assert(/^She must tell/.test(review[4].text), 'writer: single-brace placeholder repaired and capital pronoun filled');
         const wreq = L.requests().find(r => /Return only a JSON list of strings/.test(L.text(r)));
         console.log('--- writer prompt ---\n' + L.text(wreq).slice(0, 2600));
