@@ -8,7 +8,7 @@ import { ctx, KEY, LOG, names, parseJson } from './st.js';
 import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
-import { chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS } from './world.js';
+import { chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE } from './world.js';
 import { enqueue, worldIdle, attachChange, parseUpdate, applyOps, stripUpdateBlock, shownChanges, describeChange } from './worldflow.js';
 import { goals, goalProgress, stepDone } from './goals.js';
 
@@ -82,6 +82,16 @@ function chapterPrompt(text, earlier) {
     return lines.join('\n');
 }
 
+/** One finished entry as a line inside a chapter. */
+function finishedLine(x) {
+    const f = x.fields;
+    const end = t => (/[.!?]$/.test(clean(t)) ? clean(t) : `${clean(t)}.`);
+    if (x.kind === 'thread') return end(`The thread "${x.name}" was settled${clean(f.latest) ? `: ${clean(f.latest)}` : ''}`);
+    if (x.kind === 'secret') return end(`A secret came out${clean(f.holder) ? ` about ${clean(f.holder)}` : ''}: ${clean(f.secret) || x.name}`);
+    if (x.kind === 'seed') return end(`The planted detail "${x.name}" paid off`);
+    return end(`"${x.name}" finished${clean(f.step) ? `: ${clean(f.step)}` : ''}`);
+}
+
 const asList = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string').map(clean).filter(Boolean).join(', ') : clean(v));
 
 /**
@@ -110,19 +120,30 @@ export async function writeChapter(from, to, why) {
         }
         if (chatId() !== chat) { res.note('The chat changed while the chapter was being written, so it was not filed.', false); throw new Error('The chat changed while the chapter was being written.'); }
         let name = '';
+        let moved = 0;
         await enqueue(async () => {
             const data = await loadWorld(wid);
             const w = newWorldEntry(data, 'chapter');
             Object.assign(w, { name: clean(obj.title) || `Replies ${from} to ${to}`, auto: true, at: { chat, n: to }, span: { chat, from, to } });
             Object.assign(w.fields, { summary: clean(obj.summary), when: clean(obj.when), people: asList(obj.people), places: asList(obj.places), settled: clean(obj.settled) });
+            // What is finished moves into the chapter: it is written into it in one line each and turned off, so the
+            // world holds what is still open. Entries set to "keep it as I wrote it" are left alone.
+            const retired = settings().summary.retire === false ? [] : listWorld(data, wid).filter(x => x.on && !x.locked && (x.kind === 'secret' ? x.status === 'out' : DONE[x.kind] && x.status === DONE[x.kind]));
+            if (retired.length) w.fields.closed = retired.map(finishedLine).join(' ');
             writeWorldEntry(data, w, wid);
+            for (const x of retired) { x.on = false; writeWorldEntry(data, x, wid); }
             await saveWorld(wid, data);
             name = w.name;
-            // The chapter belongs to the last reply it covers: delete or swipe away that reply and the chapter goes too.
+            moved = retired.length;
+            // The chapter belongs to the last reply it covers: delete or swipe away that reply and the chapter goes too,
+            // and what was moved into it is turned back on.
             const last = replies().find(r => r.n === to);
-            if (last?.time) attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'create' });
+            if (last?.time) {
+                attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'create' });
+                for (const x of retired) attachChange(last.time, wid, { uid: x.uid, name: x.name, kind: x.kind, type: 'off', into: w.name });
+            }
         });
-        res.note(`Chapter "${name}" covers replies ${from} to ${to} (${why}). It is in the story world and is sent with the story notes.`, true);
+        res.note(`Chapter "${name}" covers replies ${from} to ${to} (${why}). It is in the story world and is sent with the story notes.${moved ? ` ${moved} finished ${moved === 1 ? 'entry was' : 'entries were'} written into it and turned off.` : ''}`, true);
         await rollUpIfNeeded().catch(e => console.warn(LOG, 'roll-up', e));
         return name;
     } finally { busy = false; }

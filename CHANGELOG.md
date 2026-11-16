@@ -10,7 +10,10 @@ Version 5, fifth step: the story so far, a new chapter, and a starter world.
 - The story notes start with "The story so far": the newest chapters in full, older ones in short when someone or
   somewhere in them comes up, within room of its own. When chapters pile up, the older ones are combined into one
   account with one AI request.
-- A chapter belongs to the last reply it covers. Deleting or swiping away that reply removes the chapter.
+- What is finished moves into the chapter: settled threads, secrets that came out, planted details that paid off and
+  finished things elsewhere are written into it in one line each and turned off. This can be turned off.
+- A chapter belongs to the last reply it covers. Deleting or swiping away that reply removes the chapter and turns
+  back on what it had taken in.
 - "Start a new chapter in a new chat": one AI request writes a very detailed summary and a first message, both shown
   for you to change. A new chat then opens that brings along the story world, the sets that are on, the goal with its
   finished steps, the pronouns, locked picks, what has already happened for good, the summary and the first message.

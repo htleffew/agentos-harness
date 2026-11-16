@@ -60,6 +60,7 @@ function summarySection(app, id) {
                 yes(o.on, v => { o.on = v; })),
             o.on ? h('div', { class: 'ri-grid2' },
                 field('Write a chapter when a scene ends', 'The update block says when the story moved to a new time or place. Needs "Keep the world up to date" on.', yes(o.onSceneEnd, v => { o.onSceneEnd = v; })),
+                field('Move what is finished into the chapter', 'Threads that were settled, secrets that came out, planted details that paid off and things elsewhere that finished are written into the chapter in one line each and turned off, so the world holds what is still open. Entries set to "keep it as I wrote it" are left alone.', yes(o.retire !== false, v => { o.retire = v; })),
                 field('Replies a chapter must cover at least', 'A scene that ends sooner is joined to the next chapter.', numberInput(o.minReplies, { min: 1, max: 100, unit: 'replies' }, (n) => { o.minReplies = n; save(); })),
                 field('Write a chapter after this many replies in any case', '0 leaves it to scene ends and to you.', numberInput(o.every, { min: 0, max: 200, unit: 'replies' }, (n) => { o.every = n; save(); })),
                 field('Newest chapters always sent in full', '', numberInput(o.keep, { min: 1, max: 10, unit: 'chapters' }, (n) => { o.keep = n; save(); })),

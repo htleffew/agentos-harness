@@ -146,8 +146,11 @@ the story world.
 - **When chapters pile up.** With more than 8 chapters in a chat, one AI request combines the older ones into a
   single account called "Before the latest chapters". The newest ones stay as they are. Chapters you saved yourself
   are switched off, and automatic ones are removed.
+- **What is finished moves into the chapter.** Threads that were settled, secrets that came out, planted details
+  that paid off and things elsewhere that finished are written into the chapter in one line each and turned off, so
+  the world holds what is still open. Entries set to "keep it as I wrote it" are left alone. This can be turned off.
 - **Swipe and delete.** A chapter belongs to the last reply it covers. Deleting or swiping away that reply removes
-  the chapter.
+  the chapter and turns back on what the chapter had taken in.
 - **SillyTavern's own Summarize.** When it is also putting a summary into the prompt, the tab says so. Use one of
   the two, so the story so far is sent once.
 

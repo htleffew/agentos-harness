@@ -28,6 +28,7 @@ const DEFAULTS = {
     },
     summary: {
         on: true,             // keep the story so far in chapters, in the chat's story world
+        retire: true,         // what is finished (settled threads, secrets that came out...) is written into the chapter and turned off
         onSceneEnd: true,     // write a chapter when the update block says the scene ended
         minReplies: 4,        // and at least this many replies have gone by since the last chapter
         every: 20,            // write a chapter after this many replies in any case (0 = only when a scene ends, or by hand)

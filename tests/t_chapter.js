@@ -24,9 +24,9 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
 
         // ----- A. a chapter is written when a scene ends
         await newWorld(page, 'Chapter story', S);
-        L.mode({ reply: reply(1, 'continues', ['person: Hale | captain of the Gull | Proud']), goal: CH('At the market') });
+        L.mode({ reply: reply(1, 'continues', ['person: Hale | captain of the Gull | Proud', 'thread: The missing crate | A crate went missing from the Gull', 'secret: The letter | Hale | Hale wrote the letter himself', 'planted: The amulet | Hale wears a cracked amulet']), goal: CH('At the market') });
         const r1 = await send(page, 'I arrive USERMARK1.');
-        L.mode({ reply: reply(2, 'continues'), goal: CH('At the market') });
+        L.mode({ reply: reply(2, 'continues', ['settled: The missing crate | Mira found it behind the stall', 'out: The letter | Mira']), goal: CH('At the market') });
         const r2 = await send(page, 'I say hello USERMARK2.');
         assert(r1.n === 1 && r2.n === 1 && (await chapters(page)).length === 0, 'chapter: while the scene continues, no chapter is written and no extra request is made');
         L.mode({ reply: reply(3, 'ended'), goal: CH('At the market') });
@@ -38,6 +38,10 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
         const ct = L.text(creq);
         assert(['PROSEMARK1', 'PROSEMARK2', 'PROSEMARK3', 'USERMARK1', 'USERMARK3'].every(x => ct.includes(x)) && !/HUDMARK|story_update|scene: ended/.test(ct), 'chapter: the request holds the messages of that stretch, without HUD or update blocks');
         assert(ch[0].f.people === 'Hale, Mira' && ch[0].f.places === 'Fruit market' && ch[0].f.when === 'Day 3, morning' && /SUMMARK/.test(ch[0].f.summary), 'chapter: the answer is filed as an entry with what happened, when, who and where');
+        const w3 = await world(page);
+        const off = (n) => w3.find(w => w.name === n)?.on === false;
+        console.log('finished:', JSON.stringify(ch[0].f.closed));
+        assert(ch[0].f.closed === 'The thread "The missing crate" was settled: Mira found it behind the stall. A secret came out about Hale: Hale wrote the letter himself.' && off('The missing crate') && off('The letter') && w3.find(w => w.name === 'The amulet').on && w3.find(w => w.name === 'Hale').on, 'finished: a settled thread and a secret that came out are written into the chapter and turned off, and what is still open stays on');
         const lg = await logs(page);
         assert(lg.some(e => e.what === 'Write a chapter of the story so far' && e.ok === true && /covers replies 1 to 3 \(the scene ended\)/.test(e.result)), 'chapter: the Log says which replies the chapter covers and why it was written');
 
@@ -45,17 +49,21 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
         L.mode({ reply: reply(4, 'ended'), goal: CH('Too soon') });
         const r4 = await send(page, 'I walk to the harbour.');
         assert(/The story so far:\n- At the market \(Day 3, morning\): Hale asked you to sail and you said you would think about it\. SUMMARK At the market\. Settled: Hale agreed to wait until noon\./.test(r4.text), 'sent: the newest chapter goes out in full at the top of the story notes');
+        assert(/Finished in it: The thread "The missing crate" was settled/.test(r4.text) && !/Open threads:\n- The missing crate/.test(r4.text), 'sent: what was finished is sent as part of the chapter and no longer as an open thread');
         assert(r4.n === 1 && (await chapters(page)).length === 1, 'chapter: a scene that ends before the set number of replies is joined to the next chapter');
 
         // ----- B. a chapter after a set number of replies; deleting the last reply it covers removes it
         await L.setSettings(page, { summary: { onSceneEnd: false, every: 2 } });
-        L.mode({ reply: reply(5, 'continues'), goal: CH('On the quay') });
+        L.mode({ reply: reply(5, 'continues', ['paid: The amulet | It opened the lock']), goal: CH('On the quay') });
         await send(page, 'I look at the ships.');
         ch = await chapters(page);
         assert(ch.length === 2 && ch[1].name === 'On the quay' && ch[1].span.from === 4 && ch[1].span.to === 5, 'chapter: with "after this many replies" set to 2, replies 4 and 5 become the next chapter');
+        assert(/The planted detail "The amulet" paid off/.test(ch[1].f.closed) && (await world(page)).find(w => w.name === 'The amulet').on === false, 'finished: a planted detail that paid off is written into the chapter and turned off');
         await L.slash(page, '/del 2'); await page.waitForTimeout(900); await idle(page);
         ch = await chapters(page);
         assert(ch.length === 1 && ch[0].name === 'At the market', 'chapter: deleting the last reply a chapter covers removes that chapter, and earlier chapters stay');
+        const am = (await world(page)).find(w => w.name === 'The amulet');
+        assert(am.on === true && off('The missing crate'), 'finished: deleting that reply turns back on what its chapter had taken in, and what an earlier chapter took in stays off');
 
         // ----- C. by hand, from the panel
         await L.setSettings(page, { summary: { every: 0 } });

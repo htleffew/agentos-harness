@@ -251,6 +251,7 @@ export function revertChanges(data, id, changes) {
         if (c.type === 'create') { if (w.auto) { delete data.entries[c.uid]; done++; } continue; }
         if (c.type === 'set' && clean(w.fields[c.field]) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'status' && w.status === c.after) { w.status = c.before; writeWorldEntry(data, w, id); done++; }
+        if (c.type === 'off' && !w.on) { w.on = true; writeWorldEntry(data, w, id); done++; }
     }
     return done;
 }
@@ -261,6 +262,7 @@ export function describeChange(c) {
     const def = WORLD_KINDS[c.kind];
     if (!def) return '';
     if (c.type === 'create') return `Added ${def.label.toLowerCase()}: ${c.name}`;
+    if (c.type === 'off') return `${c.name}: it is finished, so it was written into the chapter "${c.into}" and turned off`;
     if (c.type === 'status') return `${c.name}: went from "${stepName(c.kind, c.before)}" to "${stepName(c.kind, c.after)}"${c.why ? ` (${c.why})` : ''}`;
     if (c.type === 'set') return `${c.name}: "${def.fields.find(f => f.key === c.field)?.label || c.field}" is now "${c.after.length > 160 ? `${c.after.slice(0, 160)}...` : c.after}"`;
     return '';

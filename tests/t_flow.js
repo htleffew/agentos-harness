@@ -180,7 +180,8 @@ const idle = (page) => page.evaluate(async (B) => { await (await import(`${B}/sr
         L.mode({ reply: PROSE, done: false });
         const kinds = [];
         let order = null;
-        for (let i = 0; i < 8 && !order; i++) { const r = await send(page, 'head ' + i); const o = /the open matter "The invitation" must come to a head/.test(r.text); const a = /thing A1/.test(r.text); kinds.push(o && a ? 'both' : o ? 'order' : a ? 'ins' : 'none'); if (o) order = r; }
+        // A missed instruction is sent again twice before anything new starts, so the order gets a turn about every third reply.
+        for (let i = 0; i < 40 && !order; i++) { const r = await send(page, 'head ' + i); const o = /the open matter "The invitation" must come to a head/.test(r.text); const a = /thing A1/.test(r.text); kinds.push(o && a ? 'both' : o ? 'order' : a ? 'ins' : 'none'); if (o) order = r; }
         console.log('one new thing per reply:', kinds.join(' '));
         assert(order && !kinds.includes('both') && !kinds.includes('none'), 'order: a thread that is about to come to a head is ordered into the scene, and it shares the one new thing per reply with the instruction set');
         assert(/\[System note: In this reply, the open matter "The invitation" must come to a head: Hale asked you to sail\. What brings it on: Hale asks one last time\. It happens in the scene, where it can be seen and heard\. User's words, choices and thoughts are theirs to write\.\]/.test(order.text), 'order: the wording is an order for this reply, with the line about your words');

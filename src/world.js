@@ -81,6 +81,7 @@ export const WORLD_KINDS = {
             F('summary', 'What happened', 'A plain account of this part of the story, in the past tense.', true),
             F('when', 'When it took place'), F('people', 'Who was in it'), F('places', 'Where it took place'),
             F('settled', 'What was settled or came out'),
+            F('closed', 'What was finished in it', 'Threads that were settled, secrets that came out, planted details that paid off and things elsewhere that finished. Filled in when the chapter is written.'),
         ],
         short: ['summary'],
     },
@@ -158,7 +159,7 @@ export function renderEntry(w, { full = true } = {}) {
         return val('shadow') || (holder ? `${holder} has a secret.` : `${name}: there is a secret here.`);
     }
     if (w.kind === 'chapter') {
-        const all = `${name}${val('when') ? ` (${val('when')})` : ''}: ${sentence(val('summary'))}${val('settled') ? ` Settled: ${sentence(val('settled'))}` : ''}`;
+        const all = `${name}${val('when') ? ` (${val('when')})` : ''}: ${sentence(val('summary'))}${val('settled') ? ` Settled: ${sentence(val('settled'))}` : ''}${val('closed') ? ` Finished in it: ${sentence(val('closed'))}` : ''}`;
         if (full) return all;
         const brief = val('summary');
         return `${name}${val('when') ? ` (${val('when')})` : ''}: ${brief.length > 240 ? `${brief.slice(0, 240).replace(/\s+\S*$/, '')}...` : sentence(brief)}`;
