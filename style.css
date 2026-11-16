@@ -101,6 +101,7 @@
 .ri-k { color: var(--ri-label); font-size: 0.7em; letter-spacing: 0.14em; text-transform: uppercase; padding-top: 3px; }
 .ri-v { color: var(--ri-text-2); word-break: break-word; }
 .ri-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 16px; }
+.ri-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px 12px; }
 
 /* Chips */
 .ri-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }

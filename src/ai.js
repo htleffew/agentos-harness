@@ -4,6 +4,12 @@ import { askFull, listProfiles } from './st.js';
 import { settings, saveSettings } from './store.js';
 import { addLog, updateLog } from './log.js';
 
+// The texts of this extension's own requests while they are on their way, so the count of what a chat reply sends is
+// not taken from one of them.
+const inFlight = new Set();
+/** Is this finished prompt one of this extension's own requests? */
+export const isOwnPrompt = messages => Array.isArray(messages) && messages.some(m => typeof m?.content === 'string' && [...inFlight].some(t => m.content.includes(t)));
+
 const MORE_ROOM = (tokens) => Math.min(8000, tokens * 3 + 1500);
 
 function connectionName(profileId) {
@@ -32,7 +38,9 @@ export async function request({ what, system = '', user = '', tokens = 600, prof
         const started = Date.now();
         let res;
         try {
-            res = await askFull({ system, user, tokens: room, profileId });
+            const mark = String(user).slice(0, 80);
+            inFlight.add(mark);
+            try { res = await askFull({ system, user, tokens: room, profileId }); } finally { inFlight.delete(mark); }
         } catch (e) {
             // SillyTavern reports an answer with no text in it as the error "No message generated".
             if (/no message generated/i.test(errorText(e))) {

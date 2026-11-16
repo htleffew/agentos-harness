@@ -168,7 +168,7 @@ async function world(page, name, entries) {
         assert(/ID q1: The answer to this question about the reply is yes: Does the reply end on something happening\?/.test(creq) && f2.n === 2 && f2rec.asked?.[0]?.yes === true && /wonderful/.test(f2rec.asked[0].quote), 'style item: its question rides along with the check that runs anyway, and the answer is kept on the reply');
         await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'sent'; P.app.render(); }, L.BASE);
         await page.waitForTimeout(400);
-        assert(/Questions from the writing styleDoes the reply end on something happening\? Yes\./.test(await page.evaluate(() => document.querySelector('#ri_root').textContent)), 'style item: What Was Sent shows the question and the answer');
+        assert(/Questions about the replyDoes the reply end on something happening\? Yes\./.test(await page.evaluate(() => document.querySelector('#ri_root').textContent)), 'style item: What Was Sent shows the question and the answer');
         await page.screenshot({ path: '/tmp/s55_sent.png' });
 
         // ----- G. the word list and the rules given to the AI writer

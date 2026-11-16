@@ -36,6 +36,8 @@ const DEFAULTS = {
         keep: 2,              // newest chapters of the chat that are always sent in full
         roll: 8,              // when a chat has more chapters than this, the older ones are combined into one
         budget: 800,          // room in tokens for the story so far
+        hide: true,           // hide from the AI the messages a chapter covers (they stay in the chat)
+        keepShown: 30,        // the newest messages are never hidden this way
     },
     pace: {
         quiet: 2,             // after a big event has happened, nothing new starts for this many replies (0 = off)
@@ -47,6 +49,7 @@ const DEFAULTS = {
             { name: 'Long run', from: 41, chance: 125, line: '' },
         ],
     },
+    dice: { on: true, user: true, char: true, others: true, stats: ['Strength', 'Agility', 'Wits', 'Charm', 'Will', 'Senses'], sheets: {} },   // rolled in code; sheets: stat modifiers per character card and persona
     words: { on: true, tell: true, list: DEFAULT_WORDS },   // words to flag in AI-written text; "tell" also asks the AI writer to leave them out
     writer: { count: 10, moreRoom: false, rules: DEFAULT_WRITER_RULES, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },

@@ -1,16 +1,17 @@
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
-import { ctx, on, KEY, LOG, sub, scanLength, isReply, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
-import { request } from './ai.js';
+import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
+import { request, isOwnPrompt } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
-import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
+import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules, burnStatus } from './events.js';
 import { NOTES_WORLD, isNotes, notesEntry, readScene } from './world.js';
 import { phaseFor, quietNow, previousRecord, countPresent } from './pacing.js';
+import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
-import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, isAsk, isOrder, isPace, askEntry, orderEntry, paceEntry, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
+import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
-import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
+import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 const sentEntries = new Map();   // key -> the lorebook entry whose text is being sent in this reply
 
@@ -46,7 +47,7 @@ function changed(what, id) {
 
 const keyOf = e => `${e.world}.${e.uid}`;
 /** The set an entry belongs to ('' when it is in no set in the list). A shared lorebook holds several sets. */
-const setOf = e => isGoal(e) ? GOAL_WORLD : isNotes(e) ? NOTES_WORLD : isAsk(e) ? ASK_WORLD : isOrder(e) ? ORDER_WORLD : isPace(e) ? PACE_WORLD : setOfEntry(e);
+const setOf = e => isGoal(e) ? GOAL_WORLD : isNotes(e) ? NOTES_WORLD : isAsk(e) ? ASK_WORLD : isOrder(e) ? ORDER_WORLD : isPace(e) ? PACE_WORLD : isDice(e) ? DICE_WORLD : setOfEntry(e);
 const isManaged = e => !!setOf(e);
 
 // ---------- sets that were moved ----------
@@ -168,7 +169,7 @@ function applyTiming(entries, cs) {
         const st = state.get(e);
         if (st === 'continuing') { e.content = `@@activate\n${e.content || ''}`; e.useProbability = false; }
         else if (st === 'waiting') e.content = `@@dont_activate\n${e.content || ''}`;
-        else if (ph && ph.chance !== 100 && !e.disable && !isStyle(e) && !isGoal(e) && !isNotes(e) && !isAsk(e) && !isOrder(e) && !isPace(e)) {
+        else if (ph && ph.chance !== 100 && !e.disable && !isStyle(e) && !isGoal(e) && !isNotes(e) && !isAsk(e) && !isOrder(e) && !isPace(e) && !isDice(e)) {
             const base = e.useProbability === false ? 100 : Number(e.probability ?? 100);
             e.probability = Math.max(0, Math.min(100, Math.round(base * ph.chance / 100)));
             e.useProbability = true;
@@ -229,6 +230,8 @@ async function onEntriesLoaded(lore) {
         const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet, scale: phase?.chance ?? 100 }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
         // A story phase can have a line of its own, sent with every reply of the phase.
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
+        // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
+        if (cs && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
         if (flow?.ask) lore.chatLore.push(askEntry(flow.ask));
@@ -295,6 +298,7 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     if (extra?.noCheck) item.noCheck = true;
     if (extra?.notes) item.notes = extra.notes;
     if (extra?.big) item.big = true;
+    if (Array.isArray(extra?.dice)) { item.dice = extra.dice; item.name = 'Dice'; }
     if (extra?.pace) { item.pace = extra.pace; item.name = `Story phase: ${extra.pace}`; }
     if (Array.isArray(extra?.ask) && extra.ask.length) item.ask = extra.ask;
     if (extra?.worldOrder) { item.worldOrder = extra.worldOrder; item.name = extra.worldOrder.label || item.name; }
@@ -382,11 +386,16 @@ function happened() {
     const carried = chatState()?.burned;
     for (const k of carried?.keys || []) keys.add(canon(k));
     for (const [k, list] of Object.entries(carried?.ids || {})) ids.set(canon(k), new Set(list));
+    // "Bring the used items back" for a set: what happened before that moment no longer counts for that set.
+    const fresh = chatState()?.unburn || {};
+    for (const k of Object.keys(fresh)) { keys.delete(canon(k)); ids.delete(canon(k)); }
     for (const m of ctx().chat || []) {
-        for (const it of m?.extra?.[KEY]?.items || []) {
+        const rec = m?.extra?.[KEY];
+        for (const it of rec?.items || []) {
             const did = it.status === 'done' || ((checkOff || it.noCheck) && it.status === 'sent');
             if (!did) continue;
             const key = canon(it.key);
+            if (fresh[key] && Number(rec.time) <= Number(fresh[key])) continue;
             keys.add(key);
             if (Array.isArray(it.parts)) {
                 const set = ids.get(key) || new Set();
@@ -396,6 +405,23 @@ function happened() {
         }
     }
     return { keys, ids };
+}
+
+/** How much of each retiring list of a story event set is left in this chat. */
+export function eventLeft(book, e) {
+    const key = `${book}.${e.uid}`;
+    return burnStatus(e.extensions?.ri, happened().ids.get(canon(key)) || new Set());
+}
+
+/** Bring back for this chat every item of a set that already happened. Earlier replies keep their record. */
+export function unburnSet(book, e) {
+    const cs = chatState();
+    if (!cs) return;
+    const key = canon(`${book}.${e.uid}`);
+    cs.unburn = { ...(cs.unburn || {}), [key]: Date.now() };
+    if (cs.usedUp) delete cs.usedUp[key];
+    if (cs.burned?.ids) delete cs.burned.ids[key];
+    saveChatState();
 }
 
 /** What has happened for good in this chat so far, for "New chapter" to carry into the next chat. */
@@ -534,7 +560,14 @@ function onScanDone(args) {
             const g = goalE ? goals() : null;
             const gp = g ? goalProgress(type) : null;
             let goalOrder = g ? buildGoalOrder(g, gp) : null;
-            const orders = fired.filter(e => !isStyle(e) && !isGoal(e) && !isNotes(e) && !isAsk(e) && !isOrder(e) && !isPace(e));
+            // Dice, rolled in code. Like the writing style they are sent with every reply and are not a new thing.
+            const diceE = fired.find(isDice) || null;
+            if (diceE) {
+                const r = rollDice();
+                if (r) items.push(makeItem(diceE, 'system', r.text, 0, 'new', false, { noCheck: true, dice: r.rolls, ask: [{ q: DICE_QUESTION, pick: 'Dice' }] }));
+                else map.delete(keyOf(diceE));
+            }
+            const orders = fired.filter(e => !isStyle(e) && !isGoal(e) && !isNotes(e) && !isAsk(e) && !isOrder(e) && !isPace(e) && !isDice(e));
             const continuing = orders.filter(isSticky);
             let fresh = orders.filter(e => !isSticky(e));
             const overdue = cs.overdue.filter(o => find(o.key));
@@ -605,7 +638,16 @@ function onScanDone(args) {
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
                     const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type) });
-                    if (!rolled) { map.delete(key); continue; }
+                    if (!rolled) {
+                        map.delete(key);
+                        // Tell the user once per chat when a set's main list is used up.
+                        const bs = burnStatus(withPreset(ri, cs.presets?.[setOf(e)]), was.ids.get(key));
+                        if (bs.usedUp) {
+                            if (!cs.usedUp) cs.usedUp = {};
+                            if (!cs.usedUp[key]) { cs.usedUp[key] = Date.now(); gen.usedUp = [...(gen.usedUp || []), setName(setOf(e))]; }
+                        }
+                        continue;
+                    }
                     items.push(makeItem(e, sentAs, [rolled.text, eventLine].filter(Boolean).join(' '), 0, 'new', false, { event: rolled.state, parts: rolled.parts, big: !!ri.big }));
                     continue;
                 }
@@ -621,8 +663,9 @@ function onScanDone(args) {
         gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
         if (askE && map.has(keyOf(askE))) gen.result.texts.set(keyOf(askE), askE.content);
         const pace = { phase: plan.phase ? { name: plan.phase.name, chance: plan.phase.chance } : null, quiet: gen.quiet || null };
-        cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
-        pending = { items, type, states, pace };
+        cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
+        pending = { items, type, states, pace, usedUp: gen.usedUp || null };
+        if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
         saveChatState();
     } catch (e) { console.error(LOG, 'scan-done', e); }
@@ -655,6 +698,7 @@ function onMessageReceived(id, type) {
         const rec = { v: 1, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
+        if (pending.usedUp) rec.usedUp = pending.usedUp;
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
@@ -811,6 +855,7 @@ export function statusLabel(it) {
     if ('goalTask' in it && it.noCheck) return it.goalTask?.type === 'action' ? 'Sent (repeatable actions are not checked)' : it.goalTask ? 'Sent (not checked)' : 'Sent (goal line)';
     if (it.notes) return 'Sent (story notes are facts, with nothing to check)';
     if (it.pace) return 'Sent (the line of the story phase)';
+    if (it.dice) return 'Sent (dice results, to be used only for an attempt with real stakes)';
     if (it.noCheck) return 'Sent (writing style is not checked)';
     switch (it.status) {
         case 'pending': return 'Not yet: it is sent again with the next reply';
@@ -838,6 +883,7 @@ function writeIntoMessage(id) {
 function onPromptReady(data) {
     try {
         if (!Array.isArray(data?.chat)) return;
+        if (!data.dryRun && !isOwnPrompt(data.chat)) notePromptSent(data.chat);
         for (const msg of data.chat) {
             // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
             if (msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.includes('<story_update')) msg.content = stripUpdateBlock(msg.content);

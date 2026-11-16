@@ -101,7 +101,7 @@ Each category has its own settings:
 | --- | --- |
 | How it changes | New pick every time, Keep for a random number of events, or Keep until I turn it off (you choose the item). |
 | Items per pick | How many items from the category go into one event. |
-| Retire an item once it has happened | An item that has happened in a chat never comes back in that chat. When every item is used up, the event stops. |
+| Retire an item once it has happened | An item that has happened in a chat never comes back in that chat. See "When lists run out" below. |
 | Use every item before repeating | No item comes back until all the others have had a turn. |
 | Wait before an item can return | A just-used item sits out this many events. |
 | Never use items tagged | Leaves out items that carry any of these tags. |
@@ -109,6 +109,22 @@ Each category has its own settings:
 | Weight (on an item) | A higher weight is picked more often. |
 | Never together (on the set) | Pairs of tags, written `past+future, calm+frantic`. When one is picked, items with the other tag are left out of that roll. |
 | Saved category settings (on the set) | Save how the categories are set up under a name, such as "Slow burn", and choose one per chat. |
+
+**When lists run out.** Lists that retire their items can be different lengths. The first list that retires its
+items is the main list (Situation, to start with). When the main list is used up, the set sends no more events in
+that chat, and you are told: a message on screen, a line in What Was Sent, and "Used up in this chat" on the set's
+card. Any other list that is used up first is simply left out of the events that follow, so a set with 20 situations
+and 8 complications gives 20 events, the last 12 with no complication. The set's card shows how many items of each
+list are left in the open chat. **Bring the used items back** lets the set pick them again in that chat; earlier
+replies keep their record.
+
+**Where an event comes from.** Every item can be marked with where its event comes from: {{char}}, another
+character, or the surroundings. The "Who drives it" items of a new set are marked already, and the drivers of an
+older set are read from their words. When an event rolls, the dice pick who drives it first, and then only pick
+items that fit that driver (an unmarked item fits every driver). A storm is then never driven by {{char}}, and a
+driver is only offered when its lists have something that fits. In **Write items with AI**, choose "Where these
+events come from" and every item is written to start there, and is marked with it. Press Edit on an item to change
+its mark.
 
 **Items that wait.** Press Edit on an item to choose when the dice may use it.
 
@@ -271,12 +287,18 @@ world.
 - **What is finished moves into the chapter.** Threads that were settled, secrets that came out, planted details
   that paid off and things elsewhere that finished are written into the chapter in one line each and turned off, so
   the world holds what is still open. This can be turned off.
+- **Hide what a chapter covers** (on to start with). When a chapter is written, the messages it covers are hidden
+  from the AI, the same as the `/hide` command, except the newest 30 messages. They stay in your chat and you can
+  still read them. This keeps a long chat short for the AI with no extra AI request, so Message Limit, SillyTavern's
+  Summarize and TunnelVision's autohide can all be turned off.
 - **Swipe and delete.** A chapter belongs to the last reply it covers. Deleting or swiping away that reply removes
-  the chapter and turns back on what the chapter had taken in.
+  the chapter, turns back on what the chapter had taken in, and shows again the messages it hid.
 - **SillyTavern's own Summarize.** When it is also putting a summary into the prompt, the tab says so. Use one of
   the two, so the story so far is sent once.
 
-**A new chapter in a new chat.** When a chat has grown long, press **Start a new chapter in a new chat**. You can
+**A new chapter in a new chat.** With chapters and hiding on, a chat never grows too long for the AI, so this is
+optional. Use it for a clean break, a time skip, or when a very long chat file loads slowly. The button is at the top
+of the What Was Sent tab and at the bottom of the Story World tab. Press **Start a new chapter in a new chat**. You can
 say what you want for it ("the next morning, on the ship"). One AI request writes a very detailed summary and a
 first message. Both are shown for you to change. Then a brand new chat opens for the same character, with your
 first message in place of the greeting. It brings along the story world, the sets that are on, the goal with the
@@ -303,6 +325,23 @@ so the world shows the story as it stands now.
 - **Story phases.** Off to start with. A phase starts at a reply number and lasts until the next one starts. Each
   phase has a percentage of the usual chance that something new starts (50 halves every chance, 150 raises it by
   half, 0 starts nothing new) and, if you want, one line that is sent with every reply of the phase.
+
+## Dice
+
+The extension rolls the dice in code. The AI is told the results and never rolls or adds.
+
+- Before every reply, one d20 is rolled for each side that is on: {{user}} (for what you attempt in your message),
+  {{char}}, and any other character (one shared roll, with no stats).
+- **Stats.** Six to start with: Strength, Agility, Wits, Charm, Will, Senses. Each is a modifier from -3 to +5, set in
+  Settings > Dice. {{char}}'s stats are kept with the character card and yours with your persona. You can rename,
+  add or delete stats.
+- **Outcome**, worked out in code for every stat: 7 or less fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 or
+  more succeeds well. A natural 1 fails badly and a natural 20 succeeds brilliantly, whatever the stat.
+- **When it is used.** The AI is told to use a result only when someone attempts something with real stakes and a
+  real chance of failing, to pick the stat that fits, and to ignore the dice otherwise. When a reply is checked
+  anyway, the check also asks whether the reply used a result, and What Was Sent shows the answer.
+- A swipe keeps the same roll. "Pick again and write a new reply" rolls again. An out-of-character message gets no
+  dice. Dice are not a "new thing" and do not count toward one thing per reply.
 
 ## Checking, and What Was Sent
 
@@ -351,7 +390,8 @@ that belong to no set. The extension leaves those alone.
 
 | What | Requests |
 | --- | --- |
-| Sending instructions, events, style, the goal, story notes | None |
+| Sending instructions, events, style, the goal, story notes, dice | None |
+| Hiding what a chapter covers | None |
 | Keeping the story world up to date from each reply | None (the block is part of the reply) |
 | Checking that an order happened | 1 per reply that carried an order |
 | A chapter of the story so far | 1 per chapter |
@@ -370,9 +410,13 @@ Every request is listed in the Log tab.
 - **Hidden messages still count.** SillyTavern's own World Info timers count the messages they are handed. When
   older messages are hidden from the AI, or another extension leaves messages out, that number stops growing and
   those timers stop working. This was seen on a TauriTavern tablet, where World Info was handed 40 messages however
-  long the chat grew. This extension counts replies from the chat itself, hidden ones included, so timing, story
-  phases, thread clocks and chapters keep counting. Settings > "What the AI is sent from this chat" shows how many
-  messages are hidden and whether another extension left any out.
+  long the chat grew. Message Limit does exactly this: it drops the oldest messages from what is sent, with no
+  summary of them, until the limit is reached. This extension counts replies from the chat itself, hidden ones
+  included, so timing, story phases, thread clocks and chapters keep counting. Settings > "What the AI is sent from
+  this chat" counts the messages in the finished prompt of the last reply, after every other extension, so it shows
+  how many messages were really sent and whether another extension left any out.
+- **Other extensions that overlap.** With chapters on, turn off SillyTavern's Summarize (the story so far would be
+  sent twice). With "Hide what a chapter covers" on, Message Limit and TunnelVision's autohide are not needed.
 - **With the extension off**, a set still works if you turn its lorebook on in World Info (a shared lorebook then
   sends from every set inside it): each entry holds a `{{random::...}}` list of its versions. Per-reply limits, the
   no-repeat cycle, checking and What Was Sent need the extension. Story world entries are then ordinary lorebook

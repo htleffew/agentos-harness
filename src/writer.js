@@ -5,6 +5,7 @@ import { settings, pronounForms, FORMS } from './store.js';
 import { ACTORS, TARGETS, SENT_AS } from './books.js';
 import { swapNames } from './validate.js';
 import { writerRules, storySoFar } from './pacing.js';
+import { ORIGINS } from './events.js';
 import { stripSentBlock } from './engine.js';
 
 function pronounLine(role, label) {
@@ -154,7 +155,8 @@ export async function writeVersions({ ins, seed, count, context }) {
  * Ask the model for items for one category of a story event set. Returns [{ text, swaps }].
  * category: { name, driver }, theme: what the story is like, existing: item texts already in the list.
  */
-export async function writeItems({ category, theme, count, context, existing, others, style = false }) {
+export async function writeItems({ category, theme, count, context, existing, others, style = false, origin = '' }) {
+    const from = !style && origin && ORIGINS[origin]?.write ? ORIGINS[origin].write : '';
     const st = settings();
     const lines = style ? [
         `Write ${count} items for one list of writing style choices. A roleplay AI is later told to write its reply using one item from the list.`,
@@ -179,6 +181,7 @@ export async function writeItems({ category, theme, count, context, existing, ot
         'Rules for every item:',
         '- A short phrase of 2 to 12 words. Plain, literal wording. Concrete enough to act on.',
         '- It fits the name of this list and leaves the other lists free.',
+        ...(from ? [`- Every item is an event that ${from}.`] : []),
         '- General enough to fit many scenes: leave out specific names, places and times of day.',
         '- [[user]] is only ever someone things happen to. Every action, spoken line, decision, thought and feeling belongs to someone other than [[user]].',
         '- Where a name is needed use [[char]] for the main character and [[user]] for the other person, with the double square brackets, and write real names nowhere.',

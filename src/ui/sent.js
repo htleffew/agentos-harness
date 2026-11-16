@@ -94,8 +94,8 @@ function paceNote(rec) {
 function askedRows(rec) {
     if (!Array.isArray(rec.asked) || !rec.asked.length) return null;
     return h('div', { class: 'ri-sentitem' },
-        h('div', { class: 'ri-sent-top' }, h('span', { class: 'ri-sent-name' }, 'Questions from the writing style')),
-        h('ul', { class: 'ri-changes' }, rec.asked.map(a => h('li', {}, `${a.q} ${a.yes === null ? 'The check gave no answer.' : a.yes ? 'Yes.' : 'No.'}${a.quote ? ` Shown by: "${a.quote}"` : ''} (asked while the pick was "${a.pick}")`))));
+        h('div', { class: 'ri-sent-top' }, h('span', { class: 'ri-sent-name' }, 'Questions about the reply')),
+        h('ul', { class: 'ri-changes' }, rec.asked.map(a => h('li', {}, `${a.q} ${a.yes === null ? 'The check gave no answer.' : a.yes ? 'Yes.' : 'No.'}${a.quote ? ` Shown by: "${a.quote}"` : ''} (${a.pick === 'Dice' ? 'about the dice' : `asked while the writing style pick was "${a.pick}"`})`))));
 }
 
 function recordBody(id, rec, isLast, withButtons) {
@@ -103,6 +103,7 @@ function recordBody(id, rec, isLast, withButtons) {
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
         paceNote(rec),
+        rec.usedUp ? h('div', { class: 'ri-note ri-note-warn' }, `Used up in this chat with this reply: ${rec.usedUp.join(', ')}. Every item of its main list has happened. "Bring the used items back" in the Random Story Events tab starts it again for this chat.`) : null,
         rec.items.map((it, i) => itemRow(id, rec, it, i, withButtons)),
         askedRows(rec),
         worldChanges(id, rec, withButtons),
@@ -139,6 +140,10 @@ export function renderSent(body) {
     if (waiting.length) body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `Waiting to be sent again with the next reply: ${waiting.map(o => o.name).join(', ')}.`,
         h('div', { class: 'ri-row ri-row-tight' }, button('Do not send these again', () => clearQueue(), { kind: 'ghost' }))));
     if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Checking is off, so replies are not checked. Turn on "Check that it happened" in Settings to see Done and Overdue here.'));
+    // The way to carry the story into a new chat, kept where it is easy to find.
+    body.appendChild(h('div', { class: 'ri-row ri-row-tight' }, button('Start a new chapter in a new chat', () => {
+        import('./panel.js').then((P) => { P.app.tab = 'world'; P.app.wroute = { view: 'list', sheet: { kind: 'chapter', wish: '', busy: false, error: '', draft: null } }; P.app.render(); });
+    }, { kind: 'ghost', title: 'One AI request writes a detailed summary and a first message for you to change. A new chat then opens that carries the story on. This chat stays as it is.' })));
     const records = recentRecords(30);
     if (!records.length) {
         body.appendChild(h('div', { class: 'ri-empty' }, 'Nothing has been sent in this chat yet. Turn an instruction set on for this chat in the Random Instructions tab, then send a message.'));

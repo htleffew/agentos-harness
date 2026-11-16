@@ -19,11 +19,13 @@ export function newCategory(name, items = [], extra = {}) {
         items: items.map(x => Array.isArray(x) ? { id: newId(), text: x[0], on: true, weight: 1, tags: x[1] || '', always: false } : { id: newId(), text: x, on: true, weight: 1, tags: '', always: false }), ...extra };
 }
 
+const withOrigins = (cat, list) => { cat.items.forEach((it, i) => { if (list[i]) it.from = list[i]; }); return cat; };
+
 export function defaultCategories() {
     return [
         newCategory('Situation', [], { burn: true }),
         newCategory('Complication', [], { burn: true }),
-        newCategory('Who drives it', ['{{char}}', 'any character other than {{user}}, one already in the story or a new arrival', 'any female character other than {{user}}, one already in the story or a new arrival', 'any male character other than {{user}}, one already in the story or a new arrival', 'the surroundings: weather, a place, an object, an animal or a crowd'], { driver: true }),
+        withOrigins(newCategory('Who drives it', ['{{char}}', 'any character other than {{user}}, one already in the story or a new arrival', 'any female character other than {{user}}, one already in the story or a new arrival', 'any male character other than {{user}}, one already in the story or a new arrival', 'the surroundings: weather, a place, an object, an animal or a crowd'], { driver: true }), ['char', 'other', 'other', 'other', 'world']),
         newCategory('Tone'),
     ];
 }
@@ -64,10 +66,41 @@ export function newStyle(name) {
 
 const tagList = s => String(s || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
 
+/**
+ * How much of each list that retires its items is left in a chat. burned: the ids that have happened.
+ * Returns [{ name, left, total, main }] and whether the set is used up (its main list has none left).
+ */
+export function burnStatus(ri, burned) {
+    const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory).filter(c => c.on && usable(c).length);
+    const main = cats.find(c => c.burn && !c.driver);
+    const lists = cats.filter(c => c.burn).map((c) => { const pool = usable(c); return { name: c.name, total: pool.length, left: pool.filter(it => !burned?.has(it.id)).length, main: c === main }; });
+    return { lists, usedUp: !!main && lists.find(l => l.main).left === 0 };
+}
+
+/** Where a story event comes from. A "Who drives it" item has one, and so can any other item. */
+export const ORIGINS = {
+    '': { label: 'Anyone or anything' },
+    char: { label: '{{char}}', write: 'starts with something [[char]] does, decides or says' },
+    other: { label: 'Another character', write: 'starts with something a character other than [[char]] and [[user]] does, decides or says (someone already in the story or a new arrival)' },
+    world: { label: 'The surroundings', write: 'starts in the surroundings: weather, a place, an object, an animal, a crowd, or news arriving' },
+};
+
+/** The origin of an item: its own mark, or for a "Who drives it" item without one, read from its words. */
+export function originOf(it, cat) {
+    if (it?.from && ORIGINS[it.from]) return it.from;
+    if (!cat?.driver) return '';
+    const t = String(it?.text || '').toLowerCase();
+    if (/surroundings|weather|crowd|animal|place|object/.test(t)) return 'world';
+    if (/^\s*\{\{char\}\}\s*$/.test(t)) return 'char';
+    if (/character|someone|stranger|arrival|npc/.test(t)) return 'other';
+    return '';
+}
+
 /** One item of a list. need and min: what a story event item asks of the scene. The three "while this pick is in use" lines belong to writing style items. */
 export function normalItem(it) {
     const out = { id: String(it?.id || newId()), text: String(it?.text ?? ''), on: it?.on !== false, weight: Math.max(1, Math.round(Number(it?.weight) || 1)), tags: String(it?.tags || ''), always: !!it?.always };
     if (it?.need && NEEDS[it.need]) out.need = it.need;
+    if (it?.from && ORIGINS[it.from]) out.from = it.from;
     const min = Math.max(0, Math.min(20, Math.round(Number(it?.min) || 0)));
     if (min) out.min = min;
     for (const k of ['dEvent', 'dCheck', 'dNext']) { const v = String(it?.[k] || '').replace(/\s+/g, ' ').trim(); if (v) out[k] = v; }
@@ -233,7 +266,9 @@ export function rollEvent(ri, prev, opts = {}) {
     const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory).filter(c => c.on && usable(c).length);
     const chosen = new Set(); // tags of everything picked so far in this roll
     const burned = opts.burned instanceof Set ? opts.burned : new Set(); // items that already happened in this chat
-    let spent = false;        // a list that retires its items has none left
+    let spent = false;        // the main list that retires its items has none left, or a list waits for the scene
+    const mainBurn = cats.find(c => c.burn && !c.driver) || null;   // the first list that retires items: when it is used up, the set is
+    const usedUp = [];        // other lists that retire items and have none left: they are left out of the event
     const scene = opts.scene || null;   // what the scene and the story world offer right now (null: conditions are not looked at)
     const filled = [];        // world entries that items of this roll were filled with
     const note = (byId, ids) => { for (const id of ids) for (const t of tagList(byId.get(id).tags)) chosen.add(t); };
@@ -255,8 +290,21 @@ export function rollEvent(ri, prev, opts = {}) {
         if (kept) note(byId, kept);
     }
 
-    // Then the categories that are due a fresh pick.
-    for (const cat of cats) {
+    // Where the event comes from: the "Who drives it" list is rolled first, and the other lists only offer items that
+    // fit the driver it picked. A driver is only offered when every list has something that fits it.
+    let origin = '';
+    const markedCats = cats.filter(c => !c.driver && usable(c).some(it => it.from));
+    const fitsOrigin = (it, c, o) => c.driver || !o || !it.from || it.from === o;
+    const canServe = (o) => !o || markedCats.every((c) => {
+        const inf = info.get(c.id);
+        if (inf.kept) return true;
+        return inf.pool.some(it => fitsOrigin(it, c, o) && itemFits(it, scene) && !(c.burn && burned.has(it.id)));
+    });
+    for (const cat of cats.filter(c => c.driver)) { const k = info.get(cat.id).kept; if (k && !origin) origin = originOf(info.get(cat.id).byId.get(k[0]), cat); }
+    const partsBy = new Map();
+
+    // Then the categories that are due a fresh pick, the driver first.
+    for (const cat of [...cats.filter(c => c.driver), ...cats.filter(c => !c.driver)]) {
         const { pool, byId, old, kept, linger, pinned } = info.get(cat.id);
         let { left } = info.get(cat.id);
         let used = (Array.isArray(old.used) ? old.used : []).filter(id => byId.has(id));
@@ -269,11 +317,14 @@ export function rollEvent(ri, prev, opts = {}) {
                 if (Number(old.rest) > 0) { idle(Number(old.rest) - 1); continue; }
                 if (cat.chance < 100 && rollInt(100) >= cat.chance) { idle(0); continue; }
             }
-            const fitting = pool.filter(it => itemFits(it, scene));
+            const fitting = pool.filter(it => itemFits(it, scene) && (cat.driver ? canServe(originOf(it, cat)) : fitsOrigin(it, cat, origin)));
             // Every item of this list asks for something the scene does not have right now: the event waits.
             if (!fitting.length) { spent = true; idle(0); continue; }
             const allowed = fitting.filter(it => !clash(tagList(it.tags), chosen, pairs) && !(cat.burn && burned.has(it.id)));
-            if (cat.burn && !allowed.length && fitting.some(it => burned.has(it.id))) { spent = true; idle(0); continue; }
+            if (cat.burn && !allowed.length && fitting.some(it => burned.has(it.id))) {
+                if (cat === mainBurn) spent = true; else usedUp.push(cat.name);
+                idle(0); continue;
+            }
             picks = allowed.filter(it => it.always).slice(0, cat.count).map(it => it.id);
             const need = cat.count - picks.length;
             if (need > 0) {
@@ -290,6 +341,7 @@ export function rollEvent(ri, prev, opts = {}) {
             }
             if (!picks.length) { idle(0); continue; } // "never together" left nothing that fits
             note(byId, picks);
+            if (cat.driver && !origin) origin = originOf(byId.get(picks[0]), cat);
             if (cat.useAll) used = [...new Set([...used, ...picks])];
             if (cat.itemWait) recent = [...recent, picks].slice(-cat.itemWait);
             if (cat.mode === 'keepRandom') left = cat.keepMin + rollInt(cat.keepMax - cat.keepMin + 1) - 1;
@@ -300,11 +352,14 @@ export function rollEvent(ri, prev, opts = {}) {
         const texts = picks.map((id) => { const f = fillNeed(byId.get(id), scene, list => list[rollInt(list.length)]); if (f.used) filled.push(f.used); return f.text; });
         // A writing style item can carry three more lines for as long as it is the pick.
         const dir = picks.map(id => byId.get(id)).filter(it => it.dEvent || it.dCheck || it.dNext).map(it => ({ pick: it.text, ...(it.dEvent ? { event: it.dEvent } : {}), ...(it.dCheck ? { check: it.dCheck } : {}), ...(it.dNext ? { next: it.dNext } : {}) }));
-        parts.push({ name: cat.name, items: texts, after: cat.after, catId: cat.id, ids: picks, ...(rules.length ? { rules } : {}), ...(dir.length ? { dir } : {}) });
+        partsBy.set(cat.id, { name: cat.name, items: texts, after: cat.after, catId: cat.id, ids: picks, ...(rules.length ? { rules } : {}), ...(dir.length ? { dir } : {}) });
     }
+    for (const cat of cats) if (partsBy.has(cat.id)) parts.push(partsBy.get(cat.id));
+    if (origin) state.origin = origin;
     if (filled.length) state.filled = filled;
     if (ri?.type === 'style') return { text: parts.length ? sentenceFor('style', parts) : null, parts, state };
-    if (!parts.length || spent) return null; // a used-up list means this event has nothing new left to offer
+    if (!parts.length || spent) return null; // the main list is used up, so this event has nothing new left to offer
+    if (usedUp.length) state.usedUp = usedUp;
     return { text: sentenceFor('event', parts), parts, state };
 }
 

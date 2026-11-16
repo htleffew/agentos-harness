@@ -9,6 +9,7 @@ import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
 import { rollInt, pickWeighted } from './books.js';
 import { worldOffers, rememberStory } from './pacing.js';
+import { showAgain } from './hide.js';
 import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, buildNotes } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
@@ -17,6 +18,8 @@ export const isAsk = e => e?.world === ASK_WORLD;
 export const isOrder = e => e?.world === ORDER_WORLD;
 export const PACE_WORLD = 'Roleplay Instructions story phase';
 export const isPace = e => e?.world === PACE_WORLD;
+export const DICE_WORLD = 'Roleplay Instructions dice';
+export const isDice = e => e?.world === DICE_WORLD;
 export const ORDER_KEY = `${ORDER_WORLD}.0`;
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
@@ -36,6 +39,7 @@ function synthetic(world, comment, content, depth) {
 export const askEntry = text => synthetic(ASK_WORLD, 'Story update request', text, 0);
 export const orderEntry = () => synthetic(ORDER_WORLD, 'Story world', 'story world', 1);
 export const paceEntry = text => synthetic(PACE_WORLD, 'Story phase', text, 2);
+export const diceEntry = () => synthetic(DICE_WORLD, 'Dice', 'dice', 1);
 
 /** True when the newest message from the user starts out of character, as in "(OOC: ...)". */
 export function isOocTurn() {
@@ -252,6 +256,7 @@ export function revertChanges(data, id, changes) {
         if (!entry) continue;
         const w = listWorld(data, id).find(x => x.uid === c.uid);
         if (!w) continue;
+        if (c.type === 'hide') { if (showAgain(c.dates)) done++; continue; }
         if (c.type === 'create') { if (w.auto) { delete data.entries[c.uid]; done++; } continue; }
         if (c.type === 'set' && clean(w.fields[c.field]) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'status' && w.status === c.after) { w.status = c.before; writeWorldEntry(data, w, id); done++; }
@@ -266,6 +271,7 @@ export function describeChange(c) {
     const def = WORLD_KINDS[c.kind];
     if (!def) return '';
     if (c.type === 'create') return `Added ${def.label.toLowerCase()}: ${c.name}`;
+    if (c.type === 'hide') return `${c.dates.length} older ${c.dates.length === 1 ? 'message was' : 'messages were'} hidden from the AI, because the chapter "${c.name}" covers them`;
     if (c.type === 'off') return `${c.name}: it is finished, so it was written into the chapter "${c.into}" and turned off`;
     if (c.type === 'status') return `${c.name}: went from "${stepName(c.kind, c.before)}" to "${stepName(c.kind, c.after)}"${c.why ? ` (${c.why})` : ''}`;
     if (c.type === 'set') return `${c.name}: "${def.fields.find(f => f.key === c.field)?.label || c.field}" is now "${c.after.length > 160 ? `${c.after.slice(0, 160)}...` : c.after}"`;

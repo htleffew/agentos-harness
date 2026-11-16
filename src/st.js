@@ -57,15 +57,18 @@ export const isReply = m => !!m && !m.is_user && (!m.is_system || isHidden(m));
 /** A message of the story, yours or not, whether or not it is hidden from the AI now. */
 export const isStory = m => !!m && (!m.is_system || isHidden(m));
 
-// What SillyTavern handed on with the last reply, as seen by this extension's place in the line of extensions.
+// How many chat messages were in the finished prompt of the last reply. It is counted from the prompt itself, after
+// every extension (Message Limit included) has had its turn, so it is what the AI was really sent.
 let handed = null;
-globalThis.roleplayInstructionsSeeChat = (chat, contextSize, abort, type) => {
+/** Record the finished prompt. messages: the prompt's list of { role, content }. */
+export function notePromptSent(messages) {
     try {
-        const open = (ctx().chat || []).filter(m => m && !m.is_system).length - (type === 'swipe' ? 1 : 0);
-        const n = Array.isArray(chat) ? chat.length : 0;
-        handed = { n, cut: Math.max(0, open - n), type: String(type || ''), chatId: String(ctx().getCurrentChatId?.() || '') };
+        const chat = ctx().chat || [];
+        const n = messages.filter(m => m && (m.role === 'user' || m.role === 'assistant')).length;
+        const open = chat.filter(m => m && !m.is_system).length;
+        handed = { n, open, chatId: String(ctx().getCurrentChatId?.() || '') };
     } catch { /* only a count */ }
-};
+}
 
 /** What the AI is sent from this chat: how many messages there are, how many are hidden, and how many went out last. */
 export function chatReach() {
@@ -73,7 +76,8 @@ export function chatReach() {
     const hidden = chat.filter(isHidden).length;
     const open = chat.filter(m => m && !m.is_system).length;
     const mine = handed && handed.chatId === String(ctx().getCurrentChatId?.() || '') ? handed : null;
-    return { total: chat.length, hidden, open, last: mine ? mine.n : null, cut: mine ? mine.cut : 0 };
+    // One message of slack: a swipe leaves out the reply being replaced.
+    return { total: chat.length, hidden, open, last: mine ? mine.n : null, cut: mine ? Math.max(0, mine.open - mine.n - 1) : 0 };
 }
 
 /** Number of messages World Info counts for the scan of this generation. */

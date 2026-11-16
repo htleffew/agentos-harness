@@ -28,15 +28,15 @@ const send = async (page, text) => { L.resetLog(); await L.send(page, text); awa
         console.log('hidden:', seen.join(' '), JSON.stringify(before), JSON.stringify(after), phase);
         assert(seen.join(' ') === '- - I I' && after.hidden === 7 && after.open === before.open - 7, 'hidden: seven older messages were hidden from the AI');
         assert(/thing A1/.test(r5.text) && phase === 'Go' && !/h0|h1/.test(r5.text.replace(/thing A1/g, '')), 'hidden: the reply after that is still counted as reply 5, so the story phase that started at reply 3 stays, while the hidden messages are left out of what is sent');
-        assert(before.last === before.open - 1 && before.cut === 0, 'reach: SillyTavern calls the extension with the messages it hands on, and nothing was left out');
+        assert(before.last === before.open - 1 && before.cut === 0, 'reach: the messages in the finished prompt of the last reply are counted, and nothing was left out');
 
         // what the AI is sent, in Settings
-        await page.evaluate(async () => { globalThis.roleplayInstructionsSeeChat(new Array(2), 0, () => {}, 'normal'); });
+        await page.evaluate(async (B) => { (await import(`${B}/src/st.js`)).notePromptSent([{ role: 'system', content: 'only the preset' }]); }, L.BASE);
         await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'settings'; P.app.render(); }, L.BASE);
         await page.evaluate(() => { const b = [...document.querySelectorAll('#ri_root button')].find(x => x.textContent.trim() === 'Expand'); if (b) b.click(); });
         await page.waitForTimeout(500);
         const st = await page.evaluate(() => document.querySelector('#ri_root').textContent);
-        assert(/What the AI is sent from this chat/.test(st) && /Hidden from the AI7 \(the AI is sent the other \d+\)/.test(st) && /messages that are not hidden were left out before this extension saw the chat/.test(st), 'reach: Settings shows how many messages are hidden, and says when another extension left messages out');
+        assert(/What the AI is sent from this chat/.test(st) && /Hidden from the AI7 \(the AI is sent the other \d+\)/.test(st) && /messages that are not hidden were left out of the prompt/.test(st), 'reach: Settings shows how many messages are hidden, and says when another extension left messages out');
         await L.setSettings(page, { pace: { phasesOn: false } });
 
         // ----- B. who does it, who it happens to, and versions

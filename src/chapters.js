@@ -12,6 +12,7 @@ import { chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEn
 import { enqueue, worldIdle, attachChange, parseUpdate, applyOps, stripUpdateBlock, shownChanges, describeChange } from './worldflow.js';
 import { goals, goalProgress, stepDone } from './goals.js';
 import { writerRules } from './pacing.js';
+import { hideCovered } from './hide.js';
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
 const chatId = () => String(ctx().getCurrentChatId?.() || '');
@@ -122,6 +123,7 @@ export async function writeChapter(from, to, why) {
         if (chatId() !== chat) { res.note('The chat changed while the chapter was being written, so it was not filed.', false); throw new Error('The chat changed while the chapter was being written.'); }
         let name = '';
         let moved = 0;
+        let hidden = 0;
         await enqueue(async () => {
             const data = await loadWorld(wid);
             const w = newWorldEntry(data, 'chapter');
@@ -142,9 +144,12 @@ export async function writeChapter(from, to, why) {
             if (last?.time) {
                 attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'create' });
                 for (const x of retired) attachChange(last.time, wid, { uid: x.uid, name: x.name, kind: x.kind, type: 'off', into: w.name });
+                // The messages the chapters cover are hidden from the AI, except the newest ones. They stay in the chat.
+                const hid = await hideCovered(last.index);
+                if (hid.length) { attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'hide', dates: hid }); hidden = hid.length; }
             }
         });
-        res.note(`Chapter "${name}" covers replies ${from} to ${to} (${why}). It is in the story world and is sent with the story notes.${moved ? ` ${moved} finished ${moved === 1 ? 'entry was' : 'entries were'} written into it and turned off.` : ''}`, true);
+        res.note(`Chapter "${name}" covers replies ${from} to ${to} (${why}). It is in the story world and is sent with the story notes.${moved ? ` ${moved} finished ${moved === 1 ? 'entry was' : 'entries were'} written into it and turned off.` : ''}${hidden ? ` ${hidden} older ${hidden === 1 ? 'message was' : 'messages were'} hidden from the AI.` : ''}`, true);
         await rollUpIfNeeded().catch(e => console.warn(LOG, 'roll-up', e));
         return name;
     } finally { busy = false; }

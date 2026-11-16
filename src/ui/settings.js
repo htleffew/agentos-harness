@@ -1,6 +1,7 @@
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
+import { statNames, sheet, setStat, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../dice.js';
 import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
 import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox, chatReach } from '../st.js';
 import { ensureRegexScript, setsMoved } from '../engine.js';
@@ -91,6 +92,32 @@ function whereSection(app) {
 
 const onOff = (v, set) => select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], v ? 'on' : 'off', (x) => set(x === 'on'));
 
+function diceSection(app) {
+    const d = settings().dice;
+    const save = () => { saveSettings(); };
+    const nm = names();
+    const grid = (who, label) => {
+        const sh = sheet(who);
+        return h('div', { class: 'ri-card ri-inscard' },
+            h('div', { class: 'ri-label' }, label),
+            h('div', { class: 'ri-grid3' }, statNames().map(stat => field(stat, '', numberInput(Number(sh[stat]) || 0, { min: MOD_MIN, max: MOD_MAX, unit: '' }, (n) => { setStat(who, stat, n); })))));
+    };
+    return section('Dice',
+        field('Roll dice in the extension', d.on ? 'On: before every reply the extension rolls a d20 in code for each side below, adds the stat modifiers and works out the outcome for every stat. The AI is told the results, uses one only when someone attempts something with real stakes and a real chance of failing, and picks the stat that fits. It never rolls or adds. A swipe keeps the same roll. "Pick again and write a new reply" in What Was Sent rolls again.' : 'Off: no dice are rolled or sent.',
+            onOff(d.on, (v) => { d.on = v; save(); app.render(); })),
+        d.on ? [
+            h('div', { class: 'ri-grid3' },
+                field('Roll for {{user}}', 'For what you attempt in your message.', onOff(d.user !== false, (v) => { d.user = v; save(); })),
+                field('Roll for {{char}}', '', onOff(d.char !== false, (v) => { d.char = v; save(); })),
+                field('Roll for other characters', 'One roll, with no stats, shared by any other character who attempts something.', onOff(d.others !== false, (v) => { d.others = v; save(); }))),
+            h('div', { class: 'ri-help' }, 'Outcome of the total: 7 or less fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 or more succeeds well. A natural 1 fails badly and a natural 20 succeeds brilliantly, whatever the stat.'),
+            field('Stats', `Separate them with commas. Each stat is a modifier from ${MOD_MIN} to +${MOD_MAX} that is added to the roll.`,
+                textInput((d.stats || DEFAULT_STATS).join(', '), (v) => { d.stats = v.split(',').map(x => x.trim()).filter(Boolean); save(); }, { placeholder: DEFAULT_STATS.join(', ') })),
+            h('div', { class: 'ri-row ri-row-tight' }, button('Show the stat boxes for this list', () => app.render(), { kind: 'ghost' })),
+            isChatOpen() ? [grid('char', `Stats for ${nm.char} (kept with this character card)`), grid('user', `Stats for ${nm.user} (kept with this persona)`)] : h('div', { class: 'ri-muted' }, 'Open a chat to set the stats of its character and of your persona.'),
+        ] : null);
+}
+
 function paceSection(app) {
     const st = settings();
     const o = st.pace;
@@ -161,6 +188,7 @@ export function renderSettings(body, app) {
         field('How many new things can start in one reply', 'Counted across every instruction set, every story event set and the goal task together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
             numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
 
+    body.appendChild(diceSection(app));
     body.appendChild(paceSection(app));
     body.appendChild(writerSection(app));
 
@@ -202,13 +230,13 @@ export function renderSettings(body, app) {
             h('div', { class: 'ri-grid' },
                 h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Messages in this chat'), h('span', { class: 'ri-v' }, String(r.total))),
                 h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Hidden from the AI'), h('span', { class: 'ri-v' }, r.hidden ? `${r.hidden} (the AI is sent the other ${r.open})` : 'None')),
-                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Handed on with the last reply'), h('span', { class: 'ri-v' }, r.last === null ? 'Not known yet. Send a message first.' : `${r.last} messages`))),
-            cut ? h('div', { class: 'ri-note ri-note-warn' }, `With the last reply, ${r.cut} messages that are not hidden were left out before this extension saw the chat. Another extension removed them from what is sent.`) : null,
+                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Sent with the last reply'), h('span', { class: 'ri-v' }, r.last === null ? 'Not known yet. Send a message first.' : `${r.last} messages (counted in the finished prompt, after every other extension)`))),
+            cut ? h('div', { class: 'ri-note ri-note-warn' }, `With the last reply, ${r.cut} messages that are not hidden were left out of the prompt. Another extension removed them, for example Message Limit. Messages left out this way are gone from the prompt with no summary, and they also stop SillyTavern's own World Info timers. The extension's chapters with "Hide what a chapter covers" do the same job and keep the story.`) : null,
             h('div', { class: 'ri-help' }, 'This extension counts replies from the chat itself, hidden messages included, so its timing, story phases, thread clocks and chapters keep counting when older messages are hidden or left out. SillyTavern\'s own World Info timers count only what they are handed, and stop working when that number stays the same.')));
     }
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.6.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.7.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

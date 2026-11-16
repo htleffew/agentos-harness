@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.7.0 (2026-11-16)
+
+- Dice rolled in code: one d20 per reply for {{user}}, {{char}} and other characters (each can be switched off),
+  with stat modifiers for {{char}} (kept with the character card) and {{user}} (kept with the persona). The total
+  and the outcome of every stat are worked out in code; the AI uses a result only for an attempt with real stakes.
+- Where an event comes from: items can be marked {{char}}, another character or the surroundings. The driver is
+  rolled first and only fitting items are picked with it. "Write items with AI" can write items for one origin.
+- When lists that retire their items run out at different times, a used-up side list is left out of later events,
+  and the set stops when its main list is used up. You are told once per chat, the set card shows what is left of
+  each list, and "Bring the used items back" starts the set again in that chat.
+- Hide what a chapter covers: after a chapter, the messages it covers are hidden from the AI except the newest 30.
+  Deleting or swiping away the chapter's reply shows them again. No extra AI request.
+- "What the AI is sent from this chat" now counts the messages in the finished prompt, after every other extension,
+  so a limiter such as Message Limit shows up there.
+- "Start a new chapter in a new chat" is also at the top of What Was Sent.
+
 ## 5.6.0 (2026-11-16)
 
 Version 5, last step: the close-out.
