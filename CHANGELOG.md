@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.3.0 (2026-11-16)
+
+Version 5, fourth step: the story world keeps itself up to date.
+
+- With each reply the extension asks for one short block that records what the reply made true. The block is taken
+  out of the reply and filed in the world: new people, places, groups, threads, secrets and planted details, what
+  people now want, plan and know, threads that moved, secrets that came out. No extra AI request is made.
+- The request lists the names on file, and a name that matches an entry is never added twice. In entries you wrote,
+  only the lines that change with the story are kept current. Any entry can be set to stay as written.
+- Everything filed is marked "Added automatically", listed in What Was Sent under the reply that caused it (with
+  "Undo these changes"), and written to the Log tab. Swiping a reply away or deleting it undoes what it filed;
+  swiping back files it again. A continued reply keeps what its first part filed. Out-of-character turns file
+  nothing.
+- Open threads build by themselves after a set number of replies with no movement.
+- Now and then one ready thing is ordered into the scene: a thread about to come to a head, a planted detail,
+  something going on elsewhere, or (off to start with) a kept secret. It counts as the one new thing per reply and is
+  checked like any instruction. When it happens the entry moves on.
+- Open threads have a new line, "What happened last".
+
 ## 5.2.0 (2026-11-16)
 
 Version 5, third step: a story world, sent for who is present.

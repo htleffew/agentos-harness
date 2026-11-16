@@ -43,7 +43,7 @@ const worldSettings = (page, patch) => L.setSettings(page, { world: patch });
     try {
         await L.setupApi(page);
         await L.setSettings(page, { check: { mode: 'off' } });
-        await worldSettings(page, { budget: 600, place: 'depth', depth: 4, lookback: 4 });
+        await worldSettings(page, { budget: 600, place: 'depth', depth: 4, lookback: 4, update: 'all', build: 0, head: 0 });
         const t = Date.now();
         const S = 'Notes book ' + t;
         await L.openChat(page);

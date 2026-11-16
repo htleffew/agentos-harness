@@ -58,9 +58,10 @@ export const WORLD_KINDS = {
             F('people', 'Who is involved'),
             F('sets_off', 'What would bring it to a head'),
             F('ignored', 'What happens if it is left alone'),
+            F('latest', 'What happened last'),
         ],
         steps: [['quiet', 'Quiet'], ['stirring', 'Stirring'], ['building', 'Building'], ['ready', 'About to come to a head'], ['happening', 'Happening now'], ['done', 'Finished']],
-        short: ['open'],
+        short: ['open', 'latest'],
     },
     seed: {
         label: 'Planted detail', plural: 'Planted details', add: 'Add a planted detail', nameLabel: 'Short title', nameHelp: 'Example: The locked drawer.',
@@ -76,7 +77,7 @@ export const WORLD_KINDS = {
     },
 };
 export const KIND_ORDER = ['character', 'place', 'faction', 'thread', 'secret', 'seed', 'activity'];
-const DONE = { thread: 'done', seed: 'paid', activity: 'done' };
+export const DONE = { thread: 'done', seed: 'paid', activity: 'done' };
 export const MAX_ACTIVITIES = 3;
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
@@ -117,13 +118,15 @@ export function readWorldEntry(entry) {
         fields,
         status: def.steps ? (def.steps.some(s => s[0] === ri.status) ? ri.status : def.steps[0][0]) : '',
         show: ri.show === 'full' ? 'full' : 'shadow',
-        auto: !!ri.auto,
+        auto: !!ri.auto,          // added by the extension from a reply, and not yet saved by hand
+        locked: !!ri.locked,      // "keep this entry as I wrote it": automatic updates leave it alone
+        at: ri.at && typeof ri.at === 'object' ? { chat: String(ri.at.chat || ''), n: Number(ri.at.n) || 0 } : null,   // the chat and reply where it was made or last moved
     };
 }
 
 export function newWorldEntry(data, kind) {
     const def = WORLD_KINDS[kind] || WORLD_KINDS.character;
-    return { uid: freeUid(data), kind, name: '', on: true, aliases: [], fields: Object.fromEntries(def.fields.map(f => [f.key, ''])), status: def.steps ? def.steps[0][0] : '', show: 'shadow', auto: false, isNew: true };
+    return { uid: freeUid(data), kind, name: '', on: true, aliases: [], fields: Object.fromEntries(def.fields.map(f => [f.key, ''])), status: def.steps ? def.steps[0][0] : '', show: 'shadow', auto: false, locked: false, at: null, isNew: true };
 }
 
 const label = (kind, key) => WORLD_KINDS[kind].fields.find(f => f.key === key)?.label || key;
@@ -134,10 +137,11 @@ export function renderEntry(w, { full = true } = {}) {
     const def = WORLD_KINDS[w.kind];
     const name = clean(w.name) || def.label;
     const val = k => clean(w.fields[k]);
+    const sentence = t => (/[.!?]$/.test(t) ? t : `${t}.`);
     if (w.kind === 'secret') {
         const holder = val('holder');
-        if (w.status === 'out') return `${name}: ${val('secret')}${val('known') ? ` Known to: ${val('known')}.` : ''} This is out in the open.`;
-        if (w.show === 'full') return `${name}: ${val('secret')}${holder ? ` It is ${holder}'s secret.` : ''}${val('known') ? ` Known to: ${val('known')}.` : ''} It is still kept: it stays unsaid and unseen in the story until an order says it comes out.`;
+        if (w.status === 'out') return `${name}: ${sentence(val('secret'))}${val('known') ? ` Known to: ${val('known')}.` : ''} This is out in the open.`;
+        if (w.show === 'full') return `${name}: ${sentence(val('secret'))}${holder ? ` It is ${holder}'s secret.` : ''}${val('known') ? ` Known to: ${val('known')}.` : ''} It is still kept: it stays unsaid and unseen in the story until an order says it comes out.`;
         return val('shadow') || (holder ? `${holder} has a secret.` : `${name}: there is a secret here.`);
     }
     const keys = full ? def.fields.map(f => f.key) : def.short;
@@ -172,6 +176,8 @@ export function writeWorldEntry(data, w, id) {
     if (def.steps) ri.status = w.status || def.steps[0][0];
     if (w.kind === 'secret') ri.show = w.show === 'full' ? 'full' : 'shadow';
     if (w.auto) ri.auto = true;
+    if (w.locked) ri.locked = true;
+    if (w.at) ri.at = { chat: w.at.chat, n: w.at.n };
     keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
     entry.content = `[${def.label}] ${renderEntry({ ...w, show: w.kind === 'secret' ? w.show : 'shadow' })}`;
@@ -250,7 +256,7 @@ function recentText(type, lookback) {
 }
 
 /** Does this text name this entry? Whole words, any letter case. */
-function namedIn(text, w) {
+export function namedIn(text, w) {
     let score = 0;
     const hit = (n) => n.length >= 2 && new RegExp(`(?<![\\p{L}\\p{N}])${esc(n)}(?![\\p{L}\\p{N}])`, 'iu').test(text);
     if (hit(clean(w.name))) score += 10;

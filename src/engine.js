@@ -4,7 +4,9 @@ import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, parseJson, names, trigg
 import { request } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
-import { NOTES_WORLD, isNotes, notesForChat, notesEntry } from './world.js';
+import { NOTES_WORLD, isNotes, notesEntry } from './world.js';
+import { shownChanges } from './worldflow.js';
+import { ASK_WORLD, ORDER_WORLD, isAsk, isOrder, askEntry, orderEntry, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
@@ -42,7 +44,7 @@ function changed(what, id) {
 
 const keyOf = e => `${e.world}.${e.uid}`;
 /** The set an entry belongs to ('' when it is in no set in the list). A shared lorebook holds several sets. */
-const setOf = e => isGoal(e) ? GOAL_WORLD : isNotes(e) ? NOTES_WORLD : setOfEntry(e);
+const setOf = e => isGoal(e) ? GOAL_WORLD : isNotes(e) ? NOTES_WORLD : isAsk(e) ? ASK_WORLD : isOrder(e) ? ORDER_WORLD : setOfEntry(e);
 const isManaged = e => !!setOf(e);
 
 // ---------- sets that were moved ----------
@@ -210,8 +212,15 @@ async function onEntriesLoaded(lore) {
             }
         }
         const quiet = !!(gen && !gen.dryRun && gen.skip);
-        const notes = cs && Array.isArray(lore.chatLore) && !quiet ? await notesForChat(gen && !gen.dryRun ? gen.type : 'normal').catch((e) => { console.warn(LOG, 'story notes', e); return null; }) : null;
+        // The story world: its notes, the request for an update block, and now and then an order of its own.
+        const kind = gen && !gen.dryRun ? gen.type : 'normal';
+        if (kind === 'swipe' && cs) undoForSwipe();
+        await worldIdle();
+        const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
+        const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
+        if (flow?.ask) lore.chatLore.push(askEntry(flow.ask));
+        if (flow) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
             const g = goals();
@@ -231,6 +240,7 @@ async function onEntriesLoaded(lore) {
         }
         if (cs) applyTiming(arrays.flat().filter(isManaged), cs);
         plan.notes = notes;
+        plan.flow = flow;
     } catch (e) { console.error(LOG, 'entries-loaded', e); }
 }
 
@@ -271,6 +281,7 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
     if (extra?.noCheck) item.noCheck = true;
     if (extra?.notes) item.notes = extra.notes;
+    if (extra?.worldOrder) { item.worldOrder = extra.worldOrder; item.name = extra.worldOrder.label || item.name; }
     if (extra && 'goalTask' in extra) { item.goalTask = extra.goalTask; item.checkText = extra.checkText; }
     return item;
 }
@@ -337,7 +348,7 @@ function reconcile() {
     const rec = last && !last.is_user ? last.extra?.[KEY] : null;
     for (const it of rec?.items || []) {
         if (!['overdue', 'queued'].includes(it.status) || kept.some(o => o.key === canon(it.key))) continue;
-        kept.push({ key: canon(it.key), world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time, event: it.event, parts: it.parts });
+        kept.push({ key: canon(it.key), world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time, event: it.event, parts: it.parts, worldOrder: it.worldOrder });
     }
     if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
 }
@@ -415,6 +426,9 @@ function onScanDone(args) {
         // was for this same reply, and otherwise from the record kept on the reply itself.
         const sameReply = cs.lastScan && cs.lastScan.len === len;
         const own = type === 'continue' || (type === 'swipe' && !sameReply) ? lastRecord() : null;
+        // The request for the update block and the world's own order travel as entries made for this scan.
+        const askE = fired.find(isAsk) || null;
+        const orderE = fired.find(isOrder) || null;
         const isRepeat = type === 'continue' || (['swipe', 'regenerate'].includes(type) && !pickAgain && (sameReply || !!own));
 
         if (isRepeat) {
@@ -439,6 +453,7 @@ function onScanDone(args) {
                 }
                 items.push(makeItem(e, src.sentAs, src.version, misses, src.kind && src.kind !== 'repeat' ? src.kind : 'new', true, src));
             }
+            if (askE) map.set(keyOf(askE), askE);
         } else {
             pickAgain = false;
             // Burn after it happens: an instruction marked "only once per chat" that already happened is retired.
@@ -469,7 +484,7 @@ function onScanDone(args) {
             const g = goalE ? goals() : null;
             const gp = g ? goalProgress(type) : null;
             let goalOrder = g ? buildGoalOrder(g, gp) : null;
-            const orders = fired.filter(e => !isStyle(e) && !isGoal(e) && !isNotes(e));
+            const orders = fired.filter(e => !isStyle(e) && !isGoal(e) && !isNotes(e) && !isAsk(e) && !isOrder(e));
             const continuing = orders.filter(isSticky);
             let fresh = orders.filter(e => !isSticky(e));
             const overdue = cs.overdue.filter(o => find(o.key));
@@ -486,6 +501,10 @@ function onScanDone(args) {
             for (const e of held) map.delete(keyOf(e));
             fresh = fresh.filter(e => !held.includes(e));
 
+            // The story world's own order (a thread comes to a head, a planted detail matters) is one more new thing.
+            const orderKey = orderE ? keyOf(orderE) : '';
+            let worldNew = !!(orderE && plan.flow?.order && !overdue.some(o => o.key === orderKey) && !(overdue.length && st.check.holdNew));
+
             // One thing per reply: across every set and the goal, at most this many new things start in one reply.
             // Something already under way (kept for more replies, or sent again) uses up the room first.
             const cap = Math.max(0, Math.round(Number(st.perReply) || 0));
@@ -493,8 +512,9 @@ function onScanDone(args) {
                 const goalAgain = !!(goalOrder?.task && goalOrder.misses > 0);
                 const goalNew = !!(goalOrder?.task && !goalOrder.misses);
                 const room = Math.max(0, cap - continuing.length - overdue.length - (goalAgain ? 1 : 0));
-                const tickets = [...fresh.map(e => ({ e })), ...(goalNew ? [{ goal: true }] : [])];
+                const tickets = [...fresh.map(e => ({ e })), ...(goalNew ? [{ goal: true }] : []), ...(worldNew ? [{ world: true }] : [])];
                 const winners = pickWeighted(tickets, () => 1, room);
+                if (worldNew && !winners.some(w => w.world)) worldNew = false;
                 const waiting = fresh.filter(e => !winners.some(w => w.e === e));
                 for (const e of waiting) map.delete(keyOf(e));
                 fresh = fresh.filter(e => !waiting.includes(e));
@@ -503,6 +523,11 @@ function onScanDone(args) {
             if (goalE) {
                 if (!goalOrder) map.delete(keyOf(goalE));
                 else items.push(makeItem(goalE, 'system', goalOrder.version, goalOrder.misses, 'new', false, { noCheck: goalOrder.noCheck, goalTask: goalOrder.task, checkText: goalOrder.checkText }));
+            }
+
+            if (orderE) {
+                if (worldNew) items.push(makeItem(orderE, 'system', plan.flow.order.text, 0, 'new', false, { worldOrder: plan.flow.order.effect }));
+                else if (!overdue.some(o => o.key === orderKey)) map.delete(orderKey);
             }
 
             // Send overdue instructions again, ahead of new ones.
@@ -540,7 +565,8 @@ function onScanDone(args) {
 
         sayUserLineOnce(items);
         gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
-        cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
+        if (askE && map.has(keyOf(askE))) gen.result.texts.set(keyOf(askE), askE.content);
+        cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         pending = { items, type, states };
         rerollCat = null;
         saveChatState();
@@ -564,14 +590,22 @@ function attach(message, rec) {
 
 function onMessageReceived(id, type) {
     try {
+        // The update block is taken out of the reply first, so it is never shown, checked or sent back.
+        const parsed = settings().enabled ? liftBlock(id) : { found: false, ops: [], ended: false, block: '' };
         if (!pending || type === 'first_message') return;
         const m = ctx().chat?.[id];
         if (!m || m.is_user || m.is_system) return;
-        const rec = { v: 1, items: pending.items, type: pending.type, time: Date.now(), agency: null, checking: false, note: '' };
+        // A continued reply keeps the time of its record, so what its first part filed in the story world still belongs to it.
+        const earlier = pending.type === 'continue' && m.extra?.[KEY]?.update ? m.extra[KEY] : null;
+        const rec = { v: 1, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
+        // File what the reply established in the story world. With checking off, a world order counts as done when sent.
+        if (earlier) rec.update = earlier.update;
+        afterReply(id, rec, parsed, history('normal').next - 1, () => changed('checked', id));
+        if (settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
         if (!rec.items.length) return;
         for (const it of rec.items) {
             const tags = (it.parts || []).flatMap(p => p.rules || []);
@@ -605,7 +639,7 @@ function queueResend(cs, it, misses, from) {
     it.resend = misses;
     const key = canon(it.key);
     cs.overdue = cs.overdue.filter(o => o.key !== key);
-    cs.overdue.push({ key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from, event: it.event, parts: it.parts });
+    cs.overdue.push({ key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from, event: it.event, parts: it.parts, worldOrder: it.worldOrder });
 }
 
 function markMissed(cs, it, from) {
@@ -676,6 +710,7 @@ async function runCheck(id) {
         if (!r) return;
         if (r.done === true && quoteFound(reply, r.quote)) {
             it.status = 'done'; it.quote = String(r.quote).trim();
+            if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
             cs.overdue = cs.overdue.filter(o => !(o.key === canon(it.key) && (!o.from || o.from === rec.time)));
         } else if ('goalTask' in it) {
             // A one-time step of the character goal: it is sent again with every reply until it happens.
@@ -741,6 +776,8 @@ function onPromptReady(data) {
     try {
         if (!Array.isArray(data?.chat)) return;
         for (const msg of data.chat) {
+            // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
+            if (msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.includes('<story_update')) msg.content = stripUpdateBlock(msg.content);
             if (typeof msg.content === 'string' && msg.content.includes('<sent_instructions>')) msg.content = stripSentBlock(msg.content);
             else if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string' && part.text.includes('<sent_instructions>')) part.text = stripSentBlock(part.text);
         }
@@ -773,7 +810,7 @@ export function recentRecords(limit = 30) {
     const out = [];
     for (let i = chat.length - 1; i >= 0 && out.length < limit; i--) {
         const rec = chat[i]?.extra?.[KEY];
-        if (rec?.items?.length) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
+        if (rec?.items?.length || shownChanges(rec?.update?.changes).length) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
     }
     return out;
 }
@@ -887,13 +924,15 @@ export function init() {
     on('CHAT_CHANGED', () => {
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();
-        if (isChatOpen()) { applyPronouns(); if (settings().enabled) reconcile(); }
+        if (isChatOpen()) { applyPronouns(); if (settings().enabled) { reconcile(); syncWorld(); } }
         changed('chat');
         // Former keys of moved sets are read in the background, then this chat's state is brought in line.
         if (isChatOpen() && settings().enabled) refreshAliases().then(() => { const cs = chatState(); if (cs) { syncChat(cs); reconcile(); changed('messages'); } }).catch(e => console.warn(LOG, 'aliases', e));
     });
     for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
-    on('MESSAGE_DELETED', () => { if (settings().enabled) reconcile(); changed('messages'); });
+    // What a reply changed in the story world is undone when that reply is swiped away or deleted.
+    on('MESSAGE_SWIPED', () => { if (settings().enabled) syncWorld(() => changed('messages')); });
+    on('MESSAGE_DELETED', () => { if (settings().enabled) { reconcile(); syncWorld(() => changed('messages')); } changed('messages'); });
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);

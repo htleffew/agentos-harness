@@ -18,7 +18,14 @@ const DEFAULTS = {
     profileId: '',               // AI connection for writing and checking ('' = same as the chat)
     check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' },
     showUnder: 'off',            // 'off' | 'display' | 'saved'
-    world: { budget: 600, place: 'depth', depth: 4, lookback: 4 },   // story notes: room in tokens, where they go, how many messages are read for names
+    world: {
+        budget: 600, place: 'depth', depth: 4, lookback: 4,   // story notes: room in tokens, where they go, how many messages are read for names
+        update: 'all',        // keeping the world up to date from each reply: 'all' | 'auto' (only entries the extension added) | 'off'
+        build: 10,            // an open thread moves up one step after this many replies without movement (0 = never by itself)
+        head: 20,             // chance (%) each reply that something ready is ordered into the scene (0 = never)
+        minAge: 6,            // replies a planted detail or a thing going on elsewhere must wait before it can be ordered into the scene
+        bring: { thread: true, seed: true, activity: true, secret: false },   // what may be ordered into the scene
+    },
     writer: { count: 10, moreRoom: false, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },
     expanded: false,

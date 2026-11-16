@@ -56,6 +56,7 @@ function renderList(body, app) {
     const preview = h('div', {});
     body.appendChild(preview);
     body.appendChild(sendSettings(app));
+    body.appendChild(flowSettings(app));
 
     loadWorld(id).then((data) => {
         if (!data) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'The lorebook of this world could not be read. It may have been renamed or deleted.')); return; }
@@ -74,6 +75,7 @@ function renderList(body, app) {
                     def.steps ? chip(def.steps.find(s => s[0] === w.status)?.[1] || '', 'ri-chip-group') : null,
                     w.kind === 'secret' && w.status === 'kept' ? chip(w.show === 'full' ? 'The AI is shown the whole secret' : 'The AI is shown one line only') : null,
                     w.auto ? chip('Added automatically', 'ri-chip-wait') : null,
+                    w.locked ? chip('Kept as you wrote it', 'ri-chip-keep') : null,
                     w.aliases.length ? chip(`Also called: ${w.aliases.join(', ')}`) : null)));
             const tooMany = kind === 'activity' && mine.filter(w => w.on && w.status !== 'done').length > MAX_ACTIVITIES;
             out.push(section(`${def.plural} (${mine.length})`,
@@ -122,6 +124,34 @@ function sendSettings(app) {
             o.place === 'depth' ? field('How many messages up', '0 is the very end of the chat.', numberInput(o.depth, { min: 0, max: 20, unit: 'messages' }, (n) => { o.depth = n; save(); })) : null,
             field('Messages read for names', 'When the reply has no scene header or HUD, people named in this many recent messages count as present. Other entries named there are added while room is left.',
                 numberInput(o.lookback, { min: 1, max: 20, unit: 'messages' }, (n) => { o.lookback = n; save(); }))));
+}
+
+function flowSettings(app) {
+    const o = settings().world;
+    const save = () => { saveSettings(); app.render(); };
+    const onoff = (key, label, help) => field(label, help, select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], o.bring[key] ? 'on' : 'off', (v) => { o.bring[key] = v === 'on'; save(); }));
+    const UPDATE_HELP = {
+        all: 'With each reply the AI adds a short block that records what the reply made true. The extension takes the block out of the reply and files it here: new people, places, groups, threads, secrets and planted details are added, and what people want, plan and know is kept current. In entries you wrote, only those changing lines are touched. No extra AI request is made.',
+        auto: 'The same block is asked for. New entries are added, and only entries the extension added are changed. Entries you wrote stay exactly as written.',
+        off: 'No block is asked for and nothing is added or changed. You keep the world by hand.',
+    };
+    return section('Keeping the world up to date',
+        field('Keep the world up to date from each reply', UPDATE_HELP[o.update] || UPDATE_HELP.all,
+            select([{ value: 'all', label: 'On' }, { value: 'auto', label: 'On, and leave my own entries alone' }, { value: 'off', label: 'Off' }], o.update, (v) => { o.update = v; save(); })),
+        h('div', { class: 'ri-help' }, 'Everything filed this way is marked "Added automatically", listed in What Was Sent under the reply that caused it, written to the Log tab, and undone when that reply is swiped away or deleted. Saving an entry yourself makes it yours. An out-of-character message files nothing.'),
+        h('div', { class: 'ri-grid2' },
+            field('An open thread builds by itself after (replies)', 'A thread that has not moved for this many replies goes up one step, as far as "About to come to a head". 0 leaves the steps to the story and to you.',
+                numberInput(o.build, { min: 0, max: 200, unit: 'replies' }, (n) => { o.build = n; save(); })),
+            field('Chance that something ready is ordered into the scene (%)', 'Each reply has this chance that one thing below becomes an order for that reply. It counts as the one new thing per reply, and it is checked like any instruction. 0 turns this off.',
+                numberInput(o.head, { min: 0, max: 100, unit: '%' }, (n) => { o.head = n; save(); })),
+            field('Replies before a planted detail or a thing going on elsewhere can be ordered in', 'So that something new has time to sit before it matters.',
+                numberInput(o.minAge, { min: 0, max: 200, unit: 'replies' }, (n) => { o.minAge = n; save(); }))),
+        h('div', { class: 'ri-label' }, 'What can be ordered into the scene'),
+        h('div', { class: 'ri-grid2' },
+            onoff('thread', 'An open thread that is about to come to a head', 'The order: it comes to a head in this reply. When it happens the thread is marked "Happening now".'),
+            onoff('seed', 'A planted detail', 'The order: the detail matters in this reply. When it happens it is marked "Paid off".'),
+            onoff('activity', 'Something going on elsewhere', 'The order: it reaches the scene in this reply. When it happens it is marked "Finished".'),
+            onoff('secret', 'A kept secret of someone in the scene', 'The order: the secret comes out in this reply. When it happens it is marked "Out in the open". Off to start with, so secrets come out only when you or the story decide.')));
 }
 
 // ---------- one entry ----------
@@ -176,6 +206,11 @@ function renderEdit(body, app) {
                 select([{ value: 'shadow', label: 'One line only' }, { value: 'full', label: 'The whole secret, with an order to keep it' }], draft.show, (v) => { draft.show = v; dirty(); redraw(); })) : null));
     }
 
+    body.appendChild(section('Automatic updates',
+        draft.auto ? h('div', { class: 'ri-note' }, 'The extension added this entry from a reply. Saving it here makes it yours.') : null,
+        field('Let the extension keep this entry up to date', draft.locked ? 'Off: this entry stays exactly as you wrote it. It is also never ordered into the scene by itself.' : 'On: lines that change with the story (what a person wants, plans and knows; where a thread stands) are kept current from each reply.',
+            select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off: keep it as I wrote it' }], draft.locked ? 'off' : 'on', (v) => { draft.locked = v === 'off'; dirty(); redraw(); }))));
+
     const flags = entryFlags(draft, ui.others);
     body.appendChild(section('What the AI would receive for this entry',
         h('div', { class: 'ri-preview' }, `- ${renderEntry(draft)}`),
@@ -188,6 +223,7 @@ function renderEdit(body, app) {
             const data = await loadWorld(id);
             if (!data) throw new Error('The lorebook could not be read.');
             if (draft.isNew && data.entries[draft.uid]) draft.uid = newWorldEntry(data, draft.kind).uid;
+            draft.auto = false;   // saved by hand: it is yours now
             writeWorldEntry(data, draft, id);
             await saveWorld(id, data);
             toast('success', `${def.label} saved.`);

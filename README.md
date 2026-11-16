@@ -97,6 +97,36 @@ notes. This makes no AI request.
 - The tab shows who was read as present and exactly what would be sent with the next reply. What Was Sent shows the
   same for every reply, and lists anyone the scene named who has no entry yet.
 
+### The world keeps itself up to date (new in 5.3)
+
+With "Keep the world up to date from each reply" on (it is on to start with), each reply is asked to end with one
+short block that records what the reply made true. The extension takes the block out of the reply before it is
+shown, checked or sent back, and files it in the world. This makes no extra AI request.
+
+- **What gets filed.** New people, places and groups that have a name. What a person now wants, plans, knows,
+  believes, suspects and is wrong about. New open threads, threads that moved or were settled. New secrets and
+  secrets that came out. New planted details and ones that paid off. Things going on elsewhere.
+- **Names on file.** The request lists the names already on file, so the same person is not added twice. A name
+  that matches an entry, or another name of it, is never added again.
+- **Your own entries.** In an entry you wrote, only the lines that change with the story are kept current (wants,
+  plans, what they know, where a thread stands). Who a person is stays as you wrote it. "On, and leave my own
+  entries alone" changes only entries the extension added. Any entry can be set to "keep it as I wrote it".
+- **You can see and undo everything.** Entries added this way are marked "Added automatically". What Was Sent lists
+  what each reply changed, with **Undo these changes**. The Log tab has the block and each change in plain words.
+  Swiping a reply away or deleting it undoes what it filed, and swiping back files it again. Saving an automatic
+  entry yourself makes it yours, and it is then kept.
+- **Out of character.** A message that starts with OOC files nothing.
+
+The world also moves by itself:
+
+- **Open threads build.** A thread that has not moved for a number of replies (10 to start with) goes up one step,
+  as far as "About to come to a head".
+- **Something ready is ordered into the scene.** Each reply has a chance (20% to start with) that one ready thing
+  becomes an order for that reply: an open thread that is about to come to a head, a planted detail, something
+  going on elsewhere, or (off to start with) a kept secret of someone in the scene. The order counts as the one new
+  thing per reply and is checked like any instruction. When it happens, the entry moves on: the thread is
+  "Happening now", the detail is "Paid off", the secret is "Out in the open".
+
 A world is kept like any other set: inside the shared lorebook or in a lorebook of its own (Settings > Where your
 sets are kept). While the extension is on, world entries only ever go out inside the notes block, and only for the
 chat that uses that world. With the extension off they are ordinary lorebook entries, sent when their name appears,
@@ -288,5 +318,4 @@ run. See `tests/README.md`.
 ## Roadmap
 
 Version 5 is being built in steps. Done: one thing per reply and burn after it happens (5.0), one lorebook or many
-(5.1), a story world sent for who is present (5.2). Next: notes lifted from the reply and automatic entries
-(5.3), a built-in summary, New chapter and a starter world (5.4), pacing and style (5.5).
+(5.1), a story world sent for who is present (5.2), a world that keeps itself up to date (5.3). Next: a built-in summary, New chapter and a starter world (5.4), pacing and style (5.5).
