@@ -260,13 +260,32 @@ function reconcile() {
     if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
 }
 
+/** Give a later scan of the same reply the notes the first scan chose. */
+function reapply(result, args) {
+    if (!result) return;
+    const map = args.activated.entries;
+    const managed = managedWorlds();
+    const sorted = Array.isArray(args.sortedEntries) ? args.sortedEntries : [];
+    for (const e of [...map.values()]) { if (managed.has(e.world)) map.delete(keyOf(e)); }
+    for (const [key, text] of result.texts) {
+        const e = sorted.find(x => keyOf(x) === key && managed.has(x.world));
+        if (!e) continue;
+        e.content = text;
+        map.set(key, e);
+    }
+}
+
 function onScanDone(args) {
     try {
         const st = settings();
-        if (!st.enabled || !gen || gen.dryRun || gen.handled) return;
+        if (!st.enabled || !gen) return;
+        if (Date.now() - gen.started > 15 * 60 * 1000) { gen = null; return; } // a reply that never finished
         if (args?.state?.next) return; // more passes follow; work on the final result only
         const map = args?.activated?.entries;
         if (!(map instanceof Map)) return;
+        // SillyTavern can scan twice while one reply is being written (once for real, once to count tokens).
+        // The first scan decides what is sent. Any later scan gets exactly the same notes.
+        if (gen.handled) { reapply(gen.result, args); return; }
         gen.handled = true;
         const cs = chatState();
         if (!cs) return;
@@ -278,6 +297,7 @@ function onScanDone(args) {
 
         if (gen.skip) {
             for (const e of fired) map.delete(keyOf(e));
+            gen.result = { texts: new Map() };
             return;
         }
 
@@ -384,6 +404,7 @@ function onScanDone(args) {
         }
 
         sayUserLineOnce(items);
+        gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
         cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         pending = { items, type, states };
         rerollCat = null;
@@ -710,8 +731,11 @@ export function overdueList() {
 export function init() {
     const missing = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE'].filter(n => !on(n, n === 'WORLDINFO_SCAN_DONE' ? onScanDone : onEntriesLoaded));
     on('GENERATION_STARTED', (type, opts, dryRun) => {
-        gen = { type: String(type || 'normal'), dryRun: !!dryRun, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false };
-        if (!dryRun && !gen.skip) pending = null;
+        // A dry run (SillyTavern counting tokens for its prompt list) can start while a real reply is being written.
+        // It must leave the state of the real reply alone, so only real generations are tracked.
+        if (dryRun) return;
+        gen = { type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
+        if (!gen.skip) pending = null;
     });
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
         if (dryRun || !settings().enabled || !checkPromise) return;

@@ -125,6 +125,21 @@ const clearLog = (page) => page.evaluate(async (B) => (await import(`${B}/src/lo
         await page.evaluate(() => globalThis.SillyTavern.getContext().swipe.right()); await L.idle(page); await L.waitChecks(page);
         const req2 = L.chatRequests().slice(-1)[0];
         assert((L.text(req2).match(/theirs to write/g) || []).length === 1 && L.marks(req2).sort().join('') === 'A1B1C1', 'once: a swipe sends the same three notes with the line once');
+        // ----- SillyTavern counting tokens (a dry run) in the middle of a reply must not change what is sent
+        await page.evaluate(() => { const c = globalThis.SillyTavern.getContext(); globalThis.__dry = 0; c.eventSource.on(c.eventTypes.GENERATION_STARTED, (type, opts, dry) => { if (!dry) { globalThis.__dry++; c.generate('normal', {}, true).catch(() => {}); } }); });
+        let agree = 0, once = 0;
+        for (let i = 0; i < 5; i++) {
+            L.resetLog(); await L.send(page, 'Race ' + i); await L.waitChecks(page);
+            const rq = L.chatRequests().slice(-1)[0];
+            const sent = (L.text(rq).match(/\[System note: In this reply,[^\]]*\]/g) || []).sort().join('|');
+            const rec = (await L.records(page)).slice(-1)[0].rec;
+            const kept = (rec ? rec.items.map(x => x.text) : []).sort().join('|');
+            if (sent && sent === kept) agree++;
+            if ((L.text(rq).match(/theirs to write/g) || []).length === 1) once++;
+        }
+        const dry = await page.evaluate(() => globalThis.__dry);
+        console.log('dry runs started during replies:', dry, 'record equals request:', agree, 'of 5; line once:', once, 'of 5');
+        assert(dry >= 5 && agree === 5 && once === 5, 'dry run during a reply: the record on the reply is exactly what was sent, every time');
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 300));
     } finally { await browser.close(); }
 })().catch(e => { console.error('ERROR', e); process.exitCode = 1; });

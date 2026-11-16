@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.1.2 (2026-11-15)
+
+- Fixed: SillyTavern sometimes scans World Info a second time while a reply is being written, to count tokens for
+  its prompt list. With a large preset (found with Sola V6) that second scan could arrive first or replace the
+  state of the real reply. For that reply the extension stepped aside: lorebook entries went out as stored, with no
+  limits, no picked version, no record in What Was Sent, and the line about {{user}}'s words on every note.
+  Now only real generations are tracked, the first scan of a reply decides what is sent, and any later scan of the
+  same reply gets exactly the same notes.
+
 ## 4.1.1 (2026-11-15)
 
 - The line "{{user}}'s words, choices and thoughts are theirs to write." was added to every note, so a reply with
