@@ -90,7 +90,7 @@ export function goalDone(g, p) {
  * The goal order for the reply that is about to be written, or null when nothing is to be sent.
  * Returns { version, misses, task, checkText, noCheck }.
  */
-export function buildGoalOrder(g, p) {
+export function buildGoalOrder(g, p, opts = {}) {
     const goal = clean(g?.goal);
     if (!g?.on || !goal || goalDone(g, p)) return null;
     const checking = settings().check.mode !== 'off';
@@ -102,7 +102,7 @@ export function buildGoalOrder(g, p) {
     if (waiting) {
         task = { type: 'step', id: waiting.id, text: clean(waiting.text) };
         misses = Math.min(2, p.pending.misses + 1);
-    } else if (rollInt(100) < g.chance) {
+    } else if (!opts.noNewTask && rollInt(100) < g.chance) {
         const steps = g.steps.filter(s => s.on && !stepDone(s, p)).map(s => ({ type: 'step', id: s.id, text: clean(s.text) }));
         const actions = g.actions.filter(a => a.on).filter(a => { const l = p.lastSent.get(a.id); return !l || p.next - l.reply > l.wait; })
             .map(a => ({ type: 'action', id: a.id, text: clean(a.text), wait: g.waitMin + rollInt(g.waitMax - g.waitMin + 1) }));

@@ -150,6 +150,12 @@ can be set to start the next goal from that list.
 - **Swipes and regenerate** send the same instructions and versions again. Press **Pick again** in What Was
   Sent to roll fresh ones.
 - **Versions do not repeat** until every version of that instruction has been used once.
+- **One thing per reply.** By default only one new thing starts in a reply, counted across every instruction set,
+  every story event set and the goal task. Change the number in Settings; 0 turns it off. Writing style and the
+  goal line are always sent.
+- **Burn after it happens.** An instruction can be set to "Only once per chat". A list in a story event set can
+  "Retire an item once it has happened". Both are retired for that chat only, and come back if you delete the reply
+  where it happened.
 - **{{user}} never acts.** A version where {{user}} is the subject of the order, is made to speak or decide, or
   has their reply or thoughts written is marked "Check". It is a flag: in the AI review it starts unticked, you can
   tick it, and it saves. {{user}} as the place or the target ("the bridge under {{user}} must crack") is clean.

@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.0.0 (2026-11-15)
+
+Version 5, first step: one thing per reply, and burn after it happens.
+
+- One thing per reply. A new setting, "How many new things can start in one reply", counts across every
+  instruction set, every story event set and the goal task together. The default is 1. When more are ready, one is
+  picked at random and the others wait for a later reply. Something already under way (kept for more replies, or
+  sent again because it did not happen) uses up the room first. Writing style and the goal line are always sent,
+  because they are how the reply is written. 0 turns the cap off.
+- Only once per chat. A new choice on every instruction. Once it has happened in a chat it is retired and never sent
+  again in that chat. With checking on, it retires when the check finds it happened; with checking off, when it is
+  sent.
+- Retire an item once it has happened. A new choice on every list in a story event set. A used item never comes back
+  in that chat, and when a list is used up the event stops. New story event sets have it on for Situation and
+  Complication.
+- Both are worked out from the records on the replies that still exist, so deleting or branching away from the reply
+  where something happened makes it available again.
+
 ## 4.1.2 (2026-11-15)
 
 - Fixed: SillyTavern sometimes scans World Info a second time while a reply is being written, to count tokens for

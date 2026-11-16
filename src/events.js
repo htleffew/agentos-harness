@@ -13,15 +13,15 @@ let counter = 0;
 export const newId = () => `${Date.now().toString(36)}${(counter++).toString(36)}${rollInt(1296).toString(36)}`;
 
 export function newCategory(name, items = [], extra = {}) {
-    return { id: newId(), name, on: true, mode: 'new', fixed: '', keepMin: 2, keepMax: 4, count: 1, useAll: true, itemWait: 0, neverTags: '', driver: false,
+    return { id: newId(), name, on: true, mode: 'new', fixed: '', keepMin: 2, keepMax: 4, count: 1, useAll: true, itemWait: 0, burn: false, neverTags: '', driver: false,
         chance: 100, restAfter: 0, changeChance: 100, after: '', hint: '', locked: false,
         items: items.map(x => Array.isArray(x) ? { id: newId(), text: x[0], on: true, weight: 1, tags: x[1] || '', always: false } : { id: newId(), text: x, on: true, weight: 1, tags: '', always: false }), ...extra };
 }
 
 export function defaultCategories() {
     return [
-        newCategory('Situation'),
-        newCategory('Complication'),
+        newCategory('Situation', [], { burn: true }),
+        newCategory('Complication', [], { burn: true }),
         newCategory('Who drives it', ['{{char}}', 'any character other than {{user}}, one already in the story or a new arrival', 'any female character other than {{user}}, one already in the story or a new arrival', 'any male character other than {{user}}, one already in the story or a new arrival', 'the surroundings: weather, a place, an object, an animal or a crowd'], { driver: true }),
         newCategory('Tone'),
     ];
@@ -68,6 +68,7 @@ function normalCategory(c) {
     const out = { ...base, ...c, id: String(c?.id || base.id) };
     out.items = (Array.isArray(c?.items) ? c.items : []).map(it => ({ id: String(it?.id || newId()), text: String(it?.text ?? ''), on: it?.on !== false, weight: Math.max(1, Math.round(Number(it?.weight) || 1)), tags: String(it?.tags || ''), always: !!it?.always })).filter(it => it.text.trim());
     out.count = Math.max(1, Math.min(5, Math.round(Number(out.count) || 1)));
+    out.burn = !!out.burn;
     out.keepMin = Math.max(1, Math.round(Number(out.keepMin) || 1));
     out.keepMax = Math.max(out.keepMin, Math.round(Number(out.keepMax) || out.keepMin));
     out.itemWait = Math.max(0, Math.round(Number(out.itemWait) || 0));
@@ -165,7 +166,7 @@ export function writeEvent(data, ev) {
 
 // ---------- saved category settings ----------
 
-const SETTING_KEYS = ['on', 'mode', 'fixed', 'keepMin', 'keepMax', 'count', 'useAll', 'itemWait', 'neverTags', 'chance', 'restAfter', 'changeChance'];
+const SETTING_KEYS = ['on', 'mode', 'fixed', 'keepMin', 'keepMax', 'count', 'useAll', 'itemWait', 'burn', 'neverTags', 'chance', 'restAfter', 'changeChance'];
 
 /** The settings (not the items) of every category, to save under a name. */
 export function snapshotSettings(categories) {
@@ -218,6 +219,8 @@ export function rollEvent(ri, prev, opts = {}) {
     const pairs = pairList(ri?.neverTogether);
     const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory).filter(c => c.on && usable(c).length);
     const chosen = new Set(); // tags of everything picked so far in this roll
+    const burned = opts.burned instanceof Set ? opts.burned : new Set(); // items that already happened in this chat
+    let spent = false;        // a list that retires its items has none left
     const note = (byId, ids) => { for (const id of ids) for (const t of tagList(byId.get(id).tags)) chosen.add(t); };
 
     // First, the categories that keep the pick they already have.
@@ -251,7 +254,8 @@ export function rollEvent(ri, prev, opts = {}) {
                 if (Number(old.rest) > 0) { idle(Number(old.rest) - 1); continue; }
                 if (cat.chance < 100 && rollInt(100) >= cat.chance) { idle(0); continue; }
             }
-            const allowed = pool.filter(it => !clash(tagList(it.tags), chosen, pairs));
+            const allowed = pool.filter(it => !clash(tagList(it.tags), chosen, pairs) && !(cat.burn && burned.has(it.id)));
+            if (cat.burn && !allowed.length && pool.some(it => burned.has(it.id))) { spent = true; idle(0); continue; }
             picks = allowed.filter(it => it.always).slice(0, cat.count).map(it => it.id);
             const need = cat.count - picks.length;
             if (need > 0) {
@@ -278,7 +282,7 @@ export function rollEvent(ri, prev, opts = {}) {
         parts.push({ name: cat.name, items: picks.map(id => byId.get(id).text), after: cat.after, catId: cat.id, ids: picks, ...(rules.length ? { rules } : {}) });
     }
     if (ri?.type === 'style') return { text: parts.length ? sentenceFor('style', parts) : null, parts, state };
-    if (!parts.length) return null;
+    if (!parts.length || spent) return null; // a used-up list means this event has nothing new left to offer
     return { text: sentenceFor('event', parts), parts, state };
 }
 

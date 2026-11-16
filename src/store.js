@@ -12,6 +12,7 @@ export const PRONOUN_LABELS = { she: 'she / her', he: 'he / him', they: 'they / 
 
 const DEFAULTS = {
     enabled: true,
+    perReply: 1,                 // how many new things may start in one reply, across every set and the goal (0 = no cap)
     sets: {},                    // lorebook name -> { limit: 'none' | 'one' | 'together' | 'max', max: 2 }
     profileId: '',               // AI connection for writing and checking ('' = same as the chat)
     check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' },

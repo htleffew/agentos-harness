@@ -78,6 +78,7 @@ export function renderEditor(body, app) {
         h('div', { class: 'ri-grid2' },
             field('Only-one group', 'Instructions with the same group name compete: only one of them is sent per reply. Leave empty for no group.', textInput(draft.group, (v) => { draft.group = v; dirty(); }, { placeholder: 'No group' })),
             field('Weight in its Only-one group', 'A higher number wins more often. 100 is normal.', numberInput(draft.weight, { min: 1, max: 1000, unit: '' }, (n) => { draft.weight = n; dirty(); })),
+            field('Only once per chat', 'On: once this has happened in a chat, it is retired and never sent again in that chat. With checking on, it retires when the check finds it happened. With checking off, it retires when it is sent.', select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], draft.once ? 'yes' : 'no', (v) => { draft.once = v === 'yes'; dirty(); })),
             field('Send-together group', 'Used when the set is limited to "One Send-together group per reply". Instructions with the same name can go out together.', textInput(draft.sendTogether, (v) => { draft.sendTogether = v; dirty(); }, { placeholder: 'No group' })))));
 
     // ----- What it sends -----

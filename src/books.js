@@ -183,6 +183,7 @@ export function readInstruction(entry) {
         group: String(entry.group || ''),
         weight: Number(entry.groupWeight ?? 100) || 100,
         sendTogether: String(saved?.sendTogether || ''),
+        once: !!saved?.once,
         sentAs,
         position: Number(entry.position ?? 0),
         depth: Number(entry.depth ?? 1),
@@ -218,7 +219,7 @@ export function newInstruction(data) {
     const uid = uids.length ? Math.max(...uids) + 1 : 0;
     return {
         uid, name: `Instruction ${uids.length + 1}`, on: true, when: 'always', words: '', pattern: '',
-        chance: 10, keep: 0, wait: 5, notBefore: 0, group: '', weight: 100, sendTogether: '',
+        chance: 10, keep: 0, wait: 5, notBefore: 0, group: '', weight: 100, sendTogether: '', once: false,
         sentAs: 'system', position: 4, depth: 1, actor: 'char', target: 'user', versions: [], notes: '',
         order: 100, managed: true, isNew: true,
     };
@@ -258,6 +259,7 @@ export function writeInstruction(data, ins) {
         actor: ins.actor,
         target: ins.target,
         sendTogether: ins.sendTogether.trim(),
+        once: !!ins.once,
         notes: ins.notes,
         versions: ins.versions.map(v => ({ text: String(v.text).trim(), keep: !!v.keep })).filter(v => v.text),
     };

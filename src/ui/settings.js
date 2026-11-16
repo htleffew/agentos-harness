@@ -30,6 +30,10 @@ export function renderSettings(body, app) {
         field('Give the AI more room to answer', 'Turn this on for models that think before they answer (DeepSeek, GLM, Kimi and others). Without it, the thinking can use up the room and the answer comes back empty. It turns itself on when an empty answer is fixed by a second try with more room.',
             select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
 
+    body.appendChild(section('One thing per reply',
+        field('How many new things can start in one reply', 'Counted across every instruction set, every story event set and the goal task together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
+            numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
+
     body.appendChild(section('Check that it happened',
         field('Check each reply that was sent an instruction', 'On: after the reply, one short AI request checks whether each instruction happened, and finds the words that show it. Off: nothing is checked or sent again.',
             select([{ value: 'full', label: 'On' }, { value: 'off', label: 'Off' }], st.check.mode, (v) => { st.check.mode = v; save(); app.render(); })),
@@ -63,6 +67,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 4.1.2. Version 4: Random Instructions, Random Story Events, Random Writing Style and Character Goals. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.0.0. Version 5 (in progress): Random Instructions, Random Story Events, Random Writing Style and Character Goals. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Instruction sets are ordinary lorebooks. With this extension off, a set still works if you turn the lorebook on in World Info, without limits, checking or the What Was Sent record.')));
 }

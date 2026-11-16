@@ -260,6 +260,30 @@ function reconcile() {
     if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
 }
 
+/**
+ * What has already happened in this chat, read from the records on the replies that still exist.
+ * keys: instructions and events that happened. ids: for each story event set, the list items that were used.
+ * With the check on, "happened" means the check found it. With the check off, it means it was sent.
+ */
+function happened() {
+    const keys = new Set();
+    const ids = new Map();
+    const checkOff = settings().check.mode === 'off';
+    for (const m of ctx().chat || []) {
+        for (const it of m?.extra?.[KEY]?.items || []) {
+            const did = it.status === 'done' || ((checkOff || it.noCheck) && it.status === 'sent');
+            if (!did) continue;
+            keys.add(it.key);
+            if (Array.isArray(it.parts)) {
+                const set = ids.get(it.key) || new Set();
+                for (const p of it.parts) for (const id of p.ids || []) set.add(id);
+                ids.set(it.key, set);
+            }
+        }
+    }
+    return { keys, ids };
+}
+
 /** Give a later scan of the same reply the notes the first scan chose. */
 function reapply(result, args) {
     if (!result) return;
@@ -336,6 +360,11 @@ function onScanDone(args) {
             }
         } else {
             pickAgain = false;
+            // Burn after it happens: an instruction marked "only once per chat" that already happened is retired.
+            const was = happened();
+            for (const e of [...fired]) {
+                if (e.extensions?.ri?.once && !isStyle(e) && !isGoal(e) && was.keys.has(keyOf(e))) { map.delete(keyOf(e)); fired.splice(fired.indexOf(e), 1); }
+            }
             // Writing style is sent with every reply and stands apart from limits, holds and re-sends.
             const styles = fired.filter(isStyle);
             for (const e of styles) {
@@ -347,12 +376,11 @@ function onScanDone(args) {
                 items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', rolled.text, 0, 'new', false, { parts: rolled.parts, noCheck: true }));
             }
             // The character goal also stands apart: the goal line goes with every reply, and it has at most one task.
-            for (const e of fired.filter(isGoal)) {
-                const g = goals();
-                const order = g ? buildGoalOrder(g, goalProgress(type)) : null;
-                if (!order) { map.delete(keyOf(e)); continue; }
-                items.push(makeItem(e, 'system', order.version, order.misses, 'new', false, { noCheck: order.noCheck, goalTask: order.task, checkText: order.checkText }));
-            }
+            // Its order is worked out here and added below, once the cap on new things per reply is known.
+            const goalE = fired.find(isGoal) || null;
+            const g = goalE ? goals() : null;
+            const gp = g ? goalProgress(type) : null;
+            let goalOrder = g ? buildGoalOrder(g, gp) : null;
             const orders = fired.filter(e => !isStyle(e) && !isGoal(e));
             const continuing = orders.filter(isSticky);
             let fresh = orders.filter(e => !isSticky(e));
@@ -369,6 +397,25 @@ function onScanDone(args) {
             }
             for (const e of held) map.delete(keyOf(e));
             fresh = fresh.filter(e => !held.includes(e));
+
+            // One thing per reply: across every set and the goal, at most this many new things start in one reply.
+            // Something already under way (kept for more replies, or sent again) uses up the room first.
+            const cap = Math.max(0, Math.round(Number(st.perReply) || 0));
+            if (cap > 0) {
+                const goalAgain = !!(goalOrder?.task && goalOrder.misses > 0);
+                const goalNew = !!(goalOrder?.task && !goalOrder.misses);
+                const room = Math.max(0, cap - continuing.length - overdue.length - (goalAgain ? 1 : 0));
+                const tickets = [...fresh.map(e => ({ e })), ...(goalNew ? [{ goal: true }] : [])];
+                const winners = pickWeighted(tickets, () => 1, room);
+                const waiting = fresh.filter(e => !winners.some(w => w.e === e));
+                for (const e of waiting) map.delete(keyOf(e));
+                fresh = fresh.filter(e => !waiting.includes(e));
+                if (goalNew && !winners.some(w => w.goal)) goalOrder = buildGoalOrder(g, gp, { noNewTask: true });
+            }
+            if (goalE) {
+                if (!goalOrder) map.delete(keyOf(goalE));
+                else items.push(makeItem(goalE, 'system', goalOrder.version, goalOrder.misses, 'new', false, { noCheck: goalOrder.noCheck, goalTask: goalOrder.task, checkText: goalOrder.checkText }));
+            }
 
             // Send overdue instructions again, ahead of new ones.
             const resent = new Set();
@@ -390,7 +437,7 @@ function onScanDone(args) {
                     const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
-                    const rolled = rollEvent(withPreset(ri, cs.presets?.[e.world]), prev, { locks: cs.locks?.[key] });
+                    const rolled = rollEvent(withPreset(ri, cs.presets?.[e.world]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key) });
                     if (!rolled) { map.delete(key); continue; }
                     items.push(makeItem(e, sentAs, rolled.text, 0, 'new', false, { event: rolled.state, parts: rolled.parts }));
                     continue;
