@@ -7,7 +7,7 @@
 import { ctx, KEY, LOG, names, isReply } from './st.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
-import { rollInt, pickWeighted } from './books.js';
+import { rollInt, pickWeighted, setInfo, entriesOf, createSet, knownSets } from './books.js';
 import { worldOffers, rememberStory } from './pacing.js';
 import { showAgain } from './hide.js';
 import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, buildNotes } from './world.js';
@@ -527,7 +527,84 @@ async function syncNow() {
         addLog({ what: 'Story world update', ok: true, result: `${undone ? `${undone} ${undone === 1 ? 'change was' : 'changes were'} undone because the reply that made ${undone === 1 ? 'it' : 'them'} is no longer in the chat. ` : ''}${redone ? `${redone} ${redone === 1 ? 'change was' : 'changes were'} made again because that reply is back.` : ''}`.trim(), details: [], got: '' });
     }
 }
-export const syncWorld = (onDone) => enqueue(async () => { await syncNow(); onDone?.(); });
+export const syncWorld = (onDone) => enqueue(async () => { await ownWorld().catch(e => console.warn(LOG, 'branch world', e)); await syncNow(); onDone?.(); });
+
+// ---------- a branch gets its own copy of the story world ----------
+
+/** What makes this chat this chat: SillyTavern gives every new chat and every branch its own integrity mark. */
+const chatMark = () => String(ctx().chatMetadata?.integrity || ctx().getCurrentChatId?.() || '');
+
+/** Mark the open chat as the owner of the world it uses now (a new chat, a chat that picked a world, a new chapter). */
+export function claimWorld() {
+    const cs = chatState();
+    if (!cs) return;
+    cs.worldOwner = chatMark();
+    saveChatState();
+}
+
+/** Every record of a message, on the message and on each of its swipes. */
+function allRecords() {
+    const out = [];
+    for (const m of ctx().chat || []) {
+        if (m?.extra?.[KEY]) out.push(m.extra[KEY]);
+        for (const s of m?.swipe_info || []) if (s?.extra?.[KEY] && s.extra[KEY] !== m.extra?.[KEY]) out.push(s.extra[KEY]);
+    }
+    return out;
+}
+
+/**
+ * A branch starts with the records and the world of the chat it came from. The first time it is opened, it gets a
+ * copy of that world, and its records are pointed at the copy, so what happens in the branch stays in the branch.
+ */
+async function ownWorld() {
+    const cs = chatState();
+    if (!cs) return;
+    const mark = chatMark();
+    if (!mark) return;
+    if (!cs.world || !cs.worldOwner) { if (cs.worldOwner !== mark) { cs.worldOwner = mark; saveChatState(); } return; }
+    if (cs.worldOwner === mark) return;
+    if (settings().world.copyOnBranch === false) { cs.worldOwner = mark; saveChatState(); return; }
+    const from = cs.world;
+    const info = setInfo(from);
+    const data = await loadWorld(from).catch(() => null);
+    if (!data) { cs.worldOwner = mark; saveChatState(); return; }
+    // Copy every entry, marked with the uid it had, so the records can be pointed at the copies.
+    const copy = { entries: {} };
+    let i = 0;
+    for (const e of entriesOf(data, from)) {
+        const c = JSON.parse(JSON.stringify(e));
+        c.uid = i; c.displayIndex = i;
+        c.extensions = { ...(c.extensions || {}), ri: { ...(c.extensions?.ri || {}), copyOf: e.uid } };
+        copy.entries[i++] = c;
+    }
+    const taken = new Set(knownSets('world').map(id => setInfo(id).name));
+    let name = `${info.name} (branch)`;
+    for (let n = 2; taken.has(name); n++) name = `${info.name} (branch ${n})`;
+    const to = await createSet(name, 'world', copy, info.shared ? info.book : '');
+    const made = await loadWorld(to);
+    const uids = {};
+    for (const e of entriesOf(made, to)) {
+        const was = e.extensions?.ri?.copyOf;
+        if (was !== undefined) { uids[String(was)] = e.uid; delete e.extensions.ri.copyOf; }
+    }
+    await saveWorld(to, made);
+    // The records of this branch now point at the copy.
+    let moved = 0;
+    for (const rec of allRecords()) {
+        if (rec.update?.world !== from) continue;
+        rec.update.world = to;
+        for (const c of rec.update.changes || []) if (c && uids[String(c.uid)] !== undefined) c.uid = uids[String(c.uid)];
+        moved++;
+    }
+    for (const rec of allRecords()) for (const it of rec.items || []) if (it.worldOrder && uids[String(it.worldOrder.uid)] !== undefined) it.worldOrder.uid = uids[String(it.worldOrder.uid)];
+    cs.world = to;
+    cs.worldFrom = from;
+    cs.worldOwner = mark;
+    cs.worldLog = null;   // rebuilt from the records, which now name the copy
+    saveChatState();
+    try { await ctx().saveChat?.(); } catch { /* saved with the next change */ }
+    addLog({ what: 'Story world for a branch', ok: true, result: `This chat is a branch, so it got its own copy of the story world "${info.name}", named "${name}", with ${Object.keys(uids).length} entries. What happens in this branch now changes the copy, and the chat it came from keeps the original. ${moved} replies were pointed at the copy.` });
+}
 
 /**
  * A new reply is about to replace the newest one (a swipe). What that reply and its earlier swipes filed is undone

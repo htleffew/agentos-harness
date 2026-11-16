@@ -26,6 +26,7 @@ Setup used for 1.0.0:
 | `t_extras.js` | Never together, linger chance, saved settings per chat, Pick again / Lock / Keep on one item, rule checks |
 | `t_context.js` | What the AI writer is shown (card, scenario, persona, summary, recent messages); who-does-it choices |
 | `t_goals.js` | Character goals: steps in any order, action waits, re-sends that never give up, swipe, delete, the panel |
+| `t_branch.js` | 5.9: a branch gets its own copy of the story world (own lorebook and shared lorebook); what the branch files and undoes stays in the copy; no second copy; the setting off; a new chapter is not copied |
 | `t_anywhere.js` | 5.8: the AI writer's rules for each kind of story event list; the current scene left out; the line in the event order; the stakes list; the works-anywhere mark; the rewrite; the panel |
 | `t_dice.js` | 5.7: dice and stats in code; lists that retire their items running out at different times; the used-up notice and bringing items back; where an event comes from; hiding what a chapter covers and showing it again; counting the messages in the finished prompt; the new chapter button in What Was Sent |
 | `t_close.js` | 5.6: replies still counted when older messages are hidden; what the AI is sent from the chat; notes on "who does it" and "who it happens to"; versions checked against who does it; the story so far for the AI writer |

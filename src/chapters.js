@@ -332,6 +332,9 @@ export async function startNewChapter(draft, burnedSoFar) {
     if (chatId() === oldChat) throw new Error('The new chat did not open. The chat you are in is unchanged.');
     const ncs = chatState();
     for (const [k, v] of Object.entries(carry)) if (v !== undefined) ncs[k] = v;
+    // The new chat shares the world on purpose, so it is its owner and is never copied as a branch.
+    ncs.worldOwner = String(ctx().chatMetadata?.integrity || chatId());
+    delete ncs.worldFrom;
     // With no story world, the summary travels in the new chat itself and is sent with every reply.
     if (!wid) ncs.carried = summary;
     saveChatState();

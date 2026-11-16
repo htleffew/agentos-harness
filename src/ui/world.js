@@ -30,6 +30,7 @@ function worldPicker(app) {
         field('World used by this chat', id ? '' : 'Choose a world, or make a new one for this story.',
             select(options, id, (v) => { setChatWorld(v); go(app, { view: 'list' }); })),
         id ? keptIn(id) : null,
+        id && chatState()?.worldFrom && knownWorlds().includes(chatState().worldFrom) && chatState().worldFrom !== id ? h('div', { class: 'ri-note' }, `This chat is a branch, so it uses its own copy of "${setName(chatState().worldFrom)}". What happens here changes only the copy. To share the original world with the chat this came from, choose "${setName(chatState().worldFrom)}" above. Replies written before that keep pointing at the copy.`) : null,
         h('div', { class: 'ri-row' }, button('Make a new story world', async () => {
             const name = await inputBox('Name for the new story world:', `${names().char}'s story`);
             if (!name) return;
@@ -262,6 +263,8 @@ function flowSettings(app) {
     return section('Keeping the world up to date',
         field('Keep the world up to date from each reply', UPDATE_HELP[o.update] || UPDATE_HELP.all,
             select([{ value: 'all', label: 'On' }, { value: 'auto', label: 'On, and leave my own entries alone' }, { value: 'off', label: 'Off' }], o.update, (v) => { o.update = v; save(); })),
+        field('A branch gets its own copy of the world', o.copyOnBranch !== false ? 'On: the first time a branch is opened, it gets a copy of the story world, named after it with "(branch)". What happens in the branch changes the copy, and the chat it came from keeps the original. Swipes and deletes in the branch undo changes in the copy only.' : 'Off: a branch and the chat it came from use the same world, so what one files is seen by the other.',
+            select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], o.copyOnBranch !== false ? 'on' : 'off', (v) => { o.copyOnBranch = v === 'on'; save(); })),
         h('div', { class: 'ri-help' }, 'Everything filed this way is marked "Added automatically", listed in What Was Sent under the reply that caused it, written to the Log tab, and undone when that reply is swiped away or deleted. Saving an entry yourself makes it yours. An out-of-character message files nothing.'),
         h('div', { class: 'ri-grid2' },
             field('An open thread builds by itself after (replies)', 'A thread that has not moved for this many replies goes up one step, as far as "About to come to a head". 0 leaves the steps to the story and to you.',

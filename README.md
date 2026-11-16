@@ -324,7 +324,7 @@ first message in place of the greeting. It brings along the story world, the set
 steps already done, the pronouns, locked picks, and what has already happened for good. The summary is kept in the
 world as "The story before this chat" and sent with every reply. With no story world, the summary is kept in the
 new chat itself and sent the same way. The chat you were in stays exactly as it was. Both chats use the same world,
-so the world shows the story as it stands now.
+so the world shows the story as it stands now. A new chapter is never copied the way a branch is.
 
 ## Pacing
 
@@ -454,7 +454,7 @@ The record of what was sent lives on each reply, so it follows the reply whereve
 | Edit an older message | Nothing changes. Old replies are never re-checked on their own, and a chapter that covers the message keeps what it says. Change the chapter in the Story World tab if it matters. |
 | Delete messages | Their records go with them. Anything waiting to be sent again because of a deleted reply is dropped, timers started by deleted replies are cleared, and what those replies filed in the story world is undone. |
 | Swipe or regenerate the newest reply | The same instructions and versions are sent again. What the swiped-away reply filed in the story world is undone. |
-| Branch a chat | The branch keeps which sets are on, your pronouns, the goal, the story world it uses, and the records up to the branch point. Chapters written before the branch point are the branch's chapters too, and messages hidden by them stay hidden. The original chat is untouched. Both chats use the same story world, so what one of them files later is seen by the other. |
+| Branch a chat | The branch keeps which sets are on, your pronouns, the goal, the story world it uses, and the records up to the branch point. Chapters written before the branch point are the branch's chapters too, and messages hidden by them stay hidden. The first time the branch is opened it gets its own copy of the story world, named "(branch)" and kept where the original is, so what happens in the branch changes only the copy. The original chat and its world are untouched. "A branch gets its own copy of the world" in the Story World tab turns this off. |
 
 ## Where things are stored
 

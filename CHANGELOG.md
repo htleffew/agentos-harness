@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.9.0 (2026-11-16)
+
+- A branch gets its own copy of the story world the first time it is opened, named "(branch)" and kept where the
+  original is. Its records are pointed at the copy, so what the branch files, and what swipes and deletes in the
+  branch undo, changes only the copy. The chat it came from keeps the original. A setting turns this off. A new
+  chapter in a new chat still shares the world on purpose.
+
 ## 5.8.0 (2026-11-16)
 
 - Story events that work wherever the scene is: the AI writer gets rules and examples for each kind of list

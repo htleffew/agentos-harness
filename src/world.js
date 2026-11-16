@@ -125,6 +125,8 @@ export function chatWorld() {
 }
 
 export function setChatWorld(id) {
+    // The chat that picks a world is the owner of it, so it is not copied later as if this were a branch.
+    try { const c = ctx(); const cs0 = chatState(); if (cs0) cs0.worldOwner = String(c.chatMetadata?.integrity || c.getCurrentChatId?.() || ''); } catch { /* only a mark */ }
     const cs = chatState();
     if (!cs) return;
     cs.world = id || '';
