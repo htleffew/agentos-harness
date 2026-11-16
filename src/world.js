@@ -7,6 +7,7 @@ import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { blankEntry, entriesOf, freeUid, keepTags, loadSet, saveSet, canonSet, setInfo, knownSets } from './books.js';
 import { contextText, STORY_LEAD } from './writer.js';
+import { wordFlag, writerRules } from './pacing.js';
 
 export const NOTES_WORLD = 'Roleplay Instructions story notes';
 export const isNotes = e => e?.world === NOTES_WORLD;
@@ -224,6 +225,7 @@ export function entryFlags(w, others = []) {
     const size = Math.round(renderEntry(w).length / 4);
     if (size > 220 && w.kind !== 'chapter') warns.push(`This entry is about ${size} tokens. Long entries use up the room for story notes quickly.`);
     if (w.kind === 'secret' && clean(w.fields.secret) && !clean(w.fields.holder)) warns.push('Say whose secret it is, so it can be sent when that person is in the scene.');
+    if (w.kind !== 'chapter') { const hit = wordFlag(def.fields.map(f => w.fields[f.key]).join(' \n ')); if (hit) warns.push(hit); }
     return { blocks, checks, warns };
 }
 
@@ -463,6 +465,7 @@ export async function writeWorldEntryWithAI({ kind, about, context, existing = [
     ];
     if (existing.length) lines.push('', `Entries that already exist (write a different one): ${existing.slice(0, 40).join(', ')}`);
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD.replace(', and still use the placeholders for names', ''), story); }
+    lines.push('', ...writerRules());
     lines.push('', `Return only a JSON object with the keys "name", "aliases", ${keys.map(k => `"${k}"`).join(', ')}.`);
     const res = await request({ what: `Write a ${def.label.toLowerCase()} entry`, system: 'You keep the story notes of a roleplay. You answer with JSON only.', user: lines.join('\n'), tokens: 900, profileId: settings().profileId });
     const answer = String(res.text);

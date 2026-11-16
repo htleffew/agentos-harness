@@ -1,5 +1,6 @@
 // Checks on the text of a version before it is saved.
 import { names, regexScripts } from './st.js';
+import { wordFlag } from './pacing.js';
 
 const USER = '\\{\\{user(?:\\.[Tt]hey)?\\}\\}';
 // Words that make {{user}} the one acting when {{user}} is the subject of the order.
@@ -94,5 +95,6 @@ export function validateVersion(text) {
         }
     }
     warns.push(...wordingHits(s), ...regexHits(s));
+    { const w = wordFlag(s); if (w) warns.push(w); }
     return { blocks, checks, warns };
 }

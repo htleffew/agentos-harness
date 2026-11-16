@@ -9,6 +9,7 @@ import { validateVersion, swapNames, userDrives } from '../validate.js';
 import { writeItems } from '../writer.js';
 import { toast, confirmBox, inputBox, sub } from '../st.js';
 import { contextField } from './context.js';
+import { NEEDS } from '../pacing.js';
 
 const EVENTS = {
     kind: 'events', type: 'event', route: 'eroute', make: newEvent, tick: 'events', set: 'story event set', sets: 'story event sets', Set: 'Story event set',
@@ -149,22 +150,48 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     cat.items.forEach((it, i) => {
         const flags = itemFlags(cat, it.text);
         if (ui.editing === it.id) {
-            let value = it.text;
-            const box = textInput(value, (v) => { value = v; });
-            list.appendChild(h('div', { class: 'ri-version ri-version-editing' }, box, h('div', { class: 'ri-row ri-row-tight' },
-                button('Done', () => { if (value.trim()) { it.text = value.trim(); dirty(); } ui.editing = ''; redraw(); }, { kind: 'primary' }),
-                button('Cancel', () => { ui.editing = ''; redraw(); }, { kind: 'ghost' }))));
+            // The edit works on a copy, so Cancel leaves the item as it was.
+            const e = ui.edit && ui.edit.id === it.id ? ui.edit : (ui.edit = { id: it.id, text: it.text, need: it.need || '', min: it.min || 0, dEvent: it.dEvent || '', dCheck: it.dCheck || '', dNext: it.dNext || '' });
+            const box = textInput(e.text, (v) => { e.text = v; });
+            const more = cfg.kind === 'style' ? [
+                h('div', { class: 'ri-label' }, 'While this item is the pick (all three are optional)'),
+                field('Added to every story event', 'One sentence that says how events are to go while this style is in use. Example for a tense style: "The event starts with no warning."', textInput(e.dEvent, (v) => { e.dEvent = v; }, { placeholder: 'Nothing is added' })),
+                field('Question asked about the reply', 'Asked when the reply is checked anyway, and shown in What Was Sent. It makes no extra AI request, so it is skipped when nothing else is checked. Example: "Does the reply end on something happening?"', textInput(e.dCheck, (v) => { e.dCheck = v; }, { placeholder: 'No question' })),
+                field('Note sent with the reply after it', 'Sent once with the next reply. Example: "What was set up in the last reply now happens."', textInput(e.dNext, (v) => { e.dNext = v; }, { placeholder: 'No note' })),
+            ] : [
+                h('div', { class: 'ri-grid2' },
+                    field('Use this item only when', e.need ? NEEDS[e.need].help : 'An item can wait for something in this chat\'s story world. While it is missing, the dice leave the item out.',
+                        select(Object.entries(NEEDS).map(([value, n]) => ({ value, label: n.label })), e.need, (v) => { e.need = v; redraw(); })),
+                    field('Characters in the scene, at least', '0 uses the item with any number. The count is read from the scene header, the HUD or a "Present:" line of the newest reply, and leaves {{user}} out.',
+                        numberInput(e.min, { min: 0, max: 20, unit: 'present' }, (n) => { e.min = n; }))),
+            ];
+            list.appendChild(h('div', { class: 'ri-version ri-version-editing' }, box, more, h('div', { class: 'ri-row ri-row-tight' },
+                button('Done', () => {
+                    if (e.text.trim()) {
+                        it.text = e.text.trim();
+                        for (const k of ['need', 'min', 'dEvent', 'dCheck', 'dNext']) { const v = typeof e[k] === 'string' ? e[k].trim() : e[k]; if (v) it[k] = v; else delete it[k]; }
+                        dirty();
+                    }
+                    ui.editing = ''; ui.edit = null; redraw();
+                }, { kind: 'primary' }),
+                button('Cancel', () => { ui.editing = ''; ui.edit = null; redraw(); }, { kind: 'ghost' }))));
             return;
         }
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: it.on, title: 'Tick to let the dice use this item', onchange: () => { it.on = tick.checked; dirty(); } });
         list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` },
             h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(it.text))),
             flags.node,
+            (it.need || it.min || it.dEvent || it.dCheck || it.dNext) ? h('div', { class: 'ri-chips' },
+                it.need ? chip(`Only when: ${NEEDS[it.need].label.toLowerCase()}`, 'ri-chip-group') : null,
+                it.min ? chip(`Only with ${it.min} or more characters in the scene`, 'ri-chip-group') : null,
+                it.dEvent ? chip(`Added to story events: ${it.dEvent}`) : null,
+                it.dCheck ? chip(`Question about the reply: ${it.dCheck}`) : null,
+                it.dNext ? chip(`Note for the reply after: ${it.dNext}`) : null) : null,
             h('div', { class: 'ri-row ri-row-tight' },
                 h('span', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Weight'), numberInput(it.weight, { min: 1, max: 20 }, (n) => { it.weight = n; dirty(); })),
                 h('span', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Tags'), textInput(it.tags, (v) => { it.tags = v; dirty(); }, { placeholder: 'none', style: { width: '120px' } })),
                 button(it.always ? 'Always included' : 'Always include', () => { it.always = !it.always; dirty(); redraw(); }, { kind: 'ghost', title: 'An always-included item is in every fresh pick; the dice fill the rest' }),
-                button('Edit', () => { ui.editing = it.id; redraw(); }, { kind: 'ghost' }),
+                button('Edit', () => { ui.editing = it.id; ui.edit = null; redraw(); }, { kind: 'ghost', title: cfg.kind === 'style' ? 'Change the text, and what this item adds while it is the pick' : 'Change the text, and when the dice may use this item' }),
                 button('Delete', () => { cat.items.splice(i, 1); if (cat.fixed === it.id) cat.fixed = ''; dirty(); redraw(); }, { kind: 'danger' }))));
     });
     if (!cat.items.length) list.appendChild(h('div', { class: 'ri-empty' }, 'No items yet. Type one below, or press "Write items with AI".'));
@@ -263,6 +290,7 @@ function renderEdit(body, app) {
             field('Wait after an event (replies)', 'After an event, no new event from this set for this many replies.', numberInput(draft.wait, { min: 0, max: 500, unit: 'replies' }, (n) => { draft.wait = n; dirty(); })),
             field('Keep sending the event for (replies)', 'The same event order is sent again with this many more replies. 0 sends it once.', numberInput(draft.keep, { min: 0, max: 50, unit: 'replies' }, (n) => { draft.keep = n; dirty(); })),
             field('No events before reply number', '0 lets events happen from the start of the chat.', numberInput(draft.notBefore, { min: 0, max: 1000, unit: '' }, (n) => { draft.notBefore = n; dirty(); })),
+            field('Events from this set are big', settings().pace.quiet ? `On: after one has happened, nothing new starts for ${settings().pace.quiet} ${settings().pace.quiet === 1 ? 'reply' : 'replies'}, across every set (the number is in Settings, under Pacing). The story gets room to take the event in.` : 'On: after one has happened, nothing new starts for a number of replies. That number is 0 right now, so this does nothing until you set it in Settings, under Pacing.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], draft.big ? 'on' : 'off', (v) => { draft.big = v === 'on'; dirty(); })),
             field('Sent as', SENT_AS[draft.sentAs].help, select([{ value: 'system', label: SENT_AS.system.label }, { value: 'ooc', label: SENT_AS.ooc.label }], draft.sentAs, (v) => { draft.sentAs = v; dirty(); redraw(); })))));
 
     const cats = h('div', {}, draft.categories.map((cat, i) => categoryCard(app, draft, cat, i, redraw, dirty)));

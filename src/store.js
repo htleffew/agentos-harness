@@ -1,5 +1,6 @@
 // Saved settings (per app) and per-chat state.
 import { ctx, KEY, names, characterKey, setChatVariable, isChatOpen } from './st.js';
+import { DEFAULT_WORDS, DEFAULT_WRITER_RULES } from './defaults.js';
 
 export const FORMS = ['they', 'them', 'their', 'theirs', 'themself'];
 export const PRONOUN_SETS = {
@@ -36,7 +37,18 @@ const DEFAULTS = {
         roll: 8,              // when a chat has more chapters than this, the older ones are combined into one
         budget: 800,          // room in tokens for the story so far
     },
-    writer: { count: 10, moreRoom: false, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
+    pace: {
+        quiet: 2,             // after a big event has happened, nothing new starts for this many replies (0 = off)
+        silent: 4,            // a character of the story world who is in the scene and has gone unnamed in the story text for this many replies is ordered to speak or act (0 = off)
+        phasesOn: false,      // story phases by reply number
+        phases: [             // each phase starts at reply "from"; "chance" is a percentage of the usual chance that something new starts; "line" is sent with every reply of the phase
+            { name: 'Opening', from: 1, chance: 50, line: '' },
+            { name: 'Rising', from: 11, chance: 100, line: '' },
+            { name: 'Long run', from: 41, chance: 125, line: '' },
+        ],
+    },
+    words: { on: true, tell: true, list: DEFAULT_WORDS },   // words to flag in AI-written text; "tell" also asks the AI writer to leave them out
+    writer: { count: 10, moreRoom: false, rules: DEFAULT_WRITER_RULES, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },
     expanded: false,
 };

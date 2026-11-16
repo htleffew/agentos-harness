@@ -61,7 +61,7 @@ function itemRow(id, rec, it, index, withButtons) {
                 it.notes.place ? kv('Place', it.notes.place) : null,
                 it.notes.missing?.length ? kv('Named in the scene, with no entry yet', it.notes.missing.join(', ')) : null,
                 kv('Size', `about ${it.notes.tokens} tokens, ${it.notes.ids?.length || 0} ${it.notes.ids?.length === 1 ? 'entry' : 'entries'}`),
-            ] : it.worldOrder ? kv('From the story world', it.worldOrder.label || it.name) : 'goalTask' in it ? (it.goalTask ? kv(it.goalTask.type === 'step' ? 'One-time step' : 'Repeatable action', it.goalTask.text) : null) : kv('Instruction set', setName(canonSet(it.set || it.world))),
+            ] : it.pace ? kv('Story phase', it.pace) : it.worldOrder ? kv('From the story world', it.worldOrder.label || it.name) : 'goalTask' in it ? (it.goalTask ? kv(it.goalTask.type === 'step' ? 'One-time step' : 'Repeatable action', it.goalTask.text) : null) : kv('Instruction set', setName(canonSet(it.set || it.world))),
             kv('Why it was sent', it.notes ? `This chat has a story world${it.repeat ? ', same as before the swipe' : ''}` : `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
             kv('Exact text sent', it.text),
             Array.isArray(it.rules) && it.rules.length ? kv('Rules checked', it.rules.map(r => `${r.ok ? 'Followed' : 'Not followed'}: ${r.label}`).join('  |  ')) : null,
@@ -80,11 +80,31 @@ function worldChanges(id, rec, withButtons) {
         withButtons && !rec.update.undone ? h('div', { class: 'ri-row ri-row-tight' }, button('Undo these changes', () => undoReplyChanges(id), { kind: 'ghost', title: 'Take back what this reply added to or changed in the story world. Lines you changed since are left as they are.' })) : null);
 }
 
+/** Pacing: the story phase this reply was written in, and whether new things were held back. */
+function paceNote(rec) {
+    const p = rec.pace;
+    if (!p) return null;
+    const lines = [];
+    if (p.phase) lines.push(`Story phase: ${p.phase.name}${p.phase.chance === 100 ? '' : ` (new things start at ${p.phase.chance}% of their usual chance)`}.`);
+    if (p.quiet) lines.push(`Nothing new was started with this reply: it is quiet after "${p.quiet.name}" happened${p.quiet.left > 1 ? `, for ${p.quiet.left - 1} more ${p.quiet.left - 1 === 1 ? 'reply' : 'replies'}` : ''}.`);
+    return lines.length ? h('div', { class: 'ri-note' }, lines.join(' ')) : null;
+}
+
+/** The questions the writing style asked about the reply, with the answers of the check. */
+function askedRows(rec) {
+    if (!Array.isArray(rec.asked) || !rec.asked.length) return null;
+    return h('div', { class: 'ri-sentitem' },
+        h('div', { class: 'ri-sent-top' }, h('span', { class: 'ri-sent-name' }, 'Questions from the writing style')),
+        h('ul', { class: 'ri-changes' }, rec.asked.map(a => h('li', {}, `${a.q} ${a.yes === null ? 'The check gave no answer.' : a.yes ? 'Yes.' : 'No.'}${a.quote ? ` Shown by: "${a.quote}"` : ''} (asked while the pick was "${a.pick}")`))));
+}
+
 function recordBody(id, rec, isLast, withButtons) {
     return [
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
+        paceNote(rec),
         rec.items.map((it, i) => itemRow(id, rec, it, i, withButtons)),
+        askedRows(rec),
         worldChanges(id, rec, withButtons),
         withButtons && isLast ? h('div', { class: 'ri-row' },
             button('Pick again and write a new reply', () => pickAgainNow(), { title: 'Roll the instructions for this reply again and swipe to a new reply' }),
@@ -98,10 +118,11 @@ function summaryLine(rec) {
     const n = orders.length;
     const also = [];
     if (rec.items.some(i => i.notes)) also.push('story notes');
-    if (rec.items.some(i => i.noCheck && !i.notes && !('goalTask' in i))) also.push('writing style');
+    if (rec.items.some(i => i.noCheck && !i.notes && !i.pace && !('goalTask' in i))) also.push('writing style');
     if (rec.items.some(i => i.noCheck && 'goalTask' in i)) also.push('goal');
     const changed = shownChanges(rec.update?.changes).length;
     const world = changed && !rec.update.undone ? [`${changed} ${changed === 1 ? 'change' : 'changes'} to the story world`] : [];
+    if (rec.pace?.quiet) world.push('nothing new started (quiet after a big event)');
     if (!n) return [also.length ? `${also.join(', ')} sent` : '', ...world].filter(Boolean).join(' · ') || 'nothing sent';
     const done = rec.items.filter(i => i.status === 'done').length;
     const waiting = rec.items.filter(i => ['overdue', 'queued'].includes(i.status)).length;

@@ -173,6 +173,57 @@ sets are kept). While the extension is on, world entries only ever go out inside
 chat that uses that world. With the extension off they are ordinary lorebook entries, sent when their name appears,
 and a shared lorebook turned on in World Info then sends from every world inside it.
 
+## Pacing and style (new in 5.5)
+
+**Story event items that wait.** Press Edit on an item of a story event set to choose when the dice may use it.
+
+- *There is an open thread.* The item waits for an open thread in this chat's story world. When it is used, the thread
+  that has gone longest without moving is written into it. Write `[thread]` where it belongs, for example
+  "`[thread]` comes up again". This is how an ignored thread comes back.
+- *Someone in the scene keeps a secret.* The item gets a kept secret of someone in the scene, and the AI is told what
+  it is. Write `[secret]` where it belongs, for example "someone nearly finds out `[secret]`".
+- *Someone in the scene has a plan.* The item gets that plan. Write `[plan]` where it belongs.
+- *Characters in the scene, at least.* The item waits until the scene header, the HUD or a "Present:" line of the
+  newest reply names that many people other than you.
+
+While what an item waits for is missing, the dice leave it out. When every item of a category is waiting, the event
+waits too. The "Roll an example" button ignores the conditions.
+
+**Big events, and the quiet after them.** A story event set can be marked "Events from this set are big". After a
+big event has happened, nothing new starts for a number of replies (Settings > Pacing, 2 to start with), across
+every set, the goal and the story world. What is already under way carries on. An open thread of the story world
+coming to a head also counts as big. What Was Sent says when a reply was kept quiet and why.
+
+**A character who has gone quiet.** With a story world: a character of the world who has been in the scene for 4
+replies and is named in the story text of none of them is ordered to speak or act. The order counts as the one new
+thing of that reply and is checked like any instruction. The number is in Settings > Pacing; 0 turns it off.
+
+**Story phases.** Off to start with. A phase starts at a reply number and lasts until the next one starts. Each
+phase has a percentage of the usual chance that something new starts (50 halves every chance, 150 raises it by
+half, 0 starts nothing new) and, if you want, one line that is sent with every reply of the phase. The phases that
+come with the extension are Opening (from reply 1, 50%), Rising (from reply 11, 100%) and Long run (from reply 41,
+125%). Change, add or delete them in Settings > Pacing.
+
+**What a writing style item can add while it is the pick.** Press Edit on an item of a writing style set. Three
+optional lines:
+
+- *Added to every story event.* One sentence that says how events are to go while this style is in use.
+- *Question asked about the reply.* It rides along with the check that runs anyway and is shown in What Was Sent
+  with its answer. It never makes an AI request of its own, so it is skipped on replies where nothing is checked.
+- *Note sent with the reply after it.* Sent once with the next reply.
+
+**What the AI writes for you.** Settings > What the AI writes for you.
+
+- *Rules given to the AI writer.* A short list in plain words, added to every request that writes versions, list
+  items, goals, story world entries and the first message of a new chapter. The starting rules ask for plain literal
+  wording and named feelings, for events that come from what people want, feel, find out and choose, and they keep
+  out lasting bodily states (injury, pain, tiredness, cold, hunger) and prices, debts, ownership, records, paperwork
+  and officials. The rules are yours to change.
+- *Your word list.* Words you do not want. Text that uses one gets the line "On your word list" where you review it.
+  It is a flag, so you can always keep the text. A star at the end of a word stands for any ending. The list can also
+  be sent to the AI writer so fewer of these words come back.
+- The lists a new writing style set starts with were reworded in plain language.
+
 ## Random Story Events (new in Version 2)
 
 A story event set holds lists of story ingredients sorted into categories, for example Situation, Complication,
@@ -275,7 +326,7 @@ can be set to start the next goal from that list.
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
 | Log | Every request made to the AI: what was sent, what came back, how long it took and, when it failed, why. Copy it or save it as a file. |
-| Settings | Pronouns for this chat, which AI connection writes and checks, where your sets are kept, how many new things can start per reply, how checking and re-sending work, and the optional section under each reply. |
+| Settings | Pronouns for this chat, which AI connection writes and checks, where your sets are kept, how many new things can start per reply, pacing (quiet after a big event, a character who has gone quiet, story phases), the rules for the AI writer and your word list, how checking and re-sending work, and the optional section under each reply. |
 
 ## Things worth knowing
 
@@ -360,5 +411,5 @@ run. See `tests/README.md`.
 
 Version 5 is being built in steps. Done: one thing per reply and burn after it happens (5.0), one lorebook or many
 (5.1), a story world sent for who is present (5.2), a world that keeps itself up to date (5.3), the story so far in chapters, a new chapter in a new chat and a starter
-world from the character card (5.4). Next: pacing and style (5.5).
+world from the character card (5.4), pacing and style (5.5). Next: the close-out (5.6).
 

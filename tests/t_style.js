@@ -85,7 +85,7 @@ async function makeStyle(page, name) {
         await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Save writing style set').click());
         await page.waitForTimeout(1200);
         const content = await page.evaluate(async (n) => Object.values((await globalThis.SillyTavern.getContext().loadWorldInfo(n)).entries)[0].content, nm);
-        assert(/write the story prose in this style: \{\{char\}\}'s mood: \{\{random::on edge::irritable/.test(content), 'C: the saved lorebook entry works with the extension off');
+        assert(/write the story prose in this style: \{\{char\}\}'s mood: \{\{random::curious::focused/.test(content), 'C: the saved lorebook entry works with the extension off');
         await page.screenshot({ path: '/tmp/st2.png' });
     } catch (e) { console.log('TEST ERROR', e.stack); await page.screenshot({ path: '/tmp/st_err.png' }); }
     L.mode({});

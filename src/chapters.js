@@ -11,6 +11,7 @@ import { addLog } from './log.js';
 import { chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE } from './world.js';
 import { enqueue, worldIdle, attachChange, parseUpdate, applyOps, stripUpdateBlock, shownChanges, describeChange } from './worldflow.js';
 import { goals, goalProgress, stepDone } from './goals.js';
+import { writerRules } from './pacing.js';
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
 const chatId = () => String(ctx().getCurrentChatId?.() || '');
@@ -254,6 +255,7 @@ export async function draftNewChapter(wish = '') {
         '',
         `FIRST MESSAGE: the opening message of the new chat, 150 to 300 words, written as the story has been written (the same person, tense and voice as the most recent replies). It picks up from where the story stands at the end of the summary. People other than ${n.user} act and speak in it, and it ends on something for ${n.user} to respond to. ${n.user}'s words, choices and thoughts are left for ${n.user} to write.`,
         clean(wish) ? `\nWhat the user wants for the new chapter: ${clean(wish)}` : '',
+        '', 'For the first message only:', ...writerRules(),
         '', ...parts,
         'Answer in exactly this form, with these two headings in capitals and nothing before the first one:',
         'SUMMARY:', '(the summary)', '', 'FIRST MESSAGE:', '(the first message)',

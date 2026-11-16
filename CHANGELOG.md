@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.5.0 (2026-11-16)
+
+Version 5, sixth step: pacing and style.
+
+- Story event items can wait: for an open thread, a kept secret or a plan in the story world, or for a number of
+  characters in the scene. What the item waited for is written into it (`[thread]`, `[secret]`, `[plan]`). An item
+  that waits for a thread gets the one that has gone longest without moving.
+- A story event set can be marked big. After a big event has happened, nothing new starts for a set number of
+  replies. An open thread coming to a head counts as big.
+- With a story world, a character who has been in the scene for a set number of replies and is named in the story
+  text of none of them is ordered to speak or act.
+- Story phases by reply number (off to start with): each phase scales the chance that something new starts and can
+  send one line of its own.
+- A writing style item can add three things while it is the pick: a sentence for story events, a question about the
+  reply that rides along with the check, and a note for the reply after it.
+- Settings > What the AI writes for you: rules given to the AI writer in plain words, and a word list that flags
+  unwanted words where you review text. Both are yours to change.
+- The lists a new writing style set starts with were reworded in plain language.
+- What Was Sent shows the story phase, why a reply was kept quiet, and the answers to the style's questions.
+
 ## 5.4.0 (2026-11-16)
 
 Version 5, fifth step: the story so far, a new chapter, and a starter world.

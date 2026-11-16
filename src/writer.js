@@ -4,6 +4,7 @@ import { request } from './ai.js';
 import { settings, pronounForms, FORMS } from './store.js';
 import { ACTORS, TARGETS, SENT_AS } from './books.js';
 import { swapNames } from './validate.js';
+import { writerRules } from './pacing.js';
 import { stripSentBlock } from './engine.js';
 
 function pronounLine(role, label) {
@@ -79,6 +80,7 @@ export function buildWriterPrompt({ ins, seed, count, context, existing }) {
     ];
     if (existing.length) lines.push('', 'Versions that already exist (write new ones that differ from these):', ...existing.slice(0, 30).map(v => `- ${brackets(v)}`));
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
+    lines.push('', ...writerRules());
     lines.push('', 'Return only a JSON list of strings, for example ["first version", "second version"].');
     // The prompt uses [[char]] where a saved version uses {{char}}, so SillyTavern leaves the placeholders alone on the way out.
     return brackets(lines.filter(l => l !== null && l !== undefined).join('\n'));
@@ -180,6 +182,7 @@ export async function writeItems({ category, theme, count, context, existing, ot
     ];
     if (existing.length) lines.push('', 'Items that already exist (write new ones that differ from these):', ...existing.slice(0, 60).map(v => `- ${v}`));
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
+    lines.push('', ...writerRules());
     lines.push('', 'Return only a JSON list of strings, for example ["first item", "second item"].');
     const res = await request({ what: `Write ${count} items for the list "${category.name}"`, system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 300 + count * 80), profileId: st.profileId });
     const answer = res.text;
@@ -228,6 +231,7 @@ export async function writeGoal({ about, context }) {
         '- Use [[char]] and [[user]] with the double square brackets wherever a name is needed, and write real names nowhere. For pronouns of the character use [[char.they]], [[char.them]], [[char.their]].',
     ];
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
+    lines.push('', ...writerRules());
     lines.push('', 'Return only a JSON object with the keys "goal", "actions" and "steps".');
     const res = await request({ what: 'Write a goal', system: 'You plan goals for a character in a roleplay. You answer with JSON only.', user: brackets(lines.join('\n')), tokens: 1100, profileId: st.profileId });
     const answer = res.text;

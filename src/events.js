@@ -1,6 +1,7 @@
 // Random Story Events. An event set is one lorebook entry, in a lorebook of its own or inside a shared lorebook. The entry holds categories (Situation,
 // Complication, ...), each with a list of items. When the entry fires, dice pick items from the categories that
 // are on, and one order is sent: an event must happen, built from those parts.
+import { itemFits, fillNeed, NEEDS } from './pacing.js';
 import { SENT_AS, blankEntry, entriesOf, keepTags, toStore, keepToSticky, waitToCooldown, replyNumberToDelay, stickyToKeep, cooldownToWait, delayToReplyNumber, pickWeighted, rollInt } from './books.js';
 
 export const MODES = {
@@ -32,20 +33,20 @@ export function newEvent(name) {
     return { type: 'event', uid: 0, name, on: true, chance: 10, keep: 0, wait: 5, notBefore: 0, sentAs: 'system', notes: '', categories: defaultCategories(), isNew: true };
 }
 
-const MOODS = ['on edge', 'irritable', 'focused', 'plotting', 'carried away', 'confident', 'scared', 'lucky', 'emboldened', 'nervous', 'reckless', 'playful', 'defiant', 'stubborn', 'hopeful', 'suspicious', 'smug'];
+const MOODS = ['curious', 'focused', 'plotting', 'carried away', 'confident', 'lucky', 'emboldened', 'eager', 'reckless', 'playful', 'defiant', 'stubborn', 'hopeful', 'suspicious', 'smug', 'tender', 'irritable'];
 
 export function defaultStyleCategories() {
     return [
         newCategory("{{char}}'s mood", MOODS, { mode: 'keepRandom', keepMin: 4, keepMax: 8,
             after: "this mood drives at least one of {{char}}'s choices and colours {{char}}'s established feelings, which stay as they are",
-            hint: 'A temperament for the main character over a stretch of the story, in one to three words, such as on edge, playful, defiant or suspicious. A temperament, never a circumstance.' }),
+            hint: 'A temperament for the main character over a stretch of the story, in one to three words, such as curious, playful, defiant or suspicious. A temperament, never a circumstance.' }),
         newCategory('Prose style', ['short sentences and concrete nouns', 'long, flowing sentences with few adjectives', 'plain words and brisk rhythm', 'close attention to small physical actions', 'spare description and plenty of spoken lines'], { mode: 'keepRandom', keepMin: 4, keepMax: 8,
             hint: 'One instruction about sentence length, word choice or what the prose pays attention to, in 4 to 12 words.' }),
         newCategory('In the manner of this author', [], { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10,
             hint: 'The name of one published prose author with a recognisable style. The name only.' }),
-        newCategory('Writing habits', ['dry understatement', 'one-line paragraphs at tense moments', 'spoken lines that leave the important thing implied by action', 'each paragraph ends on a concrete image', 'humour that comes from what people do'], { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10,
+        newCategory('Writing habits', ['dry humour in plain words', 'one-line paragraphs at tense moments', 'people say plainly what they mean', 'each paragraph ends on a concrete image', 'humour that comes from what people do'], { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10,
             hint: 'One concrete writing habit of a skilled novelist, stated as an instruction in 3 to 10 words.' }),
-        newCategory('Sense to lead with', ['sound', 'touch and temperature', 'smell', 'light and colour', 'movement'], { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4,
+        newCategory('Sense to lead with', ['sound', 'touch', 'smell', 'light and colour', 'movement'], { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4,
             hint: 'One of the senses, or one kind of physical detail, in one to four words.' }),
         newCategory('Pacing', ['linger on small actions', 'brisk, moving quickly between moments', 'one continuous moment, told closely', 'cover more time in fewer words'], { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4,
             hint: 'One instruction about how much time the reply covers and how fast it moves, in 3 to 10 words.' }),
@@ -63,10 +64,20 @@ export function newStyle(name) {
 
 const tagList = s => String(s || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
 
+/** One item of a list. need and min: what a story event item asks of the scene. The three "while this pick is in use" lines belong to writing style items. */
+export function normalItem(it) {
+    const out = { id: String(it?.id || newId()), text: String(it?.text ?? ''), on: it?.on !== false, weight: Math.max(1, Math.round(Number(it?.weight) || 1)), tags: String(it?.tags || ''), always: !!it?.always };
+    if (it?.need && NEEDS[it.need]) out.need = it.need;
+    const min = Math.max(0, Math.min(20, Math.round(Number(it?.min) || 0)));
+    if (min) out.min = min;
+    for (const k of ['dEvent', 'dCheck', 'dNext']) { const v = String(it?.[k] || '').replace(/\s+/g, ' ').trim(); if (v) out[k] = v; }
+    return out;
+}
+
 function normalCategory(c) {
     const base = newCategory(String(c?.name || 'Category'));
     const out = { ...base, ...c, id: String(c?.id || base.id) };
-    out.items = (Array.isArray(c?.items) ? c.items : []).map(it => ({ id: String(it?.id || newId()), text: String(it?.text ?? ''), on: it?.on !== false, weight: Math.max(1, Math.round(Number(it?.weight) || 1)), tags: String(it?.tags || ''), always: !!it?.always })).filter(it => it.text.trim());
+    out.items = (Array.isArray(c?.items) ? c.items : []).map(normalItem).filter(it => it.text.trim());
     out.count = Math.max(1, Math.min(5, Math.round(Number(out.count) || 1)));
     out.burn = !!out.burn;
     out.keepMin = Math.max(1, Math.round(Number(out.keepMin) || 1));
@@ -104,6 +115,7 @@ export function readEvent(entry, name) {
         chance: entry.useProbability === false ? 100 : Math.max(0, Math.min(100, Number(entry.probability ?? 100))),
         keep: stickyToKeep(entry.sticky), wait: cooldownToWait(entry.cooldown, entry.sticky), notBefore: delayToReplyNumber(entry.delay),
         sentAs: ri.sentAs === 'ooc' ? 'ooc' : 'system', notes: String(ri.notes || ''),
+        big: !!ri.big,
         neverTogether: String(ri.neverTogether || ''), presets: ri.presets && typeof ri.presets === 'object' ? structuredClone(ri.presets) : {},
         categories: (Array.isArray(ri.categories) ? ri.categories : []).map(normalCategory),
     };
@@ -158,7 +170,7 @@ export function writeEvent(data, ev, id = '') {
     entry.position = 4; entry.depth = 1;
     entry.role = (SENT_AS[ev.sentAs] || SENT_AS.system).role;
     entry.excludeRecursion = true; entry.preventRecursion = true;
-    const ri = { v: 1, type: style ? 'style' : 'event', sentAs: ev.sentAs, notes: ev.notes, neverTogether: String(ev.neverTogether || ''), presets: ev.presets || {}, categories: ev.categories.map(normalCategory) };
+    const ri = { v: 1, type: style ? 'style' : 'event', sentAs: ev.sentAs, notes: ev.notes, ...(ev.big && !style ? { big: true } : {}), neverTogether: String(ev.neverTogether || ''), presets: ev.presets || {}, categories: ev.categories.map(normalCategory) };
     keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
     entry.content = buildEventContent(ev);
@@ -222,6 +234,8 @@ export function rollEvent(ri, prev, opts = {}) {
     const chosen = new Set(); // tags of everything picked so far in this roll
     const burned = opts.burned instanceof Set ? opts.burned : new Set(); // items that already happened in this chat
     let spent = false;        // a list that retires its items has none left
+    const scene = opts.scene || null;   // what the scene and the story world offer right now (null: conditions are not looked at)
+    const filled = [];        // world entries that items of this roll were filled with
     const note = (byId, ids) => { for (const id of ids) for (const t of tagList(byId.get(id).tags)) chosen.add(t); };
 
     // First, the categories that keep the pick they already have.
@@ -255,8 +269,11 @@ export function rollEvent(ri, prev, opts = {}) {
                 if (Number(old.rest) > 0) { idle(Number(old.rest) - 1); continue; }
                 if (cat.chance < 100 && rollInt(100) >= cat.chance) { idle(0); continue; }
             }
-            const allowed = pool.filter(it => !clash(tagList(it.tags), chosen, pairs) && !(cat.burn && burned.has(it.id)));
-            if (cat.burn && !allowed.length && pool.some(it => burned.has(it.id))) { spent = true; idle(0); continue; }
+            const fitting = pool.filter(it => itemFits(it, scene));
+            // Every item of this list asks for something the scene does not have right now: the event waits.
+            if (!fitting.length) { spent = true; idle(0); continue; }
+            const allowed = fitting.filter(it => !clash(tagList(it.tags), chosen, pairs) && !(cat.burn && burned.has(it.id)));
+            if (cat.burn && !allowed.length && fitting.some(it => burned.has(it.id))) { spent = true; idle(0); continue; }
             picks = allowed.filter(it => it.always).slice(0, cat.count).map(it => it.id);
             const need = cat.count - picks.length;
             if (need > 0) {
@@ -280,8 +297,12 @@ export function rollEvent(ri, prev, opts = {}) {
         const lastOfItsRun = !pinned && !linger && (cat.mode === 'new' || (cat.mode === 'keepRandom' && left === 0));
         state.cats[cat.id] = { picks, left, used, recent, rest: linger ? (Number(old.rest) || 0) : lastOfItsRun ? cat.restAfter : 0 };
         const rules = picks.flatMap(id => tagList(byId.get(id).tags)).filter(t => t.startsWith('rule:'));
-        parts.push({ name: cat.name, items: picks.map(id => byId.get(id).text), after: cat.after, catId: cat.id, ids: picks, ...(rules.length ? { rules } : {}) });
+        const texts = picks.map((id) => { const f = fillNeed(byId.get(id), scene, list => list[rollInt(list.length)]); if (f.used) filled.push(f.used); return f.text; });
+        // A writing style item can carry three more lines for as long as it is the pick.
+        const dir = picks.map(id => byId.get(id)).filter(it => it.dEvent || it.dCheck || it.dNext).map(it => ({ pick: it.text, ...(it.dEvent ? { event: it.dEvent } : {}), ...(it.dCheck ? { check: it.dCheck } : {}), ...(it.dNext ? { next: it.dNext } : {}) }));
+        parts.push({ name: cat.name, items: texts, after: cat.after, catId: cat.id, ids: picks, ...(rules.length ? { rules } : {}), ...(dir.length ? { dir } : {}) });
     }
+    if (filled.length) state.filled = filled;
     if (ri?.type === 'style') return { text: parts.length ? sentenceFor('style', parts) : null, parts, state };
     if (!parts.length || spent) return null; // a used-up list means this event has nothing new left to offer
     return { text: sentenceFor('event', parts), parts, state };

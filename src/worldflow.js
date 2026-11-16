@@ -4,16 +4,19 @@
 //  2. Open threads build by themselves, and now and then something that is ready is ordered into the scene.
 //  3. Every automatic change is stored with the reply that caused it, and is undone when that reply is swiped
 //     away or deleted.
-import { ctx, KEY, LOG } from './st.js';
+import { ctx, KEY, LOG, names } from './st.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
 import { rollInt, pickWeighted } from './books.js';
-import { WORLD_KINDS, MAX_ACTIVITIES, DONE, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, buildNotes } from './world.js';
+import { worldOffers } from './pacing.js';
+import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, buildNotes } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
 export const ORDER_WORLD = 'Story world';
 export const isAsk = e => e?.world === ASK_WORLD;
 export const isOrder = e => e?.world === ORDER_WORLD;
+export const PACE_WORLD = 'Roleplay Instructions story phase';
+export const isPace = e => e?.world === PACE_WORLD;
 export const ORDER_KEY = `${ORDER_WORLD}.0`;
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
@@ -32,6 +35,7 @@ function synthetic(world, comment, content, depth) {
 }
 export const askEntry = text => synthetic(ASK_WORLD, 'Story update request', text, 0);
 export const orderEntry = () => synthetic(ORDER_WORLD, 'Story world', 'story world', 1);
+export const paceEntry = text => synthetic(PACE_WORLD, 'Story phase', text, 2);
 
 /** True when the newest message from the user starts out of character, as in "(OOC: ...)". */
 export function isOocTurn() {
@@ -272,11 +276,44 @@ export const shownChanges = changes => (changes || []).filter(c => c.type !== 'c
 // ---------- ordering something into the scene ----------
 
 /**
+ * A character entry that was read as present in each of the last N replies and is named in the story text of none
+ * of them. N is the "silent" setting; 0 turns this off. Returns null, or { w, replies }.
+ */
+export function silentCharacter(list, present, type = 'normal') {
+    const need = Math.max(0, Math.round(Number(settings().pace.silent) || 0));
+    if (!need) return null;
+    const chat = ctx().chat || [];
+    let end = chat.length;
+    if (type === 'swipe' || type === 'continue') end -= 1;
+    const back = [];
+    for (let i = end - 1; i >= 1 && back.length < need; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system) back.push(m); }
+    if (back.length < need) return null;
+    const user = norm(names().user);
+    const here = present.map(norm);
+    for (const w of list.filter(x => x.on && x.kind === 'character' && here.includes(norm(x.name)) && norm(x.name) !== user)) {
+        const silent = back.every((m) => {
+            const was = (m.extra?.[KEY]?.items || []).find(it => it.notes)?.notes?.present || [];
+            return was.map(norm).includes(norm(w.name)) && !namedIn(String(m.mes || '').replace(HUD_BLOCKS, ' '), w);
+        });
+        if (silent) return { w, replies: need };
+    }
+    return null;
+}
+
+/**
  * Now and then one thing that is ready is ordered into the scene. list: the world's entries. present: names read
  * as present. Returns null, or { text, name, effect: { uid, kind, to } }.
  */
-export function rollOrder(list, present, meta, opts = settings().world) {
-    const chance = Math.max(0, Math.min(100, Math.round(Number(opts.head) || 0)));
+export function rollOrder(list, present, meta, opts = settings().world, more = {}) {
+    // A character of the world who is in the scene and has gone unnamed in the story text gets an order first.
+    const quietOne = silentCharacter(list, present, more.type);
+    if (quietOne) {
+        const w = quietOne.w;
+        const wants = clean(w.fields.wants).replace(/[.]+$/, '');
+        return { text: `${w.name} must speak or act in this reply, in a way that fits who ${w.name} is${wants ? ` and what ${w.name} wants (${wants})` : ''}.`, name: `Character: ${w.name}`,
+            effect: { uid: w.uid, kind: 'character', name: w.name, to: '', silent: quietOne.replies, label: `In the scene and unnamed for ${quietOne.replies} replies: ${w.name}` } };
+    }
+    const chance = Math.max(0, Math.min(100, Math.round((Number(opts.head) || 0) * (Number(more.scale ?? 100) / 100))));
     if (!chance || rollInt(100) >= chance) return null;
     const bring = opts.bring || {};
     const minAge = Math.max(0, Math.round(Number(opts.minAge) || 0));
@@ -307,7 +344,7 @@ export function rollOrder(list, present, meta, opts = settings().world) {
  * Everything the story world adds to the reply that is about to be written.
  * Returns null when this chat has no world, else { notes, ask, order, id }.
  */
-export async function prepareWorld(type, replyNo, { quiet = false } = {}) {
+export async function prepareWorld(type, replyNo, { quiet = false, scale = 100 } = {}) {
     const id = chatWorld();
     if (quiet) return null;
     if (!id) {
@@ -324,8 +361,10 @@ export async function prepareWorld(type, replyNo, { quiet = false } = {}) {
     const notes = buildNotes(list, type);
     const ooc = isOocTurn();
     const ask = o.update !== 'off' && !ooc ? buildAsk(list) : '';
-    const order = ooc ? null : rollOrder(list, notes?.present || [], { chat: String(ctx().getCurrentChatId() || ''), n: replyNo });
-    return { id, notes, ask, order };
+    const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
+    const order = ooc ? null : rollOrder(list, notes?.present || [], meta, o, { type, scale });
+    // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene.
+    return { id, notes, ask, order, offers: worldOffers(list, notes?.present || [], meta) };
 }
 
 // ---------- after the reply ----------
@@ -396,7 +435,7 @@ export function applyEffect(rec, effect, onDone) {
     return enqueue(async () => {
         const cs = chatState();
         const wid = chatWorld();
-        if (!cs || !wid || !rec || !effect) return;
+        if (!cs || !wid || !rec || !effect || !effect.to) return;   // an order with nothing to move on (a silent character) leaves the world as it is
         const data = await loadWorld(wid);
         const w = data ? listWorld(data, wid).find(x => x.uid === effect.uid && x.kind === effect.kind) : null;
         if (!w || w.status === effect.to) return;
