@@ -1,4 +1,5 @@
-// Instruction sets. One instruction set is one SillyTavern lorebook; one instruction is one World Info entry.
+// Instruction sets. A set is kept in a lorebook of its own, or as a group inside a shared lorebook.
+// One instruction is one World Info entry.
 import { loadBook, saveBook, refreshWorldList, worldNames } from './st.js';
 import { settings, saveSettings, FORMS } from './store.js';
 
@@ -214,11 +215,11 @@ export function blankEntry(uid) {
 }
 
 /** A new instruction with the defaults from the spec. Not yet written into the lorebook. */
-export function newInstruction(data) {
-    const uids = Object.values(data.entries || {}).map(e => Number(e.uid)).filter(Number.isFinite);
-    const uid = uids.length ? Math.max(...uids) + 1 : 0;
+export function newInstruction(data, id = '') {
+    const uid = freeUid(data);
+    const count = id ? entriesOf(data, id).length : Object.keys(data.entries || {}).length;
     return {
-        uid, name: `Instruction ${uids.length + 1}`, on: true, when: 'always', words: '', pattern: '',
+        uid, name: `Instruction ${count + 1}`, on: true, when: 'always', words: '', pattern: '',
         chance: 10, keep: 0, wait: 5, notBefore: 0, group: '', weight: 100, sendTogether: '', once: false,
         sentAs: 'system', position: 4, depth: 1, actor: 'char', target: 'user', versions: [], notes: '',
         order: 100, managed: true, isNew: true,
@@ -226,7 +227,7 @@ export function newInstruction(data) {
 }
 
 /** Write the panel's view of an instruction back into its World Info entry. */
-export function writeInstruction(data, ins) {
+export function writeInstruction(data, ins, id = '') {
     if (!data.entries) data.entries = {};
     let entry = data.entries[ins.uid];
     if (!entry) { entry = blankEntry(ins.uid); data.entries[ins.uid] = entry; }
@@ -263,76 +264,292 @@ export function writeInstruction(data, ins) {
         notes: ins.notes,
         versions: ins.versions.map(v => ({ text: String(v.text).trim(), keep: !!v.keep })).filter(v => v.text),
     };
+    keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
     entry.content = buildContent(ri);
     return entry;
 }
 
 // ---------- instruction sets ----------
+//
+// A set has an id. A set in a lorebook of its own has that lorebook's name as its id. A set inside a shared
+// lorebook has the id "Lorebook › Set name", and its entries carry the set name in extensions.ri.set.
+// A shared lorebook can also hold entries that belong to no set. Those are left to World Info as they are.
 
 export const KINDS = ['instructions', 'events', 'style'];
+const SEP = ' › ';
+export const sharedId = (book, group) => `${book}${SEP}${group}`;
 
-/** Lorebooks in the list. kind: 'instructions' (Random Instructions) or 'events' (Random Story Events). */
+/** Where a set is kept and how it is limited. */
+export function setInfo(id) {
+    const o = settings().sets[id] || {};
+    const shared = !!(o.book && o.group);
+    return {
+        id, shared, book: shared ? String(o.book) : String(id), group: shared ? String(o.group) : '', name: shared ? String(o.group) : String(id),
+        limit: LIMITS[o.limit] ? o.limit : 'none', max: Math.max(1, Math.round(Number(o.max) || 2)), kind: KINDS.includes(o.kind) ? o.kind : 'instructions',
+        was: Array.isArray(o.was) ? o.was : [],
+    };
+}
+
+export const setName = id => setInfo(id).name;
+
+/** Sets in the list. kind: 'instructions' (Random Instructions), 'events' (Random Story Events) or 'style'. */
 export function knownSets(kind = 'instructions') {
     const st = settings();
     const exists = new Set(worldNames());
-    return Object.keys(st.sets).filter(n => exists.has(n) && (st.sets[n].kind || 'instructions') === kind).sort((a, b) => a.localeCompare(b));
+    return Object.keys(st.sets).map(setInfo).filter(i => exists.has(i.book) && i.kind === kind)
+        .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)).map(i => i.id);
 }
 
-export function setOptions(name) {
+export function setOptions(id) {
+    const i = setInfo(id);
+    return { limit: i.limit, max: i.max, kind: i.kind };
+}
+
+/** Change a set's options and keep where it lives. */
+export function patchSet(id, patch) {
     const st = settings();
-    const o = st.sets[name] || {};
-    return { limit: LIMITS[o.limit] ? o.limit : 'none', max: Math.max(1, Math.round(Number(o.max) || 2)), kind: KINDS.includes(o.kind) ? o.kind : 'instructions' };
+    st.sets[id] = { ...(st.sets[id] || {}), ...patch };
+    saveSettings();
 }
 
-export async function loadSet(name) {
-    const data = await loadBook(name);
+/** Shared lorebooks in use, by name. */
+export function sharedBooks() {
+    const st = settings();
+    const exists = new Set(worldNames());
+    return [...new Set(Object.values(st.sets).filter(o => o.book && o.group).map(o => String(o.book)))].filter(n => exists.has(n)).sort((a, b) => a.localeCompare(b));
+}
+
+/** The set an entry belongs to, or '' when it is in no set in the list. The entry carries its lorebook in "world". */
+export function setOfEntry(e) {
+    const sets = settings().sets;
+    const g = e?.extensions?.ri?.set;
+    if (g) { const id = sharedId(e.world, g); if (sets[id]?.book === e.world) return id; }
+    return sets[e?.world] && !sets[e.world].book ? e.world : '';
+}
+
+/** A set's current id, for an id it had before it was moved. */
+export function canonSet(id) {
+    const sets = settings().sets;
+    if (sets[id]) return id;
+    return Object.keys(sets).find(k => Array.isArray(sets[k].was) && sets[k].was.includes(id)) || id;
+}
+
+/** The entries of one set inside its lorebook's data. */
+export function entriesOf(data, id) {
+    const info = setInfo(id);
+    const all = Object.values(data?.entries || {});
+    return info.shared ? all.filter(e => e?.extensions?.ri?.set === info.group) : all;
+}
+
+export function freeUid(data) {
+    const uids = Object.values(data?.entries || {}).map(e => Number(e.uid)).filter(Number.isFinite);
+    return uids.length ? Math.max(...uids) + 1 : 0;
+}
+
+/** Carry an entry's set name and former keys over to its rewritten extension data. */
+export function keepTags(ri, old, id = '') {
+    if (Array.isArray(old?.was) && old.was.length) ri.was = [...old.was];
+    const info = id ? setInfo(id) : null;
+    if (info?.shared) ri.set = info.group;
+    else if (!info && old?.set) ri.set = old.set;
+    return ri;
+}
+
+export async function loadSet(id) {
+    const data = await loadBook(setInfo(id).book);
     if (!data || typeof data !== 'object') return null;
     if (!data.entries || typeof data.entries !== 'object') data.entries = {};
     return data;
 }
 
-export async function saveSet(name, data) {
-    const o = setOptions(name);
-    data.extensions = { ...(data.extensions || {}), ri: { v: 1, limit: o.limit, max: o.max, kind: o.kind } };
-    await saveBook(name, data);
+export async function saveSet(id, data) {
+    const i = setInfo(id);
+    const was = i.was.length ? { was: [...i.was] } : {};
+    if (i.shared) {
+        const old = data.extensions?.ri?.shared ? data.extensions.ri : {};
+        data.extensions = { ...(data.extensions || {}), ri: { v: 2, shared: true, groups: { ...(old.groups || {}), [i.group]: { kind: i.kind, limit: i.limit, max: i.max, ...was } } } };
+    } else {
+        data.extensions = { ...(data.extensions || {}), ri: { v: 1, limit: i.limit, max: i.max, kind: i.kind, ...was } };
+    }
+    await saveBook(i.book, data);
 }
 
 export function cleanSetName(name) {
-    return String(name ?? '').replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+    return String(name ?? '').replace(/[\\/:*?"<>|›]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-export async function createSet(name, kind = 'instructions', data = { entries: {} }) {
+/** Read a lorebook that is to hold sets as groups. Returns fresh data when the lorebook does not exist yet. */
+async function openShared(book) {
+    const st = settings();
+    if (st.sets[book] && !st.sets[book].book) throw new Error(`"${book}" is the lorebook of a set that is kept on its own. Pick another lorebook to share.`);
+    if (!worldNames().includes(book)) return { entries: {} };
+    const data = await loadBook(book);
+    if (!data || typeof data !== 'object') throw new Error(`The lorebook "${book}" could not be read.`);
+    if (!data.entries || typeof data.entries !== 'object') data.entries = {};
+    return data;
+}
+
+/** A name for a new group that no other group in that lorebook has. */
+function freeGroup(book, data, name) {
+    const st = settings();
+    const taken = n => !!st.sets[sharedId(book, n)] || !!data.extensions?.ri?.groups?.[n];
+    if (!taken(name)) return name;
+    for (let i = 2; i < 500; i++) if (!taken(`${name} ${i}`)) return `${name} ${i}`;
+    throw new Error(`A set named "${name}" is already in the shared lorebook "${book}". Pick another name.`);
+}
+
+/**
+ * Make a set. home: '' keeps it in a lorebook of its own with the set's name; a lorebook name keeps it as a group
+ * inside that shared lorebook. Left out, the place chosen in Settings is used.
+ */
+export async function createSet(name, kind = 'instructions', data = { entries: {} }, home = undefined) {
     name = cleanSetName(name);
     if (!name) throw new Error('Type a name first.');
-    if (worldNames().includes(name)) throw new Error(`A lorebook named "${name}" already exists. Pick another name.`);
     const st = settings();
-    st.sets[name] = { limit: 'none', max: 2, kind };
+    home = cleanSetName(home === undefined ? st.home : home);
+    if (!home) {
+        if (worldNames().includes(name) || st.sets[name]) throw new Error(`A lorebook named "${name}" already exists. Pick another name.`);
+        st.sets[name] = { limit: 'none', max: 2, kind };
+        saveSettings();
+        await saveSet(name, data);
+        await refreshWorldList();
+        return name;
+    }
+    const book = await openShared(home);
+    const id = sharedId(home, name);
+    if (st.sets[id] || book.extensions?.ri?.groups?.[name]) throw new Error(`A set named "${name}" is already in the shared lorebook "${home}". Pick another name.`);
+    for (const e of Object.values(data.entries || {})) {
+        const uid = freeUid(book);
+        book.entries[uid] = { ...e, uid, displayIndex: uid, extensions: { ...(e.extensions || {}), ri: { ...(e.extensions?.ri || {}), set: name } } };
+    }
+    st.sets[id] = { limit: 'none', max: 2, kind, book: home, group: name };
     saveSettings();
-    await saveSet(name, data);
+    await saveSet(id, book);
     await refreshWorldList();
-    return name;
+    return id;
 }
 
-/** Add a lorebook that already exists to the list of instruction sets. Its file is left as it is until you edit it. */
+/**
+ * Add a lorebook that already exists to the list. A lorebook of its own becomes one set and its file is left as it
+ * is until you edit it. A shared lorebook adds every set kept inside it. Returns the ids that were added.
+ */
 export async function adoptSet(name) {
-    const data = await loadSet(name);
-    if (!data) throw new Error(`The lorebook "${name}" could not be read.`);
+    const data = await loadBook(name);
+    if (!data || typeof data !== 'object') throw new Error(`The lorebook "${name}" could not be read.`);
     const st = settings();
     const saved = data.extensions?.ri;
-    st.sets[name] = { limit: LIMITS[saved?.limit] ? saved.limit : 'none', max: Math.max(1, Number(saved?.max) || 2), kind: KINDS.includes(saved?.kind) ? saved.kind : 'instructions' };
+    const opts = o => ({ limit: LIMITS[o?.limit] ? o.limit : 'none', max: Math.max(1, Number(o?.max) || 2), kind: KINDS.includes(o?.kind) ? o.kind : 'instructions', ...(Array.isArray(o?.was) && o.was.length ? { was: [...o.was] } : {}) });
+    if (saved?.shared && saved.groups && typeof saved.groups === 'object') {
+        const added = [];
+        for (const [group, o] of Object.entries(saved.groups)) {
+            const id = sharedId(name, group);
+            if (st.sets[id]) continue;
+            st.sets[id] = { ...opts(o), book: name, group };
+            added.push(id);
+        }
+        saveSettings();
+        return added;
+    }
+    st.sets[name] = opts(saved);
     saveSettings();
-    return name;
+    return [name];
 }
 
-export function forgetSet(name) {
+export function forgetSet(id) {
     const st = settings();
-    delete st.sets[name];
+    delete st.sets[id];
     saveSettings();
 }
 
-export function listInstructions(data) {
-    return Object.values(data.entries || {})
+/**
+ * Move a set. home: '' gives it a lorebook of its own; a lorebook name puts it into that shared lorebook.
+ * Every entry is copied whole (versions, timing, notes). Each copy remembers the key it had before, so what the
+ * chats recorded about it still counts. The lorebook it came from is left in place when it was the set's own.
+ * Returns { id, from, keys: [[old key, new key]] }.
+ */
+export async function moveSet(id, home) {
+    const st = settings();
+    const from = setInfo(id);
+    if (!st.sets[id]) throw new Error('That set is no longer in the list.');
+    home = cleanSetName(home);
+    if (from.shared ? home === from.book : !home) return { id, from: id, keys: [] };
+    const source = await loadSet(id);
+    if (!source) throw new Error(`The lorebook "${from.book}" could not be read.`);
+    const moving = entriesOf(source, id).sort((a, b) => (Number(a.displayIndex ?? a.uid) - Number(b.displayIndex ?? b.uid)) || (a.uid - b.uid));
+    const opts = { limit: from.limit, max: from.max, kind: from.kind, was: [...new Set([...from.was, id])] };
+    const keys = [];
+    let target, newId, group = '';
+    if (home) {
+        target = await openShared(home);
+        group = freeGroup(home, target, from.name);
+        newId = sharedId(home, group);
+    } else {
+        let name = cleanSetName(from.name);
+        if (worldNames().includes(name) || st.sets[name]) { let i = 2; while (worldNames().includes(`${name} ${i}`) || st.sets[`${name} ${i}`]) i++; name = `${name} ${i}`; }
+        target = { entries: {} };
+        newId = name;
+    }
+    const targetBook = home || newId;
+    for (const e of moving) {
+        const uid = freeUid(target);
+        const copy = structuredClone(e);
+        const ri = { ...(copy.extensions?.ri || {}) };
+        ri.was = [...new Set([...(Array.isArray(ri.was) ? ri.was : []), `${from.book}.${e.uid}`])];
+        if (group) ri.set = group; else delete ri.set;
+        copy.uid = uid; copy.displayIndex = uid;
+        copy.extensions = { ...(copy.extensions || {}), ri };
+        target.entries[uid] = copy;
+        keys.push([`${from.book}.${e.uid}`, `${targetBook}.${uid}`]);
+    }
+    st.sets[newId] = group ? { ...opts, book: home, group } : opts;
+    delete st.sets[id];
+    saveSettings();
+    await saveSet(newId, target);
+    if (from.shared) {
+        // Take the set out of the shared lorebook it came from.
+        for (const e of moving) delete source.entries[e.uid];
+        const ri = source.extensions?.ri;
+        if (ri?.groups) { const groups = { ...ri.groups }; delete groups[from.group]; source.extensions = { ...source.extensions, ri: { ...ri, groups } }; }
+        await saveBook(from.book, source);
+    }
+    await refreshWorldList();
+    return { id: newId, from: id, keys };
+}
+
+/** Delete a set that is kept inside a shared lorebook: its entries and its name are taken out of that lorebook. */
+export async function deleteSharedSet(id) {
+    const i = setInfo(id);
+    if (!i.shared) throw new Error('This set has a lorebook of its own. Delete that lorebook in World Info.');
+    const data = await loadSet(id);
+    if (!data) throw new Error(`The lorebook "${i.book}" could not be read.`);
+    for (const e of entriesOf(data, id)) delete data.entries[e.uid];
+    const ri = data.extensions?.ri;
+    if (ri?.groups) { const groups = { ...ri.groups }; delete groups[i.group]; data.extensions = { ...data.extensions, ri: { ...ri, groups } }; }
+    forgetSet(id);
+    await saveBook(i.book, data);
+}
+
+/** One set as a lorebook file of its own, for export. */
+export async function exportSet(id) {
+    const data = await loadSet(id);
+    if (!data) return null;
+    const i = setInfo(id);
+    if (!i.shared) return data;
+    const out = { entries: {}, extensions: { ri: { v: 1, limit: i.limit, max: i.max, kind: i.kind } } };
+    entriesOf(data, id).forEach((e, n) => {
+        const copy = structuredClone(e);
+        const ri = { ...(copy.extensions?.ri || {}) };
+        delete ri.set; delete ri.was;
+        copy.uid = n; copy.displayIndex = n;
+        copy.extensions = { ...(copy.extensions || {}), ri };
+        out.entries[n] = copy;
+    });
+    return out;
+}
+
+export function listInstructions(data, id = '') {
+    return (id ? entriesOf(data, id) : Object.values(data.entries || {}))
         .map(readInstruction)
         .sort((a, b) => (a.order - b.order) || (a.uid - b.uid));
 }

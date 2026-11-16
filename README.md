@@ -1,15 +1,17 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension. Version 4: **Random Instructions**, **Random Story Events**,
-**Random Writing Style** and **Character Goals**.
+A standalone SillyTavern / TauriTavern extension. Version 5 (in progress): **Random Instructions**, **Random Story
+Events**, **Random Writing Style** and **Character Goals**, kept in one lorebook or in several, with at most one
+new thing started per reply.
 
 You build *instruction sets*. Each instruction has several *versions* of the same order ("{{char}} must pay
 {{user}} a compliment"). During a chat, an instruction is sent at random with the chance and timing you set, one
 version at a time. The extension then checks whether it happened, and sends it again with firmer wording if it
 did not.
 
-Every instruction set is an ordinary lorebook, so SillyTavern's World Info does the chance and timing. The
-extension adds the easy editor, the AI writer, per-reply limits, the check, and a record of exactly what was sent.
+Every set is saved in an ordinary lorebook, so SillyTavern's World Info does the chance and timing. All your sets
+can share one lorebook, or each can have its own. The extension adds the easy editor, the AI writer, per-reply
+limits, the check, and a record of exactly what was sent.
 
 - Works with any preset. Chat Completion. Needs SillyTavern 1.19 or later, or a TauriTavern build on 1.19.
 - Depends on no other extension.
@@ -20,7 +22,7 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v4`
+3. Branch: `roleplay-instructions-v5`
 4. Install, then reload the app.
 
 ## First use (2 minutes)
@@ -33,6 +35,28 @@ extension adds the easy editor, the AI writer, per-reply limits, the check, and 
    tick the ones you like, press **Add the ticked versions**. Or press **Add a version yourself**.
 5. Press **Save instruction**. Turn on **On for this chat**. Send a message.
 6. Look at the **What Was Sent** tab to see what was sent with each reply and whether it happened.
+
+## One lorebook or many (new in 5.1)
+
+Settings > **Where your sets are kept** decides where sets are saved.
+
+- **One shared lorebook.** Every set you add is kept inside one lorebook (named "Roleplay Instructions" unless you
+  pick another name). Instruction sets, story event sets and writing style sets all live there, each as a named
+  group of entries. This is how a new install starts.
+- **A lorebook of its own for each set.** How Versions 1 to 4 worked. An install that already has sets stays this
+  way until you change it.
+- **Which ones share.** The same section lists every set with a choice of where it is kept, and a button that moves
+  all of them into the shared lorebook. You can keep some sets shared and others apart.
+
+Either way each set is turned on or off per chat, keeps its own per-reply limit, and "One thing per reply" counts
+across all of them, so a reply is never handed an instruction, a story event and a goal task at once.
+
+Moving a set copies every entry whole (versions, timing, notes). Each copy remembers the key it had before, so
+what your chats recorded still counts: waits carry on, "only once" stays retired, used story event items stay
+used, and a chat that had the set on still has it on. When a set leaves a lorebook of its own, that lorebook is
+left exactly as it was, as a spare copy. Delete it in World Info when you no longer want it.
+
+A shared lorebook can also hold your own entries that belong to no set. The extension leaves those alone.
 
 ## Random Story Events (new in Version 2)
 
@@ -135,7 +159,7 @@ can be set to start the next goal from that list.
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
 | Log | Every request made to the AI: what was sent, what came back, how long it took and, when it failed, why. Copy it or save it as a file. |
-| Settings | Pronouns for this chat, which AI connection writes and checks, how checking and re-sending work, and the optional section under each reply. |
+| Settings | Pronouns for this chat, which AI connection writes and checks, where your sets are kept, how many new things can start per reply, how checking and re-sending work, and the optional section under each reply. |
 
 ## Things worth knowing
 
@@ -174,7 +198,8 @@ can be set to start the next goal from that list.
   model for it in Settings > AI connection for writing and checking. If you send your next message while a check
   is still running, the extension waits for it (20 seconds at most) so a missed instruction can go out again.
 - **Background requests** (summaries, impersonate) never carry instructions and never use up timers.
-- **With the extension off**, a set still works if you turn the lorebook on in World Info: each entry holds a
+- **With the extension off**, a set still works if you turn its lorebook on in World Info (a shared lorebook
+  then sends from every set inside it): each entry holds a
   `{{random::...}}` list of its versions. Per-reply limits, the no-repeat cycle, checking and What Was Sent need
   the extension. Timing then comes from World Info's own counters, which stop working in chats longer than the
   window of messages your setup sends.
@@ -193,15 +218,17 @@ The record of what was sent lives on each reply, so it follows the reply whereve
 | Branch a chat | The branch keeps which sets are on, your pronouns, and the records up to the branch point, and continues from the state at that reply. The original chat is untouched. |
 
 You do not need to assign instruction sets in SillyTavern's World Info selector. "On for this chat" in the panel
-is enough. If a set is also turned on in World Info it is still sent only once, but it then stays on wherever
-World Info has it on, whatever the panel switch says.
+is enough. If a set in a lorebook of its own is also turned on in World Info it is still sent only once, but it
+then stays on wherever World Info has it on, whatever the panel switch says. A shared lorebook turned on in World
+Info is different: the panel switch still decides for each set inside it, and entries that belong to no set are
+sent as World Info decides.
 
 ## Where things are stored
 
 | What | Where |
 | --- | --- |
-| Instructions and versions | In the lorebook file. Each entry has `extensions.ri` (versions, sent as, who does it, notes). |
-| Which lorebooks are instruction sets, per-reply limits, settings | SillyTavern extension settings (`roleplay_instructions`). |
+| Instructions and versions | In the lorebook file. Each entry has `extensions.ri` (versions, sent as, who does it, notes). In a shared lorebook the entry also carries its set's name (`extensions.ri.set`), and the file lists its sets (`extensions.ri.groups`). |
+| Which sets exist and where each is kept, per-reply limits, settings | SillyTavern extension settings (`roleplay_instructions`). |
 | Which sets are on, pronouns, what is waiting to be sent again | In the chat file (chat metadata). |
 | What was sent with each reply | On the message itself (`extra.roleplay_instructions`). |
 
@@ -214,4 +241,6 @@ run. See `tests/README.md`.
 
 ## Roadmap
 
-All four versions are built. Later, unscheduled: importing Lorebary plugin exports, and foreshadowed delayed events.
+Version 5 is being built in steps. Done: one thing per reply and burn after it happens (5.0), one lorebook or many
+(5.1). Next: world entries and reading who is present (5.2), notes lifted from the reply and automatic entries
+(5.3), a built-in summary, New chapter and a starter world (5.4), pacing and style (5.5).

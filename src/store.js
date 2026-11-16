@@ -13,7 +13,8 @@ export const PRONOUN_LABELS = { she: 'she / her', he: 'he / him', they: 'they / 
 const DEFAULTS = {
     enabled: true,
     perReply: 1,                 // how many new things may start in one reply, across every set and the goal (0 = no cap)
-    sets: {},                    // lorebook name -> { limit: 'none' | 'one' | 'together' | 'max', max: 2 }
+    sets: {},                    // set id -> { limit: 'none' | 'one' | 'together' | 'max', max: 2, kind, book?, group?, was? }
+                                 //   a set in a lorebook of its own: id is the lorebook name. Inside a shared lorebook: book and group are set.
     profileId: '',               // AI connection for writing and checking ('' = same as the chat)
     check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' },
     showUnder: 'off',            // 'off' | 'display' | 'saved'
@@ -34,10 +35,16 @@ function fill(target, defaults) {
     return target;
 }
 
+export const HOME_BOOK = 'Roleplay Instructions';
+
 export function settings() {
     const root = ctx().extensionSettings;
     if (!root[KEY] || typeof root[KEY] !== 'object') root[KEY] = {};
-    return fill(root[KEY], DEFAULTS);
+    const st = fill(root[KEY], DEFAULTS);
+    // Where new sets are kept: '' = each in a lorebook of its own, or the name of the shared lorebook.
+    // A new install keeps everything in one lorebook. An install that already has sets stays as it is.
+    if (typeof st.home !== 'string') st.home = Object.keys(st.sets).length ? '' : HOME_BOOK;
+    return st;
 }
 
 export function saveSettings() {
@@ -57,7 +64,7 @@ export function chatState() {
     if (!Array.isArray(cs.overdue)) cs.overdue = [];
     if (cs.lastScan === undefined) cs.lastScan = null;
     if (!cs.locks || typeof cs.locks !== 'object') cs.locks = {};       // "lorebook.uid" -> { categoryId: [itemIds] } picks locked for this chat
-    if (!cs.presets || typeof cs.presets !== 'object') cs.presets = {};   // lorebook name -> name of the saved category settings this chat uses
+    if (!cs.presets || typeof cs.presets !== 'object') cs.presets = {};   // set id -> name of the saved category settings this chat uses
     return cs;
 }
 

@@ -1,8 +1,9 @@
 // Settings tab.
-import { h, select, numberInput, textInput, field, section } from './dom.js';
-import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS } from '../store.js';
-import { listProfiles, names, isChatOpen, hasEvent, toast } from '../st.js';
-import { ensureRegexScript } from '../engine.js';
+import { h, select, numberInput, textInput, field, section, button, foldCard } from './dom.js';
+import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
+import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
+import { ensureRegexScript, setsMoved } from '../engine.js';
+import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '../books.js';
 import { refreshUnderReplies } from './sent.js';
 
 function pronounControl(role, app) {
@@ -13,6 +14,78 @@ function pronounControl(role, app) {
     return field(`Pronouns for ${who}`, 'Versions use these wherever they have a pronoun label, so one instruction set works with any character.',
         select(Object.entries(PRONOUN_LABELS).map(([value, label]) => ({ value, label })), p.preset, (v) => { setPronouns(role, v, p.custom); app.render(); }),
         p.preset === 'custom' ? h('div', { class: 'ri-grid2' }, FORMS.map((f, i) => field(`Word used for "${examples[i]}"`, '', textInput(p.custom[i], (v) => { const next = [...p.custom]; next[i] = v; setPronouns(role, 'custom', next); }, { placeholder: examples[i] })))) : null);
+}
+
+const KIND_LABEL = { instructions: 'Random Instructions', events: 'Random Story Events', style: 'Random Writing Style' };
+let moving = false;
+
+/** Move one set, then let the open chat and the panel follow. Returns the result, or null when it failed. */
+async function move(app, id, home) {
+    if (moving) return null;
+    moving = true;
+    try {
+        const from = setInfo(id);
+        const res = await moveSet(id, home);
+        await setsMoved();
+        app.cache = {};
+        const now = setInfo(res.id);
+        if (res.id !== id) {
+            toast('success', now.shared
+                ? `"${now.name}" is now kept in the shared lorebook "${now.book}".${from.shared ? '' : ` Its old lorebook "${from.book}" was left as it was. Delete it in World Info when you no longer want it.`}`
+                : `"${now.name}" now has a lorebook of its own.`);
+        }
+        return res;
+    } catch (e) { toast('error', `Could not move the set: ${e.message}`); return null; }
+    finally { moving = false; }
+}
+
+function whereFold(app, count, rows) {
+    const fold = foldCard([h('span', { class: 'ri-sent-title' }, `Where each set is kept (${count} sets)`)], [h('div', { class: 'ri-where-list' }, rows)], { open: !!app.whereOpen });
+    fold.addEventListener('toggle', () => { app.whereOpen = fold.open; });
+    return fold;
+}
+
+function whereSection(app) {
+    const st = settings();
+    const books = [...new Set([...sharedBooks(), ...(st.home ? [st.home] : [])])].sort((a, b) => a.localeCompare(b));
+    const ids = KINDS.flatMap(k => knownSets(k));
+    const NEW = '::new';
+    const askName = async () => cleanSetName(await inputBox('Name for the shared lorebook:', HOME_BOOK));
+
+    const homeOptions = [...books.map(b => ({ value: b, label: `One shared lorebook: "${b}"` })), ...(books.includes(HOME_BOOK) ? [] : [{ value: HOME_BOOK, label: `One shared lorebook: "${HOME_BOOK}"` }]), { value: NEW, label: 'One shared lorebook with another name' }, { value: '', label: 'A lorebook of its own for each set' }];
+    const homeField = field('New sets are kept in', st.home
+        ? `Every set you add from now on is kept inside the lorebook "${st.home}". The lorebook is made when the first set is added.`
+        : 'Every set you add from now on gets a lorebook of its own, named after the set.',
+        select(homeOptions, st.home, async (v) => {
+            if (v === NEW) { const n = await askName(); if (n) st.home = n; }
+            else st.home = v;
+            saveSettings(); app.render();
+        }));
+
+    const rows = ids.map((id) => {
+        const i = setInfo(id);
+        const options = [{ value: '', label: 'A lorebook of its own' }, ...books.map(b => ({ value: b, label: `Shared lorebook: "${b}"` }))];
+        return h('div', { class: 'ri-where' },
+            h('div', { class: 'ri-where-name' }, i.name, h('span', { class: 'ri-where-kind' }, KIND_LABEL[i.kind])),
+            select(options, i.shared ? i.book : '', async (v) => { await move(app, id, v); app.render(); }, { 'aria-label': `Where ${i.name} is kept` }));
+    });
+
+    const outside = st.home ? ids.filter(id => { const i = setInfo(id); return !(i.shared && i.book === st.home); }) : [];
+    return section('Where your sets are kept',
+        h('div', { class: 'ri-help' }, 'Every set is saved in a lorebook. One shared lorebook keeps everything this extension makes in one place. A lorebook for each set keeps them apart. Either way, each set is turned on or off per chat, keeps its own limit, and "One thing per reply" counts across all of them.'),
+        homeField,
+        outside.length ? h('div', { class: 'ri-row' }, button(`Move all ${ids.length === outside.length ? '' : 'other '}sets into "${st.home}" (${outside.length})`, async () => {
+            let done = 0;
+            for (const id of outside) { if (await move(app, id, st.home)) done++; }
+            if (done > 1) toast('success', `${done} sets are now kept in "${st.home}". The lorebooks they came from were left as they were.`);
+            app.render();
+        }, { kind: 'primary', title: 'Each set keeps its versions, timing and what the chats recorded about it' })) : null,
+        ids.length ? [
+            // A long list starts closed so the rest of Settings stays in reach.
+            ids.length > 8 ? whereFold(app, ids.length, rows)
+                : [h('div', { class: 'ri-label' }, 'Where each set is kept'), h('div', { class: 'ri-where-list' }, rows)],
+            h('div', { class: 'ri-help' }, 'Moving a set copies every entry whole: versions, timing and notes. What your chats recorded about it still counts, so waits, "only once" and retired items carry on. When a set leaves a lorebook of its own, that lorebook is left as it was, as a spare copy.')]
+            : h('div', { class: 'ri-muted' }, 'You have no sets yet.'));
 }
 
 export function renderSettings(body, app) {
@@ -29,6 +102,8 @@ export function renderSettings(body, app) {
             select([{ value: '', label: 'Same connection as the chat' }, ...profiles.map(p => ({ value: p.id, label: `Connection profile: ${p.name}` }))], st.profileId, (v) => { st.profileId = v; save(); })),
         field('Give the AI more room to answer', 'Turn this on for models that think before they answer (DeepSeek, GLM, Kimi and others). Without it, the thinking can use up the room and the answer comes back empty. It turns itself on when an empty answer is fixed by a second try with more room.',
             select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
+
+    body.appendChild(whereSection(app));
 
     body.appendChild(section('One thing per reply',
         field('How many new things can start in one reply', 'Counted across every instruction set, every story event set and the goal task together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
@@ -67,6 +142,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.0.0. Version 5 (in progress): Random Instructions, Random Story Events, Random Writing Style and Character Goals. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
-        h('div', { class: 'ri-help' }, 'Instruction sets are ordinary lorebooks. With this extension off, a set still works if you turn the lorebook on in World Info, without limits, checking or the What Was Sent record.')));
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.1.0. Version 5 (in progress): Random Instructions, Random Story Events, Random Writing Style and Character Goals. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

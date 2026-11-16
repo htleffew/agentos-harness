@@ -201,3 +201,11 @@
 .ri-log-list { margin: 4px 0 8px 18px; padding: 0; color: var(--ri-text-2); font-size: 0.88em; }
 .ri-log-label { color: var(--ri-label); font-size: 0.72em; letter-spacing: 0.12em; text-transform: uppercase; margin: 10px 0 4px; }
 .ri-pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8em; background: var(--ri-bg); border: 1px solid var(--ri-line); border-radius: 8px; padding: 9px 10px; max-height: 320px; overflow: auto; color: var(--ri-text-2); }
+
+/* 5.1: where sets are kept */
+.ri-kept { color: var(--ri-text-2); font-size: 0.85em; margin: 2px 0 8px; }
+.ri-where-list { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 10px; }
+.ri-where { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--ri-line, rgba(255,255,255,0.12)); border-radius: 8px; }
+.ri-where-name { font-weight: 600; display: flex; flex-direction: column; gap: 2px; min-width: 150px; flex: 1 1 180px; }
+.ri-where-kind { font-weight: 400; font-size: 0.82em; color: var(--ri-text-2); }
+.ri-where select { flex: 1 1 220px; max-width: 360px; }

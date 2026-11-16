@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.1.0 (2026-11-15)
+
+Version 5, second step: one lorebook or many.
+
+- Where your sets are kept. A new section in Settings. Every set can be kept inside one shared lorebook, or each in
+  a lorebook of its own, and you choose set by set which ones share. Instruction sets, story event sets and writing
+  style sets can all live in the same lorebook.
+- A new install keeps everything in one lorebook named "Roleplay Instructions". An install that already has sets
+  stays as it is until you change it.
+- Move a set with one choice. Every entry is copied whole (versions, timing, notes), and each copy remembers the key
+  it had before. Waits carry on, "only once" stays retired, used story event items stay used, versions keep taking
+  turns, and a chat that had the set on still has it on. A lorebook the set leaves is left exactly as it was.
+- Inside a shared lorebook each set is still turned on or off per chat, keeps its own per-reply limit, and counts
+  toward "One thing per reply". Entries in that lorebook that belong to no set are left to World Info.
+- Each set card says where the set is kept. Export gives one set as a lorebook file of its own. "Open a lorebook" on
+  a shared lorebook adds every set kept inside it.
+- With the extension off, a shared lorebook turned on in World Info works as an ordinary lorebook.
+
 ## 5.0.0 (2026-11-15)
 
 Version 5, first step: one thing per reply, and burn after it happens.

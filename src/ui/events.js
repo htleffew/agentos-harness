@@ -1,7 +1,8 @@
 // Random Story Events tab and Random Writing Style tab. Both are a list of sets and an editor for one set:
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
-import { knownSets, loadSet, saveSet, createSet, forgetSet, wrapText, SENT_AS } from '../books.js';
+import { knownSets, loadSet, saveSet, createSet, forgetSet, exportSet, setName, freeUid, wrapText, SENT_AS } from '../books.js';
+import { keptIn, removeText, deleteButton } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { validateVersion, swapNames, userDrives } from '../validate.js';
@@ -38,15 +39,15 @@ function onForChat(name) {
     const cs = chatState();
     if (!cs) return h('span', { class: 'ri-muted' }, 'Open a chat to turn this on');
     return h('label', { class: 'ri-switch-row' }, h('span', {}, 'On for this chat'),
-        toggle(cs.activeSets.includes(name), (v) => { cs.activeSets = cs.activeSets.filter(n => n !== name); if (v) cs.activeSets.push(name); saveChatState(); }, `Turn ${name} on or off for this chat`));
+        toggle(cs.activeSets.includes(name), (v) => { cs.activeSets = cs.activeSets.filter(n => n !== name); if (v) cs.activeSets.push(name); saveChatState(); }, `Turn ${setName(name)} on or off for this chat`));
 }
 
 async function openSet(app, name) {
     const c = cfg;
     const data = await loadSet(name);
-    const entry = findEventEntry(data, c.type);
+    const entry = findEventEntry(data, c.type, name);
     if (!entry) { toast('error', `This lorebook is not a ${c.set}.`); return; }
-    go(app, { view: 'edit', name, draft: readEvent(entry, name), open: {} }, c);
+    go(app, { view: 'edit', name, draft: readEvent(entry, setName(name)), open: {} }, c);
 }
 
 // ---------- list of event sets ----------
@@ -73,9 +74,9 @@ function renderList(body, app) {
         const info = h('div', { class: 'ri-grid' }, h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Categories'), h('span', { class: 'ri-v' }, '...')));
         const c = cfg;
         loadSet(name).then((data) => {
-            const entry = findEventEntry(data, c.type);
+            const entry = findEventEntry(data, c.type, name);
             if (!entry) { info.replaceChildren(h('span', { class: 'ri-muted' }, `This lorebook is not a ${c.set}.`)); return; }
-            const ev = readEvent(entry, name);
+            const ev = readEvent(entry, setName(name));
             const on = ev.categories.filter(c => c.on);
             const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
             info.replaceChildren(
@@ -83,18 +84,20 @@ function renderList(body, app) {
                 kv('How often', c.kind === 'style' ? 'With every reply while it is on for the chat' : `${ev.chance}% chance each reply${ev.wait ? `, then waits ${ev.wait} ${ev.wait === 1 ? 'reply' : 'replies'}` : ''}`));
         }).catch(() => info.replaceChildren(h('span', { class: 'ri-muted' }, 'This lorebook could not be read.')));
         body.appendChild(h('div', { class: 'ri-card ri-setcard' },
-            h('div', { class: 'ri-card-top' }, h('button', { type: 'button', class: 'ri-card-name', onclick: () => openSet(app, name) }, name), onForChat(name)),
+            h('div', { class: 'ri-card-top' }, h('button', { type: 'button', class: 'ri-card-name', onclick: () => openSet(app, name) }, setName(name)), onForChat(name)),
+            keptIn(name),
             info,
             h('div', { class: 'ri-row' },
                 button('Open', () => openSet(app, name), { kind: 'primary', title: 'See and edit the categories and items' }),
-                button('Export', async () => { const data = await loadSet(name); if (!data || !download(`${name}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.'); }, { kind: 'ghost' }),
+                button('Export', async () => { const data = await exportSet(name); if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.'); }, { kind: 'ghost' }),
                 button('Remove from this list', async () => {
-                    if (!await confirmBox(`Remove "${name}" from this list? The lorebook itself is kept.`)) return;
+                    if (!await confirmBox(removeText(name))) return;
                     forgetSet(name);
                     const cs = chatState();
                     if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== name); saveChatState(); }
                     app.render();
-                }, { kind: 'ghost' }))));
+                }, { kind: 'ghost' }),
+                deleteButton(app, name))));
     }
 }
 
@@ -319,9 +322,10 @@ function renderEdit(body, app) {
         try {
             const data = await loadSet(name);
             if (!data) throw new Error('The lorebook could not be read.');
-            const existing = findEventEntry(data, cfg.type);
+            const existing = findEventEntry(data, cfg.type, name);
             if (existing) draft.uid = existing.uid;
-            writeEvent(data, draft);
+            else if (data.entries[draft.uid]) draft.uid = freeUid(data);
+            writeEvent(data, draft, name);
             await saveSet(name, data);
             r.dirty = false;
             const ready = draft.categories.some(c => c.on && c.items.some(i => i.on));

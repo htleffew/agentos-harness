@@ -5,7 +5,7 @@ import { request } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
-import { USER_LINE, parseContent, wrapText, toStore, setOptions, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
+import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 const sentEntries = new Map();   // key -> the lorebook entry whose text is being sent in this reply
 
@@ -40,7 +40,63 @@ function changed(what, id) {
 }
 
 const keyOf = e => `${e.world}.${e.uid}`;
-const managedWorlds = () => new Set([...Object.keys(settings().sets), GOAL_WORLD]);
+/** The set an entry belongs to ('' when it is in no set in the list). A shared lorebook holds several sets. */
+const setOf = e => isGoal(e) ? GOAL_WORLD : setOfEntry(e);
+const isManaged = e => !!setOf(e);
+
+// ---------- sets that were moved ----------
+//
+// Moving a set into or out of a shared lorebook gives its entries new keys. Each entry remembers the keys it had
+// before, so the records on older replies, and this chat's own state, still count for it.
+
+const alias = new Map();   // former key -> the key the entry has now
+const canon = key => alias.get(key) || key;
+
+function learnAliases(entries) {
+    const live = new Set(entries.map(keyOf));
+    for (const e of entries) for (const old of e.extensions?.ri?.was || []) if (!live.has(old)) alias.set(String(old), keyOf(e));
+}
+
+/** Read the lorebooks of sets that were moved, so former keys are known before the first reply. */
+async function refreshAliases() {
+    const books = new Set(Object.keys(settings().sets).map(setInfo).filter(i => i.was.length).map(i => i.book));
+    for (const book of books) {
+        const data = await loadBook(book).catch(() => null);
+        if (data?.entries) learnAliases(Object.values(data.entries).map(e => ({ ...e, world: book })));
+    }
+}
+
+/** Bring this chat's own state in line with where the sets and their entries are now. */
+function syncChat(cs) {
+    let dirty = false;
+    const sets = [...new Set(cs.activeSets.map(canonSet))];
+    if (sets.join('\n') !== cs.activeSets.join('\n')) { cs.activeSets = sets; dirty = true; }
+    for (const id of Object.keys(cs.presets)) {
+        const now = canonSet(id);
+        if (now !== id) { if (!(now in cs.presets)) cs.presets[now] = cs.presets[id]; delete cs.presets[id]; dirty = true; }
+    }
+    if (alias.size) {
+        for (const map of [cs.used, cs.picks, cs.locks]) {
+            for (const key of Object.keys(map)) {
+                const now = canon(key);
+                if (now !== key) { if (!(now in map)) map[now] = map[key]; delete map[key]; dirty = true; }
+            }
+        }
+        for (const o of cs.overdue) { const now = canon(o.key); if (now !== o.key) { o.key = now; dirty = true; } }
+        for (const it of cs.lastScan?.items || []) { const now = canon(it.key); if (now !== it.key) { it.key = now; dirty = true; } }
+        const states = cs.lastScan?.states;
+        if (states) for (const key of Object.keys(states)) { const now = canon(key); if (now !== key) { states[now] = states[key]; delete states[key]; dirty = true; } }
+    }
+    if (dirty) saveChatState();
+}
+
+/** Called by the panel after a set was moved: the open chat follows it right away. */
+export async function setsMoved() {
+    await refreshAliases();
+    const cs = chatState();
+    if (cs) syncChat(cs);
+    changed('messages');
+}
 
 // ---------- timing, counted in replies from the records kept on the replies ----------
 //
@@ -63,13 +119,14 @@ function history(type = 'normal') {
         if (i === 0) continue; // the greeting is not a reply
         replies++;
         for (const it of m.extra?.[KEY]?.items || []) {
-            const prev = last.get(it.key);
+            const key = canon(it.key);
+            const prev = last.get(key);
             if (it.kind === 'continuing' && prev) prev.version = it.version;
-            else last.set(it.key, { start: replies, version: it.version });
-            if (it.event) events.set(it.key, it.event);
+            else last.set(key, { start: replies, version: it.version });
+            if (it.event) events.set(key, it.event);
         }
         // Writing style sets keep their category state on the reply even when nothing was sent that time.
-        for (const [key, st] of Object.entries(m.extra?.[KEY]?.states || {})) events.set(key, st);
+        for (const [key, st] of Object.entries(m.extra?.[KEY]?.states || {})) events.set(canon(key), st);
     }
     return { next: replies + 1, last, events };
 }
@@ -109,6 +166,7 @@ function applyTiming(entries, cs) {
 
 /** True when this instruction will be sent with the next reply anyway because it keeps sending. */
 function keepsGoing(key) {
+    key = canon(key);
     const t = timing.get(key);
     if (!t?.keep) return false;
     const h = history('normal');
@@ -122,16 +180,26 @@ async function onEntriesLoaded(lore) {
     try {
         const st = settings();
         if (!st.enabled || !lore) return;
-        const managed = managedWorlds();
         const arrays = [lore.globalLore, lore.characterLore, lore.chatLore, lore.personaLore].filter(Array.isArray);
         const cs = chatState();
+        if (cs) syncChat(cs);
         if (cs && Array.isArray(lore.chatLore)) {
             const present = new Set(arrays.flat().map(e => e.world));
-            for (const name of cs.activeSets) {
-                if (!managed.has(name) || present.has(name)) continue;
-                const data = await loadBook(name).catch(() => null);
+            const active = new Set(cs.activeSets.filter(id => st.sets[id]));
+            const byBook = new Map();   // lorebook -> the sets in it that are on for this chat
+            for (const id of active) { const info = setInfo(id); if (!byBook.has(info.book)) byBook.set(info.book, []); byBook.get(info.book).push(info); }
+            for (const [book, infos] of byBook) {
+                if (present.has(book)) continue;
+                const data = await loadBook(book).catch(() => null);
                 if (!data?.entries) continue;
-                lore.chatLore.push(...Object.values(data.entries).map(e => ({ ...e, world: name })));
+                // A lorebook of its own is added whole. From a shared lorebook, only the sets that are on.
+                const whole = infos.some(i => !i.shared);
+                const groups = new Set(infos.filter(i => i.shared).map(i => i.group));
+                lore.chatLore.push(...Object.values(data.entries).filter(e => whole || groups.has(e.extensions?.ri?.set)).map(e => ({ ...e, world: book })));
+            }
+            // A shared lorebook that World Info added by itself: its sets that are off for this chat stay out.
+            for (const arr of arrays) {
+                for (let i = arr.length - 1; i >= 0; i--) { const id = setOfEntry(arr[i]); if (id && setInfo(id).shared && !active.has(id)) arr.splice(i, 1); }
             }
         }
         // The character goal travels as one entry that is made here for each scan.
@@ -140,16 +208,18 @@ async function onEntriesLoaded(lore) {
             if (g?.on && String(g.goal || '').trim() && !goalDone(g, goalProgress(gen && !gen.dryRun ? gen.type : 'normal'))) lore.chatLore.push(goalEntry());
         }
         for (const arr of arrays) {
-            for (const e of arr) if (managed.has(e.world)) rawByKey.set(keyOf(e), { content: e.content, role: e.role });
+            for (const e of arr) if (isManaged(e)) rawByKey.set(keyOf(e), { content: e.content, role: e.role });
         }
+        learnAliases(arrays.flat().filter(isManaged));
+        if (cs) syncChat(cs);
         // Requests that are not a reply from the character (impersonate, background requests) carry no instructions.
         if (gen && !gen.dryRun && gen.skip) {
             for (const arr of arrays) {
-                for (let i = arr.length - 1; i >= 0; i--) if (managed.has(arr[i].world)) arr.splice(i, 1);
+                for (let i = arr.length - 1; i >= 0; i--) if (isManaged(arr[i])) arr.splice(i, 1);
             }
             return;
         }
-        if (cs) applyTiming(arrays.flat().filter(e => managed.has(e.world)), cs);
+        if (cs) applyTiming(arrays.flat().filter(isManaged), cs);
     } catch (e) { console.error(LOG, 'entries-loaded', e); }
 }
 
@@ -185,7 +255,7 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     const text = sub(wrapText(sentAs, version, misses));
     entry.content = text;
     sentEntries.set(keyOf(entry), entry);
-    const item = { key: keyOf(entry), world: entry.world, uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
+    const item = { key: keyOf(entry), world: entry.world, set: setOf(entry), uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
     // A story event also keeps what the dice picked, and the state of its categories after this event.
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
     if (extra?.noCheck) item.noCheck = true;
@@ -194,8 +264,8 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
 }
 
 /** Apply "How many instructions can be sent per reply" for one instruction set. Returns the new instructions to hold back. */
-function applyLimit(world, fresh, continuing) {
-    const o = setOptions(world);
+function applyLimit(set, fresh, continuing) {
+    const o = setOptions(set);
     if (o.limit === 'none' || !fresh.length) return [];
     const weight = e => e.groupWeight ?? 100;
     let keep = fresh;
@@ -249,13 +319,13 @@ function reconcile() {
     const cs = chatState();
     if (!cs) return;
     const times = liveRecordTimes();
-    const kept = cs.overdue.filter(o => !o.from || times.has(o.from));
+    const kept = cs.overdue.filter(o => !o.from || times.has(o.from)).map(o => canon(o.key) === o.key ? o : { ...o, key: canon(o.key) });
     const chat = ctx().chat || [];
     const last = chat[chat.length - 1];
     const rec = last && !last.is_user ? last.extra?.[KEY] : null;
     for (const it of rec?.items || []) {
-        if (!['overdue', 'queued'].includes(it.status) || kept.some(o => o.key === it.key)) continue;
-        kept.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time, event: it.event, parts: it.parts });
+        if (!['overdue', 'queued'].includes(it.status) || kept.some(o => o.key === canon(it.key))) continue;
+        kept.push({ key: canon(it.key), world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time, event: it.event, parts: it.parts });
     }
     if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
 }
@@ -273,11 +343,12 @@ function happened() {
         for (const it of m?.extra?.[KEY]?.items || []) {
             const did = it.status === 'done' || ((checkOff || it.noCheck) && it.status === 'sent');
             if (!did) continue;
-            keys.add(it.key);
+            const key = canon(it.key);
+            keys.add(key);
             if (Array.isArray(it.parts)) {
-                const set = ids.get(it.key) || new Set();
+                const set = ids.get(key) || new Set();
                 for (const p of it.parts) for (const id of p.ids || []) set.add(id);
-                ids.set(it.key, set);
+                ids.set(key, set);
             }
         }
     }
@@ -288,11 +359,10 @@ function happened() {
 function reapply(result, args) {
     if (!result) return;
     const map = args.activated.entries;
-    const managed = managedWorlds();
     const sorted = Array.isArray(args.sortedEntries) ? args.sortedEntries : [];
-    for (const e of [...map.values()]) { if (managed.has(e.world)) map.delete(keyOf(e)); }
+    for (const e of [...map.values()]) { if (isManaged(e)) map.delete(keyOf(e)); }
     for (const [key, text] of result.texts) {
-        const e = sorted.find(x => keyOf(x) === key && managed.has(x.world));
+        const e = sorted.find(x => keyOf(x) === key && isManaged(x));
         if (!e) continue;
         e.content = text;
         map.set(key, e);
@@ -313,9 +383,8 @@ function onScanDone(args) {
         gen.handled = true;
         const cs = chatState();
         if (!cs) return;
-        const managed = managedWorlds();
         const sorted = Array.isArray(args.sortedEntries) ? args.sortedEntries : [];
-        const fired = [...map.values()].filter(e => managed.has(e.world));
+        const fired = [...map.values()].filter(isManaged);
         const isSticky = e => plan.continuing.has(keyOf(e));
         const type = gen.type;
 
@@ -328,7 +397,7 @@ function onScanDone(args) {
         const len = scanLength(type);
         const items = [];
         let states = {};
-        const find = key => sorted.find(e => keyOf(e) === key && managed.has(e.world) && !e.disable);
+        const find = key => sorted.find(e => keyOf(e) === canon(key) && isManaged(e) && !e.disable);
         reconcile();
         // Swipe, regenerate and continue send the same instructions again. The list comes from the last scan when it
         // was for this same reply, and otherwise from the record kept on the reply itself.
@@ -337,8 +406,8 @@ function onScanDone(args) {
         const isRepeat = type === 'continue' || (['swipe', 'regenerate'].includes(type) && !pickAgain && (sameReply || !!own));
 
         if (isRepeat) {
-            const before = own ? (own.items || []) : (type === 'continue' ? [] : (cs.lastScan.items || []));
-            states = (own ? own.states : cs.lastScan.states) || {};
+            const before = (own ? (own.items || []) : (type === 'continue' ? [] : (cs.lastScan.items || []))).map(it => canon(it.key) === it.key ? it : { ...it, key: canon(it.key) });
+            states = Object.fromEntries(Object.entries((own ? own.states : cs.lastScan.states) || {}).map(([k, v]) => [canon(k), v]));
             for (const e of fired) map.delete(keyOf(e));
             for (const it of before) {
                 const e = find(it.key);
@@ -350,7 +419,7 @@ function onScanDone(args) {
                 let src = it;
                 if (rerollCat && rerollCat.key === it.key && Array.isArray(it.parts)) {
                     // "Pick again" for one picked item: that category gets a new pick, everything else stays.
-                    const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[e.world]), it.parts, it.event || states[it.key], rerollCat.catId);
+                    const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, it.event || states[it.key], rerollCat.catId);
                     if (again) {
                         src = { ...it, version: again.text, parts: again.parts, event: it.event ? again.state : it.event };
                         if (!it.event) states = { ...states, [it.key]: again.state };
@@ -370,7 +439,7 @@ function onScanDone(args) {
             for (const e of styles) {
                 const key = keyOf(e);
                 const ri = e.extensions.ri;
-                const rolled = rollEvent(withPreset(ri, cs.presets?.[e.world]), plan.events?.get(key) || null, { locks: cs.locks?.[key] });
+                const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), plan.events?.get(key) || null, { locks: cs.locks?.[key] });
                 states[key] = rolled.state;
                 if (!rolled.text) { map.delete(key); continue; }
                 items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', rolled.text, 0, 'new', false, { parts: rolled.parts, noCheck: true }));
@@ -391,8 +460,8 @@ function onScanDone(args) {
             if (overdue.length && st.check.holdNew) {
                 held = fresh;
             } else {
-                for (const world of new Set(fresh.map(e => e.world))) {
-                    held.push(...applyLimit(world, fresh.filter(e => e.world === world), continuing.filter(e => e.world === world)));
+                for (const set of new Set(fresh.map(setOf))) {
+                    held.push(...applyLimit(set, fresh.filter(e => setOf(e) === set), continuing.filter(e => setOf(e) === set)));
                 }
             }
             for (const e of held) map.delete(keyOf(e));
@@ -437,7 +506,7 @@ function onScanDone(args) {
                     const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
-                    const rolled = rollEvent(withPreset(ri, cs.presets?.[e.world]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key) });
+                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key) });
                     if (!rolled) { map.delete(key); continue; }
                     items.push(makeItem(e, sentAs, rolled.text, 0, 'new', false, { event: rolled.state, parts: rolled.parts }));
                     continue;
@@ -515,8 +584,9 @@ function quoteFound(reply, quote) {
 
 function queueResend(cs, it, misses, from) {
     it.resend = misses;
-    cs.overdue = cs.overdue.filter(o => o.key !== it.key);
-    cs.overdue.push({ key: it.key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from, event: it.event, parts: it.parts });
+    const key = canon(it.key);
+    cs.overdue = cs.overdue.filter(o => o.key !== key);
+    cs.overdue.push({ key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from, event: it.event, parts: it.parts });
 }
 
 function markMissed(cs, it, from) {
@@ -587,7 +657,7 @@ async function runCheck(id) {
         if (!r) return;
         if (r.done === true && quoteFound(reply, r.quote)) {
             it.status = 'done'; it.quote = String(r.quote).trim();
-            cs.overdue = cs.overdue.filter(o => !(o.key === it.key && (!o.from || o.from === rec.time)));
+            cs.overdue = cs.overdue.filter(o => !(o.key === canon(it.key) && (!o.from || o.from === rec.time)));
         } else if ('goalTask' in it) {
             // A one-time step of the character goal: it is sent again with every reply until it happens.
             it.quote = ''; it.status = 'pending';
@@ -717,7 +787,7 @@ export function cancelResend(id, index) {
     const cs = chatState();
     const it = ctx().chat?.[id]?.extra?.[KEY]?.items?.[index];
     if (!cs || !it) return;
-    cs.overdue = cs.overdue.filter(o => o.key !== it.key);
+    cs.overdue = cs.overdue.filter(o => o.key !== canon(it.key));
     it.status = 'sent';
     touch(id);
 }
@@ -737,14 +807,14 @@ export function clearQueue() {
     if (!cs) return;
     const keys = new Set(cs.overdue.map(o => o.key));
     cs.overdue = [];
-    for (const m of ctx().chat || []) for (const it of m.extra?.[KEY]?.items || []) if (keys.has(it.key) && ['overdue', 'queued'].includes(it.status)) it.status = 'sent';
+    for (const m of ctx().chat || []) for (const it of m.extra?.[KEY]?.items || []) if (keys.has(canon(it.key)) && ['overdue', 'queued'].includes(it.status)) it.status = 'sent';
     touch(-1);
 }
 
 /** Pick again for one picked item of the newest reply, and write a new reply. */
 export async function rerollPartNow(key, catId) {
     if (isGenerating()) { toast('info', 'Wait for the current reply to finish.'); return; }
-    rerollCat = { key, catId };
+    rerollCat = { key: canon(key), catId };
     await triggerSwipe();
 }
 
@@ -752,6 +822,7 @@ export async function rerollPartNow(key, catId) {
 export function setLock(key, catId, ids) {
     const cs = chatState();
     if (!cs) return;
+    key = canon(key);
     if (ids && ids.length) { cs.locks[key] = { ...(cs.locks[key] || {}), [catId]: [...ids] }; }
     else if (cs.locks[key]) { delete cs.locks[key][catId]; if (!Object.keys(cs.locks[key]).length) delete cs.locks[key]; }
     saveChatState();
@@ -759,7 +830,7 @@ export function setLock(key, catId, ids) {
 }
 
 export function isLocked(key, catId) {
-    return !!chatState()?.locks?.[key]?.[catId];
+    return !!chatState()?.locks?.[canon(key)]?.[catId];
 }
 
 /** Roll this reply's instructions again and write a new reply. */
@@ -798,6 +869,8 @@ export function init() {
         rawByKey.clear();
         if (isChatOpen()) { applyPronouns(); if (settings().enabled) reconcile(); }
         changed('chat');
+        // Former keys of moved sets are read in the background, then this chat's state is brought in line.
+        if (isChatOpen() && settings().enabled) refreshAliases().then(() => { const cs = chatState(); if (cs) { syncChat(cs); reconcile(); changed('messages'); } }).catch(e => console.warn(LOG, 'aliases', e));
     });
     for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
     on('MESSAGE_DELETED', () => { if (settings().enabled) reconcile(); changed('messages'); });

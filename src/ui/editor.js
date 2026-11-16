@@ -1,6 +1,6 @@
 // The instruction editor: one screen, top to bottom. Also the "Write versions with AI" sheet.
 import { h, button, select, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear } from './dom.js';
-import { SENT_AS, ACTORS, TARGETS, loadSet, saveSet, writeInstruction, wrapText, listInstructions } from '../books.js';
+import { SENT_AS, ACTORS, TARGETS, loadSet, saveSet, setName, freeUid, writeInstruction, wrapText, listInstructions } from '../books.js';
 import { settings, saveSettings, pronounForms } from '../store.js';
 import { validateVersion, swapNames } from '../validate.js';
 import { writeVersions, rewriteVersion, nameHint } from '../writer.js';
@@ -53,7 +53,7 @@ export function renderEditor(body, app) {
     // The AI writer takes the whole screen while it is open.
     if (ui.sheet) { body.appendChild(writerSheet(app, draft, ui, redraw, dirty)); return; }
 
-    body.appendChild(h('div', { class: 'ri-row' }, button(`‹ Back to ${name}`, async () => {
+    body.appendChild(h('div', { class: 'ri-row' }, button(`‹ Back to ${setName(name)}`, async () => {
         if (app.route.dirty && !await confirmBox('Leave without saving your changes to this instruction?')) return;
         app.go({ view: 'set', name });
     }, { kind: 'ghost' })));
@@ -148,9 +148,9 @@ export function renderEditor(body, app) {
         try {
             const data = await loadSet(name);
             if (!data) throw new Error('The lorebook could not be read.');
-            if (draft.isNew && data.entries[draft.uid]) draft.uid = Math.max(...Object.values(data.entries).map(e => Number(e.uid) || 0)) + 1;
-            if (draft.isNew) draft.order = 100 + listInstructions(data).length;
-            writeInstruction(data, draft);
+            if (draft.isNew && data.entries[draft.uid]) draft.uid = freeUid(data);
+            if (draft.isNew) draft.order = 100 + listInstructions(data, name).length;
+            writeInstruction(data, draft, name);
             await saveSet(name, data);
             app.cache[name] = data;
             toast('success', draft.versions.length ? 'Instruction saved.' : 'Instruction saved. It has no versions yet, so it sends nothing.');

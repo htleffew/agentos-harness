@@ -1,7 +1,7 @@
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
 import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue, rerollPartNow, setLock, isLocked } from '../engine.js';
-import { loadSet, saveSet } from '../books.js';
+import { loadSet, saveSet, entriesOf, canonSet, setName } from '../books.js';
 import { writeEvent, readEvent } from '../events.js';
 import { toast } from '../st.js';
 import { settings } from '../store.js';
@@ -18,15 +18,17 @@ function statusChip(it, checking) {
 /** "Keep until I turn it off": change the set itself so this category always uses this item. */
 async function keepInSet(it, part) {
     try {
-        const data = await loadSet(it.world);
-        const entry = data?.entries?.[it.uid];
-        if (!entry?.extensions?.ri?.categories) throw new Error('The set could not be read.');
+        // The set may have been moved since this reply, so it is found by its id now and by the category it holds.
+        const id = canonSet(it.set || it.world);
+        const data = await loadSet(id);
+        const entry = entriesOf(data, id).find(e => (e.extensions?.ri?.categories || []).some(c => c.id === part.catId));
+        if (!entry) throw new Error('The set could not be read.');
         const ev = readEvent(entry, String(entry.comment || '').replace(/^(Story event|Writing style): /, ''));
         const cat = ev.categories.find(c => c.id === part.catId);
         if (!cat) throw new Error('That category is no longer in the set.');
         cat.mode = 'keepFixed'; cat.fixed = part.ids[0];
-        writeEvent(data, ev);
-        await saveSet(it.world, data);
+        writeEvent(data, ev, id);
+        await saveSet(id, data);
         toast('success', `"${part.name}" now keeps "${part.items[0]}" until you turn it off in the set.`);
     } catch (e) { toast('error', `Could not change the set: ${e.message}`); }
 }
@@ -53,7 +55,7 @@ function itemRow(id, rec, it, index, withButtons) {
     return h('div', { class: 'ri-sentitem' },
         h('div', { class: 'ri-sent-top' }, h('span', { class: 'ri-sent-name' }, it.name), statusChip(it, rec.checking)),
         h('div', { class: 'ri-grid' },
-            'goalTask' in it ? (it.goalTask ? kv(it.goalTask.type === 'step' ? 'One-time step' : 'Repeatable action', it.goalTask.text) : null) : kv('Instruction set', it.world),
+            'goalTask' in it ? (it.goalTask ? kv(it.goalTask.type === 'step' ? 'One-time step' : 'Repeatable action', it.goalTask.text) : null) : kv('Instruction set', setName(canonSet(it.set || it.world))),
             kv('Why it was sent', `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
             kv('Exact text sent', it.text),
             Array.isArray(it.rules) && it.rules.length ? kv('Rules checked', it.rules.map(r => `${r.ok ? 'Followed' : 'Not followed'}: ${r.label}`).join('  |  ')) : null,

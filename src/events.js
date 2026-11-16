@@ -1,7 +1,7 @@
-// Random Story Events. An event set is a lorebook with one entry. The entry holds categories (Situation,
+// Random Story Events. An event set is one lorebook entry, in a lorebook of its own or inside a shared lorebook. The entry holds categories (Situation,
 // Complication, ...), each with a list of items. When the entry fires, dice pick items from the categories that
 // are on, and one order is sent: an event must happen, built from those parts.
-import { SENT_AS, blankEntry, toStore, keepToSticky, waitToCooldown, replyNumberToDelay, stickyToKeep, cooldownToWait, delayToReplyNumber, pickWeighted, rollInt } from './books.js';
+import { SENT_AS, blankEntry, entriesOf, keepTags, toStore, keepToSticky, waitToCooldown, replyNumberToDelay, stickyToKeep, cooldownToWait, delayToReplyNumber, pickWeighted, rollInt } from './books.js';
 
 export const MODES = {
     new: { label: 'New pick every time', help: 'Each event gets a fresh pick from this category.' },
@@ -91,9 +91,9 @@ export function isStyle(entry) {
     return entry?.extensions?.ri?.type === 'style';
 }
 
-/** The story event entry (or the writing style entry) of a lorebook, or null. */
-export function findEventEntry(data, type = 'event') {
-    return Object.values(data?.entries || {}).find(e => e?.extensions?.ri?.type === type) || null;
+/** The story event entry (or the writing style entry) of a set, or null. id: the set, when it shares its lorebook. */
+export function findEventEntry(data, type = 'event', id = '') {
+    return (id ? entriesOf(data, id) : Object.values(data?.entries || {})).find(e => e?.extensions?.ri?.type === type) || null;
 }
 
 export function readEvent(entry, name) {
@@ -141,7 +141,7 @@ function styleSentence(parts) {
 }
 
 /** Write the panel's view of an event set back into its lorebook entry. */
-export function writeEvent(data, ev) {
+export function writeEvent(data, ev, id = '') {
     if (!data.entries) data.entries = {};
     let entry = data.entries[ev.uid];
     if (!entry) { entry = blankEntry(ev.uid); data.entries[ev.uid] = entry; }
@@ -159,6 +159,7 @@ export function writeEvent(data, ev) {
     entry.role = (SENT_AS[ev.sentAs] || SENT_AS.system).role;
     entry.excludeRecursion = true; entry.preventRecursion = true;
     const ri = { v: 1, type: style ? 'style' : 'event', sentAs: ev.sentAs, notes: ev.notes, neverTogether: String(ev.neverTogether || ''), presets: ev.presets || {}, categories: ev.categories.map(normalCategory) };
+    keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
     entry.content = buildEventContent(ev);
     return entry;
