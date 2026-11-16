@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.2.0 (2026-11-16)
+
+Version 5, third step: a story world, sent for who is present.
+
+- Story World tab. A chat can have a story world with seven kinds of entry: characters, places, groups, open threads,
+  secrets, planted details and things going on elsewhere. Entries are written by hand or with one AI request each.
+- Story notes. Before each reply the extension reads who is in the scene from the newest reply (a scene header, a
+  HUD, or a "Present:" line; with none of these, names in the last messages) and sends the entries that matter as
+  one block. No AI request is made for this.
+- Open threads and what is going on elsewhere are always sent. People in the scene are sent in full, then the place,
+  their secrets, planted details and anything else the last messages name. A setting gives the notes a number of
+  tokens; people are shortened and extras left out when room runs out.
+- A kept secret is sent as one line, or in full with an order to keep it. A secret that is out is sent in full.
+- The tab shows who was read as present and exactly what would be sent. What Was Sent shows it for every reply and
+  lists people the scene named who have no entry yet.
+- A world is a set like the others: it can live in the shared lorebook or in one of its own, and it can be moved.
+  With the extension on, a world's entries go out only inside the notes block and only in the chat that uses it.
+- Design note: TunnelVision's source code was read before this step. What it does with extra AI requests (retrieval,
+  writing, maintenance) is done here in code or left for the model's own reply.
+
 ## 5.1.0 (2026-11-15)
 
 Version 5, second step: one lorebook or many.

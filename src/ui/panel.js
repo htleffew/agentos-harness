@@ -5,6 +5,7 @@ import { onChange } from '../engine.js';
 import { renderInstructions } from './sets.js';
 import { renderEvents, renderStyle } from './events.js';
 import { renderGoals } from './goals.js';
+import { renderWorld } from './world.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
 import { renderSettings } from './settings.js';
 import { renderLog } from './log.js';
@@ -16,6 +17,7 @@ const TABS = [
     { id: 'events', label: 'Random Story Events', accent: 'blue' },
     { id: 'style', label: 'Random Writing Style', accent: 'green' },
     { id: 'goals', label: 'Character Goals', accent: 'sky' },
+    { id: 'world', label: 'Story World', accent: 'green' },
     { id: 'sent', label: 'What Was Sent', accent: 'blue' },
     { id: 'log', label: 'Log', accent: 'sky' },
     { id: 'settings', label: 'Settings', accent: 'cyan' },
@@ -26,6 +28,7 @@ export const app = {
     route: { view: 'sets' },   // inside Random Instructions: sets | set | edit
     eroute: { view: 'list' },  // inside Random Story Events: list | edit
     sroute: { view: 'list' },  // inside Random Writing Style: list | edit
+    wroute: { view: 'list' },  // inside Story World: list | edit
     cache: {},                 // lorebook name -> data, for counts on the cards
     root: null,
     body: null,
@@ -83,6 +86,7 @@ export function render() {
     else if (app.tab === 'events') renderEvents(app.body, app);
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
+    else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
     else if (app.tab === 'log') renderLog(app.body, app);
     else renderSettings(app.body, app);
@@ -114,12 +118,13 @@ export function mount(missing) {
     let timer = null;
     onLog(() => { if (app.tab === 'log') { clearTimeout(timer); timer = setTimeout(render, 80); } });
     onChange((what) => {
-        if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.cache = {}; }
+        if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.wroute = { view: 'list' }; app.cache = {}; }
         refreshUnderReplies();
         // Typing in the editor must not be interrupted by a redraw.
         if (app.tab === 'instructions' && app.route.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'style' && app.sroute.view === 'edit' && what !== 'chat') return;
+        if (app.tab === 'world' && app.wroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'goals' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
         clearTimeout(timer);
         timer = setTimeout(render, 80);

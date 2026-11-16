@@ -32,7 +32,7 @@ export function findSummary() {
 const fill = (text) => { try { return ctx().substituteParams(String(text ?? '')); } catch { return String(text ?? ''); } };
 
 /** The parts of the story the user ticked, as text for the writer prompt. */
-function contextText(c = {}) {
+export function contextText(c = {}) {
     const out = [];
     try {
         const f = ctx().getCharacterCardFields?.() || {};
@@ -50,7 +50,7 @@ function contextText(c = {}) {
     return out.join('\n\n').slice(0, 24000);
 }
 
-const STORY_LEAD = 'What is known about the story. Use it so that what you write fits these people and this moment, and still use the placeholders for names:';
+export const STORY_LEAD = 'What is known about the story. Use it so that what you write fits these people and this moment, and still use the placeholders for names:';
 
 export function buildWriterPrompt({ ins, seed, count, context, existing }) {
     const actor = ACTORS[ins.actor] || ACTORS.char;

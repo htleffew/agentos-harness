@@ -26,6 +26,7 @@ Setup used for 1.0.0:
 | `t_extras.js` | Never together, linger chance, saved settings per chat, Pick again / Lock / Keep on one item, rule checks |
 | `t_context.js` | What the AI writer is shown (card, scenario, persona, summary, recent messages); who-does-it choices |
 | `t_goals.js` | Character goals: steps in any order, action waits, re-sends that never give up, swipe, delete, the panel |
+| `t_world.js` | 5.2: the story world: entries of every kind, who is present (HUD, scene header, "Present:" line, names), the notes block and its order, secrets, the room in tokens, swipe, placement, the extension off, other chats and worlds, moving a world, the Story World tab and its AI writer |
 | `t_shared.js` | 5.1: sets kept inside one shared lorebook: per-chat on and off, limits, the cap, events and style, the lorebook attached in World Info, the extension off, moving a set in and out with its timing and records, edits, export, the Settings section |
 | `t_v5.js` | 5.0: the cap on new things per reply across sets and the goal, only once per chat, story event items that retire |
 | `t_log.js` | 4.1: {{user}} flags that never block, the narrowed check, failure reasons, the retry with more room, the Log tab, the line about {{user}} said once per reply |

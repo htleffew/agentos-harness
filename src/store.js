@@ -18,6 +18,7 @@ const DEFAULTS = {
     profileId: '',               // AI connection for writing and checking ('' = same as the chat)
     check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' },
     showUnder: 'off',            // 'off' | 'display' | 'saved'
+    world: { budget: 600, place: 'depth', depth: 4, lookback: 4 },   // story notes: room in tokens, where they go, how many messages are read for names
     writer: { count: 10, moreRoom: false, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },
     expanded: false,
@@ -64,6 +65,7 @@ export function chatState() {
     if (!Array.isArray(cs.overdue)) cs.overdue = [];
     if (cs.lastScan === undefined) cs.lastScan = null;
     if (!cs.locks || typeof cs.locks !== 'object') cs.locks = {};       // "lorebook.uid" -> { categoryId: [itemIds] } picks locked for this chat
+    if (typeof cs.world !== 'string') cs.world = '';                     // the id of the story world this chat uses
     if (!cs.presets || typeof cs.presets !== 'object') cs.presets = {};   // set id -> name of the saved category settings this chat uses
     return cs;
 }

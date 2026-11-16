@@ -129,10 +129,10 @@ function openable() {
 }
 
 /** "Delete this set", for a set kept inside a shared lorebook. A set with a lorebook of its own is deleted in World Info. */
-export function deleteButton(app, id) {
+export function deleteButton(app, id, label = 'Delete this set') {
     const i = setInfo(id);
     if (!i.shared) return null;
-    return button('Delete this set', async () => {
+    return button(label, async () => {
         if (!await confirmBox(`Delete "${i.name}" for good? Its entries are removed from the shared lorebook "${i.book}". The other sets in that lorebook are left alone.`)) return;
         try {
             await deleteSharedSet(id);

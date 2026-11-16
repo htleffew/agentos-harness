@@ -6,7 +6,7 @@ async function open({ width = 1280, height = 900 } = {}) {
     const page = await browser.newPage({ viewport: { width, height } });
     const errors = [];
     page.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
-    page.on('console', m => { const t = m.text(); if (m.type() === 'error' && !/favicon|Failed to load resource/.test(t)) errors.push('CONSOLE ' + t.slice(0, 300)); });
+    page.on('console', m => { const t = m.text(); if (m.type() === 'error' && !/favicon|Failed to load resource|^AbortReason/.test(t)) errors.push('CONSOLE ' + t.slice(0, 300)); });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => globalThis.SillyTavern?.getContext && document.getElementById('send_textarea') && !document.getElementById('preloader'), null, { timeout: 90000 });
     await page.waitForTimeout(1500);

@@ -4,6 +4,7 @@ import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, parseJson, names, trigg
 import { request } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
+import { NOTES_WORLD, isNotes, notesForChat, notesEntry } from './world.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
@@ -41,7 +42,7 @@ function changed(what, id) {
 
 const keyOf = e => `${e.world}.${e.uid}`;
 /** The set an entry belongs to ('' when it is in no set in the list). A shared lorebook holds several sets. */
-const setOf = e => isGoal(e) ? GOAL_WORLD : setOfEntry(e);
+const setOf = e => isGoal(e) ? GOAL_WORLD : isNotes(e) ? NOTES_WORLD : setOfEntry(e);
 const isManaged = e => !!setOf(e);
 
 // ---------- sets that were moved ----------
@@ -198,10 +199,19 @@ async function onEntriesLoaded(lore) {
                 lore.chatLore.push(...Object.values(data.entries).filter(e => whole || groups.has(e.extensions?.ri?.set)).map(e => ({ ...e, world: book })));
             }
             // A shared lorebook that World Info added by itself: its sets that are off for this chat stay out.
+            // Entries of a story world never go out one by one: this chat's world is sent as one block of story notes.
             for (const arr of arrays) {
-                for (let i = arr.length - 1; i >= 0; i--) { const id = setOfEntry(arr[i]); if (id && setInfo(id).shared && !active.has(id)) arr.splice(i, 1); }
+                for (let i = arr.length - 1; i >= 0; i--) {
+                    const id = setOfEntry(arr[i]);
+                    if (!id) continue;
+                    const info = setInfo(id);
+                    if (info.kind === 'world' || (info.shared && !active.has(id))) arr.splice(i, 1);
+                }
             }
         }
+        const quiet = !!(gen && !gen.dryRun && gen.skip);
+        const notes = cs && Array.isArray(lore.chatLore) && !quiet ? await notesForChat(gen && !gen.dryRun ? gen.type : 'normal').catch((e) => { console.warn(LOG, 'story notes', e); return null; }) : null;
+        if (notes) lore.chatLore.push(notesEntry(notes.text));
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
             const g = goals();
@@ -220,6 +230,7 @@ async function onEntriesLoaded(lore) {
             return;
         }
         if (cs) applyTiming(arrays.flat().filter(isManaged), cs);
+        plan.notes = notes;
     } catch (e) { console.error(LOG, 'entries-loaded', e); }
 }
 
@@ -259,6 +270,7 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     // A story event also keeps what the dice picked, and the state of its categories after this event.
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
     if (extra?.noCheck) item.noCheck = true;
+    if (extra?.notes) item.notes = extra.notes;
     if (extra && 'goalTask' in extra) { item.goalTask = extra.goalTask; item.checkText = extra.checkText; }
     return item;
 }
@@ -432,7 +444,7 @@ function onScanDone(args) {
             // Burn after it happens: an instruction marked "only once per chat" that already happened is retired.
             const was = happened();
             for (const e of [...fired]) {
-                if (e.extensions?.ri?.once && !isStyle(e) && !isGoal(e) && was.keys.has(keyOf(e))) { map.delete(keyOf(e)); fired.splice(fired.indexOf(e), 1); }
+                if (e.extensions?.ri?.once && !isStyle(e) && !isGoal(e) && !isNotes(e) && was.keys.has(keyOf(e))) { map.delete(keyOf(e)); fired.splice(fired.indexOf(e), 1); }
             }
             // Writing style is sent with every reply and stands apart from limits, holds and re-sends.
             const styles = fired.filter(isStyle);
@@ -444,13 +456,20 @@ function onScanDone(args) {
                 if (!rolled.text) { map.delete(key); continue; }
                 items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', rolled.text, 0, 'new', false, { parts: rolled.parts, noCheck: true }));
             }
+            // Story notes are facts, with nothing to carry out, so they also stand apart from limits and the check.
+            const notesE = fired.find(isNotes) || null;
+            if (notesE) {
+                const nt = plan.notes;
+                if (nt) items.push(makeItem(notesE, 'plain', nt.text, 0, 'new', false, { noCheck: true, notes: { ids: nt.ids, extra: nt.extra, present: nt.present, missing: nt.missing, place: nt.place, how: nt.how, tokens: nt.tokens } }));
+                else map.delete(keyOf(notesE));
+            }
             // The character goal also stands apart: the goal line goes with every reply, and it has at most one task.
             // Its order is worked out here and added below, once the cap on new things per reply is known.
             const goalE = fired.find(isGoal) || null;
             const g = goalE ? goals() : null;
             const gp = g ? goalProgress(type) : null;
             let goalOrder = g ? buildGoalOrder(g, gp) : null;
-            const orders = fired.filter(e => !isStyle(e) && !isGoal(e));
+            const orders = fired.filter(e => !isStyle(e) && !isGoal(e) && !isNotes(e));
             const continuing = orders.filter(isSticky);
             let fresh = orders.filter(e => !isSticky(e));
             const overdue = cs.overdue.filter(o => find(o.key));
@@ -521,7 +540,7 @@ function onScanDone(args) {
 
         sayUserLineOnce(items);
         gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
-        cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
+        cs.lastScan = { len, states, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         pending = { items, type, states };
         rerollCat = null;
         saveChatState();
@@ -693,6 +712,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': 
 
 export function statusLabel(it) {
     if ('goalTask' in it && it.noCheck) return it.goalTask?.type === 'action' ? 'Sent (repeatable actions are not checked)' : it.goalTask ? 'Sent (not checked)' : 'Sent (goal line)';
+    if (it.notes) return 'Sent (story notes are facts, with nothing to check)';
     if (it.noCheck) return 'Sent (writing style is not checked)';
     switch (it.status) {
         case 'pending': return 'Not yet: it is sent again with the next reply';

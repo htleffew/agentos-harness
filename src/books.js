@@ -276,7 +276,7 @@ export function writeInstruction(data, ins, id = '') {
 // lorebook has the id "Lorebook › Set name", and its entries carry the set name in extensions.ri.set.
 // A shared lorebook can also hold entries that belong to no set. Those are left to World Info as they are.
 
-export const KINDS = ['instructions', 'events', 'style'];
+export const KINDS = ['instructions', 'events', 'style', 'world'];
 const SEP = ' › ';
 export const sharedId = (book, group) => `${book}${SEP}${group}`;
 

@@ -1,8 +1,8 @@
 # Roleplay Instructions
 
 A standalone SillyTavern / TauriTavern extension. Version 5 (in progress): **Random Instructions**, **Random Story
-Events**, **Random Writing Style** and **Character Goals**, kept in one lorebook or in several, with at most one
-new thing started per reply.
+Events**, **Random Writing Style**, **Character Goals** and a **Story World**, kept in one lorebook or in several,
+with at most one new thing started per reply.
 
 You build *instruction sets*. Each instruction has several *versions* of the same order ("{{char}} must pay
 {{user}} a compliment"). During a chat, an instruction is sent at random with the chance and timing you set, one
@@ -57,6 +57,50 @@ used, and a chat that had the set on still has it on. When a set leaves a lorebo
 left exactly as it was, as a spare copy. Delete it in World Info when you no longer want it.
 
 A shared lorebook can also hold your own entries that belong to no set. The extension leaves those alone.
+
+## Story World (new in 5.2)
+
+A story world holds what is true in one story. One chat uses one world. Open the **Story World** tab, press
+**Make a new story world**, and add entries:
+
+| Kind | What it holds |
+| --- | --- |
+| Character | Role, who they are, strength, flaw, how they talk, what they want, what they plan, and what they know, believe, suspect and are wrong about. |
+| Place | What it is, how it is laid out, who is usually there, what goes on there. |
+| Group | What it is, what it wants, who leads it, who belongs. |
+| Open thread | A matter the story has raised and not settled, with a status from Quiet to Finished. |
+| Secret | The secret in full, whose it is, who else knows, and whether it is still kept. |
+| Planted detail | Something small the story showed that can matter later. |
+| Going on elsewhere | What someone is doing away from the scene. At most three are sent. |
+
+Every entry can be written by hand or with **Write this entry with AI** (one request, shown in the Log tab, nothing
+saved until you press Save).
+
+Before each reply the extension reads who is in the scene and sends the entries that matter as one block of story
+notes. This makes no AI request.
+
+- **Who is present** is read from the newest reply: a scene header with `present="..."`, a HUD with
+  `Active Speakers:` and `Ambient NPCs:` lines or `<profile name="...">` cards, or a plain `Present:` line. When the
+  reply has none of these, a character named in the last few messages counts as present. Other names of an entry
+  count too.
+- **What is sent, in this order:** open threads, what is going on elsewhere, the people in the scene in full, the
+  place, the secrets of the people in the scene, planted details, then anything else the last messages name, in
+  short form.
+- **Room.** "Room for story notes" is a number of tokens (600 to start with). When room runs out, people in the
+  scene are sent in short form and the extras are left out. When several named entries compete for the last of the
+  room, the ones sent least lately go first.
+- **Secrets.** A kept secret is sent as one line ("Hale has a secret.") so the AI cannot give away what it has not
+  been told. You can choose to send the whole secret with an order to keep it. Once it is out in the open, the
+  whole of it is sent.
+- **Where the notes go.** In the chat a few messages up from the end (works with every preset), or with the
+  preset's lorebook entries.
+- The tab shows who was read as present and exactly what would be sent with the next reply. What Was Sent shows the
+  same for every reply, and lists anyone the scene named who has no entry yet.
+
+A world is kept like any other set: inside the shared lorebook or in a lorebook of its own (Settings > Where your
+sets are kept). While the extension is on, world entries only ever go out inside the notes block, and only for the
+chat that uses that world. With the extension off they are ordinary lorebook entries, sent when their name appears,
+and a shared lorebook turned on in World Info then sends from every world inside it.
 
 ## Random Story Events (new in Version 2)
 
@@ -156,6 +200,7 @@ can be set to start the next goal from that list.
 | Random Story Events | Your story event sets: categories, items, dice settings and when an event happens. |
 | Random Writing Style | Your writing style sets: categories such as mood and prose style, each with its own timing. |
 | Character Goals | This chat's goal for the character, its one-time steps and repeatable actions. |
+| Story World | This chat's story world: its entries, who was read as present, and what would be sent with the next reply. |
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
 | Log | Every request made to the AI: what was sent, what came back, how long it took and, when it failed, why. Copy it or save it as a file. |
@@ -229,7 +274,8 @@ sent as World Info decides.
 | --- | --- |
 | Instructions and versions | In the lorebook file. Each entry has `extensions.ri` (versions, sent as, who does it, notes). In a shared lorebook the entry also carries its set's name (`extensions.ri.set`), and the file lists its sets (`extensions.ri.groups`). |
 | Which sets exist and where each is kept, per-reply limits, settings | SillyTavern extension settings (`roleplay_instructions`). |
-| Which sets are on, pronouns, what is waiting to be sent again | In the chat file (chat metadata). |
+| Story world entries | In the lorebook file, as ordinary entries keyed by name. Each has `extensions.ri` with `type: "world"`, its kind, its lines and its status. |
+| Which sets are on, which world the chat uses, pronouns, what is waiting to be sent again | In the chat file (chat metadata). |
 | What was sent with each reply | On the message itself (`extra.roleplay_instructions`). |
 
 ## Tests
@@ -242,5 +288,5 @@ run. See `tests/README.md`.
 ## Roadmap
 
 Version 5 is being built in steps. Done: one thing per reply and burn after it happens (5.0), one lorebook or many
-(5.1). Next: world entries and reading who is present (5.2), notes lifted from the reply and automatic entries
+(5.1), a story world sent for who is present (5.2). Next: notes lifted from the reply and automatic entries
 (5.3), a built-in summary, New chapter and a starter world (5.4), pacing and style (5.5).
