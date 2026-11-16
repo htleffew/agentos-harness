@@ -6,6 +6,7 @@ import { settings, saveSettings, chatState, saveChatState, applyPronouns } from 
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
 import { NOTES_WORLD, isNotes, notesEntry } from './world.js';
 import { shownChanges } from './worldflow.js';
+import { chapterAfterReply } from './chapters.js';
 import { ASK_WORLD, ORDER_WORLD, isAsk, isOrder, askEntry, orderEntry, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
@@ -362,6 +363,10 @@ function happened() {
     const keys = new Set();
     const ids = new Map();
     const checkOff = settings().check.mode === 'off';
+    // A chat started with "New chapter" brings along what had already happened for good in the chat before it.
+    const carried = chatState()?.burned;
+    for (const k of carried?.keys || []) keys.add(canon(k));
+    for (const [k, list] of Object.entries(carried?.ids || {})) ids.set(canon(k), new Set(list));
     for (const m of ctx().chat || []) {
         for (const it of m?.extra?.[KEY]?.items || []) {
             const did = it.status === 'done' || ((checkOff || it.noCheck) && it.status === 'sent');
@@ -377,6 +382,9 @@ function happened() {
     }
     return { keys, ids };
 }
+
+/** What has happened for good in this chat so far, for "New chapter" to carry into the next chat. */
+export function burnedSoFar() { return happened(); }
 
 /** Give a later scan of the same reply the notes the first scan chose. */
 function reapply(result, args) {
@@ -606,6 +614,8 @@ function onMessageReceived(id, type) {
         if (earlier) rec.update = earlier.update;
         afterReply(id, rec, parsed, history('normal').next - 1, () => changed('checked', id));
         if (settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
+        // The story so far: a chapter is written in the background when a scene ended or enough replies went by.
+        chapterAfterReply(rec.time, history('normal').next - 1, () => changed('messages'));
         if (!rec.items.length) return;
         for (const it of rec.items) {
             const tags = (it.parts || []).flatMap(p => p.rules || []);

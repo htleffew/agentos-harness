@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.4.0 (2026-11-16)
+
+Version 5, fifth step: the story so far, a new chapter, and a starter world.
+
+- The story so far is kept in chapters inside the story world. A chapter is written with one AI request when a scene
+  ends, after a set number of replies, or when you press "Write a chapter now". The request is made after the reply
+  has arrived and is listed in the Log tab.
+- The story notes start with "The story so far": the newest chapters in full, older ones in short when someone or
+  somewhere in them comes up, within room of its own. When chapters pile up, the older ones are combined into one
+  account with one AI request.
+- A chapter belongs to the last reply it covers. Deleting or swiping away that reply removes the chapter.
+- "Start a new chapter in a new chat": one AI request writes a very detailed summary and a first message, both shown
+  for you to change. A new chat then opens that brings along the story world, the sets that are on, the goal with its
+  finished steps, the pronouns, locked picks, what has already happened for good, the summary and the first message.
+  The chat you were in is left as it was.
+- "Fill this world from the character card": one AI request reads the card, your persona, the card's own lorebook and
+  the opening message, and proposes entries. Nothing is added until you say so.
+- A warning in the Story World tab when SillyTavern's own Summarize is also putting a summary into the prompt.
+- In the Story World tab the chapters are listed last, right above their settings.
+
 ## 5.3.0 (2026-11-16)
 
 Version 5, fourth step: the story world keeps itself up to date.

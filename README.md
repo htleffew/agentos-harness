@@ -127,6 +127,44 @@ The world also moves by itself:
   thing per reply and is checked like any instruction. When it happens, the entry moves on: the thread is
   "Happening now", the detail is "Paid off", the secret is "Out in the open".
 
+### The story so far, in chapters (new in 5.4)
+
+A long chat stops fitting in what the AI is sent. The extension keeps the story so far for you, in chapters, inside
+the story world.
+
+- **What a chapter is.** A short account of one stretch of the story: what happened, when, who was in it, where, and
+  what was settled. It is an entry in the story world like any other, so you can read it, change it, turn it off or
+  write one by hand.
+- **When one is written.** When the update block says the scene ended (the story moved to a new time or place) and
+  the scene was at least 4 replies long. A scene that ends sooner is joined to the next chapter. In any case after 20
+  replies with no chapter. Or when you press **Write a chapter now**. All three numbers are settings.
+- **What it costs.** One AI request per chapter, made after the reply has arrived, so the reply is never kept
+  waiting. It uses the connection chosen in Settings and is listed in the Log tab with the replies it covers.
+- **What is sent.** The story notes start with "The story so far": the newest 2 chapters of this chat in full, and
+  older chapters in short when someone or somewhere in them comes up. It has room of its own (800 tokens to start
+  with), separate from the room for the rest of the notes.
+- **When chapters pile up.** With more than 8 chapters in a chat, one AI request combines the older ones into a
+  single account called "Before the latest chapters". The newest ones stay as they are. Chapters you saved yourself
+  are switched off, and automatic ones are removed.
+- **Swipe and delete.** A chapter belongs to the last reply it covers. Deleting or swiping away that reply removes
+  the chapter.
+- **SillyTavern's own Summarize.** When it is also putting a summary into the prompt, the tab says so. Use one of
+  the two, so the story so far is sent once.
+
+**A new chapter in a new chat.** When a chat has grown long, press **Start a new chapter in a new chat**. You can
+say what you want for it ("the next morning, on the ship"). One AI request writes a very detailed summary and a
+first message. Both are shown for you to change. Then a brand new chat opens for the same character, with your
+first message in place of the greeting. It brings along the story world, the sets that are on, the goal with the
+steps already done, the pronouns, locked picks, and what has already happened for good ("only once" instructions
+and retired story event items). The summary is kept in the world as "The story before this chat" and sent with
+every reply. With no story world, the summary is kept in the new chat itself and sent the same way. The chat you
+were in stays exactly as it was. Both chats use the same world, so the world shows the story as it stands now.
+
+**A starter world from the character card.** In a new world, press **Fill this world from the character card**. One
+AI request reads the card (description, personality, scenario), your persona, the card's own lorebook and the
+opening message of the chat, and proposes people, places, groups, open threads, secrets and planted details. You see
+every line and untick what you do not want before anything is added.
+
 A world is kept like any other set: inside the shared lorebook or in a lorebook of its own (Settings > Where your
 sets are kept). While the extension is on, world entries only ever go out inside the notes block, and only for the
 chat that uses that world. With the extension off they are ordinary lorebook entries, sent when their name appears,
@@ -230,7 +268,7 @@ can be set to start the next goal from that list.
 | Random Story Events | Your story event sets: categories, items, dice settings and when an event happens. |
 | Random Writing Style | Your writing style sets: categories such as mood and prose style, each with its own timing. |
 | Character Goals | This chat's goal for the character, its one-time steps and repeatable actions. |
-| Story World | This chat's story world: its entries, who was read as present, and what would be sent with the next reply. |
+| Story World | This chat's story world: its entries, the story so far in chapters, who was read as present, and what would be sent with the next reply. Start a new chapter in a new chat from here. |
 | Random Instructions | Your instruction sets and the instructions inside them. Turn a set on or off for the open chat. Set how many instructions can be sent per reply. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
 | Log | Every request made to the AI: what was sent, what came back, how long it took and, when it failed, why. Copy it or save it as a file. |
@@ -318,4 +356,6 @@ run. See `tests/README.md`.
 ## Roadmap
 
 Version 5 is being built in steps. Done: one thing per reply and burn after it happens (5.0), one lorebook or many
-(5.1), a story world sent for who is present (5.2), a world that keeps itself up to date (5.3). Next: a built-in summary, New chapter and a starter world (5.4), pacing and style (5.5).
+(5.1), a story world sent for who is present (5.2), a world that keeps itself up to date (5.3), the story so far in chapters, a new chapter in a new chat and a starter
+world from the character card (5.4). Next: pacing and style (5.5).
+

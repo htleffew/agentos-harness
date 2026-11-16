@@ -7,6 +7,8 @@ import { WORLD_KINDS, KIND_ORDER, MAX_ACTIVITIES, chatWorld, setChatWorld, known
 import { toast, confirmBox, inputBox, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
 import { keptIn, deleteButton } from './sets.js';
+import { writeChapterNow, chapterBusy, draftNewChapter, startNewChapter, draftStarterWorld, addStarterWorld, otherSummaryOn } from '../chapters.js';
+import { burnedSoFar } from '../engine.js';
 
 const go = (app, route) => { app.wroute = route; app.resetScroll = true; app.render(); app.root?.scrollIntoView?.({ block: 'start' }); };
 
@@ -39,7 +41,119 @@ function worldPicker(app) {
             if (!data || !download(`${setName(id)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export the lorebook from the World Info screen.');
         }, { kind: 'ghost', title: 'Download this world as a lorebook file' }) : null,
         id ? deleteButton(app, id, 'Delete this world') : null),
-        id && !setInfo(id).shared ? h('div', { class: 'ri-help' }, 'This world has a lorebook of its own. To delete the world, delete that lorebook in World Info.') : null);
+        id && !setInfo(id).shared ? h('div', { class: 'ri-help' }, 'This world has a lorebook of its own. To delete the world, delete that lorebook in World Info.') : null,
+        id ? h('div', { class: 'ri-row' }, button('Fill this world from the character card', () => { app.wroute.sheet = { kind: 'starter', busy: false, error: '', result: null }; app.render(); },
+            { title: 'One AI request reads the character card, its own lorebook and the opening message, and proposes entries. Nothing is added until you say so.' })) : null);
+}
+
+// ---------- the story so far, and a new chapter ----------
+
+function summarySection(app, id) {
+    const o = settings().summary;
+    const save = () => { saveSettings(); app.render(); };
+    const yes = (v, set) => select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], v ? 'on' : 'off', (x) => { set(x === 'on'); save(); });
+    const ui = app.wroute.sum || (app.wroute.sum = { busy: false, error: '' });
+    return section('Keeping the story so far',
+        otherSummaryOn() && o.on ? h('div', { class: 'ri-note ri-note-warn' }, 'SillyTavern\'s own Summarize is also adding a summary to the prompt in this chat. Turn one of the two off, so the story so far is sent once.') : null,
+        id ? [
+            field('Keep the story so far in chapters', o.on ? 'A chapter is a short account of a stretch of the story, written with one AI request and kept in this world under "The story so far". The newest chapters are sent in full with the story notes; older ones when their people or places come up.' : 'Off: no chapters are written or sent.',
+                yes(o.on, v => { o.on = v; })),
+            o.on ? h('div', { class: 'ri-grid2' },
+                field('Write a chapter when a scene ends', 'The update block says when the story moved to a new time or place. Needs "Keep the world up to date" on.', yes(o.onSceneEnd, v => { o.onSceneEnd = v; })),
+                field('Replies a chapter must cover at least', 'A scene that ends sooner is joined to the next chapter.', numberInput(o.minReplies, { min: 1, max: 100, unit: 'replies' }, (n) => { o.minReplies = n; save(); })),
+                field('Write a chapter after this many replies in any case', '0 leaves it to scene ends and to you.', numberInput(o.every, { min: 0, max: 200, unit: 'replies' }, (n) => { o.every = n; save(); })),
+                field('Newest chapters always sent in full', '', numberInput(o.keep, { min: 1, max: 10, unit: 'chapters' }, (n) => { o.keep = n; save(); })),
+                field('Combine the older chapters when there are more than', 'One AI request turns the older chapters into a single account. The newest ones stay as they are.', numberInput(o.roll, { min: 2, max: 50, unit: 'chapters' }, (n) => { o.roll = n; save(); })),
+                field('Room for the story so far (tokens)', 'Separate from the room for the rest of the story notes.', numberInput(o.budget, { min: 100, max: 6000, unit: 'tokens' }, (n) => { o.budget = n; save(); }))) : null,
+            ui.error ? h('div', { class: 'ri-note ri-note-warn' }, ui.error) : null,
+            o.on ? h('div', { class: 'ri-row' }, button(ui.busy || chapterBusy() ? 'Writing the chapter...' : 'Write a chapter now', async () => {
+                if (ui.busy) return;
+                ui.busy = true; ui.error = ''; app.render();
+                try { const name = await writeChapterNow(); toast('success', `Chapter "${name}" was written.`); }
+                catch (e) { ui.error = e.message; }
+                ui.busy = false; app.render();
+            }, { disabled: ui.busy || chapterBusy(), title: 'Summarise everything since the last chapter, with one AI request' })) : null,
+        ] : h('div', { class: 'ri-muted' }, 'Chapters are kept in a story world. Choose or make one above to have the story so far written as you play.'),
+        h('div', { class: 'ri-label' }, 'A new chapter in a new chat'),
+        h('div', { class: 'ri-help' }, 'When a chat has grown long, carry the story into a brand new chat. One AI request writes a very detailed summary and a first message, which you can change. The new chat is for the same character and brings along the story world, the sets that are on, the goal, the pronouns and everything that has already happened for good. The chat you are in stays as it is.'),
+        h('div', { class: 'ri-row' }, button('Start a new chapter in a new chat', () => { app.wroute.sheet = { kind: 'chapter', wish: '', busy: false, error: '', draft: null }; app.render(); }, { kind: 'primary' })));
+}
+
+function starterSheet(app) {
+    const sh = app.wroute.sheet;
+    const close = () => { app.wroute.sheet = null; app.render(); };
+    const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, 'Fill this world from the character card'));
+    if (!sh.result) {
+        box.append(h('div', { class: 'ri-help' }, 'One AI request reads the character card (description, personality, scenario), your persona, the card\'s own lorebook and the opening message of this chat, including a different greeting if you swiped to one. It proposes people, places, groups, open threads, secrets and planted details. You see them before anything is added.'));
+        if (sh.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, sh.error));
+        box.appendChild(h('div', { class: 'ri-row' },
+            button(sh.busy ? 'Reading the card...' : 'Read the card and propose entries', async () => {
+                if (sh.busy) return;
+                sh.busy = true; sh.error = ''; app.render();
+                try { sh.result = await draftStarterWorld(); sh.keep = sh.result.ops.map(() => true); } catch (e) { sh.error = e.message; }
+                sh.busy = false; app.render();
+            }, { kind: 'primary', disabled: sh.busy }),
+            button('Cancel', close, { kind: 'ghost', disabled: sh.busy })));
+        return box;
+    }
+    box.append(h('div', { class: 'ri-help' }, 'Untick what you do not want. Lines about someone who is already in this world update that entry. Everything added is marked "Added automatically" until you save it yourself.'),
+        h('div', { class: 'ri-versions' }, sh.result.lines.map((line, i) => {
+            const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: sh.keep[i], onchange: () => { sh.keep[i] = tick.checked; } });
+            return h('label', { class: 'ri-version ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, line));
+        })),
+        h('div', { class: 'ri-row' },
+            button('Add the ticked lines to the world', async () => {
+                const ops = sh.result.ops.filter((_, i) => sh.keep[i]);
+                const added = await addStarterWorld(ops);
+                toast(added.length ? 'success' : 'info', added.length ? `${added.length} ${added.length === 1 ? 'change was' : 'changes were'} made to the world.` : 'Nothing new was added: everything was already in the world.');
+                close();
+            }, { kind: 'primary' }),
+            button('Read the card again', () => { sh.result = null; app.render(); }, { kind: 'ghost' }),
+            button('Cancel', close, { kind: 'ghost' })));
+    return box;
+}
+
+function chapterSheet(app) {
+    const sh = app.wroute.sheet;
+    const close = () => { app.wroute.sheet = null; app.render(); };
+    const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, 'A new chapter in a new chat'));
+    if (!sh.draft) {
+        box.append(
+            h('div', { class: 'ri-help' }, 'One AI request writes two things from the story so far: a very detailed summary, and the first message of the new chat. You can change both before the new chat is made.'),
+            field('What you want for the new chapter (you can leave this empty)', 'For example: "the next morning, on the ship" or "a week later". Left empty, the story carries on from where it stands.',
+                textInput(sh.wish, (v) => { sh.wish = v; }, { placeholder: 'Carry on from where the story stands' })));
+        if (sh.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, sh.error));
+        box.appendChild(h('div', { class: 'ri-row' },
+            button(sh.busy ? 'Writing...' : 'Write the summary and the first message', async () => {
+                if (sh.busy) return;
+                sh.busy = true; sh.error = ''; app.render();
+                try { sh.draft = await draftNewChapter(sh.wish); } catch (e) { sh.error = e.message; }
+                sh.busy = false; app.render();
+            }, { kind: 'primary', disabled: sh.busy }),
+            button('Cancel', close, { kind: 'ghost', disabled: sh.busy })));
+        return box;
+    }
+    const id = chatWorld();
+    box.append(
+        field('Summary of the story so far', id ? 'Saved in the story world as "The story before this chat" and sent with every reply of the new chat.' : 'This chat has no story world, so the summary is kept in the new chat itself and sent with every reply.',
+            textArea(sh.draft.summary, (v) => { sh.draft.summary = v; }, { rows: 12 })),
+        field('First message of the new chat', 'It takes the place of the character\'s greeting in the new chat.', textArea(sh.draft.first, (v) => { sh.draft.first = v; }, { rows: 10 })),
+        h('div', { class: 'ri-help' }, 'The new chat brings along: the story world, the sets that are on, the goal with the steps already done, the pronouns, locked picks, and what has already happened for good ("only once" instructions and retired story event items). The chat you are in stays exactly as it is, and you can go back to it.'));
+    if (sh.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, sh.error));
+    box.appendChild(h('div', { class: 'ri-row' },
+        button(sh.busy ? 'Starting the new chat...' : 'Start the new chat', async () => {
+            if (sh.busy) return;
+            sh.busy = true; sh.error = ''; app.render();
+            try {
+                await startNewChapter(sh.draft, burnedSoFar);
+                app.wroute = { view: 'list' };
+                toast('success', 'The new chat is open. The chat you were in is unchanged.');
+            } catch (e) { sh.error = e.message; sh.busy = false; }
+            app.render();
+        }, { kind: 'primary', disabled: sh.busy }),
+        button('Write them again', () => { sh.draft = null; app.render(); }, { kind: 'ghost', disabled: sh.busy }),
+        button('Cancel', close, { kind: 'ghost', disabled: sh.busy })));
+    return box;
 }
 
 function oneLine(w) {
@@ -48,13 +162,16 @@ function oneLine(w) {
 }
 
 function renderList(body, app) {
+    // A sheet (the starter world, or a new chapter) takes the whole tab while it is open.
+    if (app.wroute.sheet) { body.appendChild(app.wroute.sheet.kind === 'starter' ? starterSheet(app) : chapterSheet(app)); return; }
     body.appendChild(worldPicker(app));
     const id = chatWorld();
-    if (!id) return;
+    if (!id) { body.appendChild(summarySection(app, '')); return; }
     const listBox = h('div', {}, h('div', { class: 'ri-muted' }, 'Loading...'));
     body.appendChild(listBox);
     const preview = h('div', {});
     body.appendChild(preview);
+    body.appendChild(summarySection(app, id));
     body.appendChild(sendSettings(app));
     body.appendChild(flowSettings(app));
 
@@ -62,7 +179,8 @@ function renderList(body, app) {
         if (!data) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'The lorebook of this world could not be read. It may have been renamed or deleted.')); return; }
         const list = listWorld(data, id);
         const out = [];
-        for (const kind of KIND_ORDER) {
+        // In the tab the chapters come last, right above their settings.
+        for (const kind of [...KIND_ORDER.filter(k => k !== 'chapter'), 'chapter']) {
             const def = WORLD_KINDS[kind];
             const mine = list.filter(w => w.kind === kind);
             const rows = mine.map(w => h('div', { class: `ri-card ri-inscard ${w.on ? '' : 'ri-off'}` },
@@ -74,6 +192,8 @@ function renderList(body, app) {
                 h('div', { class: 'ri-chips' },
                     def.steps ? chip(def.steps.find(s => s[0] === w.status)?.[1] || '', 'ri-chip-group') : null,
                     w.kind === 'secret' && w.status === 'kept' ? chip(w.show === 'full' ? 'The AI is shown the whole secret' : 'The AI is shown one line only') : null,
+                    w.kind === 'chapter' && w.rollup ? chip('Everything before the newer chapters', 'ri-chip-group') : null,
+                    w.kind === 'chapter' && !w.rollup && w.span ? chip(`Replies ${w.span.from} to ${w.span.to}`) : null,
                     w.auto ? chip('Added automatically', 'ri-chip-wait') : null,
                     w.locked ? chip('Kept as you wrote it', 'ri-chip-keep') : null,
                     w.aliases.length ? chip(`Also called: ${w.aliases.join(', ')}`) : null)));
@@ -81,7 +201,7 @@ function renderList(body, app) {
             out.push(section(`${def.plural} (${mine.length})`,
                 tooMany ? h('div', { class: 'ri-note ri-note-warn' }, `Only the first ${MAX_ACTIVITIES} that are still going on are sent. Mark the others as finished, or turn them off.`) : null,
                 rows.length ? h('div', { class: 'ri-list' }, rows) : h('div', { class: 'ri-muted' }, EMPTY[kind]),
-                h('div', { class: 'ri-row' }, button(def.add, () => go(app, { view: 'edit', draft: newWorldEntry(data, kind) }), { kind: mine.length ? '' : 'primary' }))));
+                h('div', { class: 'ri-row' }, button(def.add, () => go(app, { view: 'edit', draft: newWorldEntry(data, kind) }), { kind: mine.length || kind === 'chapter' ? '' : 'primary' }))));
         }
         listBox.replaceChildren(...out);
 
@@ -103,6 +223,7 @@ function renderList(body, app) {
 const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
 
 const EMPTY = {
+    chapter: 'No chapters yet. A chapter is a short account of a stretch of the story. Chapters are written for you as you play (see "Keeping the story so far" below), or you can add one by hand.',
     character: 'No characters yet. Add the people of this story: who they are, what they want, what they know.',
     place: 'No places yet.',
     faction: 'No groups yet.',

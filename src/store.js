@@ -26,6 +26,15 @@ const DEFAULTS = {
         minAge: 6,            // replies a planted detail or a thing going on elsewhere must wait before it can be ordered into the scene
         bring: { thread: true, seed: true, activity: true, secret: false },   // what may be ordered into the scene
     },
+    summary: {
+        on: true,             // keep the story so far in chapters, in the chat's story world
+        onSceneEnd: true,     // write a chapter when the update block says the scene ended
+        minReplies: 4,        // and at least this many replies have gone by since the last chapter
+        every: 20,            // write a chapter after this many replies in any case (0 = only when a scene ends, or by hand)
+        keep: 2,              // newest chapters of the chat that are always sent in full
+        roll: 8,              // when a chat has more chapters than this, the older ones are combined into one
+        budget: 800,          // room in tokens for the story so far
+    },
     writer: { count: 10, moreRoom: false, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },
     expanded: false,

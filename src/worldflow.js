@@ -144,7 +144,7 @@ const stepIndex = (kind, status) => WORLD_KINDS[kind].steps.findIndex(s => s[0] 
  * Apply the lines of one block. meta: { chat, n } the chat and reply number. mode: 'all' or 'auto'.
  * Changes the data in place and returns the list of changes, each of which can be undone.
  */
-export function applyOps(data, id, ops, meta, mode = 'all') {
+export function applyOps(data, id, ops, meta, mode = 'all', maxNew = MAX_NEW) {
     const list = listWorld(data, id);
     const changes = [];
     const dirty = new Set();
@@ -166,7 +166,7 @@ export function applyOps(data, id, ops, meta, mode = 'all') {
         return true;
     };
     const create = (kind, name, fields) => {
-        if (made >= MAX_NEW || !clean(name) || clean(name).length > 60) return null;
+        if (made >= maxNew || !clean(name) || clean(name).length > 60) return null;
         const w = newWorldEntry(data, kind);
         // The number is taken now, so a second new entry in the same reply gets the next one.
         Object.assign(w, { name: clean(name), auto: true, at: { chat: meta.chat, n: meta.n } });
@@ -307,7 +307,14 @@ export function rollOrder(list, present, meta, opts = settings().world) {
  */
 export async function prepareWorld(type, replyNo, { quiet = false } = {}) {
     const id = chatWorld();
-    if (!id || quiet) return null;
+    if (quiet) return null;
+    if (!id) {
+        // A chat that was started with "New chapter" and has no story world carries its summary in the chat itself.
+        const carried = clean(chatState()?.carried);
+        if (!carried || settings().summary.on === false) return null;
+        const text = `[The story before this chat. These are facts already true in this story. Write the reply so that they stay true.\n${carried}]`;
+        return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, ask: '', order: null };
+    }
     const data = await loadWorld(id).catch(() => null);
     if (!data) return null;
     const o = settings().world;
@@ -323,7 +330,7 @@ export async function prepareWorld(type, replyNo, { quiet = false } = {}) {
 
 let queue = Promise.resolve();
 /** World changes run one after another, so two of them never write the lorebook at the same time. */
-function enqueue(fn) {
+export function enqueue(fn) {
     queue = queue.then(fn).catch(e => console.warn(LOG, 'story world', e));
     return queue;
 }
@@ -405,6 +412,22 @@ export function applyEffect(rec, effect, onDone) {
         addLog({ what: 'Story world update', ok: true, result: 'Something that was ordered into the scene happened.', details: [describeChange(change)], got: '' });
         onDone?.();
     });
+}
+
+/** Store one more change with the reply whose record has this time, so it is undone with that reply. Call inside enqueue. */
+export function attachChange(time, wid, change) {
+    const cs = chatState();
+    if (!cs) return false;
+    const rec = (ctx().chat || []).map(m => m?.extra?.[KEY]).find(r => r && String(r.time) === String(time));
+    if (!rec) return false;
+    if (!rec.update) rec.update = { world: wid, ops: [], ended: false, changes: [] };
+    rec.update.changes.push(change);
+    const log = worldLog(cs);
+    const item = log.items[String(time)] || (log.items[String(time)] = { world: wid, changes: rec.update.changes });
+    if (item.changes !== rec.update.changes) item.changes.push(change);
+    saveChatState();
+    try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+    return true;
 }
 
 async function revertItem(item) {

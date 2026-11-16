@@ -75,10 +75,21 @@ export const WORLD_KINDS = {
         steps: [['going', 'Going on'], ['done', 'Finished']],
         short: ['who', 'what', 'step'],
     },
+    chapter: {
+        label: 'Chapter', plural: 'The story so far', add: 'Add a chapter by hand', nameLabel: 'Title', nameHelp: 'A short title for this part of the story.',
+        fields: [
+            F('summary', 'What happened', 'A plain account of this part of the story, in the past tense.', true),
+            F('when', 'When it took place'), F('people', 'Who was in it'), F('places', 'Where it took place'),
+            F('settled', 'What was settled or came out'),
+        ],
+        short: ['summary'],
+    },
 };
-export const KIND_ORDER = ['character', 'place', 'faction', 'thread', 'secret', 'seed', 'activity'];
+export const KIND_ORDER = ['chapter', 'character', 'place', 'faction', 'thread', 'secret', 'seed', 'activity'];
 export const DONE = { thread: 'done', seed: 'paid', activity: 'done' };
 export const MAX_ACTIVITIES = 3;
+/** The two titles a combined account of earlier chapters is given by the extension. */
+export const ROLL_NAMES = ['Before the latest chapters', 'The story before this chat'];
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
 const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -121,12 +132,14 @@ export function readWorldEntry(entry) {
         auto: !!ri.auto,          // added by the extension from a reply, and not yet saved by hand
         locked: !!ri.locked,      // "keep this entry as I wrote it": automatic updates leave it alone
         at: ri.at && typeof ri.at === 'object' ? { chat: String(ri.at.chat || ''), n: Number(ri.at.n) || 0 } : null,   // the chat and reply where it was made or last moved
+        span: ri.span && typeof ri.span === 'object' ? { chat: String(ri.span.chat || ''), from: Number(ri.span.from) || 0, to: Number(ri.span.to) || 0 } : null,   // a chapter: the replies it covers
+        rollup: !!ri.rollup,      // a chapter that holds everything before the newer chapters
     };
 }
 
 export function newWorldEntry(data, kind) {
     const def = WORLD_KINDS[kind] || WORLD_KINDS.character;
-    return { uid: freeUid(data), kind, name: '', on: true, aliases: [], fields: Object.fromEntries(def.fields.map(f => [f.key, ''])), status: def.steps ? def.steps[0][0] : '', show: 'shadow', auto: false, locked: false, at: null, isNew: true };
+    return { uid: freeUid(data), kind, name: '', on: true, aliases: [], fields: Object.fromEntries(def.fields.map(f => [f.key, ''])), status: def.steps ? def.steps[0][0] : '', show: 'shadow', auto: false, locked: false, at: null, span: null, rollup: false, isNew: true };
 }
 
 const label = (kind, key) => WORLD_KINDS[kind].fields.find(f => f.key === key)?.label || key;
@@ -143,6 +156,12 @@ export function renderEntry(w, { full = true } = {}) {
         if (w.status === 'out') return `${name}: ${sentence(val('secret'))}${val('known') ? ` Known to: ${val('known')}.` : ''} This is out in the open.`;
         if (w.show === 'full') return `${name}: ${sentence(val('secret'))}${holder ? ` It is ${holder}'s secret.` : ''}${val('known') ? ` Known to: ${val('known')}.` : ''} It is still kept: it stays unsaid and unseen in the story until an order says it comes out.`;
         return val('shadow') || (holder ? `${holder} has a secret.` : `${name}: there is a secret here.`);
+    }
+    if (w.kind === 'chapter') {
+        const all = `${name}${val('when') ? ` (${val('when')})` : ''}: ${sentence(val('summary'))}${val('settled') ? ` Settled: ${sentence(val('settled'))}` : ''}`;
+        if (full) return all;
+        const brief = val('summary');
+        return `${name}${val('when') ? ` (${val('when')})` : ''}: ${brief.length > 240 ? `${brief.slice(0, 240).replace(/\s+\S*$/, '')}...` : sentence(brief)}`;
     }
     const keys = full ? def.fields.map(f => f.key) : def.short;
     // "Hale (captain of the Gull)": the first line of a person, place or group goes in brackets after the name.
@@ -178,6 +197,8 @@ export function writeWorldEntry(data, w, id) {
     if (w.auto) ri.auto = true;
     if (w.locked) ri.locked = true;
     if (w.at) ri.at = { chat: w.at.chat, n: w.at.n };
+    if (w.span) ri.span = { chat: w.span.chat, from: w.span.from, to: w.span.to };
+    if (w.rollup) ri.rollup = true;
     keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
     entry.content = `[${def.label}] ${renderEntry({ ...w, show: w.kind === 'secret' ? w.show : 'shadow' })}`;
@@ -200,14 +221,14 @@ export function entryFlags(w, others = []) {
     if (twin) checks.push(`"${twin.name}" in this world has the same name or another name in common. If they are the same, keep one entry.`);
     if (!def.fields.some(f => clean(w.fields[f.key]))) warns.push('Every line is empty, so nothing would be sent for this entry.');
     const size = Math.round(renderEntry(w).length / 4);
-    if (size > 220) warns.push(`This entry is about ${size} tokens. Long entries use up the room for story notes quickly.`);
+    if (size > 220 && w.kind !== 'chapter') warns.push(`This entry is about ${size} tokens. Long entries use up the room for story notes quickly.`);
     if (w.kind === 'secret' && clean(w.fields.secret) && !clean(w.fields.holder)) warns.push('Say whose secret it is, so it can be sent when that person is in the scene.');
     return { blocks, checks, warns };
 }
 
 // ---------- who is present ----------
 
-const HUD_BLOCKS = /<(sola_hud|scene_cast|profile|heart|roast|story_notes|sent_instructions)\b[\s\S]*?<\/\1>/gi;
+export const HUD_BLOCKS = /<(sola_hud|scene_cast|profile|heart|roast|story_notes|sent_instructions)\b[\s\S]*?<\/\1>/gi;
 
 /**
  * What the newest reply says about the scene. type: the kind of generation under way, so a reply that is being
@@ -319,6 +340,32 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
         if (isExtra) extra.push(w.uid);
     };
     const section = (title) => { const s = { title, lines: [] }; sections.push(s); return s; };
+
+    // 0. The story so far has room of its own: what came before the newer chapters, older chapters whose people or
+    //    places are in play (in short), and the newest chapters of this chat in full.
+    const sum = settings().summary;
+    if (sum.on !== false) {
+        const chatId = String(ctx().getCurrentChatId?.() || '');
+        const story = section('The story so far');
+        const sRoom = Math.max(100, Math.round(Number(sum.budget) || 800)) * 4;
+        let sUsed = 0;
+        const put = (w, text) => { if (sUsed + text.length > sRoom && sUsed > 0) return false; sUsed += text.length + 3; story.lines.push(`- ${text}`); ids.push(w.uid); return true; };
+        const chapters = by('chapter').sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
+        // A combined account of this chat already holds the chapters up to where it ends; those count as older ones.
+        const ownRoll = chapters.find(w => w.rollup && w.span?.chat === chatId);
+        const mine = chapters.filter(w => !w.rollup && w.span?.chat === chatId && !(ownRoll && w.span.to <= ownRoll.span.to));
+        const newest = mine.slice(-Math.max(1, Math.round(Number(sum.keep) || 2)));
+        // The combined account is titled for the chat it is read in: it is either the earlier part of this chat, or
+        // everything from the chat this one carries on from.
+        const rollTitle = (w) => (ROLL_NAMES.includes(w.name) ? { ...w, name: w.span?.chat === chatId ? ROLL_NAMES[0] : ROLL_NAMES[1] } : w);
+        for (const w of chapters.filter(x => x.rollup)) put(w, renderEntry(rollTitle(w)));
+        const sceneText = `${scene.present} ${scene.location} ${recent}`;
+        for (const w of chapters.filter(x => !x.rollup && !newest.includes(x))) {
+            const about = `${w.fields.people}, ${w.fields.places}`.split(/,|;|\band\b/i).map(clean).filter(x => x.length >= 3);
+            if (about.some(n => namedIn(sceneText, { name: n, aliases: [] }))) put(w, renderEntry(w, { full: false }));
+        }
+        for (const w of newest) put(w, renderEntry(w));
+    }
 
     // 1. Open threads and things going on elsewhere are short and always in view.
     const threads = section('Open threads');
