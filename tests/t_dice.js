@@ -18,25 +18,26 @@ const lastDice = (page) => page.evaluate(() => { const c = globalThis.SillyTaver
         // ----- A. dice: the arithmetic and the outcome are done in code
         const unit = await page.evaluate(async (B) => {
             const D = await import(`${B}/src/dice.js`);
-            const tiers = [[1, 30], [20, -5], [5, 2], [5, 3], [9, 2], [10, 2], [15, 1], [15, 2]].map(([n, m]) => D.outcome(n, n + m));
+            const tiers = [[1, 0], [1, 20], [20, -20], [5, 2], [5, 3], [9, 2], [10, 2], [15, 1], [15, 2], [20, 1], [20, 2]].map(([n, m]) => D.outcome(n, n + m));
             return { tiers };
         }, L.BASE);
-        assert(unit.tiers.join('|') === 'fails badly|succeeds brilliantly|fails|partly succeeds|partly succeeds|succeeds|succeeds|succeeds well', 'dice: a natural 1 and 20 decide by themselves; otherwise 7 or less fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 or more succeeds well');
+        assert(unit.tiers.join('|') === 'fails badly|succeeds well|fails badly|fails|partly succeeds|partly succeeds|succeeds|succeeds|succeeds well|succeeds well|succeeds brilliantly', 'dice: the total alone decides, so a natural 1 with +20 succeeds well and a natural 20 with -20 fails badly');
 
         await L.openChat(page);
         await L.setSettings(page, { dice: { on: true, user: true, char: true, others: true, stats: ['Strength', 'Wits'] } });
-        await page.evaluate(async (B) => { const D = await import(`${B}/src/dice.js`); D.setStat('user', 'Wits', 3); D.setStat('char', 'Strength', 9); D.setStat('char', 'Wits', -1); }, L.BASE);
+        await page.evaluate(async (B) => { const D = await import(`${B}/src/dice.js`); D.setStat('user', 'Wits', 3); D.setStat('char', 'Strength', 9); D.setStat('user', 'Agility', 40); D.setStat('char', 'Wits', -1); }, L.BASE);
         const r1 = await send(page, 'I try to climb the wall.');
         const d1 = await lastDice(page);
         console.log('dice:', JSON.stringify(d1.dice));
+        const D_AG = await page.evaluate(async (B) => (await import(`${B}/src/dice.js`)).sheet('user').Agility, L.BASE);
         const u = d1.dice.find(x => x.who === 'user'); const c = d1.dice.find(x => x.who === 'char'); const o = d1.dice.find(x => x.who === 'others');
         const sums = u.stats.every(s => s.total === u.natural + s.mod) && c.stats.every(s => s.total === c.natural + s.mod);
-        assert(u && c && o && u.natural >= 1 && u.natural <= 20 && sums && u.stats.find(s => s.name === 'Wits').mod === 3 && c.stats.find(s => s.name === 'Strength').mod === 5 && o.stats.length === 0, 'dice: one d20 each for {{user}}, {{char}} and the others; each stat modifier is added in code, and a modifier is kept between -3 and +5');
-        assert(/Dice for this reply, already rolled\. Use a result only when/.test(r1.text) && /Roll nothing yourself and change no number\./.test(r1.text) && new RegExp(`the d20 (rolled|rolled a natural) ${u.natural}`).test(r1.text) && r1.n === 1, 'dice: the results are sent with the reply, with the rule to use them only for real stakes, and no extra AI request is made');
+        assert(u && c && o && u.natural >= 1 && u.natural <= 20 && sums && u.stats.find(s => s.name === 'Wits').mod === 3 && D_AG === 20 && c.stats.find(s => s.name === 'Strength').mod === 9 && o.stats.length === 0, 'dice: one d20 each for {{user}}, {{char}} and the others; each stat modifier is added in code, and a modifier is kept between -20 and +20');
+        assert(/Dice for this reply, already rolled\. Use a result only when/.test(r1.text) && /Roll nothing yourself and change no number\./.test(r1.text) && new RegExp(`the d20 rolled ${u.natural}`).test(r1.text) && r1.n === 1, 'dice: the results are sent with the reply, with the rule to use them only for real stakes, and no extra AI request is made');
         // a swipe keeps the roll
         L.resetLog(); await L.swipe(page); await L.waitChecks(page); await idle(page);
         const sw = L.text(L.requests().filter(r => r.messages.length > 2).slice(-1)[0] || {});
-        assert(sw.includes(`rolled`) && (sw.match(/the d20 rolled (a natural )?(\d+)/) || [])[2] === String(u.natural), 'dice: a swipe sends the same roll again');
+        assert(sw.includes(`rolled`) && (sw.match(/the d20 rolled (\d+)/) || [])[1] === String(u.natural), 'dice: a swipe sends the same roll again');
         // out of character: no dice
         const ooc = await send(page, 'OOC: how are you?');
         assert(!/Dice for this reply/.test(ooc.text), 'dice: an out-of-character message gets no dice');
@@ -163,6 +164,22 @@ const lastDice = (page) => page.evaluate(() => { const c = globalThis.SillyTaver
         const back = await page.evaluate(() => globalThis.SillyTavern.getContext().chat.filter(m => m.is_system).length);
         assert(back === 0, 'hide: deleting the reply the chapter belongs to shows the hidden messages again');
         await L.setSettings(page, { summary: { on: false, hide: true, keepShown: 30, onSceneEnd: true, every: 20 }, world: { update: 'all' } });
+
+        // ----- C2. a branch keeps the chapters from before the point where it branched
+        await L.setSettings(page, { summary: { on: true, onSceneEnd: false, every: 0, hide: false }, world: { update: 'off' } });
+        L.mode({ reply: PROSE });
+        for (let i = 0; i < 3; i++) await send(page, 'b' + i);
+        L.mode({ goal: JSON.stringify({ title: 'Before the fork', when: '', summary: 'FORKMARK things happened', people: [], places: [], settled: '' }) });
+        await page.evaluate(async (B) => { const C = await import(`${B}/src/chapters.js`); await C.writeChapterNow(); }, L.BASE);
+        const lastId = await page.evaluate(() => globalThis.SillyTavern.getContext().chat.length - 1);
+        const origChat = await page.evaluate(() => globalThis.SillyTavern.getContext().getCurrentChatId());
+        await L.slash(page, `/branch-create ${lastId}`); await page.waitForTimeout(2500);
+        const inBranch = await page.evaluate(async (B) => { const c = globalThis.SillyTavern.getContext(); const C = await import(`${B}/src/chapters.js`); const W = await import(`${B}/src/world.js`); const id = W.chatWorld(); const d = await W.loadWorld(id); return { chat: c.getCurrentChatId(), covered: C.coveredUpTo(W.listWorld(d, id)) }; }, L.BASE);
+        L.mode({ reply: PROSE });
+        const br = await send(page, 'in the branch');
+        console.log('branch:', JSON.stringify(inBranch), origChat);
+        assert(inBranch.chat !== origChat && inBranch.covered >= 1 && /The story so far:\n- Before the fork: FORKMARK things happened\./.test(br.text), 'branch: a branch keeps the chapters written before the point where it branched, sends the newest in full, and does not write them again');
+        await L.setSettings(page, { summary: { on: false, hide: true }, world: { update: 'all' } });
 
         // ----- D. the new chapter button is in What Was Sent
         await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'sent'; P.app.render(); }, L.BASE);

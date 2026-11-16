@@ -19,12 +19,41 @@ export function newCategory(name, items = [], extra = {}) {
         items: items.map(x => Array.isArray(x) ? { id: newId(), text: x[0], on: true, weight: 1, tags: x[1] || '', always: false } : { id: newId(), text: x, on: true, weight: 1, tags: '', always: false }), ...extra };
 }
 
+/** The list a new story event set starts with for what an event puts at stake. Every item works in any setting. */
+export const STAKES = [
+    '{{user}} is in immediate mortal danger',
+    'something {{char}} believes about themself is challenged',
+    'a secret is close to coming out',
+    'someone {{char}} cares about needs help now',
+    'an offer arrives that is hard to refuse',
+    'a choice has to be made right away',
+    '{{char}}\'s plan is suddenly in doubt',
+    'someone\'s trust is put to the test',
+    'something {{char}} wants comes within reach',
+    'a promise is put to the test',
+];
+export const STAKES_NAME = 'What it puts at stake';
+
+/**
+ * What a list of a story event set is for, read from its name: who drives the event, its tone, what it puts at
+ * stake, how it gets harder, or (everything else) what happens.
+ */
+export function listRole(cat) {
+    if (cat?.driver) return 'driver';
+    const n = String(cat?.name || '').toLowerCase();
+    if (/tone|mood|feel|atmosphere/.test(n)) return 'tone';
+    if (/stake|effect|consequence|what it (puts|means|does)/.test(n)) return 'stake';
+    if (/complicat|twist|obstacle|problem|snag|catch/.test(n)) return 'complication';
+    return 'situation';
+}
+
 const withOrigins = (cat, list) => { cat.items.forEach((it, i) => { if (list[i]) it.from = list[i]; }); return cat; };
 
 export function defaultCategories() {
     return [
         newCategory('Situation', [], { burn: true }),
         newCategory('Complication', [], { burn: true }),
+        newCategory('What it puts at stake', STAKES),
         withOrigins(newCategory('Who drives it', ['{{char}}', 'any character other than {{user}}, one already in the story or a new arrival', 'any female character other than {{user}}, one already in the story or a new arrival', 'any male character other than {{user}}, one already in the story or a new arrival', 'the surroundings: weather, a place, an object, an animal or a crowd'], { driver: true }), ['char', 'other', 'other', 'other', 'world']),
         newCategory('Tone'),
     ];
@@ -178,7 +207,7 @@ export function buildEventContent(ev) {
 }
 
 function eventSentence(parts) {
-    return `an event must happen in the story, built from these parts: ${parts.join('; ')}. Fit it to the people, place and facts already established.`;
+    return `an event must happen in the story, built from these parts: ${parts.join('; ')}. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.`;
 }
 
 function styleSentence(parts) {

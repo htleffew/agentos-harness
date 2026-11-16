@@ -6,12 +6,12 @@ import { keptIn, removeText, deleteButton } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { validateVersion, swapNames, userDrives } from '../validate.js';
-import { writeItems } from '../writer.js';
+import { writeItems, rewriteAnywhere } from '../writer.js';
 import { toast, confirmBox, inputBox, sub, isChatOpen } from '../st.js';
 import { eventLeft, unburnSet } from '../engine.js';
 import { contextField } from './context.js';
 import { NEEDS } from '../pacing.js';
-import { ORIGINS, originOf } from '../events.js';
+import { ORIGINS, originOf, STAKES, STAKES_NAME, listRole } from '../events.js';
 
 const EVENTS = {
     kind: 'events', type: 'event', route: 'eroute', make: newEvent, tick: 'events', set: 'story event set', sets: 'story event sets', Set: 'Story event set',
@@ -220,9 +220,11 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     addBox.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); addItem(); } });
     body.push(h('div', { class: 'ri-control' }, addBox), h('div', { class: 'ri-row' },
         button('Add this item', addItem),
-        button('Write items with AI', () => { ui.ai = { theme: app[cfg.route].lastTheme || '', count: 12, busy: false, error: '', results: null }; redraw(); }, { kind: 'primary' })));
+        cfg.kind === 'events' && cat.items.length ? button('Make these work anywhere', () => { ui.rw = { busy: false, error: '', results: null, which: 'on' }; ui.ai = null; redraw(); }, { title: 'One AI request rewrites the items of this list so each works in any setting, keeping what it does to the people. You see every change before it is made.' }) : null,
+        button('Write items with AI', () => { ui.rw = null; ui.ai = { theme: app[cfg.route].lastTheme || '', count: 12, busy: false, error: '', results: null }; redraw(); }, { kind: 'primary' })));
 
     if (ui.ai) body.push(aiBox(app, draft, cat, ui, redraw, dirty));
+    if (ui.rw) body.push(rewriteBox(draft, cat, ui, redraw, dirty));
 
     body.push(h('div', { class: 'ri-row' },
         button('Move category up', () => { if (index > 0) { [draft.categories[index - 1], draft.categories[index]] = [draft.categories[index], draft.categories[index - 1]]; dirty(); redraw(); } }, { kind: 'ghost', disabled: index === 0 }),
@@ -236,6 +238,47 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     return card;
 }
 
+function rewriteBox(draft, cat, ui, redraw, dirty) {
+    const rw = ui.rw;
+    const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, `Make the items of "${cat.name}" work anywhere`));
+    const pool = () => cat.items.filter(it => rw.which === 'all' || it.on);
+    if (!rw.results) {
+        box.append(
+            h('div', { class: 'ri-help' }, 'One AI request rewrites each item so that it makes sense wherever the scene is when it fires, and keeps what it does to the people. Items that already work anywhere come back as they were. Nothing changes until you choose.'),
+            field('Which items', '', select([{ value: 'on', label: `The items that are on (${cat.items.filter(i => i.on).length})` }, { value: 'all', label: `Every item (${cat.items.length})` }], rw.which, (v) => { rw.which = v; redraw(); })));
+        if (rw.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, rw.error));
+        box.appendChild(h('div', { class: 'ri-row' },
+            button(rw.busy ? 'Rewriting...' : 'Rewrite the items', async () => {
+                if (rw.busy) return;
+                const items = pool().slice(0, 60);
+                if (!items.length) { rw.error = 'There are no items to rewrite.'; redraw(); return; }
+                rw.busy = true; rw.error = ''; redraw();
+                try { rw.results = (await rewriteAnywhere({ category: cat, items, others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) })).map(x => ({ ...x, keep: x.changed })); }
+                catch (e) { rw.error = e.message; }
+                rw.busy = false; redraw();
+            }, { kind: 'primary', disabled: rw.busy }),
+            button('Cancel', () => { ui.rw = null; redraw(); }, { kind: 'ghost', disabled: rw.busy })));
+        return box;
+    }
+    const changed = rw.results.filter(x => x.changed);
+    box.appendChild(h('div', { class: 'ri-help' }, changed.length ? `${changed.length} of ${rw.results.length} items were rewritten. Tick the rewrites to keep. An item keeps its weight, tags, marks and history.` : 'Every item already works anywhere, by the AI\'s judgment. Nothing needs to change.'));
+    const list = h('div', { class: 'ri-versions' });
+    for (const x of changed) {
+        const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: x.keep, onchange: () => { x.keep = tick.checked; } });
+        list.appendChild(h('div', { class: 'ri-version' }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' },
+            h('div', { class: 'ri-muted' }, 'Was: ', versionText(x.was)), h('div', {}, 'Now: ', versionText(x.text)))), itemFlags(cat, x.text).node));
+    }
+    box.append(list, h('div', { class: 'ri-row' },
+        changed.length ? button('Use the ticked rewrites', () => {
+            let n = 0;
+            for (const x of changed) { if (!x.keep) continue; const it = cat.items.find(i => i.id === x.id); if (it) { it.text = x.text; n++; } }
+            toast(n ? 'success' : 'info', n ? `${n} ${n === 1 ? 'item was' : 'items were'} rewritten. Press Save to keep the change.` : 'Nothing was ticked, so nothing changed.');
+            ui.rw = null; if (n) dirty(); redraw();
+        }, { kind: 'primary' }) : null,
+        button(changed.length ? 'Cancel' : 'Close', () => { ui.rw = null; redraw(); }, { kind: 'ghost' })));
+    return box;
+}
+
 function aiBox(app, draft, cat, ui, redraw, dirty) {
     const ai = ui.ai;
     const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, `Write items for "${cat.name}" with AI`));
@@ -245,6 +288,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
             h('div', { class: 'ri-grid2' },
                 field('How many items to write', '', numberInput(ai.count, { min: 1, max: 40, unit: 'items' }, (n) => { ai.count = n; })),
                 contextField()),
+            cfg.kind === 'events' ? field('Let the AI read where the story is now', settings().writer.eventScene ? 'On: the recent messages and the story so far are shown too, when ticked above. Items can then lean toward the scene you are in.' : 'Off: the AI only reads the card, the scenario and your persona (when ticked above), so items fit your kind of story and work wherever the scene is when they fire.', select([{ value: 'off', label: 'Off (recommended)' }, { value: 'on', label: 'On' }], settings().writer.eventScene ? 'on' : 'off', (v) => { settings().writer.eventScene = v === 'on'; saveSettings(); redraw(); })) : null,
             cfg.kind === 'events' && !cat.driver ? field('Where these events come from', 'Each item is written to start with this, and is marked with it. When an event rolls, the dice pick who drives it first and then only pick items that fit.', select(Object.entries(ORIGINS).map(([value, o]) => ({ value, label: o.label })), ai.origin || '', (v) => { ai.origin = v; })) : null);
         if (ai.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, ai.error));
         box.appendChild(h('div', { class: 'ri-row' },
@@ -255,7 +299,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                 app[cfg.route].lastTheme = ai.theme;
                 try {
                     const list = await writeItems({ style: cfg.kind === 'style', origin: ai.origin || '', category: cat, theme: ai.theme.trim(), count: ai.count, context: settings().writer.context, existing: cat.items.map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
-                    ai.results = list.map(x => ({ text: x.text, keep: (f => f.blocks.length === 0 && f.checks.length === 0)(itemFlags(cat, x.text)) }));
+                    ai.results = list.map(x => ({ text: x.text, anywhere: x.anywhere, keep: x.anywhere !== false && (f => f.blocks.length === 0 && f.checks.length === 0)(itemFlags(cat, x.text)) }));
                 } catch (e) { ai.error = e.message; }
                 ai.busy = false; redraw();
             }, { kind: 'primary', disabled: ai.busy }),
@@ -263,12 +307,14 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
         return box;
     }
     box.appendChild(h('div', { class: 'ri-help' }, 'Tick the items to add. Everything the AI wrote is shown here; nothing is added until you press the button. An item marked "Check" starts unticked: tick it if it reads right to you.'));
+    if (ai.results.some(x => x.anywhere === false)) box.appendChild(h('div', { class: 'ri-note' }, `${ai.results.filter(x => x.anywhere === false).length} of ${ai.results.length} items need a particular setting, by the AI's own judgment.`));
     const list = h('div', { class: 'ri-versions' });
     ai.results.forEach((x) => {
         const flags = itemFlags(cat, x.text);
         if (flags.blocks.length) x.keep = false;
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: x.keep, disabled: flags.blocks.length > 0, onchange: () => { x.keep = tick.checked; } });
-        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(x.text))), flags.node));
+        const placeBound = x.anywhere === false ? h('div', { class: 'ri-flags' }, h('div', { class: 'ri-flag ri-flag-check' }, 'Check: the AI says this item needs a particular place, object or group, so it may not fit wherever the scene is when it fires. It starts unticked. Tick it if it reads right to you.')) : null;
+        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : (flags.checks.length || placeBound) ? 'ri-version-flagged' : ''}` }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(x.text))), flags.node, placeBound));
     });
     box.append(list, h('div', { class: 'ri-row' },
         button('Add the ticked items', () => {
@@ -315,7 +361,12 @@ function renderEdit(body, app) {
             if (!n) return;
             const cat = newCategory(n);
             draft.categories.push(cat); r.open[cat.id] = true; dirty(); redraw();
-        }))));
+        }),
+        cfg.kind === 'events' && !draft.categories.some(c => listRole(c) === 'stake') ? button(`Add the list "${STAKES_NAME}"`, () => {
+            const cat = newCategory(STAKES_NAME, STAKES);
+            const at = draft.categories.findIndex(c => c.driver);
+            draft.categories.splice(at < 0 ? draft.categories.length : at, 0, cat); r.open[cat.id] = true; dirty(); redraw();
+        }, { title: 'A list of what an event puts at stake and for whom. It starts with ten items that work in any setting. The dice pick one with every event.' }) : null)));
 
     // Never together
     const pairs = pairList(draft.neverTogether);

@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.8.0 (2026-11-16)
+
+- Story events that work wherever the scene is: the AI writer gets rules and examples for each kind of list
+  (Situation, Complication, Who drives it, Tone, What it puts at stake); the current scene is left out when items are
+  written, unless you turn it on; the AI marks items that need a particular setting, and those start unticked; every
+  event order says to keep what a part does to the people and change how it happens when the part does not fit.
+- A new list "What it puts at stake" in new story event sets, with ten items that work anywhere, and a button that
+  adds it to an older set.
+- "Make these work anywhere": one AI request rewrites a list's items, and you choose which rewrites to keep.
+- Dice: a stat can be any whole number from -20 to +20, and the total alone decides the outcome (six tiers, from
+  "fails badly" at 2 or less to "succeeds brilliantly" at 22 or more). A natural 1 or 20 no longer decides by itself.
+- A chapter is tied to the reply it ends on, so a branch keeps the chapters written before it branched and does not
+  write them again.
+
 ## 5.7.0 (2026-11-16)
 
 - Dice rolled in code: one d20 per reply for {{user}}, {{char}} and other characters (each can be switched off),

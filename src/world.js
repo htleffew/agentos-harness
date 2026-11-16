@@ -90,6 +90,23 @@ export const WORLD_KINDS = {
 export const KIND_ORDER = ['chapter', 'character', 'place', 'faction', 'thread', 'secret', 'seed', 'activity'];
 export const DONE = { thread: 'done', seed: 'paid', activity: 'done' };
 export const MAX_ACTIVITIES = 3;
+/** The record times of the replies now in the open chat. A branch shares these with the chat it came from, up to where it branched. */
+export function chatTimes() {
+    const out = new Set();
+    for (const m of ctx().chat || []) { const t = m?.extra?.[KEY]?.time; if (t) out.add(String(t)); }
+    return out;
+}
+
+/**
+ * Does this chapter belong to the open chat? A chapter is tied to the last reply it covers, so it belongs to every
+ * chat that has that reply: the chat it was written in, and any branch made after it. Older chapters with no reply
+ * time belong to the chat they were written in.
+ */
+export function chapterIsMine(w, chatId, times = chatTimes()) {
+    if (w?.span?.time) return times.has(String(w.span.time));
+    return w?.span?.chat === chatId;
+}
+
 /** The two titles a combined account of earlier chapters is given by the extension. */
 export const ROLL_NAMES = ['Before the latest chapters', 'The story before this chat'];
 
@@ -134,7 +151,7 @@ export function readWorldEntry(entry) {
         auto: !!ri.auto,          // added by the extension from a reply, and not yet saved by hand
         locked: !!ri.locked,      // "keep this entry as I wrote it": automatic updates leave it alone
         at: ri.at && typeof ri.at === 'object' ? { chat: String(ri.at.chat || ''), n: Number(ri.at.n) || 0 } : null,   // the chat and reply where it was made or last moved
-        span: ri.span && typeof ri.span === 'object' ? { chat: String(ri.span.chat || ''), from: Number(ri.span.from) || 0, to: Number(ri.span.to) || 0 } : null,   // a chapter: the replies it covers
+        span: ri.span && typeof ri.span === 'object' ? { chat: String(ri.span.chat || ''), from: Number(ri.span.from) || 0, to: Number(ri.span.to) || 0, ...(ri.span.time ? { time: String(ri.span.time) } : {}) } : null,   // a chapter: the replies it covers
         rollup: !!ri.rollup,      // a chapter that holds everything before the newer chapters
     };
 }
@@ -199,7 +216,7 @@ export function writeWorldEntry(data, w, id) {
     if (w.auto) ri.auto = true;
     if (w.locked) ri.locked = true;
     if (w.at) ri.at = { chat: w.at.chat, n: w.at.n };
-    if (w.span) ri.span = { chat: w.span.chat, from: w.span.from, to: w.span.to };
+    if (w.span) ri.span = { chat: w.span.chat, from: w.span.from, to: w.span.to, ...(w.span.time ? { time: String(w.span.time) } : {}) };
     if (w.rollup) ri.rollup = true;
     keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
@@ -355,12 +372,13 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
         const put = (w, text) => { if (sUsed + text.length > sRoom && sUsed > 0) return false; sUsed += text.length + 3; story.lines.push(`- ${text}`); ids.push(w.uid); return true; };
         const chapters = by('chapter').sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
         // A combined account of this chat already holds the chapters up to where it ends; those count as older ones.
-        const ownRoll = chapters.find(w => w.rollup && w.span?.chat === chatId);
-        const mine = chapters.filter(w => !w.rollup && w.span?.chat === chatId && !(ownRoll && w.span.to <= ownRoll.span.to));
+        const times = chatTimes();
+        const ownRoll = chapters.find(w => w.rollup && chapterIsMine(w, chatId, times));
+        const mine = chapters.filter(w => !w.rollup && chapterIsMine(w, chatId, times) && !(ownRoll && w.span.to <= ownRoll.span.to));
         const newest = mine.slice(-Math.max(1, Math.round(Number(sum.keep) || 2)));
         // The combined account is titled for the chat it is read in: it is either the earlier part of this chat, or
         // everything from the chat this one carries on from.
-        const rollTitle = (w) => (ROLL_NAMES.includes(w.name) ? { ...w, name: w.span?.chat === chatId ? ROLL_NAMES[0] : ROLL_NAMES[1] } : w);
+        const rollTitle = (w) => (ROLL_NAMES.includes(w.name) ? { ...w, name: chapterIsMine(w, chatId, times) ? ROLL_NAMES[0] : ROLL_NAMES[1] } : w);
         for (const w of chapters.filter(x => x.rollup)) put(w, renderEntry(rollTitle(w)));
         const sceneText = `${scene.present} ${scene.location} ${recent}`;
         for (const w of chapters.filter(x => !x.rollup && !newest.includes(x))) {

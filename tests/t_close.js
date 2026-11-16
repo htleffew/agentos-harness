@@ -61,6 +61,7 @@ const send = async (page, text) => { L.resetLog(); await L.send(page, text); awa
 
         // ----- C. the story so far, for the AI writer
         await L.openChat(page);
+        await L.setSettings(page, { writer: { eventScene: true } });
         const ask = async () => { L.resetLog(); L.mode({ writer: '["a letter arrives"]', reply: PROSE }); await page.evaluate(async (B) => { const W = await import(`${B}/src/writer.js`); const E = await import(`${B}/src/events.js`); await W.writeItems({ category: E.newCategory('Situation'), theme: 'harbour', count: 1, context: { summary: true }, existing: [], others: [] }); }, L.BASE); return L.text(L.requests()[0]); };
         const none = await ask();
         await page.evaluate(() => globalThis.SillyTavern.getContext().setExtensionPrompt('1_memory', 'STMARK they met in the forest.', 0, 0));
@@ -81,7 +82,7 @@ const send = async (page, text) => { L.resetLog(); await L.send(page, text); awa
         assert(!/Summary of the story so far/.test(none) && /Summary of the story so far: STMARK they met in the forest\./.test(stOnly), 'writer: with no chapters, a summary kept by SillyTavern is shown to the AI writer, and with neither nothing is');
         assert(/Summary of the story so far: At the market \(Day 3\): Hale asked you to sail OWNMARK\./.test(own) && !/STMARK/.test(own) && labels.found && /your chapters/.test(labels.label), 'writer: with chapters in the story world, the extension\'s own story so far is shown to the AI writer in place of SillyTavern\'s summary');
 
-        await L.setSettings(page, { perReply: 0, check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' } });
+        await L.setSettings(page, { perReply: 0, check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' }, writer: { eventScene: false } });
         console.log('page errors:', JSON.stringify(errors));
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 400));
     } finally { await browser.close(); }

@@ -13,7 +13,12 @@ function answer(body) {
     if (/Return only a JSON object with the keys/i.test(all)) {
         return m.goal || JSON.stringify({ goal: '[[char]] wants [[user]] to trust [[char.them]].', actions: ['compliment [[user]]', 'ask [[user]] a question', 'touch [[user]] on the arm', 'smile at [[user]]', 'agree with [[user]]'], steps: ['tell [[user]] a secret', 'apologise to [[user]]', 'ask [[user]] for help', 'give [[user]] a gift while out on a date at the restaurant tonight', 'make [[user]] a promise'] });
     }
-    if (/Return only a JSON list of strings/i.test(all)) {
+    if (/Return only a JSON list of objects, one per item/i.test(all)) {
+        if (m.writer) return m.writer;
+        const k = Number((all.match(/Write (\d+) /) || [0, 5])[1]);
+        return JSON.stringify(Array.from({ length: k }, (_, i) => ({ text: `story item ${i}`, anywhere: i !== 1 })));
+    }
+    if (/Return only a JSON list of (\d+ )?strings/i.test(all)) {
         if (m.writerNeedsRoom && (body.max_tokens || body.max_completion_tokens || 0) < m.writerNeedsRoom) return '';
         if (m.writer) return m.writer;
         const k = Number((all.match(/Write (\d+) /) || [0, 5])[1]);

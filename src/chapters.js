@@ -8,7 +8,7 @@ import { ctx, KEY, LOG, names, parseJson, isReply, isStory } from './st.js';
 import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
-import { chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE } from './world.js';
+import { chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE, chatTimes, chapterIsMine } from './world.js';
 import { enqueue, worldIdle, attachChange, parseUpdate, applyOps, stripUpdateBlock, shownChanges, describeChange } from './worldflow.js';
 import { goals, goalProgress, stepDone } from './goals.js';
 import { writerRules } from './pacing.js';
@@ -49,7 +49,8 @@ const chaptersOf = (list) => list.filter(w => w.kind === 'chapter' && w.on).sort
 /** The last reply of this chat that a chapter covers. */
 export function coveredUpTo(list) {
     const id = chatId();
-    return Math.max(0, ...list.filter(w => w.kind === 'chapter' && w.span?.chat === id).map(w => w.span.to));
+    const times = chatTimes();
+    return Math.max(0, ...list.filter(w => w.kind === 'chapter' && chapterIsMine(w, id, times)).map(w => w.span.to));
 }
 
 /** Is SillyTavern's own Summarize adding a summary to the prompt in this chat? */
@@ -127,7 +128,8 @@ export async function writeChapter(from, to, why) {
         await enqueue(async () => {
             const data = await loadWorld(wid);
             const w = newWorldEntry(data, 'chapter');
-            Object.assign(w, { name: clean(obj.title) || `Replies ${from} to ${to}`, auto: true, at: { chat, n: to }, span: { chat, from, to } });
+            const lastRe = replies().find(r => r.n === to);
+            Object.assign(w, { name: clean(obj.title) || `Replies ${from} to ${to}`, auto: true, at: { chat, n: to }, span: { chat, from, to, ...(lastRe?.time ? { time: String(lastRe.time) } : {}) } });
             Object.assign(w.fields, { summary: clean(obj.summary), when: clean(obj.when), people: asList(obj.people), places: asList(obj.places), settled: clean(obj.settled) });
             // What is finished moves into the chapter: it is written into it in one line each and turned off, so the
             // world holds what is still open. Entries set to "keep it as I wrote it" are left alone.
@@ -200,10 +202,11 @@ async function rollUpIfNeeded() {
     if (!wid) return;
     const data = await loadWorld(wid);
     const all = chaptersOf(listWorld(data, wid));
-    const mine = all.filter(w => !w.rollup && w.span?.chat === chat);
+    const times = chatTimes();
+    const mine = all.filter(w => !w.rollup && chapterIsMine(w, chat, times));
     if (mine.length <= max) return;
     const old = mine.slice(0, mine.length - keep);
-    const prior = all.find(w => w.rollup) || null;
+    const prior = all.find(w => w.rollup && chapterIsMine(w, chat, times)) || all.find(w => w.rollup) || null;
     const parts = [...(prior ? [prior] : []), ...old];
     const user = [
         'Combine these summaries of the earlier parts of a roleplay story into one account of the story so far.',
@@ -223,7 +226,7 @@ async function rollUpIfNeeded() {
         const now = listWorld(d, wid);
         const roll = now.find(w => w.kind === 'chapter' && w.rollup) || Object.assign(newWorldEntry(d, 'chapter'), { name: 'Before the latest chapters', rollup: true, auto: true });
         Object.assign(roll.fields, { summary: clean(obj.summary), people: asList(obj.people), places: asList(obj.places) });
-        roll.span = { chat, from: 1, to: old[old.length - 1].span.to };
+        roll.span = { chat, from: 1, to: old[old.length - 1].span.to, ...(old[old.length - 1].span.time ? { time: old[old.length - 1].span.time } : {}) };
         delete roll.isNew;
         writeWorldEntry(d, roll, wid);
         // The chapters that went into it: automatic ones are removed, ones you saved yourself are switched off.

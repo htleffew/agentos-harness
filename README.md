@@ -110,6 +110,25 @@ Each category has its own settings:
 | Never together (on the set) | Pairs of tags, written `past+future, calm+frantic`. When one is picked, items with the other tag are left out of that roll. |
 | Saved category settings (on the set) | Save how the categories are set up under a name, such as "Slow burn", and choose one per chat. |
 
+**Events that work wherever the scene is.** An event can fire at any moment, so its items say what happens and
+to whom, and leave out where and how. "A shocking event places {{user}} in immediate danger" works in a camp, a keep
+or on a ship; "a bridge collapses under the column" only works where there is a bridge and a column.
+
+- **The AI writer is told this for every list**, with examples for its kind: Situation says what happens and who it
+  reaches, Complication how things get harder, Who drives it names a role rather than a person tied to one place,
+  Tone names a feeling rather than a place or the weather, and What it puts at stake says what is at stake and for
+  whom. A list's kind is read from its name.
+- **The current scene is left out** when items are written for a story event list, so they do not lean toward where
+  the story is right now. "Let the AI read where the story is now" in the AI box turns it back on.
+- **The AI marks items that need a particular setting.** In the review, those start unticked with a note.
+- **Every event order says** that when a part names something that is not in the scene, the AI keeps what the part
+  does to the people and changes how it happens. So an older, specific item still fires sensibly.
+- **What it puts at stake.** A new set has this list, with ten items that work anywhere, such as "{{user}} is in
+  immediate mortal danger" and "something {{char}} believes about themself is challenged". An older set gets a
+  button to add it.
+- **Make these work anywhere.** A button on each list. One AI request rewrites the items so each works in any
+  setting and keeps what it does to the people. You see each change, with what it was, and tick the ones to keep.
+
 **When lists run out.** Lists that retire their items can be different lengths. The first list that retires its
 items is the main list (Situation, to start with). When the main list is used up, the set sends no more events in
 that chat, and you are told: a message on screen, a line in What Was Sent, and "Used up in this chat" on the set's
@@ -332,11 +351,12 @@ The extension rolls the dice in code. The AI is told the results and never rolls
 
 - Before every reply, one d20 is rolled for each side that is on: {{user}} (for what you attempt in your message),
   {{char}}, and any other character (one shared roll, with no stats).
-- **Stats.** Six to start with: Strength, Agility, Wits, Charm, Will, Senses. Each is a modifier from -3 to +5, set in
+- **Stats.** Six to start with: Strength, Agility, Wits, Charm, Will, Senses. Each is a whole number from -20 to +20, set in
   Settings > Dice. {{char}}'s stats are kept with the character card and yours with your persona. You can rename,
   add or delete stats.
-- **Outcome**, worked out in code for every stat: 7 or less fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 or
-  more succeeds well. A natural 1 fails badly and a natural 20 succeeds brilliantly, whatever the stat.
+- **Outcome**, worked out in code for every stat from the total (the d20 plus the stat) alone: 2 or less fails badly,
+  3 to 7 fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 to 21 succeeds well, 22 or more succeeds brilliantly.
+  0 is average and +1 to +5 is ordinary skill. At +20 the lowest total is 21, so the attempt cannot fail.
 - **When it is used.** The AI is told to use a result only when someone attempts something with real stakes and a
   real chance of failing, to pick the stat that fits, and to ignore the dice otherwise. When a reply is checked
   anyway, the check also asks whether the reply used a result, and What Was Sent shows the answer.
@@ -431,10 +451,10 @@ The record of what was sent lives on each reply, so it follows the reply whereve
 | You do this | What happens |
 | --- | --- |
 | Edit the newest reply | It is checked again. If your edit made the instruction happen, it shows Done and is taken off the waiting list. |
-| Edit an older message | Nothing changes. Old replies are never re-checked on their own. |
+| Edit an older message | Nothing changes. Old replies are never re-checked on their own, and a chapter that covers the message keeps what it says. Change the chapter in the Story World tab if it matters. |
 | Delete messages | Their records go with them. Anything waiting to be sent again because of a deleted reply is dropped, timers started by deleted replies are cleared, and what those replies filed in the story world is undone. |
 | Swipe or regenerate the newest reply | The same instructions and versions are sent again. What the swiped-away reply filed in the story world is undone. |
-| Branch a chat | The branch keeps which sets are on, your pronouns, and the records up to the branch point. The original chat is untouched. |
+| Branch a chat | The branch keeps which sets are on, your pronouns, the goal, the story world it uses, and the records up to the branch point. Chapters written before the branch point are the branch's chapters too, and messages hidden by them stay hidden. The original chat is untouched. Both chats use the same story world, so what one of them files later is seen by the other. |
 
 ## Where things are stored
 

@@ -22,7 +22,11 @@ const assert = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c)
         const recent = t.split('The most recent messages of the chat, oldest first:')[1];
         assert(/red book from the desk/.test(recent) && !/old door/.test(recent), 'recent messages: only the last 3 are sent');
         t = await ask({ recent: true, recentCount: 10 }, 'items');
-        assert(/old door/.test(t) && !/Character description/.test(t) && !/SUMMARY-MARK/.test(t), 'items writer: only what is ticked is sent');
+        assert(!/old door/.test(t) && !/Character description/.test(t) && !/SUMMARY-MARK/.test(t), 'items writer: the current scene is left out of story event lists to start with');
+        await L.setSettings(page, { writer: { eventScene: true } });
+        t = await ask({ recent: true, recentCount: 10 }, 'items');
+        await L.setSettings(page, { writer: { eventScene: false } });
+        assert(/old door/.test(t) && !/Character description/.test(t) && !/SUMMARY-MARK/.test(t), 'items writer: with "Let the AI read where the story is now" on, only what is ticked is sent');
         // who does it: existing or new, by gender
         L.resetLog();
         await page.evaluate(async ({ BASE }) => { const W = await import(`${BASE}/src/writer.js`); const B = await import(`${BASE}/src/books.js`); const ins = B.newInstruction({ entries: {} }); ins.name = 'T'; ins.actor = 'npcFemale'; ins.target = 'npcAny'; await W.writeVersions({ ins, seed: 'Someone flirts.', count: 2, context: {} }); }, { BASE: L.BASE });

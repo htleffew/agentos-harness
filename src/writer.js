@@ -5,7 +5,7 @@ import { settings, pronounForms, FORMS } from './store.js';
 import { ACTORS, TARGETS, SENT_AS } from './books.js';
 import { swapNames } from './validate.js';
 import { writerRules, storySoFar } from './pacing.js';
-import { ORIGINS } from './events.js';
+import { ORIGINS, listRole } from './events.js';
 import { stripSentBlock } from './engine.js';
 
 function pronounLine(role, label) {
@@ -56,6 +56,7 @@ export function contextText(c = {}) {
     return out.join('\n\n').slice(0, 24000);
 }
 
+export const EVENT_LEAD = 'What is known about the story. Use it for the kind of story and the people in it. The items still have to work in any setting of this story, and still use the placeholders for names:';
 export const STORY_LEAD = 'What is known about the story. Use it so that what you write fits these people and this moment, and still use the placeholders for names:';
 
 export function buildWriterPrompt({ ins, seed, count, context, existing }) {
@@ -151,6 +152,39 @@ export async function writeVersions({ ins, seed, count, context }) {
     return out;
 }
 
+/** What makes an item of a story event list work in any setting, with examples for that kind of list. */
+const ROLE_RULES = {
+    situation: ['- Say what kind of thing happens and who it reaches. Leave how it looks to the reply that uses it: that reply knows where the scene is.',
+        '- Good: "a shocking event places [[user]] in immediate danger", "news arrives that changes what [[char]] wants", "someone arrives who should not be here".',
+        '- Too specific: "a bridge collapses under the column" needs a bridge and a column. Written to work anywhere: "the way ahead gives out under someone".'],
+    complication: ['- Say how the situation gets harder for the people in it, not what physically goes wrong.',
+        '- Good: "it happens at the worst possible moment", "someone else wants the same thing", "a person [[char]] trusts is involved", "it has to be decided right now".',
+        '- Too specific: "the rope frays halfway across" needs a rope and a crossing. Written to work anywhere: "the way forward fails halfway through".'],
+    driver: ['- Name a role in the story, not a person tied to one place, group or trade. Each item is clearly [[char]], another character, or the surroundings.',
+        '- Good: "someone [[char]] owes loyalty to", "a stranger", "an old rival of [[char]]", "the surroundings".',
+        '- Too specific: "the quartermaster of the column" only exists while there is a column.'],
+    tone: ['- Name a feeling, not a place, a sound or the weather.',
+        '- Good: "tense and quiet", "giddy", "bitter". Too specific: "rain on cobblestones".'],
+    stake: ['- Say what is at stake and for whom: danger, a loss, a gain, a temptation, a secret, a promise, or how someone sees themself.',
+        '- Good: "[[user]] is in immediate mortal danger", "something [[char]] believes about themself is challenged", "an offer arrives that is hard to refuse".'],
+};
+function anywhereRules(role) {
+    return [
+        '- It works in any setting of this story. Test it: it makes sense in a camp, inside a house, on a road, on a ship and on a city street. Leave out named structures, objects, places, weather, animals, vehicles, groups and times of day.',
+        ...(ROLE_RULES[role] || ROLE_RULES.situation),
+    ];
+}
+
+/** The answer form for items with a "works anywhere" mark. */
+const ANYWHERE_FORM = 'Return only a JSON list of objects, one per item, each with "text" (the item) and "anywhere" (true when the item makes sense in every one of those settings, false when it needs a particular place, object or group). For example [{"text": "first item", "anywhere": true}].';
+
+/** One item of an answer: a plain string, or { text, anywhere }. */
+function itemOf(raw) {
+    if (typeof raw === 'string') return { text: raw, anywhere: null };
+    if (raw && typeof raw === 'object' && typeof raw.text === 'string') return { text: raw.text, anywhere: raw.anywhere === false ? false : raw.anywhere === true ? true : null };
+    return null;
+}
+
 /**
  * Ask the model for items for one category of a story event set. Returns [{ text, swaps }].
  * category: { name, driver }, theme: what the story is like, existing: item texts already in the list.
@@ -179,18 +213,20 @@ export async function writeItems({ category, theme, count, context, existing, ot
         `Kind of story: ${theme}`,
         '',
         'Rules for every item:',
-        '- A short phrase of 2 to 12 words. Plain, literal wording. Concrete enough to act on.',
+        '- A short phrase of 2 to 12 words. Plain, literal wording.',
         '- It fits the name of this list and leaves the other lists free.',
         ...(from ? [`- Every item is an event that ${from}.`] : []),
-        '- General enough to fit many scenes: leave out specific names, places and times of day.',
+        ...anywhereRules(listRole(category)),
         '- [[user]] is only ever someone things happen to. Every action, spoken line, decision, thought and feeling belongs to someone other than [[user]].',
         '- Where a name is needed use [[char]] for the main character and [[user]] for the other person, with the double square brackets, and write real names nowhere.',
         '- Each item is clearly different from the others.',
     ];
     if (existing.length) lines.push('', 'Items that already exist (write new ones that differ from these):', ...existing.slice(0, 60).map(v => `- ${v}`));
-    { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
+    // For story event lists the current scene is left out unless asked for: it pulls items toward one place.
+    const seen0 = style || st.writer.eventScene ? context : { ...context, recent: false, summary: false };
+    { const story = contextText(seen0); if (story) lines.push('', style || st.writer.eventScene ? STORY_LEAD : EVENT_LEAD, story); }
     lines.push('', ...writerRules());
-    lines.push('', 'Return only a JSON list of strings, for example ["first item", "second item"].');
+    lines.push('', style ? 'Return only a JSON list of strings, for example ["first item", "second item"].' : ANYWHERE_FORM);
     const res = await request({ what: `Write ${count} items for the list "${category.name}"`, system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 300 + count * 80), profileId: st.profileId });
     const answer = res.text;
     const read = readList(answer, 3);
@@ -198,12 +234,13 @@ export async function writeItems({ category, theme, count, context, existing, ot
     const dropped = { same: 0, notText: 0 };
     const out = [];
     for (const raw of read.list) {
-        if (typeof raw !== 'string') { dropped.notText++; continue; }
-        const swapped = swapNames(tidy(raw).replace(/[.]+$/, ''));
+        const one = itemOf(raw);
+        if (!one) { dropped.notText++; continue; }
+        const swapped = swapNames(tidy(one.text).replace(/[.]+$/, ''));
         if (!swapped.text) continue;
         if (seen.has(swapped.text.toLowerCase())) { dropped.same++; continue; }
         seen.add(swapped.text.toLowerCase());
-        out.push({ text: swapped.text, swaps: swapped.swaps });
+        out.push({ text: swapped.text, swaps: swapped.swaps, anywhere: one.anywhere });
     }
     if (!out.length) {
         const why = whyNone('items', answer, read, dropped);
@@ -211,6 +248,54 @@ export async function writeItems({ category, theme, count, context, existing, ot
         throw new Error(why);
     }
     res.note(`${out.length} ${out.length === 1 ? 'item' : 'items'} read${dropped.same ? `, ${dropped.same} left out because they are already in the list` : ''}.`, true, [read.how]);
+    return out;
+}
+
+/**
+ * Rewrite items of a story event list so that each works in any setting, keeping what it does to the people.
+ * One request. Returns [{ id, was, text, changed }] in the order given. Items the AI left as they were come back
+ * unchanged.
+ */
+export async function rewriteAnywhere({ category, items, others = [] }) {
+    const role = listRole(category);
+    const lines = [
+        `Rewrite the items of one list of story ingredients so that each one works in any setting of the story. A roleplay AI is later given one item from each list and must make an event happen from them, wherever the scene is.`,
+        '',
+        `This list: ${category.name}`,
+        others.length ? `The other lists: ${others.join(', ')}` : '',
+        '',
+        'Rules:',
+        '- Keep what the item does to the people and who it reaches. Change only what ties it to one place, object, group or time.',
+        '- An item that already works anywhere comes back exactly as it was.',
+        '- A short phrase of 2 to 12 words. Plain, literal wording.',
+        '- Keep [[char]] and [[user]] where the item has them, with the double square brackets, and write real names nowhere.',
+        ...anywhereRules(role),
+        '',
+        ...writerRules(),
+        '',
+        'The items, numbered:',
+        ...items.map((it, i) => `${i + 1}. ${brackets(it.text)}`),
+        '',
+        `Return only a JSON list of ${items.length} strings, the rewritten items in the same order as the numbered list.`,
+    ];
+    const res = await request({ what: `Rewrite ${items.length} items of "${category.name}" to work in any setting`, system: 'You edit short story ingredients for a roleplay. You answer with JSON only.', user: lines.filter(l => l !== null).join('\n'), tokens: Math.min(2400, 120 + items.length * 40) });
+    const read = readList(res.text, 3);
+    // Rewrites are matched to items by their place in the list, so only a real JSON list is used.
+    if (read.how !== 'Read as a JSON list.') {
+        const why = `The AI did not answer with a JSON list, so its rewrites could not be matched to the items. Nothing was changed. It began: "${began(res.text)}". The Log tab has the whole answer.`;
+        res.note(why, false);
+        throw new Error(why);
+    }
+    const out = [];
+    items.forEach((it, i) => {
+        const raw = read.list[i];
+        const txt = typeof raw === 'string' ? swapNames(tidy(raw).replace(/[.]+$/, '')).text : '';
+        const text = txt || it.text;
+        out.push({ id: it.id, was: it.text, text, changed: !!txt && txt.toLowerCase() !== String(it.text).toLowerCase() });
+    });
+    if (read.list.length !== items.length) res.note(`The AI sent back ${read.list.length} items for ${items.length}. Items with no answer were left as they were.`, read.list.length > 0, [read.how]);
+    else res.note(`${out.filter(x => x.changed).length} of ${items.length} items were rewritten.`, true, [read.how]);
+    if (!read.list.length) throw new Error(`The AI answered, but no items could be read from the answer. The Log tab has the whole answer.`);
     return out;
 }
 

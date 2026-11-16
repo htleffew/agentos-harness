@@ -163,7 +163,7 @@ async function world(page, name, entries) {
         const creq = f2.all.map(r => L.text(r)).find(x => /Decide for each instruction whether the reply carried it out/.test(x)) || '';
         const f2rec = await lastRec(page);
         console.log('asked:', JSON.stringify(f2rec.asked));
-        assert(/Situation: a storm arrives BIGMARK\. Fit it to the people, place and facts already established\. The event starts with no warning DIREVENT\./.test(f2.text), 'style item: its sentence is added to a story event that starts while it is the pick');
+        assert(/Situation: a storm arrives BIGMARK\. Fit it to the people, place and facts already established\. If a part names something that is not in this scene, keep what that part does to the people and change how it happens\. The event starts with no warning DIREVENT\./.test(f2.text), 'style item: its sentence is added to a story event that starts while it is the pick');
         assert(/A note carried over from the style of the last reply: What was set up in the last reply now happens DIRNEXT\./.test(f2.text), 'style item: its note is sent with the reply after one written under it');
         assert(/ID q1: The answer to this question about the reply is yes: Does the reply end on something happening\?/.test(creq) && f2.n === 2 && f2rec.asked?.[0]?.yes === true && /wonderful/.test(f2rec.asked[0].quote), 'style item: its question rides along with the check that runs anyway, and the answer is kept on the reply');
         await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'sent'; P.app.render(); }, L.BASE);

@@ -110,8 +110,8 @@ function diceSection(app) {
                 field('Roll for {{user}}', 'For what you attempt in your message.', onOff(d.user !== false, (v) => { d.user = v; save(); })),
                 field('Roll for {{char}}', '', onOff(d.char !== false, (v) => { d.char = v; save(); })),
                 field('Roll for other characters', 'One roll, with no stats, shared by any other character who attempts something.', onOff(d.others !== false, (v) => { d.others = v; save(); }))),
-            h('div', { class: 'ri-help' }, 'Outcome of the total: 7 or less fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 or more succeeds well. A natural 1 fails badly and a natural 20 succeeds brilliantly, whatever the stat.'),
-            field('Stats', `Separate them with commas. Each stat is a modifier from ${MOD_MIN} to +${MOD_MAX} that is added to the roll.`,
+            h('div', { class: 'ri-help' }, 'The total (the d20 plus the stat) alone decides: 2 or less fails badly, 3 to 7 fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 to 21 succeeds well, 22 or more succeeds brilliantly.'),
+            field('Stats', `Separate them with commas. Each stat is a whole number from ${MOD_MIN} to +${MOD_MAX} that is added to the d20 roll. 0 is average. +1 to +5 is ordinary skill, and more is for someone exceptional at that one thing. At +20 the lowest total is 21, so every attempt succeeds well or brilliantly; at -20 the highest total is 0, so every attempt fails badly.`,
                 textInput((d.stats || DEFAULT_STATS).join(', '), (v) => { d.stats = v.split(',').map(x => x.trim()).filter(Boolean); save(); }, { placeholder: DEFAULT_STATS.join(', ') })),
             h('div', { class: 'ri-row ri-row-tight' }, button('Show the stat boxes for this list', () => app.render(), { kind: 'ghost' })),
             isChatOpen() ? [grid('char', `Stats for ${nm.char} (kept with this character card)`), grid('user', `Stats for ${nm.user} (kept with this persona)`)] : h('div', { class: 'ri-muted' }, 'Open a chat to set the stats of its character and of your persona.'),
@@ -237,6 +237,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.7.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.8.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

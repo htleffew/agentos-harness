@@ -6,8 +6,8 @@ import { settings, saveSettings } from './store.js';
 import { rollInt } from './books.js';
 
 export const DEFAULT_STATS = ['Strength', 'Agility', 'Wits', 'Charm', 'Will', 'Senses'];
-export const MOD_MIN = -3;
-export const MOD_MAX = 5;
+export const MOD_MIN = -20;
+export const MOD_MAX = 20;
 
 /** The stats in use, in order. */
 export function statNames() {
@@ -37,14 +37,14 @@ export function setStat(who, stat, value) {
     saveSettings();
 }
 
-/** The outcome of a d20 roll: natural 1 and 20 decide by themselves, otherwise the total does. */
+/** The outcome of a roll: the total (the d20 plus the stat) alone decides. */
 export function outcome(natural, total) {
-    if (natural === 1) return 'fails badly';
-    if (natural === 20) return 'succeeds brilliantly';
+    if (total <= 2) return 'fails badly';
     if (total <= 7) return 'fails';
     if (total <= 11) return 'partly succeeds';
     if (total <= 16) return 'succeeds';
-    return 'succeeds well';
+    if (total <= 21) return 'succeeds well';
+    return 'succeeds brilliantly';
 }
 
 const signed = n => (n > 0 ? `+${n}` : n < 0 ? `${n}` : '+0');
@@ -71,7 +71,6 @@ export function rollDice() {
     });
     const line = (r) => {
         if (!r.stats.length) return `- ${r.label}: the d20 rolled ${r.natural}, so an attempt ${r.plain}.`;
-        if (r.natural === 1 || r.natural === 20) return `- ${r.label}: the d20 rolled a natural ${r.natural}, so an attempt ${r.stats[0].outcome}, whatever the stat.`;
         return `- ${r.label}: the d20 rolled ${r.natural}. ${r.stats.map(s => `With ${s.name} (${signed(s.mod)}) the total is ${s.total}, so an attempt ${s.outcome}`).join('. ')}.`;
     };
     const who = sides.map(s => s.who === 'user' ? '{{user}} in {{user}}\'s last message' : s.who === 'char' ? '{{char}}' : 'any other character').join(', ');
