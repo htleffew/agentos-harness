@@ -1,6 +1,6 @@
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
-import { ctx, on, KEY, LOG, sub, scanLength, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
+import { ctx, on, KEY, LOG, sub, scanLength, isReply, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { request } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules } from './events.js';
@@ -120,7 +120,7 @@ function history(type = 'normal') {
     const events = new Map(); // key -> the category state stored with that event set's latest event
     for (let i = 0; i < end; i++) {
         const m = chat[i];
-        if (!m || m.is_user || m.is_system) continue;
+        if (!isReply(m)) continue;   // a reply that was hidden from the AI is still a reply of the story
         if (i === 0) continue; // the greeting is not a reply
         replies++;
         for (const it of m.extra?.[KEY]?.items || []) {

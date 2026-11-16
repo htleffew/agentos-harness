@@ -2,7 +2,7 @@
 import { h, button, select, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear } from './dom.js';
 import { SENT_AS, ACTORS, TARGETS, loadSet, saveSet, setName, freeUid, writeInstruction, wrapText, listInstructions } from '../books.js';
 import { settings, saveSettings, pronounForms } from '../store.js';
-import { validateVersion, swapNames } from '../validate.js';
+import { validateVersion, swapNames, pairingNote, actorNote } from '../validate.js';
 import { writeVersions, rewriteVersion, nameHint } from '../writer.js';
 import { toast, confirmBox, sub, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
@@ -29,8 +29,9 @@ function insertRow(getBox) {
         row('char', "The character's", n.char), row('user', 'Your', n.user));
 }
 
-function flagsFor(text) {
+function flagsFor(text, actor = '') {
     const { blocks, checks, warns } = validateVersion(text);
+    if (actor && !blocks.length) { const note = actorNote(text, actor); if (note) warns.push(note); }
     return { blocks, checks, warns, node: (blocks.length || checks.length || warns.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), checks.map(c => h('div', { class: 'ri-flag ri-flag-check' }, `Check: ${c}`)), warns.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null };
 }
 
@@ -91,8 +92,9 @@ export function renderEditor(body, app) {
             field('Where it is placed', 'Closer to the newest message is followed more strongly.', select(positions, draft.position, (v) => { draft.position = Number(v); dirty(); redraw(); })),
             draft.position === 4 ? field('Messages from the newest message', '0 places it after the newest message. 1 places it just before the newest message.', numberInput(draft.depth, { min: 0, max: 100, unit: '' }, (n) => { draft.depth = n; dirty(); })) : null),
         h('div', { class: 'ri-grid2' },
-            field('Who does it', 'Used when versions are written with AI. The "already in the story or new" choices always have someone who can do it. {{user}} is never offered here: you write your own actions.', select(opts(ACTORS), draft.actor, (v) => { draft.actor = v; dirty(); })),
-            field('Who it happens to', 'Used when versions are written with AI.', select(opts(TARGETS), draft.target, (v) => { draft.target = v; dirty(); }))),
+            field('Who does it', 'Used when versions are written with AI. The "already in the story or new" choices always have someone who can do it. {{user}} is never offered here: you write your own actions.', select(opts(ACTORS), draft.actor, (v) => { draft.actor = v; dirty(); redraw(); })),
+            field('Who it happens to', 'Used when versions are written with AI.', select(opts(TARGETS), draft.target, (v) => { draft.target = v; dirty(); redraw(); }))),
+        pairingNote(draft.actor, draft.target) ? h('div', { class: 'ri-note ri-note-warn' }, pairingNote(draft.actor, draft.target), ' You can keep it as it is.') : null,
         field('Exactly what the AI will receive', isChatOpen() ? 'Shown with the first version, filled in for this chat.' : 'Shown with the first version. Open a chat to see names filled in.',
             h('div', { class: 'ri-preview' }, sub(wrapText(draft.sentAs, example, 0))))));
 
@@ -100,7 +102,7 @@ export function renderEditor(body, app) {
     const versionsBox = h('div', { class: 'ri-versions' });
     let blocked = 0;
     draft.versions.forEach((v, i) => {
-        const flags = flagsFor(v.text);
+        const flags = flagsFor(v.text, draft.actor);
         if (flags.blocks.length) blocked++;
         if (ui.editing === i) {
             versionsBox.appendChild(h('div', { class: 'ri-version ri-version-editing' }, h('div', { class: 'ri-vnum' }, `Version ${i + 1} of ${draft.versions.length}`),

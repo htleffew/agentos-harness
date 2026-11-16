@@ -2,12 +2,12 @@
 // A world is a set of kind 'world', kept like any other set (a lorebook of its own, or a group in a shared one).
 // A chat uses one world. Before each reply the extension reads who is present, picks the entries that matter
 // within a budget, and sends them as one block of story notes. No AI request is made for any of this.
-import { ctx, KEY, names, parseJson } from './st.js';
+import { ctx, KEY, names, parseJson, isReply } from './st.js';
 import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { blankEntry, entriesOf, freeUid, keepTags, loadSet, saveSet, canonSet, setInfo, knownSets } from './books.js';
 import { contextText, STORY_LEAD } from './writer.js';
-import { wordFlag, writerRules } from './pacing.js';
+import { wordFlag, writerRules, rememberStory } from './pacing.js';
 
 export const NOTES_WORLD = 'Roleplay Instructions story notes';
 export const isNotes = e => e?.world === NOTES_WORLD;
@@ -297,7 +297,7 @@ function sentLately(type, turns = 3) {
     let seen = 0;
     for (let i = end - 1; i >= 0 && seen < turns; i--) {
         const m = chat[i];
-        if (!m || m.is_user || m.is_system) continue;
+        if (!isReply(m)) continue;
         seen++;
         for (const it of m.extra?.[KEY]?.items || []) for (const uid of it.notes?.extra || []) counts.set(uid, (counts.get(uid) || 0) + 1);
     }
@@ -368,6 +368,8 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
             if (about.some(n => namedIn(sceneText, { name: n, aliases: [] }))) put(w, renderEntry(w, { full: false }));
         }
         for (const w of newest) put(w, renderEntry(w));
+        // The AI writer can be shown the same account ("What to show the AI").
+        rememberStory(story.lines.map(l => l.replace(/^- /, '')).join('\n'));
     }
 
     // 1. Open threads and things going on elsewhere are short and always in view.

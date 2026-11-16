@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.6.0 (2026-11-16)
+
+Version 5, last step: the close-out.
+
+- Replies are counted from the chat itself, hidden messages included. Timing, story phases, thread clocks and
+  chapters keep counting when older messages are hidden from the AI.
+- Settings > What the AI is sent from this chat: how many messages the chat has, how many are hidden from the AI,
+  how many were handed on with the last reply, and a note when another extension left messages out.
+- The source of the 40-message window seen on a TauriTavern tablet: World Info counts the messages it is handed,
+  after hidden messages are taken out and after other extensions have changed the outgoing chat. TauriTavern 2.4.0
+  itself hands on the whole chat (its own windowed loading was removed before that version).
+- A note on pairings of "who does it" and "who it happens to" that leave the AI little to work with, and one line
+  of advice on a version that disagrees with "who does it". Both are notes, and saving stays allowed.
+- The AI writer's "story so far" choice uses the extension's own chapters when the chat has them, and a summary
+  kept by SillyTavern when it has none.
+- README rewritten as one guide to Version 5, with a table of everything that makes an AI request.
+
 ## 5.5.0 (2026-11-16)
 
 Version 5, sixth step: pacing and style.

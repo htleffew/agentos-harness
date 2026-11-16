@@ -1,6 +1,6 @@
 // Pacing and style helpers: story phases, quiet after a big event, the word list, the rules given to the AI writer,
 // and what a story event item may ask of the story world.
-import { ctx, KEY, names } from './st.js';
+import { ctx, KEY, names, isReply } from './st.js';
 import { settings } from './store.js';
 import { DEFAULT_WRITER_RULES, DEFAULT_WORDS } from './defaults.js';
 
@@ -48,6 +48,13 @@ export function writerRules() {
     return out;
 }
 
+// ---------- the story so far, for the AI writer ----------
+
+/** The story so far as it was last sent with a reply (or shown in the Story World tab), kept for the AI writer. */
+const story = { chat: '', text: '' };
+export function rememberStory(text) { story.chat = String(ctx().getCurrentChatId?.() || ''); story.text = String(text || ''); }
+export function storySoFar() { return story.chat === String(ctx().getCurrentChatId?.() || '') ? story.text : ''; }
+
 // ---------- story phases ----------
 
 /** The phases in order of the reply they start at. */
@@ -75,7 +82,7 @@ function repliesBack(type) {
     let end = chat.length;
     if (type === 'swipe' || type === 'continue') end -= 1;
     const out = [];
-    for (let i = end - 1; i >= 1; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system) out.push(m); }
+    for (let i = end - 1; i >= 1; i--) { const m = chat[i]; if (isReply(m)) out.push(m); }
     return out;
 }
 

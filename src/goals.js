@@ -1,7 +1,7 @@
 // Character Goals. One goal for {{char}} per chat, with repeatable actions and one-time steps.
 // The goal and its lists are kept in the chat. What has been sent and what is done is read from the records on the
 // replies, so it follows swipes, deletes and branches like everything else.
-import { ctx, KEY } from './st.js';
+import { ctx, KEY, isReply } from './st.js';
 import { chatState, saveChatState, settings, saveSettings } from './store.js';
 import { rollInt } from './books.js';
 import { newId } from './events.js';
@@ -64,7 +64,7 @@ export function goalProgress(type = 'normal') {
     let pending = null;
     for (let i = 0; i < end; i++) {
         const m = chat[i];
-        if (!m || m.is_user || m.is_system) continue;
+        if (!isReply(m)) continue;
         if (i === 0) continue;
         replies++;
         pending = null;

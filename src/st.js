@@ -47,6 +47,35 @@ export function setChatVariable(name, value) {
     try { ctx().variables.local.set(name, value); return true; } catch (e) { console.warn(LOG, 'could not set variable', name, e); return false; }
 }
 
+/**
+ * A message that was hidden from the AI (the /hide command, or anything that hides older messages for you). It is
+ * still part of the story. SillyTavern marks it the same way as its own notices, which carry a type.
+ */
+export const isHidden = m => !!m && m.is_system === true && !m.extra?.type && m.role !== 'tool' && !(m.extra && 'tool_invocations' in m.extra);
+/** A reply of the story: a message that you did not write, whether or not it is hidden from the AI now. */
+export const isReply = m => !!m && !m.is_user && (!m.is_system || isHidden(m));
+/** A message of the story, yours or not, whether or not it is hidden from the AI now. */
+export const isStory = m => !!m && (!m.is_system || isHidden(m));
+
+// What SillyTavern handed on with the last reply, as seen by this extension's place in the line of extensions.
+let handed = null;
+globalThis.roleplayInstructionsSeeChat = (chat, contextSize, abort, type) => {
+    try {
+        const open = (ctx().chat || []).filter(m => m && !m.is_system).length - (type === 'swipe' ? 1 : 0);
+        const n = Array.isArray(chat) ? chat.length : 0;
+        handed = { n, cut: Math.max(0, open - n), type: String(type || ''), chatId: String(ctx().getCurrentChatId?.() || '') };
+    } catch { /* only a count */ }
+};
+
+/** What the AI is sent from this chat: how many messages there are, how many are hidden, and how many went out last. */
+export function chatReach() {
+    const chat = ctx().chat || [];
+    const hidden = chat.filter(isHidden).length;
+    const open = chat.filter(m => m && !m.is_system).length;
+    const mine = handed && handed.chatId === String(ctx().getCurrentChatId?.() || '') ? handed : null;
+    return { total: chat.length, hidden, open, last: mine ? mine.n : null, cut: mine ? mine.cut : 0 };
+}
+
 /** Number of messages World Info counts for the scan of this generation. */
 export function scanLength(type) {
     const chat = ctx().chat || [];

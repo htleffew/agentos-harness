@@ -42,7 +42,7 @@ const assert = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c)
         await page.waitForTimeout(300);
         const labels = await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-sheet .ri-vpick')].map(l => l.textContent.trim()));
         console.log(labels);
-        assert(labels.length === 5 && /Chat summary$/.test(labels[3]) && /most recent chat messages/.test(labels[4]), 'the writer page offers the five choices, and finds the chat summary');
+        assert(labels.length === 5 && /^The story so far \(your chapters, or a summary kept by SillyTavern\)$/.test(labels[3]) && /most recent chat messages/.test(labels[4]), 'the writer page offers the five choices, and finds the chat summary');
         await page.screenshot({ path: '/tmp/c1.png' });
     } catch (e) { console.log('TEST ERROR', e.stack); }
     console.log('ERRORS', errors.slice(0, 10));

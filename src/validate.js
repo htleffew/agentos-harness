@@ -73,6 +73,28 @@ function regexHits(text) {
     return hits;
 }
 
+/** A note for a pairing of "who does it" and "who it happens to" that leaves the AI writer little to work with. '' when the pairing is fine. */
+export function pairingNote(actor, target) {
+    if (actor === 'char' && target === 'char') return 'The character does this to themself. Versions written with AI will have {{char}} act on {{char}}. If someone else is meant on one side, change it.';
+    if (actor === 'new' && target === 'new') return 'Someone new does this to someone new, so two people arrive at once and neither is known to the story. If one of them is someone already in the story, change it.';
+    if (actor === 'other' && target === 'other') return 'Both sides are "a named character who is present, other than you". With only {{char}} and you in the scene, nobody fits. With one other person present, that person would act on themself.';
+    if (actor === target && actor.startsWith('npc')) return 'Both sides leave the choice of person to the AI, and it may choose the same person for both. If two different people are meant, give one side a narrower choice.';
+    if (actor === 'world' && target === 'new') return 'The surroundings act on someone who has not appeared yet. The AI has to bring that person in and have something happen to them in the same reply.';
+    if (actor === 'new' && target === 'other') return 'Someone new acts on a named character other than {{char}} and you. With only {{char}} and you in the scene, nobody fits as the one it happens to.';
+    return '';
+}
+
+/** Does this version agree with who the instruction says does it? Returns one line of advice, or ''. */
+export function actorNote(text, actor) {
+    const s = String(text ?? '').trim();
+    if (!s) return '';
+    const charLeads = new RegExp(`^(?:then,?\\s+|next,?\\s+)?\\{\\{char\\}\\}\\s+(?:must|has to|needs to|is to|will)\\b`, 'i').test(s);
+    if (actor === 'char' && !/\{\{char(?:\.[A-Za-z]+)?\}\}/i.test(s)) return 'This instruction is set to "the character does it", and this version does not name {{char}}. Change the version, or change "Who does it".';
+    if (actor === 'world' && charLeads) return 'This instruction is set to "the surroundings do it", and this version has {{char}} do it. Change the version, or change "Who does it".';
+    if ((actor === 'other' || actor === 'new') && charLeads) return `This instruction is set to "${actor === 'new' ? 'someone new' : 'a named character other than {{char}}'} does it", and this version has {{char}} do it. Change the version, or change "Who does it".`;
+    return '';
+}
+
 /**
  * Look for problems in one version.
  * blocks: only an empty version, which cannot be saved.

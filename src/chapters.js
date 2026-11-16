@@ -4,7 +4,7 @@
 //    replies, or by hand.
 //  - New chapter: a detailed summary and a new first message, then a brand new chat that carries everything over.
 //  - Starter world: one AI request reads the character card, its lorebook and the greeting, and proposes entries.
-import { ctx, KEY, LOG, names, parseJson } from './st.js';
+import { ctx, KEY, LOG, names, parseJson, isReply, isStory } from './st.js';
 import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
@@ -21,7 +21,7 @@ const tidy = t => stripUpdateBlock(String(t ?? '')).replace(HUD_BLOCKS, ' ').rep
 function replies() {
     const out = [];
     const chat = ctx().chat || [];
-    for (let i = 1; i < chat.length; i++) { const m = chat[i]; if (!m || m.is_user || m.is_system) continue; out.push({ n: out.length + 1, index: i, time: m.extra?.[KEY]?.time || 0 }); }
+    for (let i = 1; i < chat.length; i++) { const m = chat[i]; if (!isReply(m)) continue; out.push({ n: out.length + 1, index: i, time: m.extra?.[KEY]?.time || 0 }); }
     return out;
 }
 
@@ -34,7 +34,7 @@ function storyText(from, to, limit = 24000) {
     const lines = [];
     for (let i = Math.max(0, start); i <= end && i < chat.length; i++) {
         const m = chat[i];
-        if (!m || m.is_system || !m.mes) continue;
+        if (!isStory(m) || !m.mes) continue;
         const text = tidy(m.mes);
         if (text) lines.push(`${m.name}: ${text.length > 2500 ? `${text.slice(0, 2500)} [...]` : text}`);
     }

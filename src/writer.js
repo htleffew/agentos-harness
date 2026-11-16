@@ -4,7 +4,7 @@ import { request } from './ai.js';
 import { settings, pronounForms, FORMS } from './store.js';
 import { ACTORS, TARGETS, SENT_AS } from './books.js';
 import { swapNames } from './validate.js';
-import { writerRules } from './pacing.js';
+import { writerRules, storySoFar } from './pacing.js';
 import { stripSentBlock } from './engine.js';
 
 function pronounLine(role, label) {
@@ -18,15 +18,19 @@ export const CONTEXT_PARTS = [
     ['card', 'Character card (description and personality)'],
     ['scenario', 'Scenario'],
     ['persona', 'Your persona'],
-    ['summary', 'Chat summary'],
+    ['summary', 'The story so far (your chapters, or a summary kept by SillyTavern)'],
     ['recent', 'The most recent chat messages'],
 ];
 
 /** The chat summary, when a summary extension keeps one in this chat. */
 export function findSummary() {
     try {
+        // The extension's own story so far (chapters in the story world) comes first. Without it, a summary kept by
+        // SillyTavern's Summarize or another summary extension is used.
+        const own = storySoFar();
+        if (own) return own.slice(0, 6000);
         const prompts = ctx().extensionPrompts || {};
-        return Object.entries(prompts).filter(([key, v]) => /memory|summar/i.test(key) && String(v?.value || '').trim()).map(([, v]) => String(v.value).trim()).join('\n').slice(0, 6000);
+        return Object.entries(prompts).filter(([key, v]) => /memory|summar/i.test(key) && !/roleplay/i.test(key) && String(v?.value || '').trim()).map(([, v]) => String(v.value).trim()).join('\n').slice(0, 6000);
     } catch { return ''; }
 }
 

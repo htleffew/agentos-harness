@@ -4,11 +4,11 @@
 //  2. Open threads build by themselves, and now and then something that is ready is ordered into the scene.
 //  3. Every automatic change is stored with the reply that caused it, and is undone when that reply is swiped
 //     away or deleted.
-import { ctx, KEY, LOG, names } from './st.js';
+import { ctx, KEY, LOG, names, isReply } from './st.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
 import { rollInt, pickWeighted } from './books.js';
-import { worldOffers } from './pacing.js';
+import { worldOffers, rememberStory } from './pacing.js';
 import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, buildNotes } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
@@ -286,7 +286,7 @@ export function silentCharacter(list, present, type = 'normal') {
     let end = chat.length;
     if (type === 'swipe' || type === 'continue') end -= 1;
     const back = [];
-    for (let i = end - 1; i >= 1 && back.length < need; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system) back.push(m); }
+    for (let i = end - 1; i >= 1 && back.length < need; i--) { const m = chat[i]; if (isReply(m)) back.push(m); }
     if (back.length < need) return null;
     const user = norm(names().user);
     const here = present.map(norm);
@@ -352,6 +352,7 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100 }
         const carried = clean(chatState()?.carried);
         if (!carried || settings().summary.on === false) return null;
         const text = `[The story before this chat. These are facts already true in this story. Write the reply so that they stay true.\n${carried}]`;
+        rememberStory(carried);
         return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, ask: '', order: null };
     }
     const data = await loadWorld(id).catch(() => null);
