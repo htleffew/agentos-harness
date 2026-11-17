@@ -1,5 +1,10 @@
 # Changelog
 
+## 5.11.1 (2026-11-16)
+
+- The commentator's starting voice is Gremlin, from Sola V6: its own description, how it types, and its sample. A
+  voice still at the 5.11.0 start is moved to it; a voice you edited is left alone.
+
 ## 5.11.0 (2026-11-16)
 
 - Character profile cards and the roast, from the extension under any preset. Profiles are asked for in the same

@@ -1,6 +1,6 @@
 // Saved settings (per app) and per-chat state.
 import { ctx, KEY, names, characterKey, setChatVariable, isChatOpen } from './st.js';
-import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, DEFAULT_VOICE } from './defaults.js';
+import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, DEFAULT_VOICE, OLD_VOICE_START } from './defaults.js';
 
 export const FORMS = ['they', 'them', 'their', 'theirs', 'themself'];
 export const PRONOUN_SETS = {
@@ -77,6 +77,8 @@ export function settings() {
     const root = ctx().extensionSettings;
     if (!root[KEY] || typeof root[KEY] !== 'object') root[KEY] = {};
     const st = fill(root[KEY], DEFAULTS);
+    // The starting voice of 5.11.0 (never edited) becomes the Gremlin voice.
+    if (typeof st.cards?.voice === 'string' && st.cards.voice.startsWith(OLD_VOICE_START)) st.cards.voice = DEFAULT_VOICE;
     // Where new sets are kept: '' = each in a lorebook of its own, or the name of the shared lorebook.
     // A new install keeps everything in one lorebook. An install that already has sets stays as it is.
     if (typeof st.home !== 'string') st.home = Object.keys(st.sets).length ? '' : HOME_BOOK;

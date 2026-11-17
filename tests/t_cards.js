@@ -28,7 +28,7 @@ const world = (page) => page.evaluate(async (B) => { const W = await import(`${B
         const l1 = await last(page);
         console.log('ask:', r1.text.slice(r1.text.indexOf('[Scene.'), r1.text.indexOf('[Scene.') + 1800));
         assert(r1.n === 1 && /<profile name="[^"]+">/.test(r1.text) && /Keeps private: what they think or feel and do not say/.test(r1.text) && /Profiles on file: none yet/.test(r1.text), 'ask: the profile form is part of the one block, with no extra AI request, and nobody is on file yet');
-        assert(/Roast: The commentator is a viewer who just watched this reply/.test(r1.text) && /<roast>/.test(r1.text) && !/reaction to the previous reply was/.test(r1.text), "ask: the roast form and the commentator's voice are sent; with no earlier roast, none is quoted");
+        assert(/Roast: The commentator is Gremlin, a viewer who just watched this reply/.test(r1.text) && /<roast>/.test(r1.text) && !/reaction to the previous reply was/.test(r1.text), "ask: the roast form and the commentator's voice are sent; with no earlier roast, none is quoted");
         assert(/2 profiles at most/.test(r1.text) && /never gets one/.test(r1.text), 'ask: the most profiles in one reply and the rule for {{user}} are sent');
         assert(!/<profile|<roast|story_update|Wants:/.test(l1.mes) && l1.mes.includes('You look wonderful tonight'), 'lift: the profiles and the roast are taken out of the reply text');
         const hale = (l1.profiles || []).find(p => p.name === 'Hale'), mira = (l1.profiles || []).find(p => p.name === 'Mira');
