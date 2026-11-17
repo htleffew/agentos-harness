@@ -163,7 +163,43 @@ function underBlock(id, rec) {
         foldCard([h('span', { class: 'ri-sent-title' }, 'What was sent with this reply'), h('span', { class: 'ri-sent-sub' }, summaryLine(rec))], recordBody(id, rec, false, false), { cls: 'ri-sentcard' }));
 }
 
+// A reply that draws its own HUD (a preset tracker) needs no scene card from the extension.
+const OWN_HUD = /<(scene_cast|sola_hud|profile|status|tracker|hud)\b|\bpresent\s*=\s*"|^\s*(present|location)\s*:/im;
+
+/** The scene card: when, where and who is present, from the reply's own scene lines. */
+function sceneCard(sc) {
+    const row = (label, text) => text ? h('div', { class: 'ri-scene-row' }, h('span', { class: 'ri-scene-k' }, label), h('span', { class: 'ri-scene-v' }, text)) : null;
+    return h('div', { class: 'ri-root ri-scene', 'data-accent': 'cyan' }, row('When', sc.when), row('Where', sc.where), row('Present', sc.present));
+}
+
+/** Draw or remove the scene card under each reply, following Settings > Scene. */
+function refreshSceneCards(chat) {
+    const st = settings();
+    const mode = st.enabled && st.scene?.track !== false ? (st.scene?.card || 'auto') : 'off';
+    const seen = new Set();
+    if (mode !== 'off') {
+        for (const mes of document.querySelectorAll('#chat .mes')) {
+            const id = Number(mes.getAttribute('mesid'));
+            const m = chat[id];
+            const sc = m?.extra?.[KEY]?.scene;
+            const block = mes.querySelector('.mes_block');
+            if (!sc || !block || m.is_user) continue;
+            if (mode === 'auto' && OWN_HUD.test(String(m.mes || ''))) continue;
+            const stamp = JSON.stringify(sc);
+            const old = block.querySelector(':scope > .ri-scene');
+            seen.add(mes);
+            if (old && old.dataset.stamp === stamp) continue;
+            const card = sceneCard(sc);
+            card.dataset.stamp = stamp;
+            const under = block.querySelector(':scope > .ri-under');
+            if (old) old.replaceWith(card); else if (under) block.insertBefore(card, under); else block.appendChild(card);
+        }
+    }
+    for (const el of document.querySelectorAll('#chat .mes .ri-scene')) if (!seen.has(el.closest('.mes'))) el.remove();
+}
+
 export function refreshUnderReplies() {
+    try { refreshSceneCards(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] scene cards', e); }
     try {
         const st = settings();
         const show = st.enabled && st.showUnder === 'display';

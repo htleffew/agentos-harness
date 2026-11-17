@@ -9,6 +9,7 @@ import { phaseFor, quietNow, previousRecord, countPresent } from './pacing.js';
 import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
+import { buildSceneAsk } from './worldflow.js';
 import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
@@ -235,6 +236,8 @@ async function onEntriesLoaded(lore) {
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
         if (flow?.ask) lore.chatLore.push(askEntry(flow.ask));
+        // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
+        else if (cs && !quiet && settings().scene?.track !== false && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(askEntry(buildSceneAsk()));
         if (flow) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
@@ -699,6 +702,9 @@ function onMessageReceived(id, type) {
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
+        // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
+        const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
+        if (Object.keys(scene).length) rec.scene = scene;
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);

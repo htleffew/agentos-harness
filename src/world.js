@@ -261,8 +261,11 @@ export function readScene(type = 'normal') {
     let end = chat.length;
     if (type === 'swipe' || type === 'continue') end -= 1;
     let reply = '';
-    for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); break; } }
+    let own = null;
+    for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.scene || null; break; } }
     const out = { present: '', location: '', how: '' };
+    // The reply's own scene lines come first: the extension asked for them, so they are there under any preset.
+    if (own?.present) return { present: own.present, location: own.where || '', how: 'the scene lines of the newest reply' };
     if (!reply) return out;
     const parts = [];
     const attr = (name) => { const m = reply.match(new RegExp(`<[a-z_]+\\b[^>]*\\b${name}\\s*=\\s*"([^"]*)"`, 'i')); return m ? m[1] : ''; };

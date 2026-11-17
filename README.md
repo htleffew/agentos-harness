@@ -14,7 +14,9 @@ Across all of them, at most one new thing starts per reply. After each reply the
 happened and sends it again with firmer wording if it did not. Everything is saved in ordinary lorebooks, in one
 shared lorebook or in several.
 
-- Works with any preset. Chat Completion. Needs SillyTavern 1.19 or later, or a TauriTavern build on 1.19.
+- Works with any preset, and you can switch presets in the middle of a chat: everything the extension tracks is
+  asked for, kept and sent by the extension itself. Chat Completion. Needs SillyTavern 1.19 or later, or a TauriTavern
+  build on 1.19.
 - Depends on no other extension.
 - Everything lives in one panel in the Extensions menu. Nothing is added to the chat screen unless you turn on
   "Show what was sent under each reply".
@@ -248,7 +250,8 @@ anything is added.
 Before each reply the extension reads who is in the scene and sends the entries that matter as one block of story
 notes. This makes no AI request.
 
-- **Who is present** is read from the newest reply: a scene header with `present="..."`, a HUD with
+- **Who is present** comes first from the reply's own scene lines (see "Scene" below), which the extension asks for
+  itself, so it works under any preset. Without them it is read from a scene header with `present="..."`, a HUD with
   `Active Speakers:` and `Ambient NPCs:` lines or `<profile name="...">` cards, or a plain `Present:` line. When the
   reply has none of these, a character named in the last few messages counts as present.
 - **What is sent, in this order:** the story so far, open threads, what is going on elsewhere, the people in the
@@ -344,6 +347,19 @@ so the world shows the story as it stands now. A new chapter is never copied the
 - **Story phases.** Off to start with. A phase starts at a reply number and lasts until the next one starts. Each
   phase has a percentage of the usual chance that something new starts (50 halves every chance, 150 raises it by
   half, 0 starts nothing new) and, if you want, one line that is sent with every reply of the phase.
+
+## Scene: who is present, where and when
+
+Every reply is asked to end with three short lines: who is in the scene other than you, where the scene is, and the
+day, time of day and weather. With a story world they are part of the one update block; without one they are asked
+for on their own. The extension takes them out of the reply and keeps them on it. This adds no AI request.
+
+- The story notes, story event items that need a number of people or someone's secret or plan, the order for a
+  character who has gone quiet, and the dice all use these lines, so they work the same whatever preset is on.
+- **Scene card.** A small card under each reply shows When, Where and Present. To start with it is only shown under
+  a reply that has no scene tracker of its own, so with a preset that draws its own HUD (such as Sola V6 Slim)
+  nothing is shown twice. It can be set to always or off in Settings > Scene.
+- An out-of-character message is not asked for the lines.
 
 ## Dice
 

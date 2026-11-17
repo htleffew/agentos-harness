@@ -92,6 +92,16 @@ function whereSection(app) {
 
 const onOff = (v, set) => select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], v ? 'on' : 'off', (x) => set(x === 'on'));
 
+function sceneSection(app) {
+    const o = settings().scene || (settings().scene = { track: true, card: 'auto' });
+    const save = () => { saveSettings(); refreshUnderReplies(); app.render(); };
+    return section('Scene',
+        field('Keep track of who is present, where and when', o.track !== false ? 'On: every reply is asked to end with three short lines (who is in the scene, where it is, and the day, time and weather). The extension takes them out of the reply and keeps them, so the story notes, story events and dice know who is present under any preset. This adds no AI request.' : 'Off: who is present is read from a scene header, a HUD or a "Present:" line written by the preset, or from names in the last messages.',
+            onOff(o.track !== false, (v) => { o.track = v; save(); })),
+        o.track !== false ? field('Scene card under each reply', { auto: 'Shown under a reply that has no scene tracker of its own. With a preset that draws its own HUD (such as Sola V6 Slim) it stays hidden, so nothing is shown twice.', always: 'Shown under every reply.', off: 'Not shown. The lines are still kept and used.' }[o.card || 'auto'],
+            select([{ value: 'auto', label: 'When the reply has no tracker of its own' }, { value: 'always', label: 'Always' }, { value: 'off', label: 'Off' }], o.card || 'auto', (v) => { o.card = v; save(); })) : null);
+}
+
 function diceSection(app) {
     const d = settings().dice;
     const save = () => { saveSettings(); };
@@ -188,6 +198,7 @@ export function renderSettings(body, app) {
         field('How many new things can start in one reply', 'Counted across every instruction set, every story event set and the goal task together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
             numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
 
+    body.appendChild(sceneSection(app));
     body.appendChild(diceSection(app));
     body.appendChild(paceSection(app));
     body.appendChild(writerSection(app));
@@ -237,6 +248,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.9.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.10.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

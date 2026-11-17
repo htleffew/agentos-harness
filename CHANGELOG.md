@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.10.0 (2026-11-16)
+
+- Scene lines: every reply is asked for who is present, where and when, with or without a story world, in the same
+  block the extension already asks for. They are kept on the reply and read first for who is present, so the story
+  notes, event conditions, the quiet-character order and the dice work the same under any preset, and presets can
+  be switched in the middle of a chat.
+- A scene card under each reply (When, Where, Present), shown only under replies that have no tracker of their own
+  unless set to always. Settings > Scene.
+
 ## 5.9.0 (2026-11-16)
 
 - A branch gets its own copy of the story world the first time it is opened, named "(branch)" and kept where the

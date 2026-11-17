@@ -71,6 +71,26 @@ const FORM = [
 ];
 const PLACEHOLDER = /^(name|short title|thread title|secret title|planted detail title|title|none|nothing|n\/a|-+|\.+)$/i;
 
+/** The three lines about the scene itself. They are asked for with every reply, with or without a story world, so the
+ * extension knows who is present, where and when under any preset. */
+const SCENE_FORM = [
+    ['present', 'everyone in the scene at the end of this reply other than {{user}}, by name, separated by commas'],
+    ['where', 'the place where the scene is at the end of this reply'],
+    ['when', 'the day, the time of day and the weather at the end of this reply'],
+];
+const sceneLines = () => SCENE_FORM.map(([k, v]) => `${k}: ${v}`);
+
+/** The request for the scene lines alone, for a chat with no story world. */
+export function buildSceneAsk() {
+    return [
+        '[Scene. After the story text of this reply, add one block in exactly this form. It is filed away and removed from the page. Fill in all three lines.',
+        '<story_update>',
+        ...sceneLines(),
+        'scene: continues (or "ended" when the story moved on to a new time or place)',
+        '</story_update>]',
+    ].join('\n');
+}
+
 /** The text that asks for the block. list: the world's entries. */
 export function buildAsk(list) {
     const on = list.filter(w => w.on);
@@ -78,6 +98,7 @@ export function buildAsk(list) {
     return [
         '[Story update. After the story text of this reply, add one block in exactly this form. It is filed away and removed from the page. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact.',
         '<story_update>',
+        ...(settings().scene?.track !== false ? sceneLines() : []),
         ...FORM.map(([k, v]) => `${k}: ${v}`),
         'scene: continues (or "ended" when the story moved on to a new time or place)',
         '</story_update>',
@@ -97,15 +118,22 @@ const ARITY = Object.fromEntries(FORM.map(([k, v]) => [k, v.split('|').length]))
 export function parseUpdate(text) {
     const src = String(text ?? '');
     const m = src.match(BLOCK);
-    if (!m) return { found: false, ops: [], ended: false, block: '', clean: src };
+    if (!m) return { found: false, ops: [], ended: false, block: '', clean: src, scene: null };
     const ops = [];
     let ended = false;
+    const scene = {};
     for (const raw of m[1].split('\n')) {
         const line = raw.replace(/^[\s\-*•]+/, '').replace(/\*\*/g, '').trim();
         const hit = line.match(/^([a-z]+)\s*:\s*(.+)$/i);
         if (!hit) continue;
         const k = hit[1].toLowerCase();
         if (k === 'scene') { ended = /^\W*ended\b/i.test(hit[2]); continue; }
+        if (k === 'present' || k === 'where' || k === 'when') {
+            const v = clean(hit[2]).replace(/[.]+$/, '');
+            // A line copied from the form with nothing filled in is left out.
+            if (v && !SCENE_FORM.some(([fk, fv]) => fk === k && norm(fv) === norm(v))) scene[k] = v.slice(0, 300);
+            continue;
+        }
         if (!ARITY[k]) continue;
         const parts = hit[2].split('|').map(clean);
         if (!parts[0] || PLACEHOLDER.test(parts[0]) || parts[0].length > 80) continue;
@@ -113,7 +141,7 @@ export function parseUpdate(text) {
         if (FORM.some(([fk, fv]) => fk === k && norm(fv) === norm(hit[2]))) continue;
         ops.push({ k, a: parts[0], b: parts[1] || '', c: parts.slice(2).join(' | ') });
     }
-    return { found: true, ops, ended, block: clean(m[0]), clean: stripUpdateBlock(src).trimEnd() };
+    return { found: true, ops, ended, block: clean(m[0]), clean: stripUpdateBlock(src).trimEnd(), scene: Object.keys(scene).length ? scene : null };
 }
 
 // ---------- filing what the block says ----------

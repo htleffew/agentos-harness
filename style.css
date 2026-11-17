@@ -177,6 +177,12 @@
 .ri-under { margin-top: 8px; margin-bottom: 28px; padding: 0; border: 0; background: transparent; font-size: 0.9em; }
 .ri-under .ri-card { margin: 0; }
 
+/* The scene card under a reply */
+.ri-scene { margin-top: 8px; padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-accent); border-radius: 10px; background: var(--ri-card); font-size: 0.88em; display: flex; flex-direction: column; gap: 3px; }
+.ri-scene-row { display: flex; gap: 10px; align-items: baseline; }
+.ri-scene-k { flex: 0 0 64px; color: var(--ri-accent); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; font-size: 0.8em; }
+.ri-scene-v { flex: 1; color: var(--ri-text); }
+
 /* The AI writer page */
 .ri-sheet-box { border: 1px solid var(--ri-accent); border-radius: 12px; padding: 14px; background: var(--ri-card); }
 
