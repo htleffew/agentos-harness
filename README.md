@@ -361,6 +361,26 @@ for on their own. The extension takes them out of the reply and keeps them on it
   nothing is shown twice. It can be set to always or off in Settings > Scene.
 - An out-of-character message is not asked for the lines.
 
+## Character cards and the roast
+
+Every reply is asked, in the same block, for a profile of {{char}}, and of one other character when what they did in
+the reply changed what happens next (they spoke to you, made a choice, or acted on a goal of their own). The extension
+takes the profiles out of the reply and draws them as cards under it. This adds no AI request.
+
+- **What is going on in them now** (Wants, Thinks, Feels, Shows, Keeps private, Will not, Why) is written new with
+  every reply. Wants also keeps the character's story world entry up to date.
+- **Who they are** (Who, Strength, Flaw, Voice, Orientation) is asked for once per person. With a story world it is
+  filed in the person's entry (a new person gets an entry, and an entry only gets the lines it does not have yet);
+  without one it is carried from the person's earlier card in the chat. The request lists who is on file, so it is
+  not written again. On a card it sits in the fold "Who they are".
+- **The roast** is one reaction from the commentator, a separate personality who writes none of the story. Its voice
+  is set in Settings > Character cards. The previous reply's roast is sent with the next request, so each one can
+  answer the last. It is drawn at the bottom of the cards.
+- Settings > Character cards: on or off, how many profiles at most (1 to 3), the roast on or off, and the
+  commentator's voice. About 550 tokens are added to what is sent with each reply while both are on, and each reply
+  is about 150 to 250 tokens longer.
+- An out-of-character message is not asked for profiles. A swipe, a delete or a branch follows by itself.
+
 ## Dice
 
 The extension rolls the dice in code. The AI is told the results and never rolls or adds.

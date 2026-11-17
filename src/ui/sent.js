@@ -2,7 +2,7 @@
 import { h, button, foldCard, chip } from './dom.js';
 import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue, rerollPartNow, setLock, isLocked } from '../engine.js';
 import { loadSet, saveSet, entriesOf, canonSet, setName } from '../books.js';
-import { shownChanges, describeChange, undoReplyChanges } from '../worldflow.js';
+import { shownChanges, describeChange, undoReplyChanges, cardsOn, PROFILE_STABLE, PROFILE_NOW } from '../worldflow.js';
 import { writeEvent, readEvent } from '../events.js';
 import { toast } from '../st.js';
 import { settings } from '../store.js';
@@ -191,15 +191,61 @@ function refreshSceneCards(chat) {
             if (old && old.dataset.stamp === stamp) continue;
             const card = sceneCard(sc);
             card.dataset.stamp = stamp;
-            const under = block.querySelector(':scope > .ri-under');
+            const under = block.querySelector(':scope > .ri-cards, :scope > .ri-under');
             if (old) old.replaceWith(card); else if (under) block.insertBefore(card, under); else block.appendChild(card);
         }
     }
     for (const el of document.querySelectorAll('#chat .mes .ri-scene')) if (!seen.has(el.closest('.mes'))) el.remove();
 }
 
+/** The character profile cards and the roast under a reply. */
+function profileCards(rec) {
+    const row = (label, text) => text ? h('div', { class: 'ri-scene-row' }, h('span', { class: 'ri-scene-k ri-prof-k' }, label), h('span', { class: 'ri-scene-v' }, text)) : null;
+    const showRoast = settings().cards?.roast !== false && rec.roast;
+    const cards = (rec.profiles || []).map(p => {
+        const stable = PROFILE_STABLE.map(([k, label]) => row(label, p.stable?.[k])).filter(Boolean);
+        return h('details', { class: 'ri-profile', open: true },
+            h('summary', { class: 'ri-profile-name' }, p.name),
+            PROFILE_NOW.map(([k, label]) => row(label, p.now?.[k])),
+            stable.length ? h('details', { class: 'ri-profile-who' }, h('summary', {}, 'Who they are'), stable) : null);
+    });
+    return h('div', { class: 'ri-root ri-cards', 'data-accent': 'green' },
+        cards,
+        showRoast ? h('div', { class: 'ri-roast' }, h('div', { class: 'ri-roast-k' }, 'Roast'), h('div', { class: 'ri-roast-v' }, rec.roast)) : null);
+}
+
+/** Draw or remove the profile cards under each reply, following Settings > Character cards. */
+function refreshProfileCards(chat) {
+    const seen = new Set();
+    if (cardsOn()) {
+        for (const mes of document.querySelectorAll('#chat .mes')) {
+            const id = Number(mes.getAttribute('mesid'));
+            const m = chat[id];
+            const rec = m?.extra?.[KEY];
+            const block = mes.querySelector('.mes_block');
+            const roast = settings().cards?.roast !== false && rec?.roast;
+            if (!block || m.is_user || !(rec?.profiles?.length || roast)) continue;
+            const stamp = JSON.stringify([rec.profiles || [], roast || '']);
+            const old = block.querySelector(':scope > .ri-cards');
+            seen.add(mes);
+            if (old && old.dataset.stamp === stamp) continue;
+            const card = profileCards(rec);
+            card.dataset.stamp = stamp;
+            // A fold that was closed stays closed when the card is drawn again.
+            if (old) {
+                const shut = [...old.querySelectorAll('details.ri-profile')].filter(d => !d.open).map(d => d.querySelector('summary')?.textContent);
+                for (const d of card.querySelectorAll('details.ri-profile')) if (shut.includes(d.querySelector('summary')?.textContent)) d.open = false;
+            }
+            const under = block.querySelector(':scope > .ri-under');
+            if (old) old.replaceWith(card); else if (under) block.insertBefore(card, under); else block.appendChild(card);
+        }
+    }
+    for (const el of document.querySelectorAll('#chat .mes .ri-cards')) if (!seen.has(el.closest('.mes'))) el.remove();
+}
+
 export function refreshUnderReplies() {
     try { refreshSceneCards(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] scene cards', e); }
+    try { refreshProfileCards(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] profile cards', e); }
     try {
         const st = settings();
         const show = st.enabled && st.showUnder === 'display';

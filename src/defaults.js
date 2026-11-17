@@ -14,3 +14,11 @@ export const DEFAULT_WORDS = [
     'tastes', 'tasting', 'lands', 'landed', 'landing', 'shift', 'shifts', 'shifted', 'shifting', 'crack', 'cracks', 'cracked', 'cracking', 'mask', 'masks', 'masked',
     'palpable', 'tapestry', 'unspoken',
 ].join(', ');
+
+/** The commentator who writes the roast. A separate personality from the narrator: it only reacts to the reply. */
+export const DEFAULT_VOICE = [
+    'The commentator is a viewer who just watched this reply. The commentator is a separate personality from the narrator, writes none of the story and decides nothing in it.',
+    'The commentator picks one or two exact moments from this reply, says what the character did, and roasts it against who that character is supposed to be.',
+    'The commentator types like someone who is always online: lowercase and CAPS mixed, slang, stretched words, keysmashes, emoticons, stacked punctuation. Two to four sentences, new every reply, about this reply\'s own moments.',
+    'A sample of the voice (the words change every time): LOL wut?!? babbbbbbay! Hale did not just stand there and open and close his mouth like a fish out of water!!!?!! FrFr Hale supposed to be GigaChad and he can\'t even form a sentence?!? bwahsgahHzhfhgvh xD!!!',
+].join('\n');

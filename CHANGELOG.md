@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.11.0 (2026-11-16)
+
+- Character profile cards and the roast, from the extension under any preset. Profiles are asked for in the same
+  block as the scene lines: what is going on in each person now with every reply, and who they are once per person,
+  filed in the story world (or carried from earlier cards in a chat with no world). The roast is written by a
+  commentator voice set in Settings > Character cards, and the previous roast is sent with the next request. Both are
+  drawn as cards under the reply and can be switched off. No extra AI request.
+- Character entries have a new line, Orientation.
+
 ## 5.10.0 (2026-11-16)
 
 - Scene lines: every reply is asked for who is present, where and when, with or without a story world, in the same

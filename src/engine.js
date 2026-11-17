@@ -9,7 +9,7 @@ import { phaseFor, quietNow, previousRecord, countPresent } from './pacing.js';
 import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
-import { buildSceneAsk } from './worldflow.js';
+import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile } from './worldflow.js';
 import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
@@ -237,7 +237,7 @@ async function onEntriesLoaded(lore) {
         if (notes) lore.chatLore.push(notesEntry(notes.text));
         if (flow?.ask) lore.chatLore.push(askEntry(flow.ask));
         // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (cs && !quiet && settings().scene?.track !== false && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(askEntry(buildSceneAsk()));
+        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry(a)); }
         if (flow) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
@@ -689,6 +689,19 @@ function attach(message, rec) {
     }
 }
 
+/** The character profile cards and the roast of a reply. Who a person is comes from the reply, or else from an earlier card in this chat. */
+function keepCards(rec, parsed, earlier, id) {
+    const profiles = (parsed.profiles || []).map(p => ({ name: p.name, now: { ...p.now }, stable: { ...p.stable } }));
+    for (const p of profiles) {
+        const kept = keptProfile(p.name, id);
+        if (kept) for (const [k] of PROFILE_STABLE) if (!p.stable[k] && kept[k]) p.stable[k] = kept[k];
+    }
+    // A continued reply keeps the cards of its first part unless the new part wrote its own.
+    if (profiles.length) rec.profiles = profiles; else if (earlier?.profiles) rec.profiles = earlier.profiles;
+    const roast = parsed.roast || '';
+    if (roast) rec.roast = roast; else if (earlier?.roast) rec.roast = earlier.roast;
+}
+
 function onMessageReceived(id, type) {
     try {
         // The update block is taken out of the reply first, so it is never shown, checked or sent back.
@@ -705,6 +718,7 @@ function onMessageReceived(id, type) {
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
         if (Object.keys(scene).length) rec.scene = scene;
+        keepCards(rec, parsed, earlier, id);
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);

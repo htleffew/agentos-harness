@@ -221,3 +221,18 @@
 .ri-world-line { color: var(--ri-text-2); font-size: 0.9em; margin: 4px 0 8px; }
 .ri-changes { margin: 6px 0 8px 18px; padding: 0; color: var(--ri-text-2); font-size: 0.92em; }
 .ri-changes li { margin: 2px 0; }
+/* Character profile cards and the roast under a reply */
+.ri-cards { margin-top: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; display: flex; flex-direction: column; gap: 6px; font-size: 0.88em; }
+.ri-profile { padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-accent); border-radius: 10px; background: var(--ri-card); display: flex; flex-direction: column; gap: 3px; }
+.ri-profile[open] { display: flex; }
+.ri-profile > summary { cursor: pointer; list-style: none; color: var(--ri-accent); font-weight: 700; letter-spacing: 0.03em; margin-bottom: 2px; }
+.ri-profile > summary::-webkit-details-marker { display: none; }
+.ri-profile > summary::before { content: '▸ '; color: var(--ri-blue); }
+.ri-profile[open] > summary::before { content: '▾ '; }
+.ri-profile .ri-scene-row + .ri-scene-row { margin-top: 1px; }
+.ri-prof-k { flex-basis: 96px; }
+.ri-profile-who { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--ri-line); }
+.ri-profile-who > summary { cursor: pointer; color: var(--ri-sky); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.04em; }
+.ri-roast { padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-magenta); border-radius: 10px; background: var(--ri-card); }
+.ri-roast-k { color: var(--ri-magenta); font-weight: 600; text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.04em; margin-bottom: 2px; }
+.ri-roast-v { color: var(--ri-text); white-space: pre-wrap; }

@@ -1,6 +1,7 @@
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
+import { DEFAULT_VOICE } from '../defaults.js';
 import { statNames, sheet, setStat, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../dice.js';
 import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
 import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox, chatReach } from '../st.js';
@@ -102,6 +103,26 @@ function sceneSection(app) {
             select([{ value: 'auto', label: 'When the reply has no tracker of its own' }, { value: 'always', label: 'Always' }, { value: 'off', label: 'Off' }], o.card || 'auto', (v) => { o.card = v; save(); })) : null);
 }
 
+function cardsSection(app) {
+    const o = settings().cards;
+    const save = () => { saveSettings(); refreshUnderReplies(); };
+    const ch = names().char;
+    return section('Character cards',
+        field('Character profile cards', o.on ? `On: every reply is asked for a profile of ${ch}, and of another character when what they did changed what happens next. A profile says what each person wants, thinks and feels, what they show and keep private, what they will not do, and why. Who the person is (who, strength, flaw, voice, orientation) is asked for once and kept: in the story world when there is one, or with the chat. The extension takes the profiles out of the reply and draws them as cards under it. This adds no AI request.` : 'Off: no profiles are asked for or drawn.',
+            onOff(o.on, (v) => { o.on = v; save(); app.render(); })),
+        o.on ? [
+            field('Profiles in one reply, at most', `${ch} always gets one. 2 lets one other character have a card when they mattered in the reply.`,
+                select([{ value: '1', label: `1: only ${ch}` }, { value: '2', label: '2' }, { value: '3', label: '3' }], String(o.most || 2), (v) => { o.most = Number(v); save(); })),
+            field('The roast', o.roast !== false ? "On: every reply also gets one reaction from the commentator, a separate personality who only reacts to the reply and writes none of the story. It is drawn at the bottom of the cards. The previous reply's roast is sent with the next request, so each one can answer the last." : 'Off: no roast is asked for or drawn.',
+                onOff(o.roast !== false, (v) => { o.roast = v; save(); app.render(); })),
+            o.roast !== false ? [
+                field("The commentator's voice", 'Sent with every reply while the roast is on. Describe who the commentator is and how they type. A sample of the voice helps the most.',
+                    textArea(o.voice ?? DEFAULT_VOICE, (v) => { o.voice = v; saveSettings(); }, { rows: 6 })),
+                h('div', { class: 'ri-row ri-row-tight' }, button('Put the starting voice back', () => { o.voice = DEFAULT_VOICE; saveSettings(); app.render(); }, { kind: 'ghost' })),
+            ] : null,
+        ] : null);
+}
+
 function diceSection(app) {
     const d = settings().dice;
     const save = () => { saveSettings(); };
@@ -199,6 +220,7 @@ export function renderSettings(body, app) {
             numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
 
     body.appendChild(sceneSection(app));
+    body.appendChild(cardsSection(app));
     body.appendChild(diceSection(app));
     body.appendChild(paceSection(app));
     body.appendChild(writerSection(app));
@@ -248,6 +270,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.10.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.11.0. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

@@ -24,6 +24,7 @@ export const WORLD_KINDS = {
             F('who', 'Who they are', 'Personality and background, in two or three plain facts.', true),
             F('strength', 'Main strength'), F('flaw', 'Main flaw'),
             F('voice', 'How they talk', 'Rhythm, word choice, habits of speech.'),
+            F('orientation', 'Orientation', 'As their card or the story states it.'),
             F('wants', 'What they want', 'Right now, and in the long run.', true),
             F('plans', 'What they plan to do next'),
             F('knows', 'What they know', 'Things this person saw, heard or was told.', true),
