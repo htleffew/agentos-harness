@@ -263,3 +263,12 @@
 .ri-prompt-badge { font-size: .8em; color: var(--ri-text-2); }
 .ri-prompt-body { display: grid; gap: 6px; margin-top: 8px; }
 .ri-prompt-default pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ri-text-2); }
+
+/* Context and memory */
+.ri-root .ri-context-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+.ri-root .ri-context-metric { padding: 12px; border: 1px solid var(--ri-border, rgba(130,190,205,.25)); border-radius: 10px; background: rgba(12, 32, 43, .35); }
+.ri-root .ri-context-metric strong { display: block; margin: 5px 0; font-size: 1.1em; }
+.ri-root .ri-context-metric-label { color: var(--ri-accent, #82c8d9); font-weight: 600; }
+.ri-root .ri-context-slider { display:flex; align-items:center; gap:10px; width:100%; flex-wrap:wrap; }
+.ri-root .ri-context-range { flex:1 1 180px; accent-color: var(--ri-accent, #82c8d9); }
+.ri-root .ri-context-preview { margin-top:8px; font-weight:600; }

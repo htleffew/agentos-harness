@@ -1,6 +1,6 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension, Version 8. It has five parts that work alone or together:
+A standalone SillyTavern / TauriTavern extension, Version 9. It has five parts that work alone or together:
 
 | Part | What it does |
 | --- | --- |
@@ -21,6 +21,14 @@ shared lorebook or in several.
 - The extension panel lives in the Extensions menu. A collapsed Story state and a Guide a swipe control can also appear under replies; What Was Sent is off under replies by default.
 - The dice are the extension's own code. The AI is told the result and never rolls.
 
+## Context and memory
+
+Open **Context & Memory** to adjust chapter timing, automatic hiding, the number of recent messages to protect, and the story notes budgets together. The slider estimates the text size of the selected recent messages in the open chat. It is not a hard limit: the opening message is preserved, and messages not yet covered by a successfully saved chapter stay available until a later chapter is written. Raising the protected window does not automatically unhide messages already hidden; turning the setting off does not itself undo past hiding. Existing Story World controls change the same settings.
+
+Keep the preset's **Chat History** entry enabled: it supplies the conversation messages still available after hiding. Without a Story World, chapters cannot be written or hide covered messages. Automatic summaries each use an AI request; adjusting these controls and inspecting estimates do not. Defaults are a chapter every 20 model replies or at scene end, hiding on, and 30 protected recent messages; existing user settings are preserved.
+
+The last-request view estimates the assembled text observed in this session for the current chat. It recognizes exact passages for recent conversation, story notes, chapters, events, and other extension text. Preset or extension formatting may prevent recognition, so unmatched passages are reported as unknown and categories are partial rather than a complete sum. The host may modify a request after observation; non-text inputs and model-specific framing are not counted. Token figures use roughly four characters per token and can differ substantially by model and language. The breakdown is unavailable when the host does not expose the chat-completion prompt event; it starts fresh on reload and stores only counts in memory.
+
 ## Customize AI instructions
 
 Each feature has a collapsed **Customize AI instructions** section near its settings. Edit the instruction used for that feature and choose **Save instruction**. A **Customized** label shows which instructions differ from the installed default. Each instruction has its own **Restore default** button and an immediate **Undo restore** option. These settings apply across chats; saving or restoring does not make an AI request.
@@ -33,7 +41,7 @@ Custom wording is stored separately from built-in defaults. If an update changes
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v8`
+3. Branch: `roleplay-instructions-v9`
 4. Install, then reload the app.
 
 ## First use (2 minutes)
@@ -57,8 +65,9 @@ Custom wording is stored separately from built-in defaults. If an update changes
 | Character Goals | This chat's goal for the character, its one-time steps and repeatable actions. |
 | Story World | This chat's story world: its entries, the story so far in chapters, who was read as present, and what would be sent with the next reply. Start a new chapter in a new chat from here. |
 | What Was Sent | One card per reply: the exact text that was sent, why, and its status (Sent, Done with the words that show it, Overdue, Missed). Buttons: Send again, Undo done, Pick again. |
+| Context & Memory | Chapter and hiding controls, a protected-recent-message slider with a text estimate, and the last observed request breakdown. |
 | Log | Every request made to the AI: what was sent, what came back, how long it took and, when it failed, why. Copy it or save it as a file. |
-| Settings | Pronouns, the AI connection, where sets are kept, one thing per reply, pacing, the rules for the AI writer and your word list, checking, the section under each reply, and what the AI is sent from this chat. |
+| Settings | Pronouns, the AI connection, where sets are kept, one thing per reply, pacing, the rules for the AI writer and your word list, checking, the section under each reply, and links to the conversation and memory controls. |
 
 ## Random Instructions
 
@@ -325,7 +334,7 @@ world.
 - **SillyTavern's own Summarize.** When it is also putting a summary into the prompt, the tab says so. Use one of
   the two, so the story so far is sent once.
 
-**A new chapter in a new chat.** With chapters and hiding on, a chat never grows too long for the AI, so this is
+**A new chapter in a new chat.** With chapters and hiding on, a chat can stay shorter for the AI, so this is
 optional. Use it for a clean break, a time skip, or when a very long chat file loads slowly. The button is at the top
 of the What Was Sent tab and at the bottom of the Story World tab. Press **Start a new chapter in a new chat**. You can
 say what you want for it ("the next morning, on the ship"). One AI request writes a very detailed summary and a
@@ -476,8 +485,7 @@ Every request is listed in the Log tab.
   those timers stop working. This was seen on a TauriTavern tablet, where World Info was handed 40 messages however
   long the chat grew. Message Limit does exactly this: it drops the oldest messages from what is sent, with no
   summary of them, until the limit is reached. This extension counts replies from the chat itself, hidden ones
-  included, so timing, story phases, thread clocks and chapters keep counting. Settings > "What the AI is sent from
-  this chat" counts the messages in the finished prompt of the last reply, after every other extension, so it shows
+  included, so timing, story phases, thread clocks and chapters keep counting. Context & Memory counts the messages in the finished prompt of the last reply, after every other extension, so it shows
   how many messages were really sent and whether another extension left any out.
 - **Other extensions that overlap.** With chapters on, turn off SillyTavern's Summarize (the story so far would be
   sent twice). With "Hide what a chapter covers" on, Message Limit and TunnelVision's autohide are not needed.

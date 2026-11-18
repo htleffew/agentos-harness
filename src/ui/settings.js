@@ -5,7 +5,7 @@ import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
 import { DEFAULT_VOICE } from '../defaults.js';
 import { statNames, sheet, setStat, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../dice.js';
 import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
-import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox, chatReach } from '../st.js';
+import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
 import { ensureRegexScript, setsMoved } from '../engine.js';
 import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '../books.js';
 import { refreshUnderReplies } from './sent.js';
@@ -265,20 +265,12 @@ export function renderSettings(body, app) {
         field('Accent colour', 'The colour of buttons and highlights in this panel.',
             select([{ value: 'auto', label: 'Blues and greens, a different one for each tab' }, { value: 'cyan', label: 'Cyan' }, { value: 'sky', label: 'Sky blue' }, { value: 'blue', label: 'Blue' }, { value: 'green', label: 'Green' }, { value: 'yellow', label: 'Yellow' }, { value: 'violet', label: 'Violet' }, { value: 'magenta', label: 'Pink' }], st.accent || 'auto', (v) => { st.accent = v; save(); app.render(); }))));
 
-    if (isChatOpen()) {
-        const r = chatReach();
-        const cut = r.cut >= 2;
-        body.appendChild(section('What the AI is sent from this chat',
-            h('div', { class: 'ri-grid' },
-                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Messages in this chat'), h('span', { class: 'ri-v' }, String(r.total))),
-                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Hidden from the AI'), h('span', { class: 'ri-v' }, r.hidden ? `${r.hidden} (the AI is sent the other ${r.open})` : 'None')),
-                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Sent with the last reply'), h('span', { class: 'ri-v' }, r.last === null ? 'Not known yet. Send a message first.' : `${r.last} messages (counted in the finished prompt, after every other extension)`))),
-            cut ? h('div', { class: 'ri-note ri-note-warn' }, `With the last reply, ${r.cut} messages that are not hidden were left out of the prompt. Another extension removed them, for example Message Limit. Messages left out this way are gone from the prompt with no summary, and they also stop SillyTavern's own World Info timers. The extension's chapters with "Hide what a chapter covers" do the same job and keep the story.`) : null,
-            h('div', { class: 'ri-help' }, 'This extension counts replies from the chat itself, hidden messages included, so its timing, story phases, thread clocks and chapters keep counting when older messages are hidden or left out. SillyTavern\'s own World Info timers count only what they are handed, and stop working when that number stays the same.')));
-    }
+    if (isChatOpen()) body.appendChild(section('Conversation and memory',
+        h('div', { class: 'ri-help' }, 'See recent history, chapter settings, and the last observed request in Context & Memory.'),
+        button('Open Context & Memory', () => { app.tab = 'context'; app.render(); }, { kind: 'ghost' })));
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 8.0.0: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 9.0.0: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

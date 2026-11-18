@@ -1,3 +1,4 @@
+import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
 import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
@@ -241,10 +242,11 @@ async function onEntriesLoaded(lore) {
         const direction = gen?.guided && kind === 'swipe' ? `[${promptText('guided', { direction: gen.guided.direction })}]` : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
-        if (flow?.ask) lore.chatLore.push(askEntry([stateText, direction, flow.ask].filter(Boolean).join('\n')));
+        let contextAsk = '';
+        if (flow?.ask) { contextAsk = [stateText, direction, flow.ask].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
         // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry([stateText, direction, a].filter(Boolean).join('\n'))); }
-        else if (direction && Array.isArray(lore.chatLore)) lore.chatLore.push(askEntry([stateText, direction].filter(Boolean).join('\n')));
+        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) { contextAsk = [stateText, direction, a].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); } }
+        else if (direction && Array.isArray(lore.chatLore)) { contextAsk = [stateText, direction].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
         if (flow) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
@@ -264,6 +266,7 @@ async function onEntriesLoaded(lore) {
             return;
         }
         if (cs) applyTiming(arrays.flat().filter(isManaged), cs);
+        plan.contextAsk = contextAsk;
         plan.notes = notes;
         plan.flow = flow;
         plan.phase = phase;
@@ -919,13 +922,14 @@ function writeIntoMessage(id) {
 function onPromptReady(data) {
     try {
         if (!Array.isArray(data?.chat)) return;
-        if (!data.dryRun && !isOwnPrompt(data.chat)) notePromptSent(data.chat);
+        const record = !data.dryRun && !gen?.skip && !isOwnPrompt(data.chat);
         for (const msg of data.chat) {
             // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
             if (msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.includes('<story_update')) msg.content = stripUpdateBlock(msg.content);
             if (typeof msg.content === 'string' && msg.content.includes('<sent_instructions>')) msg.content = stripSentBlock(msg.content);
             else if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string' && part.text.includes('<sent_instructions>')) part.text = stripSentBlock(part.text);
         }
+        if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: pending?.items || [], ask: plan.contextAsk || '' }); }
     } catch (e) { console.error(LOG, 'prompt-ready', e); }
 }
 

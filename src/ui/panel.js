@@ -9,6 +9,7 @@ import { renderCurrentState } from './state.js';
 import { renderWorld } from './world.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
 import { renderSettings } from './settings.js';
+import { renderContext } from './context-dashboard.js';
 import { renderLog } from './log.js';
 import { onLog } from '../log.js';
 import { isChatOpen } from '../st.js';
@@ -21,6 +22,7 @@ const TABS = [
     { id: 'state', label: 'Current State', accent: 'green' },
     { id: 'world', label: 'Story World', accent: 'green' },
     { id: 'sent', label: 'What Was Sent', accent: 'blue' },
+    { id: 'context', label: 'Context & Memory', accent: 'sky' },
     { id: 'log', label: 'Log', accent: 'sky' },
     { id: 'settings', label: 'Settings', accent: 'cyan' },
 ];
@@ -91,6 +93,7 @@ export function render() {
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
+    else if (app.tab === 'context') renderContext(app.body, app);
     else if (app.tab === 'log') renderLog(app.body, app);
     else renderSettings(app.body, app);
 
@@ -131,6 +134,7 @@ export function mount(missing) {
         if (app.tab === 'style' && app.sroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'world' && (app.wroute.view === 'edit' || app.wroute.sheet) && what !== 'chat') return;
         if (app.tab === 'state' && what !== 'chat' && app.root?.querySelector('.ri-state-editor')) return;
+        if (app.tab === 'context' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement?.tagName || '')) return;
         if (app.tab === 'goals' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
         clearTimeout(timer);
         timer = setTimeout(render, 80);

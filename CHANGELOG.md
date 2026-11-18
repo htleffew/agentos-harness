@@ -1,5 +1,10 @@
 # Changelog
 
+## 9.0.0
+
+- Context & Memory brings together chapter timing, covered-message hiding, protected recent messages and the story budgets. A slider previews the selected recent text and an estimate of the recent chapter interval.
+- The last observed chat-completion request shows approximate recognized text for conversation, chapters, story notes, events and other instructions. Unmatched passages and non-text inputs are disclosed; only counts are retained in memory. No new model requests are made by the dashboard.
+
 ## 8.0.0
 
 - Feature-local editors expose the extension's behavioral instructions and system messages, with individual save, restore and undo-restore controls. Required placeholders are validated; live data and output contracts remain managed by the extension.
