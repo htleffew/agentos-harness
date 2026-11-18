@@ -1,3 +1,4 @@
+import { replyCardHeader } from './reply-cards.js';
 import { promptGroup } from './prompts.js';
 import { h, button } from './dom.js';
 import { ctx, KEY, toast, confirmBox } from '../st.js';
@@ -73,12 +74,15 @@ function worldEditor(person, done) {
         }), button('Cancel', done, { kind: 'ghost' }));
 }
 
-export function characterStateCard(person, id, refresh, { historical = false } = {}) {
-    const card = h('details', { class: 'ri-profile' }, h('summary', { class: 'ri-profile-name' }, person.name));
+export function characterStateCard(person, id, refresh, { historical = false, replyCard = false } = {}) {
+    const header = replyCard ? replyCardHeader({ icon: '✧', eyebrow: 'Character state', title: person.name, badges: STATE_FIELDS.filter(([key]) => person.fields[key]).map(([, label]) => label) }) : h('summary', { class: 'ri-profile-name' }, person.name);
+    const card = h('details', { class: replyCard ? 'ri-profile ri-reply-card ri-reply-character' : 'ri-profile', ...(replyCard ? { 'data-card-key': `character:${person.name.toLocaleLowerCase()}` } : {}) }, header);
     const content = h('div', { class: 'ri-state-body' });
     const show = () => {
         content.replaceChildren();
-        for (const [key, label] of STATE_FIELDS) if (person.fields[key]) content.append(h('div', { class: 'ri-state-field' }, h('span', { class: 'ri-state-label' }, label, person.protected[key] ? ' · protected' : ''), h('div', {}, person.fields[key])));
+        const fields = replyCard ? h('div', { class: 'ri-reply-fields' }) : content;
+        for (const [key, label] of STATE_FIELDS) if (person.fields[key]) fields.append(h('div', { class: `ri-state-field${replyCard ? ' ri-reply-field' : ''}` }, h('span', { class: 'ri-state-label' }, label, person.protected[key] ? ' · protected' : ''), h('div', { class: replyCard ? 'ri-reply-value' : '' }, person.fields[key])));
+        if (replyCard && fields.childElementCount) content.append(fields);
         if (!Object.keys(person.fields).length) content.append(h('div', { class: 'ri-muted' }, 'No current state recorded.'));
         const foundation = Object.entries(person.foundation || {}).filter(([, value]) => value);
         if (foundation.length) content.append(h('details', { class: 'ri-profile-who' }, h('summary', {}, 'Foundation at this reply'), foundation.map(([key, value]) => h('div', { class: 'ri-state-field' }, h('span', { class: 'ri-state-label' }, key), h('div', {}, value)))));

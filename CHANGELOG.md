@@ -1,5 +1,9 @@
 # Changelog
 
+## 9.0.1
+
+- Reply cards use independent, collapsed Scene, character and Roast drawers with clear headings, a responsive field layout and the extension's cool palette. Snapshot editing remains available inside each card; open cards stay open across refreshes and editing can be cancelled or saved without getting stuck.
+
 ## 9.0.0
 
 - Context & Memory brings together chapter timing, covered-message hiding, protected recent messages and the story budgets. A slider previews the selected recent text and an estimate of the recent chapter interval.

@@ -14,6 +14,7 @@ Setup used for 1.0.0:
 | Script | Covers |
 | --- | --- |
 | `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |
+| `t_reply_cards.js` | Independent reply cards, snapshot editing, visibility settings and responsive layout |
 | `t_context_v9.js` | Real-host request breakdown, context controls, persistence and no extra requests |
 | `t_memory_v9.js` | Chapter timing, hiding covered history, preserving recent messages and including the summary |
 | `unit/context_v9.mjs` | Text estimates, partial matching, non-text handling and chat isolation |

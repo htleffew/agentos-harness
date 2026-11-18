@@ -1,3 +1,4 @@
+import { replyCardHeader } from './reply-cards.js';
 import { refreshGuidedControl } from './guided.js';
 import { snapshotState, snapshotScene } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
@@ -172,8 +173,11 @@ const OWN_HUD = /<(scene_cast|sola_hud|profile|status|tracker|hud)\b|\bpresent\s
 
 /** The scene card: when, where and who is present, from the reply's own scene lines. */
 function sceneCard(sc) {
-    const row = (label, text) => text ? h('div', { class: 'ri-scene-row' }, h('span', { class: 'ri-scene-k' }, label), h('span', { class: 'ri-scene-v' }, text)) : null;
-    return h('details', { class: 'ri-root ri-scene', 'data-accent': 'cyan' }, h('summary', {}, 'Scene'), row('When', sc.when), row('Where', sc.where), row('Present', sc.present), row('Environment', sc.environment));
+    const fields = [['where', 'Location'], ['when', 'Time'], ['present', 'Present'], ['environment', 'Environment']];
+    const values = h('div', { class: 'ri-reply-fields' }, fields.filter(([key]) => sc[key]).map(([key, label]) =>
+        h('div', { class: 'ri-scene-row ri-reply-field' }, h('span', { class: 'ri-scene-k' }, label), h('span', { class: 'ri-scene-v ri-reply-value' }, sc[key]))));
+    return h('details', { class: 'ri-scene ri-reply-card ri-reply-scene', 'data-card-key': 'scene' },
+        replyCardHeader({ icon: '◇', eyebrow: 'The story so far', title: 'Scene', subtitle: [sc.where, sc.when].filter(Boolean).join(' · ') }), values);
 }
 
 /** One collapsed view of the state after each reply. */
@@ -200,23 +204,25 @@ function refreshStoryState(chat) {
         const stamp = JSON.stringify([sc, people, roast, rec.stateOutdated, rec.snapshotEdits]);
         const old = block.querySelector(':scope > .ri-story-state');
         seen.add(mes);
-        if (old && (old.dataset.stamp === stamp || old.querySelector('.ri-state-editor'))) continue;
-        const title = [sc.where, sc.when, sc.present].filter(Boolean).join(' · ');
-        const outer = h('details', { class: 'ri-root ri-story-state', 'data-accent': 'sky' },
-            h('summary', { class: 'ri-state-summary' }, h('strong', {}, '✦ Story state'), title ? h('span', {}, title) : null));
+        const responseKey = `${rec.time || ''}:${m.swipe_id ?? 0}`;
+        if (old && old.dataset.responseKey === responseKey && (old.dataset.stamp === stamp || old.querySelector('.ri-state-editor'))) continue;
+        const openCards = new Set(old?.dataset.responseKey === responseKey ? [...old.querySelectorAll('.ri-reply-card[open]')].map(card => card.dataset.cardKey) : []);
+        const outer = h('div', { class: 'ri-root ri-story-state ri-reply-stack', 'data-accent': 'sky' });
         outer.dataset.stamp = stamp;
-        if (old) outer.open = old.open;
-        const inside = h('div', { class: 'ri-state-content' }, h('div', { class: 'ri-help' }, 'State after this reply. Edit current state in the extension panel.'));
-        if (rec.stateOutdated) inside.append(h('div', { class: 'ri-note ri-note-warn' }, 'This reply was edited; its recorded state may be out of date.'));
+        outer.dataset.responseKey = responseKey;
+        const refreshCards = () => { outer.querySelectorAll('.ri-state-editor').forEach(editor => editor.remove()); outer.dataset.stamp = ''; refreshUnderReplies(); };
+        if (rec.stateOutdated) outer.append(h('div', { class: 'ri-note ri-note-warn' }, 'This reply was edited; its recorded state may be out of date.'));
         if (Object.keys(sc).length) {
             const scene = sceneCard(sc);
-            const slot = h('div', { class: 'ri-state-body' });
-            slot.append(button('Edit this scene snapshot', () => slot.replaceChildren(sceneEditor(sc, () => { old?.remove(); outer.remove(); refreshUnderReplies(); }, { historicalId: id })), { kind: 'ghost' }));
-            scene.append(slot); inside.append(scene);
+            const slot = h('div', { class: 'ri-state-body ri-reply-actions' });
+            slot.append(button('Edit this scene snapshot', () => slot.replaceChildren(sceneEditor(sc, refreshCards, { historicalId: id })), { kind: 'ghost' }));
+            scene.append(slot); outer.append(scene);
         }
-        for (const person of people) inside.append(characterStateCard(person, id, () => refreshUnderReplies(), { historical: true }));
-        if (roast) inside.append(h('details', { class: 'ri-roast' }, h('summary', { class: 'ri-roast-k' }, 'Roast'), h('div', { class: 'ri-roast-v' }, roast)));
-        outer.append(inside);
+        for (const person of people) outer.append(characterStateCard(person, id, refreshCards, { historical: true, replyCard: true }));
+        if (roast) outer.append(h('details', { class: 'ri-roast ri-reply-card ri-reply-roast', 'data-card-key': 'roast' },
+            replyCardHeader({ icon: '✦', eyebrow: 'A voice from the sidelines', title: 'Roast' }),
+            h('div', { class: 'ri-roast-v ri-reply-quote' }, roast)));
+        for (const card of outer.querySelectorAll('.ri-reply-card')) card.open = openCards.has(card.dataset.cardKey);
         const under = block.querySelector(':scope > .ri-under');
         if (old) old.replaceWith(outer); else if (under) block.insertBefore(outer, under); else block.appendChild(outer);
     }

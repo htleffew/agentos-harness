@@ -18,7 +18,7 @@ shared lorebook or in several.
   asked for, kept and sent by the extension itself. Chat Completion. Needs SillyTavern 1.19 or later, or a TauriTavern
   build on 1.19.
 - Depends on no other extension.
-- The extension panel lives in the Extensions menu. A collapsed Story state and a Guide a swipe control can also appear under replies; What Was Sent is off under replies by default.
+- The extension panel lives in the Extensions menu. Collapsed Scene, character, and Roast cards and a Guide a swipe control can also appear under replies; What Was Sent is off under replies by default.
 - The dice are the extension's own code. The AI is told the result and never rolls.
 
 ## Context and memory
@@ -371,7 +371,7 @@ for on their own. The extension takes them out of the reply and keeps them on it
 
 - The story notes, story event items that need a number of people or someone's secret or plan, the order for a
   character who has gone quiet, and the dice all use these lines, so they work the same whatever preset is on.
-- **Story state.** A collapsed section under each reply shows the scene and relevant character state. To start with it is only shown under
+- **Story state.** Separate collapsed cards under each reply show the scene and relevant character state. To start with it is only shown under
   a reply that has no scene tracker of its own, so with a preset that draws its own HUD (such as Sola V6 Slim)
   nothing is shown twice. It can be set to always or off in Settings > Scene.
 - An out-of-character message is not asked for the lines.
@@ -381,7 +381,7 @@ for on their own. The extension takes them out of the reply and keeps them on it
 The extension asks for changes to a character's **Mind**, **Heart**, **Body**, and **Psyche** in the same update block as the world changes. Unchanged fields can be omitted; `CLEAR` resolves a field. The resulting state is kept with the chat, and a compact selection for the current scene is included in future prompts. This makes no separate model request, although generated updates use output tokens. The approximate prompt budget is adjustable in Settings > Character cards; story-world and chapter budgets remain separate.
 
 - **Current State** in the extension panel shows and edits scene and character state. An edited field is protected from automatic changes until you uncheck protection. Protected corrections are kept in chat metadata, so replacing or deleting the reply that was newest when you edited does not remove them. Their recorded history lets a branch retain earlier corrections while leaving out later ones. Unprotected edits follow the reply where they were made.
-- A collapsed **Story state** under each reply shows the state after that reply. Edit a historical card to correct that snapshot alone, or also apply the changes to the current state. Neither action rewrites subsequent story text. Settings > Scene controls visibility and whether a preset's tracker hides it. What Was Sent remains off under replies by default.
+- Separate **Scene** and character cards under each reply show the state after that reply; each opens independently and starts collapsed. Edit a historical card to correct that snapshot alone, or also apply the changes to the current state. Neither action rewrites subsequent story text. Settings > Scene controls visibility and whether a preset's tracker hides it. What Was Sent remains off under replies by default.
 - **Story World** still owns durable facts, wants, plans, secrets, and threads. Its character editor has an enduring boundaries field. Use **Save a lasting fact to Story World** on a current character card to explicitly write a fact to an existing character entry; the chosen field is replaced after confirmation if it already contains text. Current state does not silently overwrite those entries.
 - **Story event limits** in Current State filters random event items by exact user-supplied tags. It also checks repeated and rerolled items. Untagged items, other instructions and automatic world orders are not filtered. Free-text boundaries and conditions are included as prompt guidance; the extension cannot reliably determine semantic conflicts in arbitrary text.
 - The optional roast is collapsed. Settings > Character cards controls whether the previous roast is included in the next prompt; this is off by default. Tracking, showing state and displaying What Was Sent are separate choices.
