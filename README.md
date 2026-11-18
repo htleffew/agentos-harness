@@ -1,6 +1,6 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension, Version 5. It has five parts that work alone or together:
+A standalone SillyTavern / TauriTavern extension, Version 7. It has five parts that work alone or together:
 
 | Part | What it does |
 | --- | --- |
@@ -18,15 +18,14 @@ shared lorebook or in several.
   asked for, kept and sent by the extension itself. Chat Completion. Needs SillyTavern 1.19 or later, or a TauriTavern
   build on 1.19.
 - Depends on no other extension.
-- Everything lives in one panel in the Extensions menu. Nothing is added to the chat screen unless you turn on
-  "Show what was sent under each reply".
+- The extension panel lives in the Extensions menu. A collapsed Story state and a Guide a swipe control can also appear under replies; What Was Sent is off under replies by default.
 - The dice are the extension's own code. The AI is told the result and never rolls.
 
 ## Install
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v5`
+3. Branch: `roleplay-instructions-v7`
 4. Install, then reload the app.
 
 ## First use (2 minutes)
@@ -372,6 +371,16 @@ The extension asks for changes to a character's **Mind**, **Heart**, **Body**, a
 - Editing a model reply marks its card and dependent later state as out of date, withdraws their automatic world changes, and asks you to review. Current State can draft a reviewable update using one extra AI request; applying it is optional. Manually edited facts and summaries need your review. Overlapping chapter summaries are withheld from future prompts until you mark the story reviewed. An out-of-character message is not asked for an update. Branches can only rewind changes that were recorded; review old chats and edits made outside this extension, which may lack a complete history. If the branch book cannot be created, the extension disconnects the parent world and reports the error so that the branch cannot silently write into it.
 - Existing v5 cards remain intact. When an old card has no v6 updates, its Thinks, Feels and Keeps private values are read as Mind, Heart and Psyche; the old Will not judgment is not imported as a boundary. Historical cards remain snapshots.
 
+## Guide a swipe
+
+Under the newest recorded character reply, open **Guide a swipe**, write the direction for its replacement, and choose **Generate guided swipe**. The direction is sent with that replacement only, not added to the story text or later prompts. The direction is kept in the replacement's extension record. This uses the normal swipe generation; it adds no separate model request. If instruction checking is enabled, the existing checker may still make its usual additional request.
+
+By default, the previous turn's random events and instructions are left out; its long-running style and goal settings remain available. Choose **Repeat the previous turn’s orders** when you want them again. Earlier established story facts and protected corrections from before the replaced reply remain available. The model is asked to follow the direction, but a model may not obey it perfectly.
+
+The extension rolls back the replaced reply's recorded Story World changes before generating, and files what the replacement establishes. It does not rewrite unrelated lorebooks, preset instructions, or facts modified outside its records. A guided swipe is stopped before generation if the world cannot be reversed safely, the reply has protected corrections or manually edited world facts attached to it, or old timing/chapter changes lack enough rollback information. Review those changes first; the extension does not overwrite them. To deliberately retain manual world edits, select the corresponding checkbox after reviewing them. If an edit conflicts with an automatic rollback, resolve the conflict in Story World first. To generate a new swipe while viewing an older saved swipe, first move to the newest existing swipe.
+
+If generation is stopped or fails, the extension attempts to restore the prior world; if that world was independently edited in the meantime, it leaves the newer edit alone and asks you to review. Existing swipes remain available. The guidance does not change permanent instructions or settings.
+
 ## Dice
 
 The extension rolls the dice in code. The AI is told the results and never rolls or adds.
@@ -480,7 +489,7 @@ The record of what was sent lives on each reply, so it follows the reply whereve
 | Edit the newest reply | Its generated state and automatic world changes are withdrawn and marked for review. If checking is on, its instructions may also be checked again. Current State can draft an update for review with one AI request. |
 | Edit an older model reply | Generated state and automatic world changes from that reply onward are marked stale and withdrawn, newest first. Protected corrections remain. Current State offers a reviewable rebuild; check manually edited world entries and chapters too. |
 | Delete messages | Their records go with them. Anything waiting to be sent again because of a deleted reply is dropped, timers started by deleted replies are cleared, and what those replies filed in the story world is undone. |
-| Swipe or regenerate the newest reply | The same instructions and versions are sent again. What the swiped-away reply filed in the story world is undone. |
+| Swipe or regenerate the newest reply | An ordinary swipe repeats the same instructions and versions. Guide a swipe can instead include a one-time direction and leave those orders out. The extension rolls back recorded world changes from the replaced reply when it can do so safely. |
 | Branch a chat | The branch keeps which sets are on, your pronouns, the goal, the story world it uses, and the records up to the branch point. Chapters written before the branch point are the branch's chapters too, and messages hidden by them stay hidden. The first time the branch is opened it gets a separate lorebook named "(branch)". Recorded changes after the branch point are undone on that copy, and the parent world is left alone. A branch of a chat with no world gets a new empty book. The original chat and its world are untouched. "A branch gets its own copy of the world" in the Story World tab turns this off. |
 
 ## Where things are stored

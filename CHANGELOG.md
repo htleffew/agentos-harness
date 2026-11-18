@@ -1,5 +1,10 @@
 # Changelog
 
+## 7.0.0
+
+- Guide a swipe from the newest character reply with a one-time direction. Previous turn orders are optional; existing swipes remain available. Recorded world changes are rolled back with conflict checks before generation and restored on cancellation when safe.
+- Thread clock and status timing now carry enough history to be reversed safely. Older records without that history require review.
+
 ## 6.0.0
 
 - Deep branches mint a separate lorebook, rewind recorded future world changes and protected corrections, and leave the parent world alone. Extension world-editor changes are recorded for future branches. Existing or external world edits may lack history and should be reviewed.

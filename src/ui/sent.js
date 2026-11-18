@@ -1,3 +1,4 @@
+import { refreshGuidedControl } from './guided.js';
 import { snapshotState, snapshotScene } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
@@ -102,6 +103,7 @@ function askedRows(rec) {
 
 function recordBody(id, rec, isLast, withButtons) {
     return [
+        rec.guided ? h('div', { class: 'ri-note' }, `Guided swipe: ${rec.guided.direction} (${rec.guided.repeatOrders ? 'previous orders repeated' : 'previous orders left out'})`) : null,
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
         paceNote(rec),
@@ -223,6 +225,7 @@ function refreshStoryState(chat) {
 }
 
 export function refreshUnderReplies() {
+    try { refreshGuidedControl(); } catch (e) { console.warn('[Roleplay Instructions] guided swipe', e); }
     try { refreshStoryState(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
     try {
         const st = settings();

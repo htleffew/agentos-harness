@@ -249,3 +249,8 @@
 .ri-state-label { display: block; color: var(--ri-accent); font-size: .8em; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
 .ri-state-editor { display: grid; gap: 5px; margin-top: 8px; }
 .ri-state-lock { color: var(--ri-text-2); font-size: .85em; }
+
+/* Optional direction for a replacement reply */
+.ri-guided { margin-top: 7px; font-size: .88em; }
+.ri-guided-summary { cursor: pointer; color: var(--ri-accent); font-weight: 600; }
+.ri-guided-body { display: grid; gap: 7px; margin-top: 7px; padding: 10px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }

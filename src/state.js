@@ -87,11 +87,27 @@ export function currentState(type = 'normal') {
     const chat = ctx().chat || [];
     return stateAt(type === 'swipe' && chat.length && !chat[chat.length - 1]?.is_user ? chat.length - 1 : Infinity, { overrides: true });
 }
-export function statePrompt(type = 'normal', limit = 1400, { includeCharacters = true } = {}) {
+export function statePrompt(type = 'normal', limit = 1400, { includeCharacters = true, excludeTargetOverrides = false } = {}) {
     const chat = ctx().chat || [];
     const end = type === 'swipe' && chat.length && !chat[chat.length - 1]?.is_user ? chat.length - 1 : Infinity;
-    const state = stateAt(end, { overrides: true });
-    const scene = sceneAt(end, { overrides: true });
+    const state = stateAt(end, { overrides: !excludeTargetOverrides });
+    const scene = sceneAt(end, { overrides: !excludeTargetOverrides });
+    if (excludeTargetOverrides) {
+        const anchors = new Set(['seed']);
+        for (const m of chat.slice(0, end)) {
+            if (m?.extra?.[KEY]?.time) anchors.add(`record:${m.extra[KEY].time}`);
+            if (m?.send_date) anchors.add(`message:${m.send_date}`);
+        }
+        const active = { state: {}, scene: {} };
+        const history = metadata()?.correctionHistory;
+        if (Array.isArray(history)) for (const event of history) {
+            if (!anchors.has(event.anchor) || !active[event.kind]) continue;
+            if (event.entry) active[event.kind][event.key] = event.entry; else delete active[event.kind][event.key];
+        }
+        else for (const [kind, bucket] of [['state', metadata()?.stateOverrides], ['scene', metadata()?.sceneOverrides]]) for (const [key, value] of Object.entries(bucket || {})) if (anchors.has(value.anchor)) active[kind][key] = value;
+        for (const edit of Object.values(active.state)) applyEdit(state, edit);
+        for (const [key, value] of Object.entries(active.scene)) if (SCENE_FIELDS.some(([k]) => k === key)) scene[key] = value.value;
+    }
     const present = String(scene.present || '').toLocaleLowerCase();
     const selected = (includeCharacters ? Object.values(state) : []).filter(p => !present || present.includes(p.name.toLocaleLowerCase()));
     const rows = [];
