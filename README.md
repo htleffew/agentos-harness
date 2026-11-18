@@ -365,7 +365,7 @@ for on their own. The extension takes them out of the reply and keeps them on it
 
 Every reply is asked, in the same block, for a profile of {{char}}, and of one other character when what they did in
 the reply changed what happens next (they spoke to you, made a choice, or acted on a goal of their own). The extension
-takes the profiles out of the reply and draws them as cards under it. This adds no AI request.
+takes the profiles out of the reply and draws them as collapsed cards under it. The scene card and roast also start collapsed; select their headings to open them. This adds no AI request. The cards are stored as message metadata rather than response text, so SillyTavern’s response editor does not edit them.
 
 - **What is going on in them now** (Wants, Thinks, Feels, Shows, Keeps private, Will not, Why) is written new with
   every reply. Wants also keeps the character's story world entry up to date.

@@ -178,7 +178,8 @@
 .ri-under .ri-card { margin: 0; }
 
 /* The scene card under a reply */
-.ri-scene { margin-top: 8px; padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-accent); border-radius: 10px; background: var(--ri-card); font-size: 0.88em; display: flex; flex-direction: column; gap: 3px; }
+.ri-scene { margin-top: 8px; padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-accent); border-radius: 10px; background: var(--ri-card); font-size: 0.88em; }
+.ri-scene > summary { cursor: pointer; color: var(--ri-accent); font-weight: 700; }
 .ri-scene-row { display: flex; gap: 10px; align-items: baseline; }
 .ri-scene-k { flex: 0 0 64px; color: var(--ri-accent); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; font-size: 0.8em; }
 .ri-scene-v { flex: 1; color: var(--ri-text); }
@@ -234,5 +235,5 @@
 .ri-profile-who { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--ri-line); }
 .ri-profile-who > summary { cursor: pointer; color: var(--ri-sky); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.04em; }
 .ri-roast { padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-magenta); border-radius: 10px; background: var(--ri-card); }
-.ri-roast-k { color: var(--ri-magenta); font-weight: 600; text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.04em; margin-bottom: 2px; }
+.ri-roast-k { cursor: pointer; color: var(--ri-magenta); font-weight: 600; text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.04em; margin-bottom: 2px; }
 .ri-roast-v { color: var(--ri-text); white-space: pre-wrap; }
