@@ -169,7 +169,7 @@ const OWN_HUD = /<(scene_cast|sola_hud|profile|status|tracker|hud)\b|\bpresent\s
 /** The scene card: when, where and who is present, from the reply's own scene lines. */
 function sceneCard(sc) {
     const row = (label, text) => text ? h('div', { class: 'ri-scene-row' }, h('span', { class: 'ri-scene-k' }, label), h('span', { class: 'ri-scene-v' }, text)) : null;
-    return h('div', { class: 'ri-root ri-scene', 'data-accent': 'cyan' }, row('When', sc.when), row('Where', sc.where), row('Present', sc.present));
+    return h('details', { class: 'ri-root ri-scene', 'data-accent': 'cyan' }, h('summary', {}, 'Scene'), row('When', sc.when), row('Where', sc.where), row('Present', sc.present));
 }
 
 /** Draw or remove the scene card under each reply, following Settings > Scene. */
@@ -191,6 +191,7 @@ function refreshSceneCards(chat) {
             if (old && old.dataset.stamp === stamp) continue;
             const card = sceneCard(sc);
             card.dataset.stamp = stamp;
+            if (old) card.open = old.open;
             const under = block.querySelector(':scope > .ri-cards, :scope > .ri-under');
             if (old) old.replaceWith(card); else if (under) block.insertBefore(card, under); else block.appendChild(card);
         }
@@ -204,14 +205,14 @@ function profileCards(rec) {
     const showRoast = settings().cards?.roast !== false && rec.roast;
     const cards = (rec.profiles || []).map(p => {
         const stable = PROFILE_STABLE.map(([k, label]) => row(label, p.stable?.[k])).filter(Boolean);
-        return h('details', { class: 'ri-profile', open: true },
+        return h('details', { class: 'ri-profile' },
             h('summary', { class: 'ri-profile-name' }, p.name),
             PROFILE_NOW.map(([k, label]) => row(label, p.now?.[k])),
             stable.length ? h('details', { class: 'ri-profile-who' }, h('summary', {}, 'Who they are'), stable) : null);
     });
     return h('div', { class: 'ri-root ri-cards', 'data-accent': 'green' },
         cards,
-        showRoast ? h('div', { class: 'ri-roast' }, h('div', { class: 'ri-roast-k' }, 'Roast'), h('div', { class: 'ri-roast-v' }, rec.roast)) : null);
+        showRoast ? h('details', { class: 'ri-roast' }, h('summary', { class: 'ri-roast-k' }, 'Roast'), h('div', { class: 'ri-roast-v' }, rec.roast)) : null);
 }
 
 /** Draw or remove the profile cards under each reply, following Settings > Character cards. */
@@ -231,10 +232,19 @@ function refreshProfileCards(chat) {
             if (old && old.dataset.stamp === stamp) continue;
             const card = profileCards(rec);
             card.dataset.stamp = stamp;
-            // A fold that was closed stays closed when the card is drawn again.
+            // Preserve the user's choices when updated data redraws the cards.
             if (old) {
-                const shut = [...old.querySelectorAll('details.ri-profile')].filter(d => !d.open).map(d => d.querySelector('summary')?.textContent);
-                for (const d of card.querySelectorAll('details.ri-profile')) if (shut.includes(d.querySelector('summary')?.textContent)) d.open = false;
+                const previous = [...old.querySelectorAll('details.ri-profile')];
+                for (const d of card.querySelectorAll('details.ri-profile')) {
+                    const match = previous.find(p => p.querySelector('summary')?.textContent === d.querySelector('summary')?.textContent);
+                    if (match) {
+                        d.open = match.open;
+                        const who = d.querySelector('.ri-profile-who');
+                        if (who) who.open = !!match.querySelector('.ri-profile-who')?.open;
+                    }
+                }
+                const roastCard = card.querySelector('.ri-roast');
+                if (roastCard) roastCard.open = !!old.querySelector('.ri-roast')?.open;
             }
             const under = block.querySelector(':scope > .ri-under');
             if (old) old.replaceWith(card); else if (under) block.insertBefore(card, under); else block.appendChild(card);
