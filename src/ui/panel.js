@@ -123,6 +123,8 @@ export function mount(missing) {
     onChange((what) => {
         if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.wroute = { view: 'list' }; app.cache = {}; }
         refreshUnderReplies();
+        // Keep unsaved wording in an open prompt editor during background updates.
+        if (what !== 'chat' && app.root?.querySelector('.ri-prompt-editor[open]')) return;
         // Typing in the editor must not be interrupted by a redraw.
         if (app.tab === 'instructions' && app.route.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;

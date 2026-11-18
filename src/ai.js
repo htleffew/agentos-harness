@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 // One place for every background request to the AI. Each request is written to the log,
 // and a failure comes back with a plain reason instead of an empty result.
 import { askFull, listProfiles } from './st.js';
@@ -24,8 +25,20 @@ const errorText = (e) => String(e?.cause?.message || e?.message || e || 'unknown
  * note(result, ok, details) writes how the answer was used into the same log entry.
  * Throws an Error whose message says in plain words what went wrong.
  */
-export async function request({ what, system = '', user = '', tokens = 600, profileId = '' }) {
+export async function request({ what, system = '', user = '', tokens = 600, profileId = '', promptSystemId = '' }) {
     const st = settings();
+    const systemId = promptSystemId || (/^Write \d+ versions? for /.test(what) ? 'systemVersions'
+        : /^Write \d+ items for the list /.test(what) ? 'systemItems'
+        : /^Rewrite \d+ items of /.test(what) ? 'systemRewrite'
+        : what === 'Write a goal' ? 'systemGoal'
+        : /^Write a .+ entry$/.test(what) ? 'systemWorldEntry'
+        : what === 'Write a chapter of the story so far' ? 'systemChapter'
+        : what === 'Combine the older chapters into one' ? 'systemCombine'
+        : what === 'Write a new chapter (summary and first message)' ? 'systemNewChapter'
+        : what === 'Fill a story world from the character card' ? 'systemStarter'
+        : what === 'Check that it happened' ? 'systemCheck'
+        : what === 'Rebuild edited story state' ? 'rebuild' : '');
+    if (systemId) system = promptText(systemId);
     const via = connectionName(profileId);
     let room = st.writer.moreRoom ? MORE_ROOM(tokens) : tokens;
     let last = null;

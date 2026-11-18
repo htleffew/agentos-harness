@@ -1,6 +1,6 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension, Version 7. It has five parts that work alone or together:
+A standalone SillyTavern / TauriTavern extension, Version 8. It has five parts that work alone or together:
 
 | Part | What it does |
 | --- | --- |
@@ -21,11 +21,19 @@ shared lorebook or in several.
 - The extension panel lives in the Extensions menu. A collapsed Story state and a Guide a swipe control can also appear under replies; What Was Sent is off under replies by default.
 - The dice are the extension's own code. The AI is told the result and never rolls.
 
+## Customize AI instructions
+
+Each feature has a collapsed **Customize AI instructions** section near its settings. Edit the instruction used for that feature and choose **Save instruction**. A **Customized** label shows which instructions differ from the installed default. Each instruction has its own **Restore default** button and an immediate **Undo restore** option. These settings apply across chats; saving or restoring does not make an AI request.
+
+Placeholders such as `{parts}` and `{direction}` represent live information supplied by the extension. Keep the required placeholders shown by the editor; invalid or empty instructions cannot be saved. The extension assembles chat content, dynamic values and required output formats separately. It does not expose or change prompts supplied by your preset, the host application or other extensions.
+
+Custom wording is stored separately from built-in defaults. If an update changes a default, your saved wording remains in use and the editor offers the current default for comparison. Restoring uses the default in the installed version. Existing writer-wide rules and the commentator's voice remain editable in their original settings.
+
 ## Install
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v7`
+3. Branch: `roleplay-instructions-v8`
 4. Install, then reload the app.
 
 ## First use (2 minutes)

@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 // Dice. The extension rolls a d20 in code for each side that is switched on, adds the stat modifiers and works out
 // the outcome for every stat. The model is told the results and picks the stat that fits an attempt. It never rolls
 // and never adds.
@@ -75,7 +76,7 @@ export function rollDice() {
     };
     const who = sides.map(s => s.who === 'user' ? '{{user}} in {{user}}\'s last message' : s.who === 'char' ? '{{char}}' : 'any other character').join(', ');
     const text = [
-        `Dice for this reply, already rolled. Use a result only when ${who} attempts something with real stakes and a real chance of failing. For anything else, ignore the dice. When you use one, pick the stat that fits the attempt and write the outcome given here. Roll nothing yourself and change no number.`,
+        promptText('dice', { who }),
         ...rolls.map(line),
         rolls.some(r => r.who === 'user') ? 'For {{user}}, the result settles only how the attempt turns out. Write what happens because of it, and leave {{user}}\'s own words, choices and feelings to {{user}}.' : '',
     ].filter(Boolean).join('\n');

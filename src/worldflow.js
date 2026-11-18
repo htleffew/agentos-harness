@@ -1,3 +1,4 @@
+import { promptText, promptStatus } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor } from './state.js';
 // Keeping the story world up to date by itself.
 //  1. With each reply the extension asks the model to add one short block that records what the reply made true.
@@ -89,7 +90,7 @@ export function buildSceneAsk(type = 'normal') {
     if (!track && !cards) return '';
     const what = [track ? 'who is present, where and when' : '', cards ? 'character profiles' : ''].filter(Boolean).join(', and ');
     return [
-        `[Scene. After the story text of this reply, add one block in exactly this form, for ${what}. It is filed away and removed from the page.${track ? ' Fill in all three scene lines.' : ''}`,
+        `[Scene. ${promptText('scene', { what, sceneRule: track ? ' Fill in all three scene lines.' : '' })}${promptStatus('scene').customized ? ' Output the following <story_update> block after the story text.' : ''}`,
         '<story_update>',
         ...(track ? sceneLines() : []),
         ...(track ? ['scene: continues (or "ended" when the story moved on to a new time or place)'] : []),
@@ -183,7 +184,7 @@ function cardRules(onFile, type) {
     if (!cardsOn()) return [];
     const most = cardMost();
     const lines = [
-        `Profiles: {{char}} gets a profile in every reply.${most > 1 ? ` Another character gets one only when they are present and what they did in this reply changed what happens next: they spoke to {{user}}, made a choice, or acted on a goal of their own. ${most} profiles at most.` : ' Nobody else gets one.'} {{user}} never gets one. Only include fields that this reply meaningfully changes or establishes. Omit unchanged and unknown fields; write CLEAR to resolve a field. Do not invent feelings or facts to fill fields. Separate private knowledge from what others observed.`,
+        `Profiles: {{char}} gets a profile in every reply.${most > 1 ? ` Another character gets one only when they are present and what they did in this reply changed what happens next: they spoke to {{user}}, made a choice, or acted on a goal of their own. ${most} profiles at most.` : ' Nobody else gets one.'} {{user}} never gets one. ${promptText('profile')}${promptStatus('profile').customized ? ' Omit unchanged fields and use CLEAR to resolve a field.' : ''}`,
         `For a person whose profile is not on file yet, add five lines at the top of their profile: ${PROFILE_STABLE.map(([, label, help]) => `${label}: ${help}`).join('. ')}. Profiles on file: ${onFile.join(', ') || 'none yet'}.`,
     ];
     if (roastOn()) {
@@ -236,7 +237,7 @@ export function buildAsk(list, type = 'normal') {
     const on = list.filter(w => w.on);
     const names = (kind, keep = () => true) => on.filter(w => w.kind === kind && keep(w)).map(w => clean(w.name)).filter(Boolean).slice(0, 40).join(', ') || 'none yet';
     return [
-        '[Story update. After the story text of this reply, add one block in exactly this form. It is filed away and removed from the page. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact.',
+        `[Story update. ${promptText('worldUpdate')}${promptStatus('worldUpdate').customized ? ' Output the following <story_update> block after the story text.' : ''}`,
         '<story_update>',
         ...(settings().scene?.track !== false ? sceneLines() : []),
         ...FORM.map(([k, v]) => `${k}: ${v}`),
@@ -511,7 +512,7 @@ export function rollOrder(list, present, meta, opts = settings().world, more = {
     if (quietOne) {
         const w = quietOne.w;
         const wants = clean(w.fields.wants).replace(/[.]+$/, '');
-        return { text: `${w.name} must speak or act in this reply, in a way that fits who ${w.name} is${wants ? ` and what ${w.name} wants (${wants})` : ''}.`, name: `Character: ${w.name}`,
+        return { text: promptText('silentCharacter', { name: w.name, wants: wants ? ` and what ${w.name} wants (${wants})` : '' }), name: `Character: ${w.name}`,
             effect: { uid: w.uid, kind: 'character', name: w.name, to: '', silent: quietOne.replies, label: `In the scene and unnamed for ${quietOne.replies} replies: ${w.name}` } };
     }
     const chance = Math.max(0, Math.min(100, Math.round((Number(opts.head) || 0) * (Number(more.scale ?? 100) / 100))));
@@ -524,14 +525,14 @@ export function rollOrder(list, present, meta, opts = settings().world, more = {
     const options = [];
     for (const w of list.filter(x => x.on && !x.locked)) {
         if (w.kind === 'thread' && bring.thread && w.status === 'ready') {
-            options.push({ weight: 3, w, to: 'happening', text: `the open matter "${w.name}" must come to a head${v(w, 'open') ? `: ${v(w, 'open')}` : ''}.${v(w, 'sets_off') ? ` What brings it on: ${v(w, 'sets_off')}.` : ''} It happens in the scene, where it can be seen and heard.` });
+            options.push({ weight: 3, w, to: 'happening', text: promptText('threadOrder', { name: w.name, open: v(w, 'open') ? `: ${v(w, 'open')}` : '', trigger: v(w, 'sets_off') ? ` What brings it on: ${v(w, 'sets_off')}.` : '' }) });
         } else if (w.kind === 'seed' && bring.seed && w.status !== DONE.seed && age(w) >= minAge) {
-            options.push({ weight: 2, w, to: DONE.seed, text: `a detail planted earlier must matter now: ${v(w, 'detail') || w.name}.${v(w, 'payoff') ? ` What it leads to: ${v(w, 'payoff')}.` : ''} Someone other than {{user}} acts on it in the scene.` });
+            options.push({ weight: 2, w, to: DONE.seed, text: promptText('seedOrder', { detail: v(w, 'detail') || w.name, payoff: v(w, 'payoff') ? ` What it leads to: ${v(w, 'payoff')}.` : '' }) });
         } else if (w.kind === 'activity' && bring.activity && w.status !== DONE.activity && age(w) >= minAge) {
             const who = v(w, 'who') || 'someone';
-            options.push({ weight: 2, w, to: DONE.activity, text: `what ${who} has been doing away from the scene must reach the scene now${v(w, 'what') ? ` (${v(w, 'what')}${v(w, 'step') ? `; so far: ${v(w, 'step')}` : ''})` : ''}: its result arrives, or ${who} arrives with it.` });
+            options.push({ weight: 2, w, to: DONE.activity, text: promptText('activityOrder', { who, activity: v(w, 'what') ? ` (${v(w, 'what')}${v(w, 'step') ? `; so far: ${v(w, 'step')}` : ''})` : '' }) });
         } else if (w.kind === 'secret' && bring.secret && w.status === 'kept' && v(w, 'secret') && here.some(n => n && norm(w.fields.holder).includes(n))) {
-            options.push({ weight: 1, w, to: 'out', text: `a secret must come out: ${v(w, 'secret')}${v(w, 'holder') ? ` (it is ${v(w, 'holder')}'s secret)` : ''}. Someone in the scene learns it by seeing it, hearing it or being told.` });
+            options.push({ weight: 1, w, to: 'out', text: promptText('secretOrder', { secret: v(w, 'secret'), holder: v(w, 'holder') ? ` (it is ${v(w, 'holder')}'s secret)` : '' }) });
         }
     }
     if (!options.length) return null;
@@ -565,6 +566,7 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100 }
     const ask = o.update !== 'off' && !ooc ? buildAsk(list, type) : '';
     const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
     const order = ooc ? null : rollOrder(list, notes?.present || [], meta, o, { type, scale });
+    if (order) order.text = promptText('worldOrder', { order: order.text });
     // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene.
     return { id, notes, ask, order, offers: worldOffers(list, notes?.present || [], meta) };
 }

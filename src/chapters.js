@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 import { stateAt, sceneAt } from './state.js';
 import { creationFingerprint } from './worldflow.js';
 // The story so far, kept by the extension itself.
@@ -78,7 +79,7 @@ function chapterPrompt(text, earlier) {
         'Return these keys:',
         '- "title": a short plain title for this part, 3 to 6 words.',
         '- "when": when it took place in the story, in a few words. An empty string when the text does not say.',
-        '- "summary": what happened, in the past tense, 80 to 160 words. Who did what, what was said that matters, what changed, and what each person wants at the end. Plain statements of fact in literal words.',
+        `- "summary": ${promptText('chapterSummary')}`,
         '- "people": a list of the names of the people who took part.',
         '- "places": a list of the names of the places.',
         '- "settled": one sentence on what was settled or came out in this part. An empty string when nothing was.',
@@ -214,7 +215,7 @@ async function rollUpIfNeeded() {
         'Combine these summaries of the earlier parts of a roleplay story into one account of the story so far.',
         '', ...parts.map(w => `- ${renderEntry(w)}`), '',
         'Return these keys:',
-        '- "summary": the story so far in the past tense, in order, 200 to 350 words. Who the people are, what happened, what was settled, and what each person wants now. Plain statements of fact in literal words.',
+        `- "summary": ${promptText('chapterCombine')}`,
         '- "people": a list of the names of the people in it.',
         '- "places": a list of the names of the places.',
         '', 'Return only a JSON object with the keys "summary", "people", "places".',
@@ -261,9 +262,9 @@ export async function draftNewChapter(wish = '') {
     const user = [
         `A roleplay story is moving into a new chat. The main character is ${n.char}. The other person is ${n.user}. Write two things.`,
         '',
-        'SUMMARY: a very detailed account of the story so far, 300 to 500 words, in the past tense and in order. Who the people are, what happened, what was said that matters, what each person wants and knows at the end, what is still open, and where everyone is at the end. Plain statements of fact in literal words.',
+        `SUMMARY: ${promptText('newChapterSummary')}`,
         '',
-        `FIRST MESSAGE: the opening message of the new chat, 150 to 300 words, written as the story has been written (the same person, tense and voice as the most recent replies). It picks up from where the story stands at the end of the summary. People other than ${n.user} act and speak in it, and it ends on something for ${n.user} to respond to. ${n.user}'s words, choices and thoughts are left for ${n.user} to write.`,
+        `FIRST MESSAGE: ${promptText('newChapterFirst', { user: n.user })}`,
         clean(wish) ? `\nWhat the user wants for the new chapter: ${clean(wish)}` : '',
         '', 'For the first message only:', ...writerRules(),
         '', ...parts,
@@ -411,7 +412,7 @@ export async function draftStarterWorld() {
         'planted: Short title | a small detail that can matter later',
         'elsewhere: Short title | who | what they are doing away from the scene',
         '',
-        `Rules: write only what the material says. Plain statements of fact in literal words. Use the names the material uses. Include ${n.char}. Leave out ${n.user}. 25 lines at most.`,
+        `Rules: ${promptText('starterWorld', { char: n.char, user: n.user })}`,
         '', 'The material:', '"""', material, '"""', '',
         'Answer with the lines inside one <story_update> block and nothing else.',
     ].join('\n');

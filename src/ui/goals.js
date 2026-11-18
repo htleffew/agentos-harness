@@ -1,3 +1,4 @@
+import { promptGroup } from './prompts.js';
 // Character Goals tab: one goal for {{char}} in this chat, repeatable actions, one-time steps.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip } from './dom.js';
 import { goals, saveGoals, goalProgress, stepDone, goalDone, setStepDone, library, saveToLibrary, loadFromLibrary, blankGoal } from '../goals.js';
@@ -54,6 +55,7 @@ function taskList(g, key, ui, redraw, rowExtras) {
 }
 
 export function renderGoals(body, app) {
+    body.appendChild(promptGroup(['goalOrder', 'goalOngoing', 'goalWriterRules', 'systemGoal']));
     if (!isChatOpen()) return;
     const g = goals();
     const ui = app.goalUi || (app.goalUi = { editing: '', ai: null });

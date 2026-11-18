@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+const extensionSettings = {}; globalThis.SillyTavern = { getContext: () => ({ extensionSettings }) };
 const { newCategory, rollEvent, rerollCategory, eventAllowed } = await import('../../src/events.js');
 const category = newCategory('Situation', [['blocked event', 'betrayal'], ['allowed event', 'weather']]);
 const event = { type: 'event', categories: [category] };

@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 // Random Story Events. An event set is one lorebook entry, in a lorebook of its own or inside a shared lorebook. The entry holds categories (Situation,
 // Complication, ...), each with a list of items. When the entry fires, dice pick items from the categories that
 // are on, and one order is sent: an event must happen, built from those parts.
@@ -207,11 +208,11 @@ export function buildEventContent(ev) {
 }
 
 function eventSentence(parts) {
-    return `an event must happen in the story, built from these parts: ${parts.join('; ')}. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.`;
+    return promptText('event', { parts: parts.join('; ') });
 }
 
 function styleSentence(parts) {
-    return `write the story prose in this style: ${parts.join('; ')}. This style applies to the story prose only: tagged or formatted blocks keep their exact format and position, and "first line" means the first line of prose. Every event, fact and choice stays as it would otherwise be, and a required instruction wins over any style choice.`;
+    return promptText('style', { parts: parts.join('; ') });
 }
 
 /** Write the panel's view of an event set back into its lorebook entry. */

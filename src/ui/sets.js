@@ -1,3 +1,4 @@
+import { promptGroup } from './prompts.js';
 // Random Instructions tab: the list of instruction sets, and the list of instructions inside one set.
 import { h, button, toggle, select, numberInput, chip, field, download } from './dom.js';
 import { knownSets, setOptions, setInfo, setName, patchSet, loadSet, saveSet, createSet, adoptSet, forgetSet, exportSet, deleteSharedSet, listInstructions, estimateTokens, newInstruction, writeInstruction, frequencyText, LIMITS } from '../books.js';
@@ -6,6 +7,7 @@ import { worldNames, toast, confirmBox, inputBox, isChatOpen } from '../st.js';
 import { renderEditor } from './editor.js';
 
 export function renderInstructions(body, app) {
+    if (app.route.view !== 'edit') body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'versionRules', 'systemVersions']));
     if (app.route.view === 'edit') return renderEditor(body, app);
     if (app.route.view === 'set') return renderSet(body, app);
     return renderSets(body, app);

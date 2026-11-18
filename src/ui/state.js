@@ -1,3 +1,4 @@
+import { promptGroup } from './prompts.js';
 import { h, button } from './dom.js';
 import { ctx, KEY, toast, confirmBox } from '../st.js';
 import { STATE_FIELDS, SCENE_FIELDS, stateAt, sceneAt, sceneProtected, editState, editScene, editSnapshot, editSceneSnapshot, blockedEventTags, setBlockedEventTags } from '../state.js';
@@ -166,6 +167,7 @@ function rebuildEditor(refresh) {
 }
 
 export function renderCurrentState(body, refresh) {
+    body.appendChild(promptGroup(['rebuild'], 'Customize rebuild instruction'));
     const id = lastReply(), scene = sceneAt();
     const needsReview = !!ctx().chatMetadata?.[KEY]?.historyNeedsReview;
     body.append(h('div', { class: 'ri-h2' }, 'Current story state'), h('div', { class: 'ri-help' }, 'These details guide future replies. Edits are protected until you allow automatic changes. Lasting facts can be saved to Story World.'));

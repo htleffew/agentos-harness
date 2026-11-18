@@ -13,6 +13,8 @@ Setup used for 1.0.0:
 
 | Script | Covers |
 | --- | --- |
+| `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |
+| `t_prompts_v8.js` | Custom instructions in real chat, guided swipes and AI writer requests; persistence and independent restore |
 | `t_guided_v7.js` | Guided replacement prompt, rollback, one-turn direction, saved swipes and optional order repeat |
 | `t_history_v6.js` | Deep branches, fresh branch books, bulk deletion, edited replies and reviewed rebuild |
 | `t_v6.js` | Real host: parse a response, send protected state, swipe, reload and save a lasting fact to Story World |

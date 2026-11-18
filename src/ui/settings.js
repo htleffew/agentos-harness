@@ -1,3 +1,4 @@
+import { promptGroup } from './prompts.js';
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
@@ -222,8 +223,11 @@ export function renderSettings(body, app) {
             numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
 
     body.appendChild(sceneSection(app));
+    body.appendChild(promptGroup(['scene'], 'Customize scene instruction'));
     body.appendChild(cardsSection(app));
+    body.appendChild(promptGroup(['profile', 'stateContext'], 'Customize character-state instructions'));
     body.appendChild(diceSection(app));
+    body.appendChild(promptGroup(['dice'], 'Customize dice instruction'));
     body.appendChild(paceSection(app));
     body.appendChild(writerSection(app));
 
@@ -240,6 +244,9 @@ export function renderSettings(body, app) {
             field('Check that the reply did not write for you', 'Checked in the same request, only on replies that were sent an instruction.',
                 select([{ value: 'off', label: 'Off' }, { value: 'flag', label: 'Show a warning in What Was Sent' }, { value: 'regen', label: 'Show a warning and write a new reply' }], st.check.agency, (v) => { st.check.agency = v; save(); })),
         ]));
+
+    body.appendChild(promptGroup(['checker', 'systemCheck'], 'Customize checking instructions'));
+    body.appendChild(promptGroup(['guided'], 'Customize guided-swipe instruction'));
 
     const underHelp = {
         off: 'Nothing is added to the chat screen. What was sent is always in the What Was Sent tab.',
@@ -272,6 +279,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 5.11.1. Version 5: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 8.0.0: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

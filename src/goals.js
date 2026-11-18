@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 // Character Goals. One goal for {{char}} per chat, with repeatable actions and one-time steps.
 // The goal and its lists are kept in the chat. What has been sent and what is done is read from the records on the
 // replies, so it follows swipes, deletes and branches like everything else.
@@ -112,8 +113,8 @@ export function buildGoalOrder(g, p, opts = {}) {
     if (!task && !g.goalLine) return null;
 
     const goalText = `{{char}}'s goal: ${goal}`;
-    if (!task) return { version: `{{char}} keeps working toward this goal in what {{char.they}} says and does. ${goalText}.`, misses: 0, task: null, checkText: null, noCheck: true };
-    const order = `{{char}} must ${task.text}. How it happens is up to you; it must happen.`;
+    if (!task) return { version: `${promptText('goalOngoing')} ${goalText}.`, misses: 0, task: null, checkText: null, noCheck: true };
+    const order = promptText('goalOrder', { task: task.text });
     return {
         version: g.goalLine ? `${order} This serves ${goalText}.` : order,
         misses, task, checkText: `{{char}} must ${task.text}.`,

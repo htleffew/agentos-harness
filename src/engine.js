@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
@@ -237,7 +238,7 @@ async function onEntriesLoaded(lore) {
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
         if (cs && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
         const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: cardsOn(), excludeTargetOverrides: !!gen?.guided }) : '';
-        const direction = gen?.guided && kind === 'swipe' ? `[Direction for this replacement reply only: ${gen.guided.direction}\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user's agency.]` : '';
+        const direction = gen?.guided && kind === 'swipe' ? `[${promptText('guided', { direction: gen.guided.direction })}]` : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
         if (flow?.ask) lore.chatLore.push(askEntry([stateText, direction, flow.ask].filter(Boolean).join('\n')));
@@ -816,7 +817,7 @@ async function runCheck(id) {
     asks.forEach((a, i) => lines.push(`ID q${i + 1}: The answer to this question about the reply is yes: ${a.q}`));
     if (st.check.agency !== 'off') lines.push(`ID user: The reply writes spoken words, actions, decisions, thoughts or feelings for ${n.user}.`);
     const user = [
-        'Below is one reply from a roleplay and a list of instructions that were given for that reply. Decide for each instruction whether the reply carried it out.',
+        promptText('checker'),
         '', 'REPLY:', '"""', reply, '"""', '', 'INSTRUCTIONS:', ...lines, '',
         'Answer with only a JSON list, one object per ID, in this form:',
         '[{"id": "a1", "done": true, "quote": "words copied exactly from the REPLY that show it happened"}]',

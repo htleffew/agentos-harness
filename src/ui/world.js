@@ -1,3 +1,4 @@
+import { promptGroup } from './prompts.js';
 import { recordManualWorldChange } from '../worldflow.js';
 // Story World tab: the people, places, groups, secrets, open threads, planted details and things going on
 // elsewhere of one story, and how they are sent as story notes.
@@ -170,6 +171,9 @@ function renderList(body, app) {
     // A sheet (the starter world, or a new chapter) takes the whole tab while it is open.
     if (app.wroute.sheet) { body.appendChild(app.wroute.sheet.kind === 'starter' ? starterSheet(app) : chapterSheet(app)); return; }
     body.appendChild(worldPicker(app));
+    body.appendChild(promptGroup(['entryWriterRules', 'systemWorldEntry', 'starterWorld', 'systemStarter'], 'Customize world-writing instructions'));
+    body.appendChild(promptGroup(['chapterSummary', 'systemChapter', 'chapterCombine', 'systemCombine', 'newChapterSummary', 'newChapterFirst', 'systemNewChapter'], 'Customize chapter instructions'));
+    body.appendChild(promptGroup(['worldUpdate', 'storyNotes', 'worldOrder', 'silentCharacter', 'threadOrder', 'seedOrder', 'activityOrder', 'secretOrder'], 'Customize world-update instructions'));
     const id = chatWorld();
     if (!id) { body.appendChild(summarySection(app, '')); return; }
     const listBox = h('div', {}, h('div', { class: 'ri-muted' }, 'Loading...'));

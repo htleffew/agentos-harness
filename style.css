@@ -254,3 +254,12 @@
 .ri-guided { margin-top: 7px; font-size: .88em; }
 .ri-guided-summary { cursor: pointer; color: var(--ri-accent); font-weight: 600; }
 .ri-guided-body { display: grid; gap: 7px; margin-top: 7px; padding: 10px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }
+
+/* Feature-local AI instruction editors */
+.ri-prompt-group { margin: 10px 0; padding: 9px 12px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }
+.ri-prompt-group > summary, .ri-prompt-editor > summary, .ri-prompt-default > summary { cursor: pointer; color: var(--ri-accent); font-weight: 600; }
+.ri-prompt-editor { margin-top: 8px; padding: 8px; border: 1px solid var(--ri-line); border-radius: 8px; }
+.ri-prompt-editor > summary { display: flex; justify-content: space-between; gap: 8px; }
+.ri-prompt-badge { font-size: .8em; color: var(--ri-text-2); }
+.ri-prompt-body { display: grid; gap: 6px; margin-top: 8px; }
+.ri-prompt-default pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ri-text-2); }

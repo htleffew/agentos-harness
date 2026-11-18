@@ -1,3 +1,4 @@
+import { promptGroup } from './prompts.js';
 import { h, button } from './dom.js';
 import { guideSwipe, guidedSwipeActive } from '../engine.js';
 import { ctx, KEY } from '../st.js';
@@ -23,6 +24,6 @@ export function refreshGuidedControl() {
     });
     const fold = h('details', { class: 'ri-root ri-guided', 'data-accent': 'sky' },
         h('summary', { class: 'ri-guided-summary' }, 'Guide a swipe'),
-        h('div', { class: 'ri-guided-body' }, h('div', { class: 'ri-help' }, 'Describe how the replacement should go. This direction is sent for this swipe only.'), input, choice, h('label', { class: 'ri-state-lock' }, keepManual, ' Keep my manual world edits after this reply'), status, send));
+        h('div', { class: 'ri-guided-body' }, h('div', { class: 'ri-help' }, 'Describe how the replacement should go. This direction is sent for this swipe only.'), input, choice, promptGroup(['guided'], 'Customize guided-swipe instruction'), h('label', { class: 'ri-state-lock' }, keepManual, ' Keep my manual world edits after this reply'), status, send));
     block.append(fold);
 }

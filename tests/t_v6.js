@@ -40,7 +40,7 @@ const assert = require('node:assert/strict');
   const ui = page.locator('#v6-test-state');
   await ui.locator('summary', { hasText: 'Seraphina' }).click();
   await ui.getByRole('button', { name: 'Save a lasting fact to Story World' }).click();
-  await ui.locator('textarea').fill('Will not abandon the wounded.');
+  await ui.locator('.ri-state-editor textarea').fill('Will not abandon the wounded.');
   await ui.getByRole('button', { name: 'Save to Story World', exact: true }).click();
   await page.waitForFunction(async B => { const W=await import(`${B}/src/world.js`); const id=W.chatWorld(); const d=await W.loadWorld(id); return W.listWorld(d,id).some(w => w.name==='Seraphina' && w.fields.boundary==='Will not abandon the wounded.'); }, L.BASE, { timeout: 15000 });
   const chapter = await page.evaluate(async B => { const C=await import(`${B}/src/chapters.js`), E=await import(`${B}/src/engine.js`), S=await import(`${B}/src/state.js`); await C.startNewChapter({ summary:'They survived the storm.', first:'Morning comes to the tower.' }, E.burnedSoFar); return { state:S.stateAt(), scene:S.sceneAt() }; }, L.BASE);

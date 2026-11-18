@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 // State is derived from the active chat. User corrections live in chat metadata so
 // they survive swiping or deleting the reply that happened to be newest when edited.
 import { ctx, KEY } from './st.js';
@@ -123,7 +124,7 @@ export function statePrompt(type = 'normal', limit = 1400, { includeCharacters =
         const label = STATE_FIELDS.find(([k]) => k === key)[1];
         add(`${p.name} — ${label}: ${p.fields[key]}`);
     }
-    return rows.length ? `[Current story state. Maintain continuity, but allow change when events justify it. Respect established character boundaries and physical conditions when interpreting events; adapt an incompatible event rather than force a violation. Private states are for the narrator; other characters know only what they have observed or been told.\n${rows.join('\n')}]` : '';
+    return rows.length ? `[Current story state. ${promptText('stateContext')}\n${rows.join('\n')}]` : '';
 }
 export function changesFromProfiles(profiles) {
     return (profiles || []).map(p => ({ name: p.name, fields: Object.fromEntries(STATE_FIELDS.filter(([k]) => Object.hasOwn(p.now || {}, k)).map(([k]) => [k, p.now[k]])) })).filter(p => Object.keys(p.fields).length);

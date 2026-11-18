@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 // "Write versions with AI": one background request that returns a list of versions for one instruction.
 import { parseJson, ctx, names } from './st.js';
 import { request } from './ai.js';
@@ -73,11 +74,7 @@ export function buildWriterPrompt({ ins, seed, count, context, existing }) {
         `How it is sent: ${(SENT_AS[ins.sentAs] || SENT_AS.system).label}`,
         '',
         'Rules for every version:',
-        '- It is an order for the next reply. Use the word "must". State it as certain: it happens.',
-        '- One or two plain sentences with literal wording. Name a concrete action that can be seen or heard in the scene, and leave the manner open.',
-        '- When the order starts from a feeling, state the visible action that the feeling forces.',
-        '- Positive wording throughout: every clause says what happens.',
-        '- Start with who does it.',
+        promptText('versionRules'),
         '- [[user]] is only ever the one it happens to. Every action, spoken line, decision, thought and feeling in the version belongs to someone other than [[user]].',
         '- Each version is a different way the same thing can go.',
         '- Use these placeholders exactly as written, with the double square brackets, wherever a name or pronoun is needed, and write real names nowhere:',
@@ -153,26 +150,9 @@ export async function writeVersions({ ins, seed, count, context }) {
 }
 
 /** What makes an item of a story event list work in any setting, with examples for that kind of list. */
-const ROLE_RULES = {
-    situation: ['- Say what kind of thing happens and who it reaches. Leave how it looks to the reply that uses it: that reply knows where the scene is.',
-        '- Good: "a shocking event places [[user]] in immediate danger", "news arrives that changes what [[char]] wants", "someone arrives who should not be here".',
-        '- Too specific: "a bridge collapses under the column" needs a bridge and a column. Written to work anywhere: "the way ahead gives out under someone".'],
-    complication: ['- Say how the situation gets harder for the people in it, not what physically goes wrong.',
-        '- Good: "it happens at the worst possible moment", "someone else wants the same thing", "a person [[char]] trusts is involved", "it has to be decided right now".',
-        '- Too specific: "the rope frays halfway across" needs a rope and a crossing. Written to work anywhere: "the way forward fails halfway through".'],
-    driver: ['- Name a role in the story, not a person tied to one place, group or trade. Each item is clearly [[char]], another character, or the surroundings.',
-        '- Good: "someone [[char]] owes loyalty to", "a stranger", "an old rival of [[char]]", "the surroundings".',
-        '- Too specific: "the quartermaster of the column" only exists while there is a column.'],
-    tone: ['- Name a feeling, not a place, a sound or the weather.',
-        '- Good: "tense and quiet", "giddy", "bitter". Too specific: "rain on cobblestones".'],
-    stake: ['- Say what is at stake and for whom: danger, a loss, a gain, a temptation, a secret, a promise, or how someone sees themself.',
-        '- Good: "[[user]] is in immediate mortal danger", "something [[char]] believes about themself is challenged", "an offer arrives that is hard to refuse".'],
-};
+const ROLE_PROMPTS = { situation: 'situationRules', complication: 'complicationRules', driver: 'driverRules', tone: 'toneRules', stake: 'stakeRules' };
 function anywhereRules(role) {
-    return [
-        '- It works in any setting of this story. Test it: it makes sense in a camp, inside a house, on a road, on a ship and on a city street. Leave out named structures, objects, places, weather, animals, vehicles, groups and times of day.',
-        ...(ROLE_RULES[role] || ROLE_RULES.situation),
-    ];
+    return [promptText('anywhere'), promptText(ROLE_PROMPTS[role] || ROLE_PROMPTS.situation)];
 }
 
 /** The answer form for items with a "works anywhere" mark. */
@@ -201,8 +181,7 @@ export async function writeItems({ category, theme, count, context, existing, ot
         `What the writer wants: ${theme}`,
         '',
         'Rules for every item:',
-        '- It changes how the prose is written and leaves the events of the story alone.',
-        '- Plain, literal wording that says what to do. One short phrase or sentence.',
+        promptText('styleWriterRules'),
         '- Where a name is needed use [[char]] for the main character and [[user]] for the other person, with the double square brackets, and write real names nowhere' + (/author/i.test(category.name) ? ' (author names are the exception in this list).' : '.'),
         '- Each item is clearly different from the others.',
     ] : [
@@ -213,8 +192,7 @@ export async function writeItems({ category, theme, count, context, existing, ot
         `Kind of story: ${theme}`,
         '',
         'Rules for every item:',
-        '- A short phrase of 2 to 12 words. Plain, literal wording.',
-        '- It fits the name of this list and leaves the other lists free.',
+        promptText('eventWriterRules'),
         ...(from ? [`- Every item is an event that ${from}.`] : []),
         ...anywhereRules(listRole(category)),
         '- [[user]] is only ever someone things happen to. Every action, spoken line, decision, thought and feeling belongs to someone other than [[user]].',
@@ -227,7 +205,7 @@ export async function writeItems({ category, theme, count, context, existing, ot
     { const story = contextText(seen0); if (story) lines.push('', style || st.writer.eventScene ? STORY_LEAD : EVENT_LEAD, story); }
     lines.push('', ...writerRules());
     lines.push('', style ? 'Return only a JSON list of strings, for example ["first item", "second item"].' : ANYWHERE_FORM);
-    const res = await request({ what: `Write ${count} items for the list "${category.name}"`, system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 300 + count * 80), profileId: st.profileId });
+    const res = await request({ promptSystemId: style ? 'systemStyleItems' : 'systemItems', what: `Write ${count} items for the list "${category.name}"`, system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 300 + count * 80), profileId: st.profileId });
     const answer = res.text;
     const read = readList(answer, 3);
     const seen = new Set(existing.map(v => v.toLowerCase()));
@@ -265,9 +243,7 @@ export async function rewriteAnywhere({ category, items, others = [] }) {
         others.length ? `The other lists: ${others.join(', ')}` : '',
         '',
         'Rules:',
-        '- Keep what the item does to the people and who it reaches. Change only what ties it to one place, object, group or time.',
-        '- An item that already works anywhere comes back exactly as it was.',
-        '- A short phrase of 2 to 12 words. Plain, literal wording.',
+        promptText('rewriteRules'),
         '- Keep [[char]] and [[user]] where the item has them, with the double square brackets, and write real names nowhere.',
         ...anywhereRules(role),
         '',
@@ -316,9 +292,7 @@ export async function writeGoal({ about, context }) {
         '- "steps": 5 things that each happen once and move the goal forward. They can happen in any order.',
         '',
         'Rules for every action and step:',
-        '- A verb, who it is done to, and at most a loose manner. 8 words at most. For example "compliment [[user]]" or "tell [[user]] a secret".',
-        '- It completes the sentence "[[char]] must ...", so it starts with a verb in its plain form.',
-        '- Loose and general, so it fits any scene: leave out places, times, clothing, objects and names.',
+        promptText('goalWriterRules'),
         '- [[char]] is the one who does it. [[user]] is only ever the one it is done to.',
         '- Use [[char]] and [[user]] with the double square brackets wherever a name is needed, and write real names nowhere. For pronouns of the character use [[char.they]], [[char.them]], [[char.their]].',
     ];

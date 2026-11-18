@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 import { sceneAt, sceneProtected } from './state.js';
 // The story world: characters, places, factions, secrets, threads, planted details and things going on elsewhere.
 // A world is a set of kind 'world', kept like any other set (a lorebook of its own, or a group in a shared one).
@@ -448,7 +449,7 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
 
     const body = sections.filter(s => s.lines.length).map(s => `${s.title}:\n${s.lines.join('\n')}`).join('\n');
     if (!body) return null;
-    const text = `[Story notes. These are facts already true in this story. Write the reply so that they stay true, and let the people in the scene act from what they want and what they know.\n${body}]`;
+    const text = `[Story notes. ${promptText('storyNotes')}\n${body}]`;
     return { text, tokens: Math.round(text.length / 4), ids, extra, present: present.map(w => w.name), missing, place: place?.name || '', location: clean(scene.location), how };
 }
 
@@ -493,10 +494,7 @@ export async function writeWorldEntryWithAI({ kind, about, context, existing = [
         ...def.fields.map(f => `- "${f.key}": ${f.label}.${f.help ? ` ${f.help}` : ''}`),
         '',
         'Rules:',
-        '- Every value is a plain statement of fact in literal words, one or two short sentences.',
-        '- Write what the story has established. Where the story says nothing, use an empty string.',
-        '- Write about who people are, what they want, what they think and feel, and what they know.',
-        '- Use the names the story uses.',
+        promptText('entryWriterRules'),
     ];
     if (existing.length) lines.push('', `Entries that already exist (write a different one): ${existing.slice(0, 40).join(', ')}`);
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD.replace(', and still use the placeholders for names', ''), story); }

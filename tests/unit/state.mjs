@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 const chat = [];
 let saves = 0;
-globalThis.SillyTavern = { getContext: () => ({ chat, saveChat: () => { saves++; } }) };
+globalThis.SillyTavern = { getContext: () => ({ chat, extensionSettings: {}, saveChat: () => { saves++; } }) };
 const { stateAt, statePrompt, editState, changesFromProfiles } = await import('../../src/state.js');
 const msg = (record) => ({ extra: { roleplay_instructions: record } });
 chat.push(msg({ stateChanges: [{ name: 'Hale', fields: { mind: 'Find the letter', body: 'Sore shoulder' } }], scene: { present: 'Hale' } }));

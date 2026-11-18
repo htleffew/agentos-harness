@@ -1,5 +1,10 @@
 # Changelog
 
+## 8.0.0
+
+- Feature-local editors expose the extension's behavioral instructions and system messages, with individual save, restore and undo-restore controls. Required placeholders are validated; live data and output contracts remain managed by the extension.
+- Customized wording stays separate from built-in defaults, and editors indicate when a newer installed default differs from the one originally customized. Editing and restoring make no AI request.
+
 ## 7.0.0
 
 - Guide a swipe from the newest character reply with a one-time direction. Previous turn orders are optional; existing swipes remain available. Recorded world changes are rolled back with conflict checks before generation and restored on cancellation when safe.

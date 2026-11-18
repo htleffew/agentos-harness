@@ -1,3 +1,4 @@
+import { promptText } from './prompts.js';
 // Instruction sets. A set is kept in a lorebook of its own, or as a group inside a shared lorebook.
 // One instruction is one World Info entry.
 import { loadBook, saveBook, refreshWorldList, worldNames } from './st.js';
@@ -137,12 +138,12 @@ export function parseContent(content, role = null) {
 export function wrapText(sentAs, version, misses = 0) {
     const w = SENT_AS[sentAs] || SENT_AS.plain;
     const body = toStore(version).trim();
-    if (!misses) return `${w.pre}${body}${w.post}`;
+    if (!misses) {
+        if (sentAs === 'system' || sentAs === 'ooc') return `${sentAs === 'ooc' ? '[OOC: ' : '[System note: '}${promptText('instructionOrder', { instruction: body })}${USER_LINE}]`;
+        return `${w.pre}${body}${w.post}`;
+    }
     const open = sentAs === 'ooc' ? '[OOC: ' : '[System note: ';
-    const lead = misses === 1
-        ? 'Overdue. This was ordered in the last reply and it did not happen. It must happen in this reply: '
-        : 'Final. This must happen early in this reply, before anything else develops: ';
-    return `${open}${lead}${body}${USER_LINE}]`;
+    return `${open}${promptText(misses === 1 ? 'overdueOrder' : 'finalOrder', { instruction: body })}${USER_LINE}]`;
 }
 
 /** The entry text saved in the lorebook, so it also works with the extension turned off. */

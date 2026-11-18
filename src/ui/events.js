@@ -1,3 +1,4 @@
+import { promptGroup } from './prompts.js';
 // Random Story Events tab and Random Writing Style tab. Both are a list of sets and an editor for one set:
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
@@ -33,8 +34,8 @@ const STYLE = {
 };
 let cfg = EVENTS;
 
-export function renderEvents(body, app) { cfg = EVENTS; return app.eroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
-export function renderStyle(body, app) { cfg = STYLE; return app.sroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
+export function renderEvents(body, app) { cfg = EVENTS; if (app.eroute.view !== 'edit') body.appendChild(promptGroup(['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite'])); return app.eroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
+export function renderStyle(body, app) { cfg = STYLE; if (app.sroute.view !== 'edit') body.appendChild(promptGroup(['style', 'styleWriterRules', 'systemStyleItems'])); return app.sroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
 
 const go = (app, route, c = cfg) => { app[c.route] = route; app.resetScroll = true; app.render(); app.root?.scrollIntoView?.({ block: 'start' }); };
 

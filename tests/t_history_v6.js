@@ -43,7 +43,7 @@ const world = page => page.evaluate(async B => { const W=await import(`${B}/src/
   await page.evaluate(async B=>{const UI=await import(`${B}/src/ui/state.js`);const host=document.createElement('div');host.id='history-review';document.body.append(host);window.renderHistory=()=>{host.replaceChildren();UI.renderCurrentState(host,window.renderHistory)};window.renderHistory();},L.BASE);
   L.resetLog(); L.mode({reply:'<story_update>\npresent: Seraphina\nwhere: Tower\nwhen: Dawn\nwants: Seraphina | Rebuilt\n<profile name="Seraphina">\nMind: Begin again\n</profile>\n</story_update>'});
   const review=page.locator('#history-review'); await review.getByRole('button',{name:'Rebuild state from the edited story'}).click(); await review.getByRole('button',{name:'Draft a state update with AI'}).click();
-  await page.waitForFunction(()=>document.querySelector('#history-review textarea')?.value.includes('Begin again'),null,{timeout:30000});
+  await page.waitForFunction(()=>document.querySelector('#history-review .ri-state-editor textarea')?.value.includes('Begin again'),null,{timeout:30000});
   assert.equal((await world(page)).rows.find(w=>w.name==='Seraphina').fields.wants,'Beginning');
   await review.getByRole('button',{name:'Apply reviewed update'}).click(); await wait(page);
   await page.waitForFunction(async B=>{const W=await import(`${B}/src/world.js`),id=W.chatWorld();return W.listWorld(await W.loadWorld(id),id).find(w=>w.name==='Seraphina')?.fields.wants==='Rebuilt'},L.BASE,{timeout:15000});
