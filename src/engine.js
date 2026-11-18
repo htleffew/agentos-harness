@@ -11,7 +11,7 @@ import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
 import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile } from './worldflow.js';
-import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, invalidateAfterEdit, worldIdle, stripUpdateBlock } from './worldflow.js';
+import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, invalidateAfterEdit, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
@@ -34,6 +34,8 @@ function sayUserLineOnce(items) {
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
 let pending = null;        // what was sent for the reply being written: { items, type }
+let guided = null;         // one in-flight guided swipe, never a standing prompt
+let guidedPreparing = false;
 let pickAgain = false;     // set by "Pick again": the next swipe rolls fresh instead of repeating
 let rerollCat = null;      // set by "Pick again" on one picked item: { key, catId } to re-pick on the next swipe
 let checkPromise = null;
@@ -226,7 +228,7 @@ async function onEntriesLoaded(lore) {
         const quiet = !!(gen && !gen.dryRun && gen.skip);
         // The story world: its notes, the request for an update block, and now and then an order of its own.
         const kind = gen && !gen.dryRun ? gen.type : 'normal';
-        if (kind === 'swipe' && cs) undoForSwipe();
+        if (kind === 'swipe' && cs && !gen?.guided) undoForSwipe();
         await worldIdle();
         const phase = cs ? phaseFor(history(kind).next) : null;
         const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet, scale: phase?.chance ?? 100 }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
@@ -234,12 +236,14 @@ async function onEntriesLoaded(lore) {
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
         if (cs && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
-        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: cardsOn() }) : '';
+        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: cardsOn(), excludeTargetOverrides: !!gen?.guided }) : '';
+        const direction = gen?.guided && kind === 'swipe' ? `[Direction for this replacement reply only: ${gen.guided.direction}\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user's agency.]` : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
-        if (flow?.ask) lore.chatLore.push(askEntry([stateText, flow.ask].filter(Boolean).join('\n')));
+        if (flow?.ask) lore.chatLore.push(askEntry([stateText, direction, flow.ask].filter(Boolean).join('\n')));
         // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry([stateText, a].filter(Boolean).join('\n'))); }
+        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry([stateText, direction, a].filter(Boolean).join('\n'))); }
+        else if (direction && Array.isArray(lore.chatLore)) lore.chatLore.push(askEntry([stateText, direction].filter(Boolean).join('\n')));
         if (flow) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
@@ -492,16 +496,18 @@ function onScanDone(args) {
         // The request for the update block and the world's own order travel as entries made for this scan.
         const askE = fired.find(isAsk) || null;
         const orderE = fired.find(isOrder) || null;
-        const isRepeat = type === 'continue' || (['swipe', 'regenerate'].includes(type) && !pickAgain && (sameReply || !!own));
+        const isRepeat = !!gen.guided || type === 'continue' || (['swipe', 'regenerate'].includes(type) && !pickAgain && (sameReply || !!own));
 
         if (isRepeat) {
-            gen.quiet = (own ? own.pace : cs.lastScan?.pace)?.quiet || null;
-            const before = (own ? (own.items || []) : (type === 'continue' ? [] : (cs.lastScan.items || []))).map(it => canon(it.key) === it.key ? it : { ...it, key: canon(it.key) });
-            states = Object.fromEntries(Object.entries((own ? own.states : cs.lastScan.states) || {}).map(([k, v]) => [canon(k), v]));
+            const source = gen.guided?.prior || own || cs.lastScan || {};
+            gen.quiet = source.pace?.quiet || null;
+            const before = ((!gen.guided && !own && type === 'continue') ? [] : (source.items || [])).map(it => canon(it.key) === it.key ? it : { ...it, key: canon(it.key) });
+            states = Object.fromEntries(Object.entries(source.states || {}).map(([k, v]) => [canon(k), v]));
             for (const e of fired) map.delete(keyOf(e));
             for (const it of before) {
                 const e = find(it.key);
                 if (!e) continue;
+                if (gen.guided && !gen.guided.repeatOrders && (isEvent(e) || it.worldOrder || (!it.noCheck && !('goalTask' in it)))) continue;
                 if (isEvent(e) && !eventAllowed(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, blockedEventTags())) continue;
                 let misses = it.misses || 0;
                 const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
@@ -670,7 +676,8 @@ function onScanDone(args) {
         if (askE && map.has(keyOf(askE))) gen.result.texts.set(keyOf(askE), askE.content);
         const pace = { phase: plan.phase ? { name: plan.phase.name, chance: plan.phase.chance } : null, quiet: gen.quiet || null };
         cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
-        pending = { items, type, states, pace, usedUp: gen.usedUp || null };
+        if (gen.guided) { gen.guided.afterLastScan = structuredClone(cs.lastScan); gen.guided.afterOverdue = structuredClone(cs.overdue); }
+        pending = { items, type, states, pace, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
         saveChatState();
@@ -718,6 +725,7 @@ function onMessageReceived(id, type) {
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
+        if (pending.guided) { rec.guided = pending.guided; if (guided) guided.completed = true; }
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene && !x.extra[KEY].stateStale)?.extra?.[KEY]?.scene || {};
         const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
@@ -1026,7 +1034,54 @@ export function isLocked(key, catId) {
     return !!chatState()?.locks?.[canon(key)]?.[catId];
 }
 
-/** Roll this reply's instructions again and write a new reply. */
+/** True only while a guided swipe is being prepared or generated. */
+export const guidedSwipeActive = () => !!guided || guidedPreparing;
+
+async function cancelGuided(attempt) {
+    if (!attempt) return;
+    const restored = await restoreGuidedSwipe(attempt.tx);
+    if (!restored || String(ctx().getCurrentChatId?.() || '') !== attempt.chatId) return;
+    const cs = chatState();
+    if (!cs) return;
+    if (attempt.afterLastScan && JSON.stringify(cs.lastScan) === JSON.stringify(attempt.afterLastScan)) cs.lastScan = attempt.beforeLastScan;
+    if (attempt.afterOverdue && JSON.stringify(cs.overdue) === JSON.stringify(attempt.afterOverdue)) cs.overdue = attempt.beforeOverdue;
+    saveChatState();
+}
+
+/** Guide one newly generated swipe of the latest character reply. */
+export async function guideSwipe(direction, { repeatOrders = false, keepManualEdits = false } = {}) {
+    const c = ctx(), chat = c.chat || [], id = chat.length - 1, m = chat[id];
+    const value = String(direction || '').trim();
+    if (!settings().enabled) throw new Error('Turn the extension on first.');
+    if (!value || value.length > 2000) throw new Error('Enter a direction of at most 2,000 characters.');
+    if (guided || guidedPreparing || isGenerating()) throw new Error('Wait for the current generation to finish.');
+    if (!m || m.is_user || m.is_system || !m.extra?.[KEY]) throw new Error('A recorded character reply must be the latest message.');
+    if (Array.isArray(m.swipes) && Number(m.swipe_id || 0) < m.swipes.length - 1) throw new Error('Move to the newest existing swipe first, then use Guide a swipe.');
+    const anchors = new Set([m.extra[KEY].time ? `record:${m.extra[KEY].time}` : '', m.send_date ? `message:${m.send_date}` : '']);
+    const meta = c.chatMetadata?.[KEY] || {};
+    if ([...Object.values(meta.stateOverrides || {}), ...Object.values(meta.sceneOverrides || {})].some(x => !x?.anchor || anchors.has(x.anchor))) throw new Error('A protected state or scene correction was made on this reply. Review or unlock it in Current State before replacing the reply; include any desired correction in the direction.');
+    if (!keepManualEdits && (meta.manualWorldChanges || []).some(x => x?.anchor && anchors.has(x.anchor))) throw new Error('The story world was manually edited after this reply. Review those edits, then select “Keep my manual world edits” if you want them to remain.');
+    const chatId = String(c.getCurrentChatId?.() || ''), selectedTime = m.extra[KEY].time;
+    guidedPreparing = true;
+    let tx;
+    try {
+        await worldIdle();
+        tx = await prepareGuidedSwipe(id);
+        if (String(ctx().getCurrentChatId?.() || '') !== chatId || ctx().chat?.[id]?.extra?.[KEY]?.time !== selectedTime) { await restoreGuidedSwipe(tx); throw new Error('The chat changed. Try again on the intended reply.'); }
+        const cs = chatState();
+        pickAgain = false; rerollCat = null;
+        guided = { direction: value, repeatOrders: !!repeatOrders, prior: structuredClone(m.extra[KEY]), tx, chatId, started: false, completed: false, beforeLastScan: structuredClone(cs?.lastScan), beforeOverdue: structuredClone(cs?.overdue || []) };
+    } finally { guidedPreparing = false; }
+    try {
+        const ok = await triggerSwipe();
+        if (!ok) throw new Error('Could not start the swipe.');
+        if (guided && !guided.started) {
+            const attempt = guided;
+            setTimeout(() => { if (guided === attempt && !attempt.started) { guided = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); toast('warning', 'The swipe did not start. The extension is restoring the earlier world state.'); } }, 10000);
+        }
+    } catch (e) { const attempt = guided; guided = null; if (attempt) await cancelGuided(attempt); throw e; }
+}
+
 export async function pickAgainNow() {
     if (isGenerating()) { toast('info', 'Wait for the current reply to finish.'); return; }
     pickAgain = true;
@@ -1045,7 +1100,8 @@ export function init() {
         // A dry run (SillyTavern counting tokens for its prompt list) can start while a real reply is being written.
         // It must leave the state of the real reply alone, so only real generations are tracked.
         if (dryRun) return;
-        gen = { type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
+        if (guided && type === 'swipe' && guided.chatId === String(ctx().getCurrentChatId?.() || '')) guided.started = true;
+        gen = { guided: guided?.started ? guided : null, type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
         if (!gen.skip) pending = null;
     });
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
@@ -1054,10 +1110,11 @@ export function init() {
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
     on('MESSAGE_RECEIVED', onMessageReceived);
-    on('GENERATION_ENDED', () => { gen = null; });
-    on('GENERATION_STOPPED', () => { gen = null; pending = null; pickAgain = false; rerollCat = null; });
+    on('GENERATION_ENDED', () => { const attempt = guided; gen = null; guided = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
+    on('GENERATION_STOPPED', () => { const attempt = guided; guided = null; gen = null; pending = null; pickAgain = false; rerollCat = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
     on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);
     on('CHAT_CHANGED', () => {
+        const attempt = guided; guided = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();
         if (isChatOpen()) { applyPronouns(); if (settings().enabled) { reconcile(); syncWorld(); } }
@@ -1067,7 +1124,7 @@ export function init() {
     });
     for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
     // What a reply changed in the story world is undone when that reply is swiped away or deleted.
-    on('MESSAGE_SWIPED', () => { if (settings().enabled) syncWorld(() => changed('messages')); });
+    on('MESSAGE_SWIPED', () => { if (settings().enabled && !guided) syncWorld(() => changed('messages')); });
     on('MESSAGE_DELETED', () => { if (settings().enabled) { reanchorRemovedCorrections(); reconcile(); syncWorld(() => changed('messages')); } changed('messages'); });
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.

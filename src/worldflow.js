@@ -345,7 +345,7 @@ export function applyOps(data, id, ops, meta, mode = 'all', maxNew = MAX_NEW) {
     };
     const status = (w, to, why = '') => {
         if (w.status === to || !mayStatus(w)) return false;
-        changes.push({ uid: w.uid, name: w.name, kind: w.kind, type: 'status', before: w.status, after: to, why });
+        changes.push({ uid: w.uid, name: w.name, kind: w.kind, type: 'status', before: w.status, after: to, beforeAt: w.at ? { ...w.at } : null, afterAt: { chat: meta.chat, n: meta.n }, why });
         w.status = to; w.at = { chat: meta.chat, n: meta.n }; dirty.add(w);
         return true;
     };
@@ -427,10 +427,10 @@ export function tick(data, id, meta, opts = settings().world) {
     const ready = stepIndex('thread', 'ready');
     for (const w of listWorld(data, id)) {
         if (w.kind !== 'thread' || !w.on || w.locked || stepIndex('thread', w.status) >= ready) continue;
-        if (!w.at || w.at.chat !== meta.chat) { w.at = { chat: meta.chat, n: meta.n }; writeWorldEntry(data, w, id); changes.push({ uid: w.uid, type: 'clock' }); continue; }
+        if (!w.at || w.at.chat !== meta.chat) { const beforeAt = w.at ? { ...w.at } : null; w.at = { chat: meta.chat, n: meta.n }; writeWorldEntry(data, w, id); changes.push({ uid: w.uid, type: 'clock', beforeAt, afterAt: { ...w.at } }); continue; }
         if (meta.n - w.at.n < build) continue;
         const to = WORLD_KINDS.thread.steps[stepIndex('thread', w.status) + 1][0];
-        changes.push({ uid: w.uid, name: w.name, kind: 'thread', type: 'status', before: w.status, after: to, why: `${build} replies went by with no movement` });
+        changes.push({ uid: w.uid, name: w.name, kind: 'thread', type: 'status', before: w.status, after: to, beforeAt: w.at ? { ...w.at } : null, afterAt: { chat: meta.chat, n: meta.n }, why: `${build} replies went by with no movement` });
         w.status = to; w.at = { chat: meta.chat, n: meta.n };
         writeWorldEntry(data, w, id);
     }
@@ -453,7 +453,8 @@ export function revertChanges(data, id, changes) {
         if (c.type === 'hide') { if (showAgain(c.dates)) done++; continue; }
         if (c.type === 'create') { if (w.auto && (!c.createdState || c.createdState === creationFingerprint(w))) { delete data.entries[c.uid]; done++; } continue; }
         if (c.type === 'set' && clean(w.fields[c.field]) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
-        if (c.type === 'status' && w.status === c.after) { w.status = c.before; writeWorldEntry(data, w, id); done++; }
+        if (c.type === 'status' && w.status === c.after && (!Object.hasOwn(c, 'afterAt') || JSON.stringify(w.at) === JSON.stringify(c.afterAt))) { w.status = c.before; if (Object.hasOwn(c, 'beforeAt')) w.at = c.beforeAt; writeWorldEntry(data, w, id); done++; }
+        if (c.type === 'clock' && Object.hasOwn(c, 'afterAt') && JSON.stringify(w.at) === JSON.stringify(c.afterAt)) { w.at = c.beforeAt || null; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'off' && !w.on) { w.on = true; writeWorldEntry(data, w, id); done++; }
     }
     return done;
@@ -953,6 +954,56 @@ export function undoForSwipe() {
         for (const t of times) { if (!log.items[t]) continue; undone += await revertItem(log.items[t]); delete log.items[t]; }
         if (undone) { saveChatState(); addLog({ what: 'Story world update', ok: true, result: `${undone} ${undone === 1 ? 'change was' : 'changes were'} undone because the reply that made ${undone === 1 ? 'it' : 'them'} is being replaced by a new one.`, details: [], got: '' }); }
     });
+}
+
+/** Prepare a guided swipe transaction without overwriting user-edited world facts. */
+export function prepareGuidedSwipe(id) {
+    return enqueue(async () => {
+        const c = ctx(), cs = chatState(), m = c.chat?.[id], rec = m?.extra?.[KEY];
+        if (!cs || !m || id !== c.chat.length - 1 || m.is_user || m.is_system) throw new Error('The latest character reply is no longer selected.');
+        if (cs.branchPendingWorld) throw new Error('The branch world is not ready. Reopen the branch and retry.');
+        const existingLog = cs.worldLog;
+        const currentTime = String(rec?.time || '');
+        if (rec?.update?.changes?.length && !rec.update.undone && existingLog?.chat === String(c.getCurrentChatId?.() || '') && !existingLog.fresh && !existingLog.items?.[currentTime]) throw new Error('The reply’s world-change history is unavailable. Review its world changes before retrying.');
+        await syncNow();
+        const log = worldLog(cs), time = String(rec?.time || ''), item = log.items[time];
+        const tx = { chat: String(c.getCurrentChatId?.() || ''), id, time, world: '', before: null, after: null, item: item ? structuredClone(item) : null };
+        if (!item?.changes?.length) {
+            if (rec?.update?.changes?.length && !rec.update.undone && !item) throw new Error('The reply’s world-change history is unavailable. Review its world changes before retrying.');
+            return tx;
+        }
+        if (item.world !== chatWorld()) throw new Error('The reply changed a different story world. Select that world and review its changes before retrying.');
+        const data = await loadWorld(item.world);
+        if (!data) throw new Error('The story world could not be read.');
+        const before = structuredClone(data), after = structuredClone(data);
+        const unsupported = item.changes.find(x => !['set', 'status', 'off', 'create', 'clock'].includes(x.type) || (x.type === 'clock' && !Object.hasOwn(x, 'afterAt')) || (x.type === 'status' && !Object.hasOwn(x, 'afterAt') && !/ordered into the scene/.test(x.why || '')));
+        if (unsupported) throw new Error('This reply changed chapter or timing data that cannot be safely reversed automatically. Review the story world before guiding a swipe.');
+        const reversible = item.changes.filter(x => ['set', 'status', 'off', 'create', 'clock'].includes(x.type));
+        if (revertChanges(after, item.world, reversible) !== reversible.length) throw new Error('Some world facts were changed since this reply. Review them in Story World before guiding a swipe; nothing was changed.');
+        await saveWorld(item.world, after);
+        Object.assign(tx, { world: item.world, before, after: structuredClone(after) });
+        return tx;
+    }, { propagate: true });
+}
+
+/** On an aborted guided swipe, restore only if the world has not changed since rollback. */
+export function restoreGuidedSwipe(tx) {
+    return enqueue(async () => {
+        if (!tx) return false;
+        const sameChat = String(ctx().getCurrentChatId?.() || '') === tx.chat;
+        const cs = sameChat ? chatState() : null;
+        if (tx.world) {
+            const current = await loadWorld(tx.world);
+            if (!current || JSON.stringify(current) !== JSON.stringify(tx.after)) {
+                toast('warning', 'The guided swipe stopped, but the world changed meanwhile. Review the Story World; it was not overwritten.');
+                return false;
+            }
+            await saveWorld(tx.world, tx.before);
+        }
+        if (cs && tx.item) worldLog(cs).items[tx.time] = tx.item;
+        if (cs) saveChatState();
+        return true;
+    }, { propagate: true });
 }
 
 /** "Undo these changes" on one reply, from What Was Sent. */

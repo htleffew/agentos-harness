@@ -8,3 +8,8 @@ assert.equal(F.revertChanges(data,'World',[create]),0);assert(data.entries[w.uid
 w.fields.who='A captain';W.writeWorldEntry(data,w,'World');
 assert.equal(F.revertChanges(data,'World',[create]),1);assert(!data.entries[w.uid]);
 console.log('rollback preserves manually modified automatic entries: passed');
+const threadData={entries:{}}, thread=W.newWorldEntry(threadData,'thread');thread.name='Open matter';thread.auto=true;W.writeWorldEntry(threadData,thread,'World');
+let clock=F.tick(threadData,'World',{chat:'chat',n:1},{build:2});assert.equal(clock[0].type,'clock');assert.equal(F.revertChanges(threadData,'World',clock),1);assert.equal(W.listWorld(threadData,'World')[0].at,null);
+thread.at={chat:'chat',n:1};W.writeWorldEntry(threadData,thread,'World');
+const advance=F.tick(threadData,'World',{chat:'chat',n:3},{build:2});assert.equal(advance[0].type,'status');assert.equal(F.revertChanges(threadData,'World',advance),1);const restored=W.listWorld(threadData,'World')[0];assert.equal(restored.status,'quiet');assert.deepEqual(restored.at,{chat:'chat',n:1});
+console.log('thread clocks and status timing restore: passed');
