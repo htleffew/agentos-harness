@@ -1,3 +1,4 @@
+import { sceneAt, sceneProtected } from './state.js';
 // The story world: characters, places, factions, secrets, threads, planted details and things going on elsewhere.
 // A world is a set of kind 'world', kept like any other set (a lorebook of its own, or a group in a shared one).
 // A chat uses one world. Before each reply the extension reads who is present, picks the entries that matter
@@ -25,12 +26,13 @@ export const WORLD_KINDS = {
             F('strength', 'Main strength'), F('flaw', 'Main flaw'),
             F('voice', 'How they talk', 'Rhythm, word choice, habits of speech.'),
             F('orientation', 'Orientation', 'As their card or the story states it.'),
+            F('boundary', 'Enduring boundaries', 'Established limits that should guide future behavior.', true),
             F('wants', 'What they want', 'Right now, and in the long run.', true),
             F('plans', 'What they plan to do next'),
             F('knows', 'What they know', 'Things this person saw, heard or was told.', true),
             F('believes', 'What they believe'), F('suspects', 'What they suspect'), F('wrong', 'What they are wrong about'),
         ],
-        short: ['role', 'wants'],
+        short: ['role', 'boundary', 'wants'],
     },
     place: {
         label: 'Place', plural: 'Places', add: 'Add a place', nameLabel: 'Name', nameHelp: 'The name the story uses for this place.',
@@ -131,6 +133,7 @@ export function setChatWorld(id) {
     const cs = chatState();
     if (!cs) return;
     cs.world = id || '';
+    delete cs.branchPendingWorld;
     saveChatState();
 }
 
@@ -263,9 +266,11 @@ export function readScene(type = 'normal') {
     if (type === 'swipe' || type === 'continue') end -= 1;
     let reply = '';
     let own = null;
-    for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.scene || null; break; } }
+    for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.stateStale ? null : m.extra?.[KEY]?.scene || null; break; } }
     const out = { present: '', location: '', how: '' };
     // The reply's own scene lines come first: the extension asked for them, so they are there under any preset.
+    const corrected = sceneAt(type === 'swipe' ? end : Infinity, { overrides: true });
+    if (corrected?.present || sceneProtected('present')) return { present: corrected.present, location: corrected.where || '', how: 'the scene state' };
     if (own?.present) return { present: own.present, location: own.where || '', how: 'the scene lines of the newest reply' };
     if (!reply) return out;
     const parts = [];
@@ -376,9 +381,13 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
         const sRoom = Math.max(100, Math.round(Number(sum.budget) || 800)) * 4;
         let sUsed = 0;
         const put = (w, text) => { if (sUsed + text.length > sRoom && sUsed > 0) return false; sUsed += text.length + 3; story.lines.push(`- ${text}`); ids.push(w.uid); return true; };
-        const chapters = by('chapter').sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
-        // A combined account of this chat already holds the chapters up to where it ends; those count as older ones.
         const times = chatTimes();
+        const cs = chatState();
+        const invalidFrom = cs?.historyNeedsReview ? Number(cs.historyInvalidFrom) || 0 : 0;
+        // Keep the user's edited chapter in the world, but do not send it until
+        // they have reviewed a chapter that overlaps the altered story.
+        const chapters = by('chapter').filter(w => !(invalidFrom && w.span && chapterIsMine(w, chatId, times) && Number(w.span.to) >= invalidFrom)).sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
+        // A combined account of this chat already holds the chapters up to where it ends; those count as older ones.
         const ownRoll = chapters.find(w => w.rollup && chapterIsMine(w, chatId, times));
         const mine = chapters.filter(w => !w.rollup && chapterIsMine(w, chatId, times) && !(ownRoll && w.span.to <= ownRoll.span.to));
         const newest = mine.slice(-Math.max(1, Math.round(Number(sum.keep) || 2)));

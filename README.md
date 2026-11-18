@@ -350,36 +350,27 @@ so the world shows the story as it stands now. A new chapter is never copied the
 
 ## Scene: who is present, where and when
 
-Every reply is asked to end with three short lines: who is in the scene other than you, where the scene is, and the
-day, time of day and weather. With a story world they are part of the one update block; without one they are asked
+Every reply is asked for who is present, where the scene is, and the day, time of day and weather, plus important continuing environmental conditions when they change. With a story world they are part of the one update block; without one they are asked
 for on their own. The extension takes them out of the reply and keeps them on it. This adds no AI request.
 
 - The story notes, story event items that need a number of people or someone's secret or plan, the order for a
   character who has gone quiet, and the dice all use these lines, so they work the same whatever preset is on.
-- **Scene card.** A small card under each reply shows When, Where and Present. To start with it is only shown under
+- **Story state.** A collapsed section under each reply shows the scene and relevant character state. To start with it is only shown under
   a reply that has no scene tracker of its own, so with a preset that draws its own HUD (such as Sola V6 Slim)
   nothing is shown twice. It can be set to always or off in Settings > Scene.
 - An out-of-character message is not asked for the lines.
 
-## Character cards and the roast
+## Story state and the roast
 
-Every reply is asked, in the same block, for a profile of {{char}}, and of one other character when what they did in
-the reply changed what happens next (they spoke to you, made a choice, or acted on a goal of their own). The extension
-takes the profiles out of the reply and draws them as cards under it. This adds no AI request.
+The extension asks for changes to a character's **Mind**, **Heart**, **Body**, and **Psyche** in the same update block as the world changes. Unchanged fields can be omitted; `CLEAR` resolves a field. The resulting state is kept with the chat, and a compact selection for the current scene is included in future prompts. This makes no separate model request, although generated updates use output tokens. The approximate prompt budget is adjustable in Settings > Character cards; story-world and chapter budgets remain separate.
 
-- **What is going on in them now** (Wants, Thinks, Feels, Shows, Keeps private, Will not, Why) is written new with
-  every reply. Wants also keeps the character's story world entry up to date.
-- **Who they are** (Who, Strength, Flaw, Voice, Orientation) is asked for once per person. With a story world it is
-  filed in the person's entry (a new person gets an entry, and an entry only gets the lines it does not have yet);
-  without one it is carried from the person's earlier card in the chat. The request lists who is on file, so it is
-  not written again. On a card it sits in the fold "Who they are".
-- **The roast** is one reaction from the commentator, a separate personality who writes none of the story. Its voice
-  is set in Settings > Character cards. The previous reply's roast is sent with the next request, so each one can
-  answer the last. It is drawn at the bottom of the cards.
-- Settings > Character cards: on or off, how many profiles at most (1 to 3), the roast on or off, and the
-  commentator's voice. About 550 tokens are added to what is sent with each reply while both are on, and each reply
-  is about 150 to 250 tokens longer.
-- An out-of-character message is not asked for profiles. A swipe, a delete or a branch follows by itself.
+- **Current State** in the extension panel shows and edits scene and character state. An edited field is protected from automatic changes until you uncheck protection. Protected corrections are kept in chat metadata, so replacing or deleting the reply that was newest when you edited does not remove them. Their recorded history lets a branch retain earlier corrections while leaving out later ones. Unprotected edits follow the reply where they were made.
+- A collapsed **Story state** under each reply shows the state after that reply. Edit a historical card to correct that snapshot alone, or also apply the changes to the current state. Neither action rewrites subsequent story text. Settings > Scene controls visibility and whether a preset's tracker hides it. What Was Sent remains off under replies by default.
+- **Story World** still owns durable facts, wants, plans, secrets, and threads. Its character editor has an enduring boundaries field. Use **Save a lasting fact to Story World** on a current character card to explicitly write a fact to an existing character entry; the chosen field is replaced after confirmation if it already contains text. Current state does not silently overwrite those entries.
+- **Story event limits** in Current State filters random event items by exact user-supplied tags. It also checks repeated and rerolled items. Untagged items, other instructions and automatic world orders are not filtered. Free-text boundaries and conditions are included as prompt guidance; the extension cannot reliably determine semantic conflicts in arbitrary text.
+- The optional roast is collapsed. Settings > Character cards controls whether the previous roast is included in the next prompt; this is off by default. Tracking, showing state and displaying What Was Sent are separate choices.
+- Editing a model reply marks its card and dependent later state as out of date, withdraws their automatic world changes, and asks you to review. Current State can draft a reviewable update using one extra AI request; applying it is optional. Manually edited facts and summaries need your review. Overlapping chapter summaries are withheld from future prompts until you mark the story reviewed. An out-of-character message is not asked for an update. Branches can only rewind changes that were recorded; review old chats and edits made outside this extension, which may lack a complete history. If the branch book cannot be created, the extension disconnects the parent world and reports the error so that the branch cannot silently write into it.
+- Existing v5 cards remain intact. When an old card has no v6 updates, its Thinks, Feels and Keeps private values are read as Mind, Heart and Psyche; the old Will not judgment is not imported as a boundary. Historical cards remain snapshots.
 
 ## Dice
 
@@ -486,11 +477,11 @@ The record of what was sent lives on each reply, so it follows the reply whereve
 
 | You do this | What happens |
 | --- | --- |
-| Edit the newest reply | It is checked again. If your edit made the instruction happen, it shows Done and is taken off the waiting list. |
-| Edit an older message | Nothing changes. Old replies are never re-checked on their own, and a chapter that covers the message keeps what it says. Change the chapter in the Story World tab if it matters. |
+| Edit the newest reply | Its generated state and automatic world changes are withdrawn and marked for review. If checking is on, its instructions may also be checked again. Current State can draft an update for review with one AI request. |
+| Edit an older model reply | Generated state and automatic world changes from that reply onward are marked stale and withdrawn, newest first. Protected corrections remain. Current State offers a reviewable rebuild; check manually edited world entries and chapters too. |
 | Delete messages | Their records go with them. Anything waiting to be sent again because of a deleted reply is dropped, timers started by deleted replies are cleared, and what those replies filed in the story world is undone. |
 | Swipe or regenerate the newest reply | The same instructions and versions are sent again. What the swiped-away reply filed in the story world is undone. |
-| Branch a chat | The branch keeps which sets are on, your pronouns, the goal, the story world it uses, and the records up to the branch point. Chapters written before the branch point are the branch's chapters too, and messages hidden by them stay hidden. The first time the branch is opened it gets its own copy of the story world, named "(branch)" and kept where the original is, so what happens in the branch changes only the copy. The original chat and its world are untouched. "A branch gets its own copy of the world" in the Story World tab turns this off. |
+| Branch a chat | The branch keeps which sets are on, your pronouns, the goal, the story world it uses, and the records up to the branch point. Chapters written before the branch point are the branch's chapters too, and messages hidden by them stay hidden. The first time the branch is opened it gets a separate lorebook named "(branch)". Recorded changes after the branch point are undone on that copy, and the parent world is left alone. A branch of a chat with no world gets a new empty book. The original chat and its world are untouched. "A branch gets its own copy of the world" in the Story World tab turns this off. |
 
 ## Where things are stored
 

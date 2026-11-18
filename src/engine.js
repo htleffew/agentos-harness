@@ -1,16 +1,17 @@
+import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { request, isOwnPrompt } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
-import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules, burnStatus } from './events.js';
+import { isEvent, isStyle, rollEvent, rerollCategory, eventAllowed, withPreset, checkRules, burnStatus } from './events.js';
 import { NOTES_WORLD, isNotes, notesEntry, readScene } from './world.js';
 import { phaseFor, quietNow, previousRecord, countPresent } from './pacing.js';
 import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
 import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile } from './worldflow.js';
-import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
+import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, invalidateAfterEdit, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
@@ -233,11 +234,12 @@ async function onEntriesLoaded(lore) {
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
         if (cs && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
+        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: cardsOn() }) : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
-        if (flow?.ask) lore.chatLore.push(askEntry(flow.ask));
+        if (flow?.ask) lore.chatLore.push(askEntry([stateText, flow.ask].filter(Boolean).join('\n')));
         // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry(a)); }
+        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry([stateText, a].filter(Boolean).join('\n'))); }
         if (flow) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
@@ -500,6 +502,7 @@ function onScanDone(args) {
             for (const it of before) {
                 const e = find(it.key);
                 if (!e) continue;
+                if (isEvent(e) && !eventAllowed(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, blockedEventTags())) continue;
                 let misses = it.misses || 0;
                 const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
                 if (od) { misses = od.misses; cs.overdue = cs.overdue.filter(o => o !== od); }
@@ -507,7 +510,7 @@ function onScanDone(args) {
                 let src = it;
                 if (rerollCat && rerollCat.key === it.key && Array.isArray(it.parts)) {
                     // "Pick again" for one picked item: that category gets a new pick, everything else stays.
-                    const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, it.event || states[it.key], rerollCat.catId);
+                    const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, it.event || states[it.key], rerollCat.catId, isEvent(e) ? blockedEventTags() : []);
                     if (again) {
                         src = { ...it, version: again.text, parts: again.parts, event: it.event ? again.state : it.event };
                         if (!it.event) states = { ...states, [it.key]: again.state };
@@ -640,7 +643,7 @@ function onScanDone(args) {
                     const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
-                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type) });
+                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type), blockedTags: blockedEventTags() });
                     if (!rolled) {
                         map.delete(key);
                         // Tell the user once per chat when a set's main list is used up.
@@ -710,15 +713,19 @@ function onMessageReceived(id, type) {
         const m = ctx().chat?.[id];
         if (!m || m.is_user || m.is_system) return;
         // A continued reply keeps the time of its record, so what its first part filed in the story world still belongs to it.
-        const earlier = pending.type === 'continue' && m.extra?.[KEY]?.update ? m.extra[KEY] : null;
+        const earlier = pending.type === 'continue' ? m.extra?.[KEY] || null : null;
         const rec = { v: 1, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
+        const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene && !x.extra[KEY].stateStale)?.extra?.[KEY]?.scene || {};
         const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
+        if (!parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
         if (Object.keys(scene).length) rec.scene = scene;
         keepCards(rec, parsed, earlier, id);
+        rec.stateChanges = [...(earlier?.stateChanges || []), ...changesFromProfiles(parsed.profiles)];
+        if (earlier?.stateEdits) rec.stateEdits = earlier.stateEdits;
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
@@ -728,7 +735,7 @@ function onMessageReceived(id, type) {
         if (settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
         // The story so far: a chapter is written in the background when a scene ended or enough replies went by.
         chapterAfterReply(rec.time, history('normal').next - 1, () => changed('messages'));
-        if (!rec.items.length) return;
+        if (!rec.items.length) { try { ctx().saveChat?.(); } catch { /* saved with the next change */ } changed('sent', id); return; }
         for (const it of rec.items) {
             const tags = (it.parts || []).flatMap(p => p.rules || []);
             if (tags.length) it.rules = checkRules(stripSentBlock(m.mes), tags);
@@ -1061,10 +1068,11 @@ export function init() {
     for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
     // What a reply changed in the story world is undone when that reply is swiped away or deleted.
     on('MESSAGE_SWIPED', () => { if (settings().enabled) syncWorld(() => changed('messages')); });
-    on('MESSAGE_DELETED', () => { if (settings().enabled) { reconcile(); syncWorld(() => changed('messages')); } changed('messages'); });
+    on('MESSAGE_DELETED', () => { if (settings().enabled) { reanchorRemovedCorrections(); reconcile(); syncWorld(() => changed('messages')); } changed('messages'); });
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);
+        if (settings().enabled && ctx().chat?.[id] && !ctx().chat[id].is_user) invalidateAfterEdit(id, () => { toast('warning', 'The edited reply and later story state need review. Open Current State to review or rebuild them.'); changed('messages'); });
         if (settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
         changed('messages');
     });

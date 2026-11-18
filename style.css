@@ -178,7 +178,8 @@
 .ri-under .ri-card { margin: 0; }
 
 /* The scene card under a reply */
-.ri-scene { margin-top: 8px; padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-accent); border-radius: 10px; background: var(--ri-card); font-size: 0.88em; display: flex; flex-direction: column; gap: 3px; }
+.ri-scene { margin-top: 8px; padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-accent); border-radius: 10px; background: var(--ri-card); font-size: 0.88em; }
+.ri-scene > summary { cursor: pointer; color: var(--ri-accent); font-weight: 700; }
 .ri-scene-row { display: flex; gap: 10px; align-items: baseline; }
 .ri-scene-k { flex: 0 0 64px; color: var(--ri-accent); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; font-size: 0.8em; }
 .ri-scene-v { flex: 1; color: var(--ri-text); }
@@ -234,5 +235,17 @@
 .ri-profile-who { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--ri-line); }
 .ri-profile-who > summary { cursor: pointer; color: var(--ri-sky); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.04em; }
 .ri-roast { padding: 8px 12px; border: 1px solid var(--ri-line); border-left: 3px solid var(--ri-magenta); border-radius: 10px; background: var(--ri-card); }
-.ri-roast-k { color: var(--ri-magenta); font-weight: 600; text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.04em; margin-bottom: 2px; }
+.ri-roast-k { cursor: pointer; color: var(--ri-magenta); font-weight: 600; text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.04em; margin-bottom: 2px; }
 .ri-roast-v { color: var(--ri-text); white-space: pre-wrap; }
+
+/* Current story state */
+.ri-story-state { margin-top: 8px; border: 1px solid var(--ri-line); border-radius: 12px; background: var(--ri-card); font-size: .88em; }
+.ri-state-summary { cursor: pointer; padding: 9px 12px; color: var(--ri-text-2); display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap; }
+.ri-state-summary strong { color: var(--ri-accent); }
+.ri-state-content { padding: 0 12px 12px; display: grid; gap: 7px; }
+.ri-state-content .ri-scene { margin: 0; }
+.ri-state-body { display: grid; gap: 8px; padding-top: 6px; }
+.ri-state-field { color: var(--ri-text); border-left: 2px solid var(--ri-line); padding-left: 9px; }
+.ri-state-label { display: block; color: var(--ri-accent); font-size: .8em; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.ri-state-editor { display: grid; gap: 5px; margin-top: 8px; }
+.ri-state-lock { color: var(--ri-text-2); font-size: .85em; }

@@ -290,6 +290,8 @@ function sentenceFor(type, parts) {
  */
 export function rollEvent(ri, prev, opts = {}) {
     const parts = [];
+    const blocked = new Set((ri?.type === 'style' ? [] : (opts.blockedTags || [])).map(t => String(t).trim().toLowerCase()));
+    const allowedItem = it => !tagList(it.tags).some(t => blocked.has(t));
     const state = { cats: {} };
     const pairs = pairList(ri?.neverTogether);
     const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory).filter(c => c.on && usable(c).length);
@@ -305,7 +307,7 @@ export function rollEvent(ri, prev, opts = {}) {
     // First, the categories that keep the pick they already have.
     const info = new Map();
     for (const cat of cats) {
-        const pool = usable(cat);
+        const pool = usable(cat).filter(allowedItem);
         const byId = new Map(pool.map(it => [it.id, it]));
         const old = prev?.cats?.[cat.id] || {};
         const valid = ids => Array.isArray(ids) && ids.length > 0 && ids.every(id => byId.has(id));
@@ -392,13 +394,30 @@ export function rollEvent(ri, prev, opts = {}) {
     return { text: sentenceFor('event', parts), parts, state };
 }
 
+/** Whether a previously selected event remains allowed by explicit chat-level tag limits. */
+export function eventAllowed(ri, parts, blockedTags = []) {
+    const blocked = new Set(blockedTags.map(t => String(t).trim().toLowerCase()));
+    if (!blocked.size) return true;
+    for (const part of parts || []) {
+        const raw = (ri?.categories || []).find(c => c.id === part.catId);
+        if (!raw) continue;
+        const items = normalCategory(raw).items;
+        for (const id of part.ids || []) {
+            const item = items.find(x => x.id === id);
+            if (item && tagList(item.tags).some(tag => blocked.has(tag))) return false;
+        }
+    }
+    return true;
+}
+
 /** Pick again for one category only, leaving the rest of the roll as it was. Returns null when there is no other item. */
-export function rerollCategory(ri, parts, state, catId) {
+export function rerollCategory(ri, parts, state, catId, blockedTags = []) {
     const raw = (ri?.categories || []).find(c => c.id === catId);
     const part = (parts || []).find(p => p.catId === catId);
     if (!raw || !part) return null;
     const cat = normalCategory(raw);
-    const options = usable(cat).filter(it => !(part.ids || []).includes(it.id));
+    const blocked = new Set(blockedTags.map(t => String(t).trim().toLowerCase()));
+    const options = usable(cat).filter(it => !(part.ids || []).includes(it.id) && !tagList(it.tags).some(t => blocked.has(t)));
     if (!options.length) return null;
     const picked = pickWeighted(options, it => it.weight, Math.min(Math.max(1, (part.ids || []).length), options.length));
     const rules = picked.flatMap(it => tagList(it.tags)).filter(t => t.startsWith('rule:'));

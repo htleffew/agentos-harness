@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+const chat = [], chatMetadata = {};
+let saves = 0;
+globalThis.SillyTavern = { getContext: () => ({ chat, chatMetadata, saveChat: () => { saves++; }, saveMetadataDebounced: () => {} }) };
+const S = await import('../../src/state.js');
+const msg = rec => ({ extra: { roleplay_instructions: rec } });
+chat.push(msg({ scene: { present: 'Hale', where: 'Inn', environment: 'Broken window' }, stateChanges: [{ name: 'Hale', fields: { mind: 'Wait', body: 'Sore' } }] }));
+chat.push(msg({ scene: { present: 'Hale', where: 'Inn' }, stateChanges: [{ name: 'Hale', fields: { mind: 'Leave' } }] }));
+assert(S.editState(1, 'Hale', 'mind', 'Stay', true));
+assert(S.editScene('where', 'Tower', true));
+assert.equal(S.stateAt().hale.fields.mind, 'Stay');
+assert.equal(S.sceneAt().where, 'Tower');
+assert.equal(S.sceneAt(2).where, 'Inn');
+assert.equal(S.snapshotState(1).hale.fields.mind, 'Leave');
+assert(S.editSceneSnapshot(0, 'where', 'Cellar'));
+assert.equal(S.snapshotScene(0).where, 'Cellar');
+assert.equal(S.sceneAt().where, 'Tower');
+assert(S.editSnapshot(0, 'Hale', 'body', 'Bruised'));
+assert.equal(S.snapshotState(0).hale.fields.body, 'Bruised');
+assert.equal(S.stateAt().hale.fields.body, 'Sore');
+chat.pop();
+assert.equal(S.stateAt().hale.fields.mind, 'Stay');
+assert.equal(S.sceneAt().where, 'Tower');
+assert.match(S.statePrompt('swipe'), /Stay/);
+assert.match(S.statePrompt(), /Tower/);
+assert(S.editState(0, 'Hale', 'mind', 'Stay', false));
+chat.push(msg({ stateChanges: [{ name: 'Hale', fields: { mind: 'Walk' } }] }));
+assert.equal(S.stateAt().hale.fields.mind, 'Walk');
+assert(S.editScene('where', 'Tower', false));
+assert.equal(S.sceneAt().where, 'Tower');
+chat.push(msg({ scene: { present: 'Hale', where: 'Garden' } }));
+assert.equal(S.sceneAt().where, 'Garden');
+chat.push(msg({ profiles: [{ name: 'Mira', now: { thinks: 'Plans a voyage', feels: 'Anxious', private: 'Wants to leave', willnot: 'Never sails' } }] }));
+assert.deepEqual(S.stateAt().mira.fields, { mind: 'Plans a voyage', heart: 'Anxious', psyche: 'Wants to leave' });
+assert(saves >= 5);
+console.log('metadata corrections, snapshot isolation, scene edits, legacy cards: passed');
+const root = { stateOverrides: {}, sceneOverrides: {}, correctionHistory: [
+ {kind:'state',key:'hale\u0000mind',anchor:'record:1',entry:{name:'Hale',field:'mind',value:'Earlier',protected:true,anchor:'record:1'}},
+ {kind:'state',key:'hale\u0000mind',anchor:'record:2',entry:{name:'Hale',field:'mind',value:'Later',protected:true,anchor:'record:2'}},
+ {kind:'scene',key:'where',anchor:'seed',entry:{value:'Inherited',protected:true,anchor:'seed'}},
+] };
+assert.equal(S.trimBranchOverrides(root,[{extra:{roleplay_instructions:{time:1}}}]),1);
+assert.equal(root.stateOverrides['hale\u0000mind'].value,'Earlier');
+assert.equal(root.sceneOverrides.where.value,'Inherited');
+console.log('branch restores earlier protected correction and preserves inherited seed: passed');
+
+chat.length = 0;
+chat.push(msg({time:10,stateChanges:[{name:'Nora',fields:{mind:'Wait'}}]}));
+chat.push(msg({time:20,stateChanges:[{name:'Nora',fields:{mind:'Go'}}]}));
+assert(S.editState(1,'Nora','mind','Protected',true));
+chat.pop();
+S.reanchorRemovedCorrections();
+const branched = structuredClone(chatMetadata.roleplay_instructions);
+S.trimBranchOverrides(branched,chat);
+assert.equal(branched.stateOverrides['nora\u0000mind'].value,'Protected');
+console.log('protected edit survives deletion and a later branch: passed');

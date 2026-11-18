@@ -5,6 +5,7 @@ import { onChange } from '../engine.js';
 import { renderInstructions } from './sets.js';
 import { renderEvents, renderStyle } from './events.js';
 import { renderGoals } from './goals.js';
+import { renderCurrentState } from './state.js';
 import { renderWorld } from './world.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
 import { renderSettings } from './settings.js';
@@ -17,6 +18,7 @@ const TABS = [
     { id: 'events', label: 'Random Story Events', accent: 'blue' },
     { id: 'style', label: 'Random Writing Style', accent: 'green' },
     { id: 'goals', label: 'Character Goals', accent: 'sky' },
+    { id: 'state', label: 'Current State', accent: 'green' },
     { id: 'world', label: 'Story World', accent: 'green' },
     { id: 'sent', label: 'What Was Sent', accent: 'blue' },
     { id: 'log', label: 'Log', accent: 'sky' },
@@ -86,6 +88,7 @@ export function render() {
     else if (app.tab === 'events') renderEvents(app.body, app);
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
+    else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
     else if (app.tab === 'log') renderLog(app.body, app);
@@ -125,6 +128,7 @@ export function mount(missing) {
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'style' && app.sroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'world' && (app.wroute.view === 'edit' || app.wroute.sheet) && what !== 'chat') return;
+        if (app.tab === 'state' && what !== 'chat' && app.root?.querySelector('.ri-state-editor')) return;
         if (app.tab === 'goals' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
         clearTimeout(timer);
         timer = setTimeout(render, 80);

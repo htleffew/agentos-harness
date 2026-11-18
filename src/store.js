@@ -51,7 +51,7 @@ const DEFAULTS = {
         ],
     },
     scene: { track: true, card: 'auto' },   // ask every reply for who is present, where and when; draw the scene card ('auto': only under replies with no HUD of their own)
-    cards: { on: true, most: 2, roast: true, voice: DEFAULT_VOICE },   // character profile cards and the roast, asked for in the same block as the scene lines
+    cards: { on: true, most: 2, roast: true, previousRoast: false, stateBudget: 350, voice: DEFAULT_VOICE },   // character profile cards and the roast, asked for in the same block as the scene lines
     dice: { on: true, user: true, char: true, others: true, stats: ['Strength', 'Agility', 'Wits', 'Charm', 'Will', 'Senses'], sheets: {} },   // rolled in code; sheets: stat modifiers per character card and persona
     words: { on: true, tell: true, list: DEFAULT_WORDS },   // words to flag in AI-written text; "tell" also asks the AI writer to leave them out
     writer: { count: 10, moreRoom: false, eventScene: false, rules: DEFAULT_WRITER_RULES, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },

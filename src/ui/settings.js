@@ -97,9 +97,9 @@ function sceneSection(app) {
     const o = settings().scene || (settings().scene = { track: true, card: 'auto' });
     const save = () => { saveSettings(); refreshUnderReplies(); app.render(); };
     return section('Scene',
-        field('Keep track of who is present, where and when', o.track !== false ? 'On: every reply is asked to end with three short lines (who is in the scene, where it is, and the day, time and weather). The extension takes them out of the reply and keeps them, so the story notes, story events and dice know who is present under any preset. This adds no AI request.' : 'Off: who is present is read from a scene header, a HUD or a "Present:" line written by the preset, or from names in the last messages.',
+        field('Keep track of who is present, where and when', o.track !== false ? 'On: every reply is asked for who is present, where and when; continuing environmental conditions are updated when they change. The extension takes them out of the reply and keeps them, so the story notes, story events and dice know who is present under any preset. This adds no AI request.' : 'Off: who is present is read from a scene header, a HUD or a "Present:" line written by the preset, or from names in the last messages.',
             onOff(o.track !== false, (v) => { o.track = v; save(); })),
-        o.track !== false ? field('Scene card under each reply', { auto: 'Shown under a reply that has no scene tracker of its own. With a preset that draws its own HUD (such as Sola V6 Slim) it stays hidden, so nothing is shown twice.', always: 'Shown under every reply.', off: 'Not shown. The lines are still kept and used.' }[o.card || 'auto'],
+        o.track !== false ? field('Story state under each reply', { auto: 'Shown under a reply that has no scene tracker of its own. With a preset that draws its own HUD (such as Sola V6 Slim) it stays hidden, so nothing is shown twice.', always: 'Shown under every reply.', off: 'Not shown. The lines are still kept and used.' }[o.card || 'auto'],
             select([{ value: 'auto', label: 'When the reply has no tracker of its own' }, { value: 'always', label: 'Always' }, { value: 'off', label: 'Off' }], o.card || 'auto', (v) => { o.card = v; save(); })) : null);
 }
 
@@ -108,14 +108,16 @@ function cardsSection(app) {
     const save = () => { saveSettings(); refreshUnderReplies(); };
     const ch = names().char;
     return section('Character cards',
-        field('Character profile cards', o.on ? `On: every reply is asked for a profile of ${ch}, and of another character when what they did changed what happens next. A profile says what each person wants, thinks and feels, what they show and keep private, what they will not do, and why. Who the person is (who, strength, flaw, voice, orientation) is asked for once and kept: in the story world when there is one, or with the chat. The extension takes the profiles out of the reply and draws them as cards under it. This adds no AI request.` : 'Off: no profiles are asked for or drawn.',
+        field('Character state tracking', o.on ? 'On: the current Mind, Heart, Body and Psyche state is kept with the chat and sent with future replies. Changes are requested in the normal reply, without an extra AI call.' : 'Off: character state is not requested or sent.',
             onOff(o.on, (v) => { o.on = v; save(); app.render(); })),
         o.on ? [
+            field('Current state prompt budget', 'Approximate token budget for scene and character state; character and scene lines that do not fit are left out. Story World and chapter budgets are separate.', numberInput(o.stateBudget || 350, { min: 100, max: 1000, unit: 'tokens' }, (v) => { o.stateBudget = v; saveSettings(); })),
             field('Profiles in one reply, at most', `${ch} always gets one. 2 lets one other character have a card when they mattered in the reply.`,
                 select([{ value: '1', label: `1: only ${ch}` }, { value: '2', label: '2' }, { value: '3', label: '3' }], String(o.most || 2), (v) => { o.most = Number(v); save(); })),
-            field('The roast', o.roast !== false ? "On: every reply also gets one reaction from the commentator, a separate personality who only reacts to the reply and writes none of the story. It is drawn at the bottom of the cards. The previous reply's roast is sent with the next request, so each one can answer the last." : 'Off: no roast is asked for or drawn.',
+            field('The roast', o.roast !== false ? "On: every reply also gets one reaction from the commentator, a separate personality who only reacts to the reply and writes none of the story. It is drawn at the bottom of the cards. You can separately include the previous roast in the next request." : 'Off: no roast is asked for or drawn.',
                 onOff(o.roast !== false, (v) => { o.roast = v; save(); app.render(); })),
             o.roast !== false ? [
+                field('Include the previous roast in the next request', 'Optional continuity for the commentator; this uses prompt tokens.', onOff(o.previousRoast === true, (v) => { o.previousRoast = v; save(); })),
                 field("The commentator's voice", 'Sent with every reply while the roast is on. Describe who the commentator is and how they type. A sample of the voice helps the most.',
                     textArea(o.voice ?? DEFAULT_VOICE, (v) => { o.voice = v; saveSettings(); }, { rows: 6 })),
                 h('div', { class: 'ri-row ri-row-tight' }, button('Put the starting voice back', () => { o.voice = DEFAULT_VOICE; saveSettings(); app.render(); }, { kind: 'ghost' })),

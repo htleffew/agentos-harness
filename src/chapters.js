@@ -1,3 +1,5 @@
+import { stateAt, sceneAt } from './state.js';
+import { creationFingerprint } from './worldflow.js';
 // The story so far, kept by the extension itself.
 //  - Chapters: one AI request writes a summary of a stretch of replies. It is filed in the chat's story world as a
 //    "chapter" entry and sent with the story notes. A chapter is cut when a scene ends, after a set number of
@@ -144,7 +146,7 @@ export async function writeChapter(from, to, why) {
             // and what was moved into it is turned back on.
             const last = replies().find(r => r.n === to);
             if (last?.time) {
-                attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'create' });
+                attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'create', createdState: creationFingerprint(w) });
                 for (const x of retired) attachChange(last.time, wid, { uid: x.uid, name: x.name, kind: x.kind, type: 'off', into: w.name });
                 // The messages the chapters cover are hidden from the AI, except the newest ones. They stay in the chat.
                 const hid = await hideCovered(last.index);
@@ -308,6 +310,11 @@ export async function startNewChapter(draft, burnedSoFar) {
         used: structuredClone(cs.used), picks: structuredClone(cs.picks), pronouns: cs.pronouns ? structuredClone(cs.pronouns) : undefined,
         goals: g ? { ...structuredClone(g), steps: g.steps.map(s => ({ ...s, doneManual: stepDone(s, p) || !!s.doneManual })) } : undefined,
         burned: burnedHere(burnedSoFar),
+        stateSeed: structuredClone(stateAt(Infinity, { overrides: false })),
+        sceneSeed: structuredClone(sceneAt(Infinity, { overrides: false })),
+        stateOverrides: Object.fromEntries(Object.entries(cs.stateOverrides || {}).map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),
+        sceneOverrides: Object.fromEntries(Object.entries(cs.sceneOverrides || {}).map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),
+        blockedEventTags: structuredClone(cs.blockedEventTags || []),
         chapterOf: oldChat,
     };
     // 2. The summary becomes the account of everything before the new chat.
@@ -332,6 +339,8 @@ export async function startNewChapter(draft, burnedSoFar) {
     if (chatId() === oldChat) throw new Error('The new chat did not open. The chat you are in is unchanged.');
     const ncs = chatState();
     for (const [k, v] of Object.entries(carry)) if (v !== undefined) ncs[k] = v;
+    // Corrections inherited from the prior chapter are the baseline for every branch of this new chat.
+    ncs.correctionHistory = [...Object.entries(ncs.stateOverrides || {}).map(([key, entry]) => ({ kind: 'state', key, entry: structuredClone(entry), anchor: 'seed' })), ...Object.entries(ncs.sceneOverrides || {}).map(([key, entry]) => ({ kind: 'scene', key, entry: structuredClone(entry), anchor: 'seed' }))];
     // The new chat shares the world on purpose, so it is its owner and is never copied as a branch.
     ncs.worldOwner = String(ctx().chatMetadata?.integrity || chatId());
     delete ncs.worldFrom;

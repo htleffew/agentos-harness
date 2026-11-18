@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.0.0
+
+- Deep branches mint a separate lorebook, rewind recorded future world changes and protected corrections, and leave the parent world alone. Extension world-editor changes are recorded for future branches. Existing or external world edits may lack history and should be reviewed.
+- Bulk deletion defers rollback until later replies have been removed, then applies changes newest first. Editing a model reply withdraws dependent automatic state and world changes and offers a one-request, review-before-apply rebuild.
+
+- A collapsed Story state view and editable Mind, Heart, Body, Psyche and scene fields. Protected edits are stored in chat metadata; historical snapshot edits can be kept separate from current state.
+- The existing update block carries changes without an additional model call. Relevant current state is sent with the next reply under a configurable approximate budget. The previous roast is optional.
+- Enduring character boundaries can be edited in Story World, and a current-state card can explicitly save a lasting fact to a character entry. Random story events can be filtered using explicit item tags.
+- Existing v5 card data stays intact; compatible fields are read as v6 state. No post-hoc Will not judgment is promoted to a boundary.
+
 ## 5.11.1 (2026-11-16)
 
 - The commentator's starting voice is Gremlin, from Sola V6: its own description, how it types, and its sample. A

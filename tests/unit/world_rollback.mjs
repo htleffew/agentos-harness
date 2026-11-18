@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+globalThis.SillyTavern={getContext:()=>({extensionSettings:{roleplay_instructions:{sets:{World:{kind:'world'}}}},getCurrentChatId:()=> 'chat',chatMetadata:{},chat:[]})};
+const W=await import('../../src/world.js'), F=await import('../../src/worldflow.js');
+const data={entries:{}}, w=W.newWorldEntry(data,'character');w.name='Hale';w.auto=true;w.fields.who='A captain';W.writeWorldEntry(data,w,'World');
+const create={uid:w.uid,type:'create',createdState:F.creationFingerprint(w)};
+w.fields.who='A captain, corrected by the user';W.writeWorldEntry(data,w,'World');
+assert.equal(F.revertChanges(data,'World',[create]),0);assert(data.entries[w.uid]);
+w.fields.who='A captain';W.writeWorldEntry(data,w,'World');
+assert.equal(F.revertChanges(data,'World',[create]),1);assert(!data.entries[w.uid]);
+console.log('rollback preserves manually modified automatic entries: passed');

@@ -1,8 +1,10 @@
+import { snapshotState, snapshotScene } from '../state.js';
+import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
 import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue, rerollPartNow, setLock, isLocked } from '../engine.js';
 import { loadSet, saveSet, entriesOf, canonSet, setName } from '../books.js';
-import { shownChanges, describeChange, undoReplyChanges, cardsOn, PROFILE_STABLE, PROFILE_NOW } from '../worldflow.js';
+import { shownChanges, describeChange, undoReplyChanges } from '../worldflow.js';
 import { writeEvent, readEvent } from '../events.js';
 import { toast } from '../st.js';
 import { settings } from '../store.js';
@@ -169,83 +171,59 @@ const OWN_HUD = /<(scene_cast|sola_hud|profile|status|tracker|hud)\b|\bpresent\s
 /** The scene card: when, where and who is present, from the reply's own scene lines. */
 function sceneCard(sc) {
     const row = (label, text) => text ? h('div', { class: 'ri-scene-row' }, h('span', { class: 'ri-scene-k' }, label), h('span', { class: 'ri-scene-v' }, text)) : null;
-    return h('div', { class: 'ri-root ri-scene', 'data-accent': 'cyan' }, row('When', sc.when), row('Where', sc.where), row('Present', sc.present));
+    return h('details', { class: 'ri-root ri-scene', 'data-accent': 'cyan' }, h('summary', {}, 'Scene'), row('When', sc.when), row('Where', sc.where), row('Present', sc.present), row('Environment', sc.environment));
 }
 
-/** Draw or remove the scene card under each reply, following Settings > Scene. */
-function refreshSceneCards(chat) {
+/** One collapsed view of the state after each reply. */
+function refreshStoryState(chat) {
     const st = settings();
-    const mode = st.enabled && st.scene?.track !== false ? (st.scene?.card || 'auto') : 'off';
+    const mode = st.enabled ? (st.scene?.card || 'auto') : 'off';
     const seen = new Set();
-    if (mode !== 'off') {
-        for (const mes of document.querySelectorAll('#chat .mes')) {
-            const id = Number(mes.getAttribute('mesid'));
-            const m = chat[id];
-            const sc = m?.extra?.[KEY]?.scene;
-            const block = mes.querySelector('.mes_block');
-            if (!sc || !block || m.is_user) continue;
-            if (mode === 'auto' && OWN_HUD.test(String(m.mes || ''))) continue;
-            const stamp = JSON.stringify(sc);
-            const old = block.querySelector(':scope > .ri-scene');
-            seen.add(mes);
-            if (old && old.dataset.stamp === stamp) continue;
-            const card = sceneCard(sc);
-            card.dataset.stamp = stamp;
-            const under = block.querySelector(':scope > .ri-cards, :scope > .ri-under');
-            if (old) old.replaceWith(card); else if (under) block.insertBefore(card, under); else block.appendChild(card);
+    for (const mes of document.querySelectorAll('#chat .mes')) {
+        const id = Number(mes.getAttribute('mesid'));
+        const m = chat[id], rec = m?.extra?.[KEY], block = mes.querySelector('.mes_block');
+        if (!block || !rec || m.is_user || mode === 'off' || (mode === 'auto' && OWN_HUD.test(String(m.mes || '')))) continue;
+        const sc = snapshotScene(id);
+        const all = snapshotState(id);
+        const names = String(sc.present || '').toLocaleLowerCase();
+        const people = Object.values(all).filter(p => !names || names.includes(p.name.toLocaleLowerCase()));
+        for (const profile of rec.profiles || []) {
+            if (names && !names.includes(String(profile.name || '').toLocaleLowerCase())) continue;
+            let person = people.find(p => p.name.toLocaleLowerCase() === String(profile.name || '').toLocaleLowerCase());
+            if (!person && Object.keys(profile.stable || {}).length) { person = { name: profile.name, fields: {}, protected: {} }; people.push(person); }
+            if (person) person.foundation = profile.stable || {};
         }
-    }
-    for (const el of document.querySelectorAll('#chat .mes .ri-scene')) if (!seen.has(el.closest('.mes'))) el.remove();
-}
-
-/** The character profile cards and the roast under a reply. */
-function profileCards(rec) {
-    const row = (label, text) => text ? h('div', { class: 'ri-scene-row' }, h('span', { class: 'ri-scene-k ri-prof-k' }, label), h('span', { class: 'ri-scene-v' }, text)) : null;
-    const showRoast = settings().cards?.roast !== false && rec.roast;
-    const cards = (rec.profiles || []).map(p => {
-        const stable = PROFILE_STABLE.map(([k, label]) => row(label, p.stable?.[k])).filter(Boolean);
-        return h('details', { class: 'ri-profile', open: true },
-            h('summary', { class: 'ri-profile-name' }, p.name),
-            PROFILE_NOW.map(([k, label]) => row(label, p.now?.[k])),
-            stable.length ? h('details', { class: 'ri-profile-who' }, h('summary', {}, 'Who they are'), stable) : null);
-    });
-    return h('div', { class: 'ri-root ri-cards', 'data-accent': 'green' },
-        cards,
-        showRoast ? h('div', { class: 'ri-roast' }, h('div', { class: 'ri-roast-k' }, 'Roast'), h('div', { class: 'ri-roast-v' }, rec.roast)) : null);
-}
-
-/** Draw or remove the profile cards under each reply, following Settings > Character cards. */
-function refreshProfileCards(chat) {
-    const seen = new Set();
-    if (cardsOn()) {
-        for (const mes of document.querySelectorAll('#chat .mes')) {
-            const id = Number(mes.getAttribute('mesid'));
-            const m = chat[id];
-            const rec = m?.extra?.[KEY];
-            const block = mes.querySelector('.mes_block');
-            const roast = settings().cards?.roast !== false && rec?.roast;
-            if (!block || m.is_user || !(rec?.profiles?.length || roast)) continue;
-            const stamp = JSON.stringify([rec.profiles || [], roast || '']);
-            const old = block.querySelector(':scope > .ri-cards');
-            seen.add(mes);
-            if (old && old.dataset.stamp === stamp) continue;
-            const card = profileCards(rec);
-            card.dataset.stamp = stamp;
-            // A fold that was closed stays closed when the card is drawn again.
-            if (old) {
-                const shut = [...old.querySelectorAll('details.ri-profile')].filter(d => !d.open).map(d => d.querySelector('summary')?.textContent);
-                for (const d of card.querySelectorAll('details.ri-profile')) if (shut.includes(d.querySelector('summary')?.textContent)) d.open = false;
-            }
-            const under = block.querySelector(':scope > .ri-under');
-            if (old) old.replaceWith(card); else if (under) block.insertBefore(card, under); else block.appendChild(card);
+        const roast = st.cards?.roast !== false ? rec.roast : '';
+        if (!Object.keys(sc).length && !people.length && !roast) continue;
+        const stamp = JSON.stringify([sc, people, roast, rec.stateOutdated, rec.snapshotEdits]);
+        const old = block.querySelector(':scope > .ri-story-state');
+        seen.add(mes);
+        if (old && (old.dataset.stamp === stamp || old.querySelector('.ri-state-editor'))) continue;
+        const title = [sc.where, sc.when, sc.present].filter(Boolean).join(' · ');
+        const outer = h('details', { class: 'ri-root ri-story-state', 'data-accent': 'sky' },
+            h('summary', { class: 'ri-state-summary' }, h('strong', {}, '✦ Story state'), title ? h('span', {}, title) : null));
+        outer.dataset.stamp = stamp;
+        if (old) outer.open = old.open;
+        const inside = h('div', { class: 'ri-state-content' }, h('div', { class: 'ri-help' }, 'State after this reply. Edit current state in the extension panel.'));
+        if (rec.stateOutdated) inside.append(h('div', { class: 'ri-note ri-note-warn' }, 'This reply was edited; its recorded state may be out of date.'));
+        if (Object.keys(sc).length) {
+            const scene = sceneCard(sc);
+            const slot = h('div', { class: 'ri-state-body' });
+            slot.append(button('Edit this scene snapshot', () => slot.replaceChildren(sceneEditor(sc, () => { old?.remove(); outer.remove(); refreshUnderReplies(); }, { historicalId: id })), { kind: 'ghost' }));
+            scene.append(slot); inside.append(scene);
         }
+        for (const person of people) inside.append(characterStateCard(person, id, () => refreshUnderReplies(), { historical: true }));
+        if (roast) inside.append(h('details', { class: 'ri-roast' }, h('summary', { class: 'ri-roast-k' }, 'Roast'), h('div', { class: 'ri-roast-v' }, roast)));
+        outer.append(inside);
+        const under = block.querySelector(':scope > .ri-under');
+        if (old) old.replaceWith(outer); else if (under) block.insertBefore(outer, under); else block.appendChild(outer);
     }
-    for (const el of document.querySelectorAll('#chat .mes .ri-cards')) if (!seen.has(el.closest('.mes'))) el.remove();
+    for (const el of document.querySelectorAll('#chat .mes .ri-story-state')) if (!seen.has(el.closest('.mes'))) el.remove();
+    for (const el of document.querySelectorAll('#chat .mes .ri-scene, #chat .mes .ri-cards')) if (!el.closest('.ri-story-state')) el.remove();
 }
 
 export function refreshUnderReplies() {
-    try { refreshSceneCards(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] scene cards', e); }
-    try { refreshProfileCards(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] profile cards', e); }
+    try { refreshStoryState(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
     try {
         const st = settings();
         const show = st.enabled && st.showUnder === 'display';
