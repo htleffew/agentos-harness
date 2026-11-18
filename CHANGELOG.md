@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.0
+
+- A collapsed Story state view and editable Mind, Heart, Body, Psyche and scene fields. Protected edits are stored in chat metadata; historical snapshot edits can be kept separate from current state.
+- The existing update block carries changes without an additional model call. Relevant current state is sent with the next reply under a configurable approximate budget. The previous roast is optional.
+- Enduring character boundaries can be edited in Story World, and a current-state card can explicitly save a lasting fact to a character entry. Random story events can be filtered using explicit item tags.
+- Existing v5 card data stays intact; compatible fields are read as v6 state. No post-hoc Will not judgment is promoted to a boundary.
+
 ## 5.11.1 (2026-11-16)
 
 - The commentator's starting voice is Gremlin, from Sola V6: its own description, how it types, and its sample. A

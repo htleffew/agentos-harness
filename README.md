@@ -350,28 +350,27 @@ so the world shows the story as it stands now. A new chapter is never copied the
 
 ## Scene: who is present, where and when
 
-Every reply is asked to end with three short lines: who is in the scene other than you, where the scene is, and the
-day, time of day and weather. With a story world they are part of the one update block; without one they are asked
+Every reply is asked for who is present, where the scene is, and the day, time of day and weather, plus important continuing environmental conditions when they change. With a story world they are part of the one update block; without one they are asked
 for on their own. The extension takes them out of the reply and keeps them on it. This adds no AI request.
 
 - The story notes, story event items that need a number of people or someone's secret or plan, the order for a
   character who has gone quiet, and the dice all use these lines, so they work the same whatever preset is on.
-- **Scene card.** A small card under each reply shows When, Where and Present. To start with it is only shown under
+- **Story state.** A collapsed section under each reply shows the scene and relevant character state. To start with it is only shown under
   a reply that has no scene tracker of its own, so with a preset that draws its own HUD (such as Sola V6 Slim)
   nothing is shown twice. It can be set to always or off in Settings > Scene.
 - An out-of-character message is not asked for the lines.
 
-## Story state and the roast (v6 preview)
+## Story state and the roast
 
-The extension can ask for changes to a character's **Mind**, **Heart**, **Body**, and **Psyche** in the same story update block as the world changes. It omits unchanged fields and accepts `CLEAR` when a condition resolves. The resulting state is kept with chat replies, and a compact selection is included in future prompts. This does not make a separate model request, although generating updates uses output tokens.
+The extension asks for changes to a character's **Mind**, **Heart**, **Body**, and **Psyche** in the same update block as the world changes. Unchanged fields can be omitted; `CLEAR` resolves a field. The resulting state is kept with the chat, and a compact selection for the current scene is included in future prompts. This makes no separate model request, although generated updates use output tokens. The approximate prompt budget is adjustable in Settings > Character cards; story-world and chapter budgets remain separate.
 
-- **Current State** in the extension panel lets you edit those four fields. An edited field is protected from automatic changes until you uncheck its protection.
-- A collapsed **Story state** section under each reply shows the scene and the state after that reply. Settings > Scene controls whether this is shown and whether a preset's tracker hides it. What Was Sent remains off under replies by default.
-- The story world still holds durable facts, wants, plans, secrets, and threads. Its character editor also offers an enduring boundaries field. Current state does not automatically overwrite those entries.
-- The optional roast is collapsed. Settings > Character cards controls whether the previous roast is included in the next prompt; this is off by default.
-- Editing reply text marks the displayed state as potentially out of date. Check Current State and correct it if necessary.
-
-This preview does not yet provide scene-state editing, editing historical snapshots, automatic promotion to the story world, or event filtering based on protected boundaries. Protected corrections are attached to the active reply and can be lost if that reply is replaced or deleted; review state after swipes or deletes. Older v5 cards remain stored in the chat, but their scene-specific fields are not automatically converted into v6 current state.
+- **Current State** in the extension panel shows and edits scene and character state. An edited field is protected from automatic changes until you uncheck protection. Protected corrections are kept in chat metadata, so replacing or deleting the reply that was newest when you edited does not remove them. Unprotected edits follow the reply where they were made.
+- A collapsed **Story state** under each reply shows the state after that reply. Edit a historical card to correct that snapshot alone, or also apply the changes to the current state. Neither action rewrites subsequent story text. Settings > Scene controls visibility and whether a preset's tracker hides it. What Was Sent remains off under replies by default.
+- **Story World** still owns durable facts, wants, plans, secrets, and threads. Its character editor has an enduring boundaries field. Use **Save a lasting fact to Story World** on a current character card to explicitly write a fact to an existing character entry; the chosen field is replaced after confirmation if it already contains text. Current state does not silently overwrite those entries.
+- **Story event limits** in Current State filters random event items by exact user-supplied tags. It also checks repeated and rerolled items. Untagged items, other instructions and automatic world orders are not filtered. Free-text boundaries and conditions are included as prompt guidance; the extension cannot reliably determine semantic conflicts in arbitrary text.
+- The optional roast is collapsed. Settings > Character cards controls whether the previous roast is included in the next prompt; this is off by default. Tracking, showing state and displaying What Was Sent are separate choices.
+- Editing reply text marks its card as potentially out of date; review the current state and correct it as needed. An out-of-character message is not asked for an update.
+- Existing v5 cards remain intact. When an old card has no v6 updates, its Thinks, Feels and Keeps private values are read as Mind, Heart and Psyche; the old Will not judgment is not imported as a boundary. Historical cards remain snapshots.
 
 ## Dice
 

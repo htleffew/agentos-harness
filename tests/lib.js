@@ -1,7 +1,15 @@
 const fs = require('fs');
 const h = require('./h.js');
 const BASE = '/scripts/extensions/third-party/roleplay-instructions';
-const sync = () => require('child_process').execSync('rm -rf /tmp/src/st/data/default-user/extensions/roleplay-instructions && mkdir -p /tmp/src/st/data/default-user/extensions/roleplay-instructions && cp -r /home/claude/ri/v5/. /tmp/src/st/data/default-user/extensions/roleplay-instructions/');
+const sync = () => {
+    if (process.env.RI_ST_DIR && process.env.RI_EXTENSION_SOURCE) {
+        const path = require('path');
+        const target = path.join(process.env.RI_ST_DIR, 'data/default-user/extensions/roleplay-instructions');
+        fs.rmSync(target, { recursive: true, force: true });
+        fs.mkdirSync(target, { recursive: true });
+        for (const name of ['index.js', 'manifest.json', 'style.css', 'src']) fs.cpSync(path.join(process.env.RI_EXTENSION_SOURCE, name), path.join(target, name), { recursive: true });
+    } else require('child_process').execSync('rm -rf /tmp/src/st/data/default-user/extensions/roleplay-instructions && mkdir -p /tmp/src/st/data/default-user/extensions/roleplay-instructions && cp -r /home/claude/ri/v5/. /tmp/src/st/data/default-user/extensions/roleplay-instructions/');
+};
 const mode = (m) => fs.writeFileSync('/tmp/mock-mode.json', JSON.stringify(m || {}));
 const resetLog = () => { try { fs.unlinkSync('/tmp/mock-requests.jsonl'); } catch { } };
 const requests = () => { try { return fs.readFileSync('/tmp/mock-requests.jsonl', 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; } };

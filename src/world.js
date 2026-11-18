@@ -1,3 +1,4 @@
+import { sceneAt, sceneProtected } from './state.js';
 // The story world: characters, places, factions, secrets, threads, planted details and things going on elsewhere.
 // A world is a set of kind 'world', kept like any other set (a lorebook of its own, or a group in a shared one).
 // A chat uses one world. Before each reply the extension reads who is present, picks the entries that matter
@@ -31,7 +32,7 @@ export const WORLD_KINDS = {
             F('knows', 'What they know', 'Things this person saw, heard or was told.', true),
             F('believes', 'What they believe'), F('suspects', 'What they suspect'), F('wrong', 'What they are wrong about'),
         ],
-        short: ['role', 'wants'],
+        short: ['role', 'boundary', 'wants'],
     },
     place: {
         label: 'Place', plural: 'Places', add: 'Add a place', nameLabel: 'Name', nameHelp: 'The name the story uses for this place.',
@@ -267,6 +268,8 @@ export function readScene(type = 'normal') {
     for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.scene || null; break; } }
     const out = { present: '', location: '', how: '' };
     // The reply's own scene lines come first: the extension asked for them, so they are there under any preset.
+    const corrected = sceneAt(type === 'swipe' ? end : Infinity, { overrides: true });
+    if (corrected?.present || sceneProtected('present')) return { present: corrected.present, location: corrected.where || '', how: 'the scene state' };
     if (own?.present) return { present: own.present, location: own.where || '', how: 'the scene lines of the newest reply' };
     if (!reply) return out;
     const parts = [];

@@ -1,10 +1,10 @@
-import { changesFromProfiles, statePrompt } from './state.js';
+import { changesFromProfiles, statePrompt, blockedEventTags } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
 import { request, isOwnPrompt } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
-import { isEvent, isStyle, rollEvent, rerollCategory, withPreset, checkRules, burnStatus } from './events.js';
+import { isEvent, isStyle, rollEvent, rerollCategory, eventAllowed, withPreset, checkRules, burnStatus } from './events.js';
 import { NOTES_WORLD, isNotes, notesEntry, readScene } from './world.js';
 import { phaseFor, quietNow, previousRecord, countPresent } from './pacing.js';
 import { rollDice, DICE_QUESTION } from './dice.js';
@@ -234,7 +234,7 @@ async function onEntriesLoaded(lore) {
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
         if (cs && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
-        const stateText = cs && !quiet && !isOocTurn() && cardsOn() ? statePrompt(kind) : '';
+        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: cardsOn() }) : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
         if (flow?.ask) lore.chatLore.push(askEntry([stateText, flow.ask].filter(Boolean).join('\n')));
@@ -502,6 +502,7 @@ function onScanDone(args) {
             for (const it of before) {
                 const e = find(it.key);
                 if (!e) continue;
+                if (isEvent(e) && !eventAllowed(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, blockedEventTags())) continue;
                 let misses = it.misses || 0;
                 const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
                 if (od) { misses = od.misses; cs.overdue = cs.overdue.filter(o => o !== od); }
@@ -509,7 +510,7 @@ function onScanDone(args) {
                 let src = it;
                 if (rerollCat && rerollCat.key === it.key && Array.isArray(it.parts)) {
                     // "Pick again" for one picked item: that category gets a new pick, everything else stays.
-                    const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, it.event || states[it.key], rerollCat.catId);
+                    const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, it.event || states[it.key], rerollCat.catId, isEvent(e) ? blockedEventTags() : []);
                     if (again) {
                         src = { ...it, version: again.text, parts: again.parts, event: it.event ? again.state : it.event };
                         if (!it.event) states = { ...states, [it.key]: again.state };
@@ -642,7 +643,7 @@ function onScanDone(args) {
                     const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
-                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type) });
+                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type), blockedTags: blockedEventTags() });
                     if (!rolled) {
                         map.delete(key);
                         // Tell the user once per chat when a set's main list is used up.

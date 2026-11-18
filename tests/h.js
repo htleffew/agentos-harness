@@ -1,8 +1,9 @@
 // Test helpers: drive a local SillyTavern with headless Chrome.
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+let chromium;
+try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/npm-tools/node_modules/playwright')); }
 const BASE = 'http://127.0.0.1:8123';
 async function open({ width = 1280, height = 900 } = {}) {
-    const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] });
+    const browser = await chromium.launch({ executablePath: process.env.RI_CHROME || '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage({ viewport: { width, height } });
     const errors = [];
     page.on('pageerror', e => errors.push('PAGEERROR ' + e.message));

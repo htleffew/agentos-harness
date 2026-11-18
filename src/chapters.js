@@ -1,3 +1,4 @@
+import { stateAt, sceneAt } from './state.js';
 // The story so far, kept by the extension itself.
 //  - Chapters: one AI request writes a summary of a stretch of replies. It is filed in the chat's story world as a
 //    "chapter" entry and sent with the story notes. A chapter is cut when a scene ends, after a set number of
@@ -308,6 +309,11 @@ export async function startNewChapter(draft, burnedSoFar) {
         used: structuredClone(cs.used), picks: structuredClone(cs.picks), pronouns: cs.pronouns ? structuredClone(cs.pronouns) : undefined,
         goals: g ? { ...structuredClone(g), steps: g.steps.map(s => ({ ...s, doneManual: stepDone(s, p) || !!s.doneManual })) } : undefined,
         burned: burnedHere(burnedSoFar),
+        stateSeed: structuredClone(stateAt(Infinity, { overrides: false })),
+        sceneSeed: structuredClone(sceneAt(Infinity, { overrides: false })),
+        stateOverrides: structuredClone(cs.stateOverrides || {}),
+        sceneOverrides: structuredClone(cs.sceneOverrides || {}),
+        blockedEventTags: structuredClone(cs.blockedEventTags || []),
         chapterOf: oldChat,
     };
     // 2. The summary becomes the account of everything before the new chat.
