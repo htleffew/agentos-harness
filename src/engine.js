@@ -1,3 +1,4 @@
+import { changesFromProfiles, statePrompt } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
@@ -233,11 +234,12 @@ async function onEntriesLoaded(lore) {
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
         if (cs && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
+        const stateText = cs && !quiet && !isOocTurn() && cardsOn() ? statePrompt(kind) : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
-        if (flow?.ask) lore.chatLore.push(askEntry(flow.ask));
+        if (flow?.ask) lore.chatLore.push(askEntry([stateText, flow.ask].filter(Boolean).join('\n')));
         // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry(a)); }
+        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) lore.chatLore.push(askEntry([stateText, a].filter(Boolean).join('\n'))); }
         if (flow) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
@@ -710,15 +712,19 @@ function onMessageReceived(id, type) {
         const m = ctx().chat?.[id];
         if (!m || m.is_user || m.is_system) return;
         // A continued reply keeps the time of its record, so what its first part filed in the story world still belongs to it.
-        const earlier = pending.type === 'continue' && m.extra?.[KEY]?.update ? m.extra[KEY] : null;
+        const earlier = pending.type === 'continue' ? m.extra?.[KEY] || null : null;
         const rec = { v: 1, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
+        const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene)?.extra?.[KEY]?.scene || {};
         const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
+        if (!parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
         if (Object.keys(scene).length) rec.scene = scene;
         keepCards(rec, parsed, earlier, id);
+        rec.stateChanges = [...(earlier?.stateChanges || []), ...changesFromProfiles(parsed.profiles)];
+        if (earlier?.stateEdits) rec.stateEdits = earlier.stateEdits;
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
@@ -728,7 +734,7 @@ function onMessageReceived(id, type) {
         if (settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
         // The story so far: a chapter is written in the background when a scene ended or enough replies went by.
         chapterAfterReply(rec.time, history('normal').next - 1, () => changed('messages'));
-        if (!rec.items.length) return;
+        if (!rec.items.length) { try { ctx().saveChat?.(); } catch { /* saved with the next change */ } changed('sent', id); return; }
         for (const it of rec.items) {
             const tags = (it.parts || []).flatMap(p => p.rules || []);
             if (tags.length) it.rules = checkRules(stripSentBlock(m.mes), tags);
@@ -1065,6 +1071,8 @@ export function init() {
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);
+        const edited = ctx().chat?.[id]?.extra?.[KEY];
+        if (edited && (edited.stateChanges?.length || edited.profiles?.length)) edited.stateOutdated = true;
         if (settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
         changed('messages');
     });

@@ -25,6 +25,7 @@ export const WORLD_KINDS = {
             F('strength', 'Main strength'), F('flaw', 'Main flaw'),
             F('voice', 'How they talk', 'Rhythm, word choice, habits of speech.'),
             F('orientation', 'Orientation', 'As their card or the story states it.'),
+            F('boundary', 'Enduring boundaries', 'Established limits that should guide future behavior.', true),
             F('wants', 'What they want', 'Right now, and in the long run.', true),
             F('plans', 'What they plan to do next'),
             F('knows', 'What they know', 'Things this person saw, heard or was told.', true),

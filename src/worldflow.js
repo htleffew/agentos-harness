@@ -77,6 +77,7 @@ const SCENE_FORM = [
     ['present', 'everyone in the scene at the end of this reply other than {{user}}, by name, separated by commas'],
     ['where', 'the place where the scene is at the end of this reply'],
     ['when', 'the day, the time of day and the weather at the end of this reply'],
+    ['environment', 'important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved'],
 ];
 const sceneLines = () => SCENE_FORM.map(([k, v]) => `${k}: ${v}`);
 
@@ -116,6 +117,10 @@ export const PROFILE_NOW = [
     ['private', 'Keeps private', 'what they think or feel and do not say'],
     ['willnot', 'Will not', 'what they refuse to do in this scene'],
     ['why', 'Why', 'how who they are led to what they just did, felt or chose in this reply'],
+    ['mind', 'Mind', 'current goal, attention or plan'],
+    ['heart', 'Heart', 'salient emotion or relationship tension'],
+    ['body', 'Body', 'persistent physical condition or injury'],
+    ['psyche', 'Psyche', 'established inner conflict or vulnerability'],
 ];
 const PROFILE_LINES = [...PROFILE_STABLE, ...PROFILE_NOW];
 const ROAST_FORM = "the commentator's reaction to this reply";
@@ -131,7 +136,7 @@ function cardForm() {
     if (!cardsOn()) return [];
     return [
         '<profile name="{{char}}">',
-        ...PROFILE_NOW.map(([, label, help]) => `${label}: ${help}`),
+        ...PROFILE_NOW.filter(([k]) => ['mind', 'heart', 'body', 'psyche'].includes(k)).map(([, label, help]) => `${label}: ${help}`),
         '</profile>',
         ...(roastOn() ? ['<roast>', ROAST_FORM, '</roast>'] : []),
     ];
@@ -177,12 +182,12 @@ function cardRules(onFile, type) {
     if (!cardsOn()) return [];
     const most = cardMost();
     const lines = [
-        `Profiles: {{char}} gets a profile in every reply.${most > 1 ? ` Another character gets one only when they are present and what they did in this reply changed what happens next: they spoke to {{user}}, made a choice, or acted on a goal of their own. ${most} profiles at most.` : ' Nobody else gets one.'} {{user}} never gets one. Every line is a plain statement of fact, as things stand at the end of this reply.`,
+        `Profiles: {{char}} gets a profile in every reply.${most > 1 ? ` Another character gets one only when they are present and what they did in this reply changed what happens next: they spoke to {{user}}, made a choice, or acted on a goal of their own. ${most} profiles at most.` : ' Nobody else gets one.'} {{user}} never gets one. Only include fields that this reply meaningfully changes or establishes. Omit unchanged and unknown fields; write CLEAR to resolve a field. Do not invent feelings or facts to fill fields. Separate private knowledge from what others observed.`,
         `For a person whose profile is not on file yet, add five lines at the top of their profile: ${PROFILE_STABLE.map(([, label, help]) => `${label}: ${help}`).join('. ')}. Profiles on file: ${onFile.join(', ') || 'none yet'}.`,
     ];
     if (roastOn()) {
         lines.push(`Roast: ${clean(settings().cards.voice) || 'one short reaction from a viewer of this reply'}`);
-        const prev = lastRoast(type);
+        const prev = settings().cards.previousRoast === false ? '' : lastRoast(type);
         if (prev) lines.push(`The commentator's reaction to the previous reply was: ${prev}`);
     }
     return lines;
@@ -210,7 +215,7 @@ export function parseCards(text) {
             if (!hit) continue;
             const v = clean(line.slice(hit[1].length + 1)).replace(/^\[|\]$/g, '');
             if (!v || norm(v) === norm(hit[2]) || v.length > 600) continue;
-            (PROFILE_STABLE.includes(hit) ? stable : now)[hit[0]] = v;
+            (PROFILE_STABLE.includes(hit) ? stable : now)[hit[0]] = /^(clear|resolved)$/i.test(v) && ['mind', 'heart', 'body', 'psyche'].includes(hit[0]) ? null : v;
         }
         if (!Object.keys(now).length && !Object.keys(stable).length) return '';
         const same = profiles.find(p => norm(p.name) === norm(name));
@@ -270,10 +275,10 @@ export function parseUpdate(text) {
         if (!hit) continue;
         const k = hit[1].toLowerCase();
         if (k === 'scene') { ended = /^\W*ended\b/i.test(hit[2]); continue; }
-        if (k === 'present' || k === 'where' || k === 'when') {
+        if (k === 'present' || k === 'where' || k === 'when' || k === 'environment') {
             const v = clean(hit[2]).replace(/[.]+$/, '');
             // A line copied from the form with nothing filled in is left out.
-            if (v && !SCENE_FORM.some(([fk, fv]) => fk === k && norm(fv) === norm(v))) scene[k] = v.slice(0, 300);
+            if (v && !SCENE_FORM.some(([fk, fv]) => fk === k && norm(fv) === norm(v))) scene[k] = k === 'environment' && /^(clear|resolved)$/i.test(v) ? '' : v.slice(0, 300);
             continue;
         }
         if (!ARITY[k]) continue;

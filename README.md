@@ -361,25 +361,17 @@ for on their own. The extension takes them out of the reply and keeps them on it
   nothing is shown twice. It can be set to always or off in Settings > Scene.
 - An out-of-character message is not asked for the lines.
 
-## Character cards and the roast
+## Story state and the roast (v6 preview)
 
-Every reply is asked, in the same block, for a profile of {{char}}, and of one other character when what they did in
-the reply changed what happens next (they spoke to you, made a choice, or acted on a goal of their own). The extension
-takes the profiles out of the reply and draws them as cards under it. This adds no AI request.
+The extension can ask for changes to a character's **Mind**, **Heart**, **Body**, and **Psyche** in the same story update block as the world changes. It omits unchanged fields and accepts `CLEAR` when a condition resolves. The resulting state is kept with chat replies, and a compact selection is included in future prompts. This does not make a separate model request, although generating updates uses output tokens.
 
-- **What is going on in them now** (Wants, Thinks, Feels, Shows, Keeps private, Will not, Why) is written new with
-  every reply. Wants also keeps the character's story world entry up to date.
-- **Who they are** (Who, Strength, Flaw, Voice, Orientation) is asked for once per person. With a story world it is
-  filed in the person's entry (a new person gets an entry, and an entry only gets the lines it does not have yet);
-  without one it is carried from the person's earlier card in the chat. The request lists who is on file, so it is
-  not written again. On a card it sits in the fold "Who they are".
-- **The roast** is one reaction from the commentator, a separate personality who writes none of the story. Its voice
-  is set in Settings > Character cards. The previous reply's roast is sent with the next request, so each one can
-  answer the last. It is drawn at the bottom of the cards.
-- Settings > Character cards: on or off, how many profiles at most (1 to 3), the roast on or off, and the
-  commentator's voice. About 550 tokens are added to what is sent with each reply while both are on, and each reply
-  is about 150 to 250 tokens longer.
-- An out-of-character message is not asked for profiles. A swipe, a delete or a branch follows by itself.
+- **Current State** in the extension panel lets you edit those four fields. An edited field is protected from automatic changes until you uncheck its protection.
+- A collapsed **Story state** section under each reply shows the scene and the state after that reply. Settings > Scene controls whether this is shown and whether a preset's tracker hides it. What Was Sent remains off under replies by default.
+- The story world still holds durable facts, wants, plans, secrets, and threads. Its character editor also offers an enduring boundaries field. Current state does not automatically overwrite those entries.
+- The optional roast is collapsed. Settings > Character cards controls whether the previous roast is included in the next prompt; this is off by default.
+- Editing reply text marks the displayed state as potentially out of date. Check Current State and correct it if necessary.
+
+This preview does not yet provide scene-state editing, editing historical snapshots, automatic promotion to the story world, or event filtering based on protected boundaries. Protected corrections are attached to the active reply and can be lost if that reply is replaced or deleted; review state after swipes or deletes. Older v5 cards remain stored in the chat, but their scene-specific fields are not automatically converted into v6 current state.
 
 ## Dice
 
