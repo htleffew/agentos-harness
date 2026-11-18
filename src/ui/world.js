@@ -1,3 +1,4 @@
+import { recordManualWorldChange } from '../worldflow.js';
 // Story World tab: the people, places, groups, secrets, open threads, planted details and things going on
 // elsewhere of one story, and how they are sent as story notes.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, chip, download } from './dom.js';
@@ -263,7 +264,7 @@ function flowSettings(app) {
     return section('Keeping the world up to date',
         field('Keep the world up to date from each reply', UPDATE_HELP[o.update] || UPDATE_HELP.all,
             select([{ value: 'all', label: 'On' }, { value: 'auto', label: 'On, and leave my own entries alone' }, { value: 'off', label: 'Off' }], o.update, (v) => { o.update = v; save(); })),
-        field('A branch gets its own copy of the world', o.copyOnBranch !== false ? 'On: the first time a branch is opened, it gets a copy of the story world, named after it with "(branch)". What happens in the branch changes the copy, and the chat it came from keeps the original. Swipes and deletes in the branch undo changes in the copy only.' : 'Off: a branch and the chat it came from use the same world, so what one files is seen by the other.',
+        field('A branch gets its own copy of the world', o.copyOnBranch !== false ? 'On: the first time a branch is opened, it gets a separate lorebook named after the story world with "(branch)". Recorded later changes are rewound on the copy. What happens in the branch changes the copy, and the chat it came from keeps the original. Swipes and deletes in the branch undo changes in the copy only.' : 'Off: a branch shares an existing parent world, so changes are shared. If the parent has no world, the branch gets a new empty lorebook.',
             select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], o.copyOnBranch !== false ? 'on' : 'off', (v) => { o.copyOnBranch = v === 'on'; save(); })),
         h('div', { class: 'ri-help' }, 'Everything filed this way is marked "Added automatically", listed in What Was Sent under the reply that caused it, written to the Log tab, and undone when that reply is swiped away or deleted. Saving an entry yourself makes it yours. An out-of-character message files nothing.'),
         h('div', { class: 'ri-grid2' },
@@ -350,9 +351,11 @@ function renderEdit(body, app) {
             const data = await loadWorld(id);
             if (!data) throw new Error('The lorebook could not be read.');
             if (draft.isNew && data.entries[draft.uid]) draft.uid = newWorldEntry(data, draft.kind).uid;
+            const before = data.entries[draft.uid] ? structuredClone(data.entries[draft.uid]) : null;
             draft.auto = false;   // saved by hand: it is yours now
             writeWorldEntry(data, draft, id);
             await saveWorld(id, data);
+            recordManualWorldChange(id, draft.uid, before, data.entries[draft.uid]);
             toast('success', `${def.label} saved.`);
             go(app, { view: 'list' });
         } catch (e) { toast('error', `Could not save: ${e.message}`); }
@@ -362,7 +365,7 @@ function renderEdit(body, app) {
         button('Cancel', () => go(app, { view: 'list' }), { kind: 'ghost' }),
         draft.isNew ? null : button('Delete', async () => {
             if (!await confirmBox(`Delete "${draft.name}" from this world?`)) return;
-            try { const data = await loadWorld(id); delete data.entries[draft.uid]; await saveWorld(id, data); go(app, { view: 'list' }); }
+            try { const data = await loadWorld(id); const before = data.entries[draft.uid] ? structuredClone(data.entries[draft.uid]) : null; delete data.entries[draft.uid]; await saveWorld(id, data); recordManualWorldChange(id, draft.uid, before, null); go(app, { view: 'list' }); }
             catch (e) { toast('error', `Could not delete: ${e.message}`); }
         }, { kind: 'danger' })));
 }

@@ -34,7 +34,7 @@ const chatInfo = (page) => page.evaluate(async (B) => { const c = globalThis.Sil
             const brWorld = await worldOf(page);
             const brName = await page.evaluate(async ([B, id]) => (await import(`${B}/src/books.js`)).setInfo(id), [L.BASE, br.world]);
             console.log(where, 'orig:', JSON.stringify(orig), 'branch:', JSON.stringify(br), 'name:', brName.name, brName.shared ? brName.book : '');
-            assert(br.chat !== orig.chat && br.world !== orig.world && br.from === orig.world && /\(branch\)$/.test(brName.name) && brName.shared === !!home && (!home || brName.book === home), `branch (${where}): the branch gets its own copy of the world, named "(branch)", kept where the original is`);
+            assert(br.chat !== orig.chat && br.world !== orig.world && br.from === orig.world && /\(branch\)$/.test(brName.name) && !brName.shared, `branch (${where}): the branch gets its own copy of the world, named "(branch)", in its own lorebook`);
             const sig = (w) => w.entries.map(e => `${e.kind}:${e.name}:${e.f.wants || ''}`).sort().join('|');
             assert(sig(brWorld) === sig(origWorld) && brWorld.entries.length === 3, `branch (${where}): the copy has every entry of the original, chapters included`);
             // the branch keeps its chapter and moves on in the copy
@@ -50,7 +50,7 @@ const chatInfo = (page) => page.evaluate(async (B) => { const c = globalThis.Sil
             const del = await worldOf(page);
             const origDel = await worldOf(page, orig.world);
             console.log(where, 'after delete:', JSON.stringify(del.entries.map(e => `${e.name}:${e.on}:${e.f.wants || ''}`)), JSON.stringify(origDel.entries.map(e => `${e.name}:${e.on}:${e.f.wants || ''}`)));
-            assert(!del.entries.some(e => e.name === 'Otto') && hale(del) === 'To sail at dawn' && !del.entries.some(e => e.kind === 'chapter') && hale(origDel) === 'To sail at dawn' && origDel.entries.some(e => e.kind === 'chapter') && origDel.entries.some(e => e.name === 'The missing crate'), `branch (${where}): deleting replies in the branch undoes what they filed in the copy (the chapter goes with its reply), and the original keeps everything`);
+            assert(!del.entries.some(e => e.name === 'Otto') && hale(del) === '' && !del.entries.some(e => e.kind === 'chapter') && hale(origDel) === 'To sail at dawn' && origDel.entries.some(e => e.kind === 'chapter') && origDel.entries.some(e => e.name === 'The missing crate'), `branch (${where}): deleting both later turns rewinds their world changes and the chapter; the original keeps everything`);
             // opening the branch again does not copy again; the original chat keeps its world
             await page.evaluate(async (chat) => { await globalThis.SillyTavern.getContext().openCharacterChat(chat); }, orig.chat.replace(/\.jsonl$/, '')); await page.waitForTimeout(1500); await idle(page);
             const back = await chatInfo(page);

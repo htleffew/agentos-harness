@@ -133,6 +133,7 @@ export function setChatWorld(id) {
     const cs = chatState();
     if (!cs) return;
     cs.world = id || '';
+    delete cs.branchPendingWorld;
     saveChatState();
 }
 
@@ -265,7 +266,7 @@ export function readScene(type = 'normal') {
     if (type === 'swipe' || type === 'continue') end -= 1;
     let reply = '';
     let own = null;
-    for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.scene || null; break; } }
+    for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.stateStale ? null : m.extra?.[KEY]?.scene || null; break; } }
     const out = { present: '', location: '', how: '' };
     // The reply's own scene lines come first: the extension asked for them, so they are there under any preset.
     const corrected = sceneAt(type === 'swipe' ? end : Infinity, { overrides: true });
@@ -380,9 +381,13 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
         const sRoom = Math.max(100, Math.round(Number(sum.budget) || 800)) * 4;
         let sUsed = 0;
         const put = (w, text) => { if (sUsed + text.length > sRoom && sUsed > 0) return false; sUsed += text.length + 3; story.lines.push(`- ${text}`); ids.push(w.uid); return true; };
-        const chapters = by('chapter').sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
-        // A combined account of this chat already holds the chapters up to where it ends; those count as older ones.
         const times = chatTimes();
+        const cs = chatState();
+        const invalidFrom = cs?.historyNeedsReview ? Number(cs.historyInvalidFrom) || 0 : 0;
+        // Keep the user's edited chapter in the world, but do not send it until
+        // they have reviewed a chapter that overlaps the altered story.
+        const chapters = by('chapter').filter(w => !(invalidFrom && w.span && chapterIsMine(w, chatId, times) && Number(w.span.to) >= invalidFrom)).sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
+        // A combined account of this chat already holds the chapters up to where it ends; those count as older ones.
         const ownRoll = chapters.find(w => w.rollup && chapterIsMine(w, chatId, times));
         const mine = chapters.filter(w => !w.rollup && chapterIsMine(w, chatId, times) && !(ownRoll && w.span.to <= ownRoll.span.to));
         const newest = mine.slice(-Math.max(1, Math.round(Number(sum.keep) || 2)));

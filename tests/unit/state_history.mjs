@@ -34,3 +34,23 @@ chat.push(msg({ profiles: [{ name: 'Mira', now: { thinks: 'Plans a voyage', feel
 assert.deepEqual(S.stateAt().mira.fields, { mind: 'Plans a voyage', heart: 'Anxious', psyche: 'Wants to leave' });
 assert(saves >= 5);
 console.log('metadata corrections, snapshot isolation, scene edits, legacy cards: passed');
+const root = { stateOverrides: {}, sceneOverrides: {}, correctionHistory: [
+ {kind:'state',key:'hale\u0000mind',anchor:'record:1',entry:{name:'Hale',field:'mind',value:'Earlier',protected:true,anchor:'record:1'}},
+ {kind:'state',key:'hale\u0000mind',anchor:'record:2',entry:{name:'Hale',field:'mind',value:'Later',protected:true,anchor:'record:2'}},
+ {kind:'scene',key:'where',anchor:'seed',entry:{value:'Inherited',protected:true,anchor:'seed'}},
+] };
+assert.equal(S.trimBranchOverrides(root,[{extra:{roleplay_instructions:{time:1}}}]),1);
+assert.equal(root.stateOverrides['hale\u0000mind'].value,'Earlier');
+assert.equal(root.sceneOverrides.where.value,'Inherited');
+console.log('branch restores earlier protected correction and preserves inherited seed: passed');
+
+chat.length = 0;
+chat.push(msg({time:10,stateChanges:[{name:'Nora',fields:{mind:'Wait'}}]}));
+chat.push(msg({time:20,stateChanges:[{name:'Nora',fields:{mind:'Go'}}]}));
+assert(S.editState(1,'Nora','mind','Protected',true));
+chat.pop();
+S.reanchorRemovedCorrections();
+const branched = structuredClone(chatMetadata.roleplay_instructions);
+S.trimBranchOverrides(branched,chat);
+assert.equal(branched.stateOverrides['nora\u0000mind'].value,'Protected');
+console.log('protected edit survives deletion and a later branch: passed');

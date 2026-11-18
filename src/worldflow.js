@@ -1,10 +1,11 @@
+import { trimBranchOverrides, correctionAnchor } from './state.js';
 // Keeping the story world up to date by itself.
 //  1. With each reply the extension asks the model to add one short block that records what the reply made true.
 //     The block is lifted out of the reply and filed as world entries. No extra AI request is made.
 //  2. Open threads build by themselves, and now and then something that is ready is ordered into the scene.
 //  3. Every automatic change is stored with the reply that caused it, and is undone when that reply is swiped
 //     away or deleted.
-import { ctx, KEY, LOG, names, isReply } from './st.js';
+import { ctx, KEY, LOG, names, isReply, toast } from './st.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
 import { rollInt, pickWeighted, setInfo, entriesOf, createSet, knownSets } from './books.js';
@@ -357,7 +358,7 @@ export function applyOps(data, id, ops, meta, mode = 'all', maxNew = MAX_NEW) {
         writeWorldEntry(data, w, id);
         delete w.isNew;
         list.push(w); made++;
-        changes.push({ uid: w.uid, name: w.name, kind, type: 'create' });
+        changes.push({ uid: w.uid, name: w.name, kind, type: 'create', createdState: creationFingerprint(w) });
         return w;
     };
 
@@ -436,6 +437,11 @@ export function tick(data, id, meta, opts = settings().world) {
     return changes;
 }
 
+/** Ignore UID and storage location so a created entry can be checked after branching. */
+export function creationFingerprint(w) {
+    return JSON.stringify([w.name, w.kind, w.fields, w.aliases, w.status, w.show, w.on]);
+}
+
 /** Undo a list of changes, newest first. A line that was changed again since is left as it is. */
 export function revertChanges(data, id, changes) {
     let done = 0;
@@ -445,7 +451,7 @@ export function revertChanges(data, id, changes) {
         const w = listWorld(data, id).find(x => x.uid === c.uid);
         if (!w) continue;
         if (c.type === 'hide') { if (showAgain(c.dates)) done++; continue; }
-        if (c.type === 'create') { if (w.auto) { delete data.entries[c.uid]; done++; } continue; }
+        if (c.type === 'create') { if (w.auto && (!c.createdState || c.createdState === creationFingerprint(w))) { delete data.entries[c.uid]; done++; } continue; }
         if (c.type === 'set' && clean(w.fields[c.field]) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'status' && w.status === c.after) { w.status = c.before; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'off' && !w.on) { w.on = true; writeWorldEntry(data, w, id); done++; }
@@ -566,9 +572,10 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100 }
 
 let queue = Promise.resolve();
 /** World changes run one after another, so two of them never write the lorebook at the same time. */
-export function enqueue(fn) {
-    queue = queue.then(fn).catch(e => console.warn(LOG, 'story world', e));
-    return queue;
+export function enqueue(fn, { propagate = false } = {}) {
+    const result = queue.then(fn);
+    queue = result.catch(e => console.warn(LOG, 'story world', e));
+    return propagate ? result : queue;
 }
 export const worldIdle = () => queue;
 
@@ -611,7 +618,7 @@ export function liftBlock(id) {
 }
 
 /** File what a reply established. parsed: from liftBlock. rec: the record on that reply. effects: world orders that count as done. */
-export function afterReply(id, rec, parsed, replyNo, onDone) {
+export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
     return enqueue(async () => {
         const cs = chatState();
         const wid = chatWorld();
@@ -619,9 +626,9 @@ export function afterReply(id, rec, parsed, replyNo, onDone) {
         await syncNow();
         const o = settings().world;
         const data = await loadWorld(wid);
-        if (!data) return;
+        if (!data) { if (options.propagate) throw new Error('The story world could not be read.'); return; }
         const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
-        const ooc = isOocTurn();
+        const ooc = options.rebuild ? false : isOocTurn();
         const changes = [];
         if ((parsed.found || parsed.ops?.length) && o.update !== 'off' && !ooc) changes.push(...applyOps(data, wid, parsed.ops, meta, o.update));
         // The cards under the reply show who each person is as the story world has it.
@@ -632,7 +639,7 @@ export function afterReply(id, rec, parsed, replyNo, onDone) {
                 if (w) for (const [k] of PROFILE_STABLE) if (clean(w.fields[k])) p.stable[k] = clean(w.fields[k]);
             }
         }
-        if (!ooc) changes.push(...tick(data, wid, meta));
+        if (!ooc && !options.rebuild) changes.push(...tick(data, wid, meta));
         if (changes.length) await saveWorld(wid, data);
         // A reply that was continued keeps what its first part filed.
         const before = rec.update && rec.update.world === wid && !rec.update.undone ? rec.update : null;
@@ -650,7 +657,17 @@ export function afterReply(id, rec, parsed, replyNo, onDone) {
             addLog({ what: 'Story world update', ok: null, result: 'The reply had no update block, so nothing was filed from it. This is normal now and then. If it happens every time, the model is leaving the block out.', details: [], got: '' });
         }
         onDone?.();
-    });
+    }, options);
+}
+
+/** Record extension-editor changes so a later branch can undo future manual edits
+ * on its copy without changing the parent world. */
+export function recordManualWorldChange(world, uid, before, after) {
+    const cs = chatState();
+    if (!cs) return;
+    cs.manualWorldChanges ||= [];
+    cs.manualWorldChanges.push({ world, uid, before: before ? JSON.parse(JSON.stringify(before)) : null, after: after ? JSON.parse(JSON.stringify(after)) : null, anchor: correctionAnchor(), time: Date.now() });
+    saveChatState();
 }
 
 /** A world order happened (or was sent with checking off): make its effect, and store it with the reply. */
@@ -703,10 +720,44 @@ async function revertItem(item) {
     return n;
 }
 
+/** An edited reply invalidates generated state and automatic world changes from
+ * that point onward. Manual/protected corrections are retained. */
+export function invalidateAfterEdit(id, onDone) {
+    return enqueue(async () => {
+        const c = ctx(), chatId = String(c.getCurrentChatId?.() || '');
+        const cs = chatState(), chat = c.chat || [];
+        if (!cs || id < 0 || id >= chat.length || chat[id]?.is_user) return;
+        const affected = chat.slice(id).filter(m => !m?.is_user && m?.extra?.[KEY]);
+        const waitingForBranch = !!cs.branchPendingWorld;
+        let undone = 0;
+        for (const m of [...affected].reverse()) {
+            const rec = m.extra[KEY];
+            if (rec.update && !rec.update.undone) {
+                if (!waitingForBranch) undone += await revertItem({ world: rec.update.world, changes: rec.update.changes });
+                rec.update.undone = true;
+                const log = worldLog(cs);
+                if (!waitingForBranch && rec.time && log.items[String(rec.time)]) log.items[String(rec.time)].changes = [];
+            }
+            rec.stateStale = true;
+            rec.stateOutdated = true;
+            const info = m.swipe_info?.[m.swipe_id];
+            if (info) { info.extra ||= {}; info.extra[KEY] = JSON.parse(JSON.stringify(rec)); }
+        }
+        if (String(ctx().getCurrentChatId?.() || '') !== chatId) return;
+        const firstReply = Math.max(1, chat.slice(1, id + 1).filter(isReply).length);
+        cs.historyInvalidFrom = Math.min(Number(cs.historyInvalidFrom) || firstReply, firstReply);
+        cs.historyNeedsReview = true;
+        saveChatState();
+        try { await c.saveChat?.(); } catch { /* saved on the next change */ }
+        addLog({ what: 'Edited story', ok: null, result: `An earlier reply changed. ${affected.length} replies have stale state; ${undone} automatic world changes were undone. Review current state, world entries and any manually edited chapter summaries.`, details: [], got: '' });
+        onDone?.();
+    });
+}
+
 /** Bring the world in line with the replies that are in the chat now. */
 async function syncNow() {
     const cs = chatState();
-    if (!cs || !settings().enabled) return;
+    if (!cs || !settings().enabled || cs.branchPendingWorld) return;
     const log = worldLog(cs);
     const current = new Map();
     for (const m of ctx().chat || []) { const rec = m?.extra?.[KEY]; if (rec?.update && rec.time) current.set(String(rec.time), rec); }
@@ -719,8 +770,13 @@ async function syncNow() {
     }
     let undone = 0, redone = 0;
     // Replies that are gone (deleted, or swiped away): undo what they changed.
-    for (const t of Object.keys(log.items)) {
-        if (current.has(t)) continue;
+    let laterReplyStillPresent = false;
+    for (const t of Object.keys(log.items).reverse()) {
+        if (current.has(t)) { laterReplyStillPresent = true; continue; }
+        // The host can emit deletion events while a bulk delete is still in
+        // progress. Do not discard an older rollback while a newer reply still
+        // exists: its changes may currently cover the older values.
+        if (laterReplyStillPresent) continue;
         undone += await revertItem(log.items[t]);
         delete log.items[t];
     }
@@ -743,7 +799,20 @@ async function syncNow() {
         addLog({ what: 'Story world update', ok: true, result: `${undone ? `${undone} ${undone === 1 ? 'change was' : 'changes were'} undone because the reply that made ${undone === 1 ? 'it' : 'them'} is no longer in the chat. ` : ''}${redone ? `${redone} ${redone === 1 ? 'change was' : 'changes were'} made again because that reply is back.` : ''}`.trim(), details: [], got: '' });
     }
 }
-export const syncWorld = (onDone) => enqueue(async () => { await ownWorld().catch(e => console.warn(LOG, 'branch world', e)); await syncNow(); onDone?.(); });
+export const syncWorld = (onDone) => enqueue(async () => {
+    const chatId = String(ctx().getCurrentChatId?.() || '');
+    try { await ownWorld(); }
+    catch (e) {
+        if (String(ctx().getCurrentChatId?.() || '') !== chatId) return;
+        const cs = chatState();
+        if (cs) { cs.branchPendingWorld = cs.branchPendingWorld || cs.world || ''; cs.world = ''; saveChatState(); }
+        console.warn(LOG, 'branch world', e);
+        toast('error', 'The branch story world could not be created. The parent world has been disconnected to protect it; reopen the branch to retry.');
+        addLog({ what: 'Branch world', ok: false, result: `Could not create the branch world: ${e.message}. The parent world is disconnected until retry.`, details: [], got: '' });
+        onDone?.(); return;
+    }
+    await syncNow(); onDone?.();
+});
 
 // ---------- a branch gets its own copy of the story world ----------
 
@@ -777,26 +846,56 @@ async function ownWorld() {
     if (!cs) return;
     const mark = chatMark();
     if (!mark) return;
-    if (!cs.world || !cs.worldOwner) { if (cs.worldOwner !== mark) { cs.worldOwner = mark; saveChatState(); } return; }
-    if (cs.worldOwner === mark) return;
-    if (settings().world.copyOnBranch === false) { cs.worldOwner = mark; saveChatState(); return; }
-    const from = cs.world;
-    const info = setInfo(from);
-    const data = await loadWorld(from).catch(() => null);
-    if (!data) { cs.worldOwner = mark; saveChatState(); return; }
-    // Copy every entry, marked with the uid it had, so the records can be pointed at the copies.
+    const isBranch = !!ctx().chatMetadata?.main_chat && (!cs.worldOwner || cs.worldOwner !== mark);
+    if (!isBranch) { if (cs.worldOwner !== mark) { cs.worldOwner = mark; saveChatState(); } return; }
+    const removedOverrides = trimBranchOverrides(cs);
+    if (!(ctx().chat || []).some(m => m?.extra?.[KEY]?.stateStale)) { cs.historyNeedsReview = false; delete cs.historyInvalidFrom; }
+    const from = cs.branchPendingWorld || cs.world;
+    // A branch gets its own world by default, even when its parent had none.
+    // Sharing an existing world remains an explicit user setting.
+    if (from && settings().world.copyOnBranch === false) { cs.world = from; delete cs.branchPendingWorld; cs.worldOwner = mark; saveChatState(); return; }
+    const info = from ? setInfo(from) : { name: 'Story world', shared: false };
+    const source = from ? await loadWorld(from).catch(() => null) : { entries: {} };
+    if (!source) throw new Error('The parent story world could not be read; the branch was not linked to a copy.');
+    const data = JSON.parse(JSON.stringify(source));
+    // The parent's metadata has its world-change ledger. Undo the abandoned
+    // future on the copy before renumbering its entries, newest reply first.
+    const retained = new Set((ctx().chat || []).map(m => String(m?.extra?.[KEY]?.time || '')).filter(Boolean));
+    const invalidated = new Set((ctx().chat || []).filter(m => m?.extra?.[KEY]?.stateStale && m.extra[KEY].update?.undone).map(m => String(m.extra[KEY].time || '')).filter(Boolean));
+    const items = cs.worldLog?.items || {};
+    const anchors = new Set();
+    for (const m of ctx().chat || []) {
+        if (m?.extra?.[KEY]?.time) anchors.add(`record:${m.extra[KEY].time}`);
+        if (m?.send_date) anchors.add(`message:${m.send_date}`);
+    }
+    const manual = Array.isArray(cs.manualWorldChanges) ? cs.manualWorldChanges : [];
+    const future = [
+        ...Object.entries(items).filter(([time, item]) => (!retained.has(String(time)) || invalidated.has(String(time))) && item?.world === from).map(([time, item]) => ({ time: Number(time), item })),
+        ...manual.filter(item => item.world === from && item.anchor && !anchors.has(item.anchor)).map(item => ({ time: Number(item.time), manual: item })),
+    ].sort((a, b) => b.time - a.time);
+    for (const change of future) {
+        if (change.item) revertChanges(data, from, (change.item.changes || []).filter(c => c.type !== 'hide'));
+        else {
+            const item = change.manual, current = data.entries?.[item.uid] || null;
+            // Do not overwrite an entry changed independently since the recorded edit.
+            if (JSON.stringify(current) !== JSON.stringify(item.after)) continue;
+            if (item.before) data.entries[item.uid] = item.before; else delete data.entries[item.uid];
+        }
+    }
+    cs.manualWorldChanges = manual.filter(item => item.world !== from || !item.anchor || anchors.has(item.anchor));
     const copy = { entries: {} };
     let i = 0;
     for (const e of entriesOf(data, from)) {
         const c = JSON.parse(JSON.stringify(e));
         c.uid = i; c.displayIndex = i;
         c.extensions = { ...(c.extensions || {}), ri: { ...(c.extensions?.ri || {}), copyOf: e.uid } };
+        delete c.extensions.ri.set; // the branch is a standalone lorebook
         copy.entries[i++] = c;
     }
-    const taken = new Set(knownSets('world').map(id => setInfo(id).name));
+    const taken = new Set([...knownSets('world').map(id => setInfo(id).name), ...(ctx().getWorldInfoNames?.() || [])]);
     let name = `${info.name} (branch)`;
     for (let n = 2; taken.has(name); n++) name = `${info.name} (branch ${n})`;
-    const to = await createSet(name, 'world', copy, info.shared ? info.book : '');
+    const to = await createSet(name, 'world', copy, '');
     const made = await loadWorld(to);
     const uids = {};
     for (const e of entriesOf(made, to)) {
@@ -813,13 +912,26 @@ async function ownWorld() {
         moved++;
     }
     for (const rec of allRecords()) for (const it of rec.items || []) if (it.worldOrder && uids[String(it.worldOrder.uid)] !== undefined) it.worldOrder.uid = uids[String(it.worldOrder.uid)];
+    const targetInfo = setInfo(to);
+    const remapEntry = (entry, uid) => {
+        if (!entry) return null;
+        const mapped = JSON.parse(JSON.stringify(entry)); mapped.uid = uid; mapped.displayIndex = uid;
+        if (mapped.extensions?.ri) { if (targetInfo.shared) mapped.extensions.ri.set = targetInfo.group; else delete mapped.extensions.ri.set; delete mapped.extensions.ri.copyOf; }
+        return mapped;
+    };
+    for (const change of cs.manualWorldChanges || []) if (change.world === from && uids[String(change.uid)] !== undefined) {
+        const uid = uids[String(change.uid)]; change.world = to; change.uid = uid;
+        change.before = remapEntry(change.before, uid); change.after = remapEntry(change.after, uid);
+    }
+    cs.branchHistoryNotice = !!from;
     cs.world = to;
+    delete cs.branchPendingWorld;
     cs.worldFrom = from;
     cs.worldOwner = mark;
     cs.worldLog = null;   // rebuilt from the records, which now name the copy
     saveChatState();
     try { await ctx().saveChat?.(); } catch { /* saved with the next change */ }
-    addLog({ what: 'Story world for a branch', ok: true, result: `This chat is a branch, so it got its own copy of the story world "${info.name}", named "${name}", with ${Object.keys(uids).length} entries. What happens in this branch now changes the copy, and the chat it came from keeps the original. ${moved} replies were pointed at the copy.` });
+    addLog({ what: 'Story world for a branch', ok: true, result: `This chat is a branch, so it got its own copy of the story world "${info.name}", named "${name}", with ${Object.keys(uids).length} entries. What happens in this branch now changes the copy, and the chat it came from keeps the original. ${moved} replies were pointed at the copy.${removedOverrides ? ` ${removedOverrides} protected corrections from after the branch point or without a known date were left out.` : ''}` });
 }
 
 /**
@@ -831,7 +943,7 @@ export function undoForSwipe() {
         const cs = chatState();
         const chat = ctx().chat || [];
         const m = chat[chat.length - 1];
-        if (!cs || !m || m.is_user) return;
+        if (!cs || !m || m.is_user || cs.branchPendingWorld) return;
         await syncNow();
         const log = worldLog(cs);
         const times = new Set();

@@ -1,4 +1,4 @@
-import { changesFromProfiles, statePrompt, blockedEventTags } from './state.js';
+import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
@@ -11,7 +11,7 @@ import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
 import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile } from './worldflow.js';
-import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
+import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, invalidateAfterEdit, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
@@ -719,7 +719,7 @@ function onMessageReceived(id, type) {
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
-        const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene)?.extra?.[KEY]?.scene || {};
+        const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene && !x.extra[KEY].stateStale)?.extra?.[KEY]?.scene || {};
         const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
         if (!parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
         if (Object.keys(scene).length) rec.scene = scene;
@@ -1068,12 +1068,11 @@ export function init() {
     for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
     // What a reply changed in the story world is undone when that reply is swiped away or deleted.
     on('MESSAGE_SWIPED', () => { if (settings().enabled) syncWorld(() => changed('messages')); });
-    on('MESSAGE_DELETED', () => { if (settings().enabled) { reconcile(); syncWorld(() => changed('messages')); } changed('messages'); });
+    on('MESSAGE_DELETED', () => { if (settings().enabled) { reanchorRemovedCorrections(); reconcile(); syncWorld(() => changed('messages')); } changed('messages'); });
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);
-        const edited = ctx().chat?.[id]?.extra?.[KEY];
-        if (edited && (edited.stateChanges?.length || edited.profiles?.length)) edited.stateOutdated = true;
+        if (settings().enabled && ctx().chat?.[id] && !ctx().chat[id].is_user) invalidateAfterEdit(id, () => { toast('warning', 'The edited reply and later story state need review. Open Current State to review or rebuild them.'); changed('messages'); });
         if (settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
         changed('messages');
     });

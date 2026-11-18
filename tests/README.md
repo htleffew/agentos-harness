@@ -9,10 +9,11 @@ Setup used for 1.0.0:
 2. `node mock.js` (an OpenAI-compatible mock on port 8124; it logs every request to `/tmp/mock-requests.jsonl`).
 3. Playwright with Chrome. Paths are set at the top of `h.js` and `lib.js`.
 4. `lib.js` copies the extension into SillyTavern. Set `RI_ST_DIR` to the SillyTavern directory, `RI_EXTENSION_SOURCE` to this checkout, and `RI_CHROME` to the browser executable to override the legacy paths.
-5. Run `node tests/t_v6.js` for the v6 host integration; run `node tests/unit/state.mjs`, `node tests/unit/state_history.mjs`, `node tests/unit/state_parse.mjs`, `node tests/unit/event_limits.mjs`, and `node tests/unit/state_ui.cjs` for focused tests.
+5. Run `node tests/t_v6.js` and `node tests/t_history_v6.js` for the v6 host integrations; run `node tests/unit/state.mjs`, `node tests/unit/state_history.mjs`, `node tests/unit/state_parse.mjs`, `node tests/unit/event_limits.mjs`, `node tests/unit/state_ui.cjs`, `node tests/unit/branch_failure.mjs`, and `node tests/unit/world_rollback.mjs` for focused tests.
 
 | Script | Covers |
 | --- | --- |
+| `t_history_v6.js` | Deep branches, fresh branch books, bulk deletion, edited replies and reviewed rebuild |
 | `t_v6.js` | Real host: parse a response, send protected state, swipe, reload and save a lasting fact to Story World |
 | `t_engine1.js` | Sending, version cycling, the record, check done, overdue, final, stop |
 | `t_engine2.js` | Swipe and regenerate repeat, Pick again, all per-reply limits, quiet and impersonate, keep and wait |

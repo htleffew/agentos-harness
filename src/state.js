@@ -16,6 +16,12 @@ function metadata(create = false) {
     if (!root) return null;
     if (!root.stateOverrides && create) root.stateOverrides = {};
     if (!root.sceneOverrides && create) root.sceneOverrides = {};
+    if (!Array.isArray(root.correctionHistory) && create) {
+        root.correctionHistory = [
+            ...Object.entries(root.stateOverrides || {}).map(([key, entry]) => ({ kind: 'state', key, entry: clone(entry), anchor: entry.anchor || '' })),
+            ...Object.entries(root.sceneOverrides || {}).map(([key, entry]) => ({ kind: 'scene', key, entry: clone(entry), anchor: entry.anchor || '' })),
+        ];
+    }
     return root;
 }
 function save() {
@@ -45,7 +51,7 @@ export function stateAt(before = Infinity, { overrides = before === Infinity } =
     for (const m of (ctx().chat || []).slice(0, before)) {
         const rec = m?.extra?.[KEY];
         if (!rec || m.is_user) continue;
-        for (const p of changes(rec)) {
+        for (const p of rec.stateStale ? [] : changes(rec)) {
             const key = norm(p.name);
             if (!key) continue;
             const item = state[key] || (state[key] = { name: p.name, fields: {}, protected: {} });
@@ -70,7 +76,7 @@ export function sceneAt(before = Infinity, { overrides = before === Infinity } =
     const chat = ctx().chat || [];
     let scene = { ...(metadata()?.sceneSeed || {}) };
     for (let i = Math.min(before, chat.length) - 1; i >= 0; i--) {
-        if (!chat[i]?.is_user && chat[i]?.extra?.[KEY]?.scene) { scene = { ...chat[i].extra[KEY].scene }; break; }
+        if (!chat[i]?.is_user && !chat[i]?.extra?.[KEY]?.stateStale && chat[i]?.extra?.[KEY]?.scene) { scene = { ...chat[i].extra[KEY].scene }; break; }
     }
     if (overrides) for (const [key, entry] of Object.entries(metadata()?.sceneOverrides || {})) {
         if (SCENE_FIELDS.some(([field]) => field === key)) scene[key] = entry.value;
@@ -106,14 +112,74 @@ export function statePrompt(type = 'normal', limit = 1400, { includeCharacters =
 export function changesFromProfiles(profiles) {
     return (profiles || []).map(p => ({ name: p.name, fields: Object.fromEntries(STATE_FIELDS.filter(([k]) => Object.hasOwn(p.now || {}, k)).map(([k]) => [k, p.now[k]])) })).filter(p => Object.keys(p.fields).length);
 }
+/** Identify the newest story message at the moment a user makes a correction. */
+export function correctionAnchor() {
+    const chat = ctx().chat || [];
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i];
+        if (!m || m.is_system) continue;
+        const rec = m.extra?.[KEY];
+        if (rec?.time) return `record:${rec.time}`;
+        if (m.send_date) return `message:${m.send_date}`;
+    }
+    return '';
+}
+/** Remove corrections from a parent chat's future when a branch first opens. */
+export function trimBranchOverrides(root, chat = ctx().chat || []) {
+    const anchors = new Set();
+    for (const m of chat) {
+        if (m?.extra?.[KEY]?.time) anchors.add(`record:${m.extra[KEY].time}`);
+        if (m?.send_date) anchors.add(`message:${m.send_date}`);
+    }
+    let removed = 0;
+    if (Array.isArray(root?.correctionHistory)) {
+        const kept = root.correctionHistory.filter(event => event.anchor === 'seed' || (event.anchor && anchors.has(event.anchor)));
+        removed = root.correctionHistory.length - kept.length;
+        root.stateOverrides = {}; root.sceneOverrides = {};
+        for (const event of kept) {
+            const bucket = event.kind === 'state' ? root.stateOverrides : event.kind === 'scene' ? root.sceneOverrides : null;
+            if (!bucket) continue;
+            if (event.entry) bucket[event.key] = clone(event.entry); else delete bucket[event.key];
+        }
+        root.correctionHistory = kept;
+    } else for (const bucket of [root?.stateOverrides, root?.sceneOverrides]) {
+        for (const [key, item] of Object.entries(bucket || {})) {
+            if (item.anchor !== 'seed' && (!item.anchor || !anchors.has(item.anchor))) { delete bucket[key]; removed++; }
+        }
+    }
+    return removed;
+}
+
+/** Protected corrections survive deleting their originating reply. Anchor them
+ * to the surviving chat so a later branch can carry them accurately. */
+export function reanchorRemovedCorrections() {
+    const root = metadata(true);
+    if (!root) return;
+    const chat = ctx().chat || [], anchors = new Set(['seed']);
+    for (const m of chat) {
+        if (m?.extra?.[KEY]?.time) anchors.add(`record:${m.extra[KEY].time}`);
+        if (m?.send_date) anchors.add(`message:${m.send_date}`);
+    }
+    const anchor = correctionAnchor() || 'seed';
+    let changed = false;
+    for (const [kind, bucket] of [['state', root.stateOverrides], ['scene', root.sceneOverrides]]) for (const [key, entry] of Object.entries(bucket || {})) {
+        if (entry.anchor && anchors.has(entry.anchor)) continue;
+        entry.anchor = anchor;
+        root.correctionHistory.push({ kind, key, entry: clone(entry), anchor });
+        changed = true;
+    }
+    if (changed) { try { (ctx().saveMetadataDebounced || ctx().saveMetadata)?.(); } catch {} }
+}
+
 export function editState(id, name, field, value, locked = true) {
     if (!validField(field) || !name) return false;
     const root = metadata(true);
-    const edit = { name, field, value: text(value), protected: !!locked };
+    const edit = { name, field, value: text(value), protected: !!locked, anchor: correctionAnchor() };
     if (root) {
         // Both locked and unlocked corrections survive history edits. An unlocked
         // correction becomes the baseline; subsequent model changes may replace it.
         const key = `${norm(name)}\u0000${field}`;
+        root.correctionHistory.push({ kind: 'state', key, entry: locked ? clone(edit) : null, anchor: edit.anchor || 'seed' });
         if (locked) root.stateOverrides[key] = edit;
         else {
             delete root.stateOverrides[key];
@@ -136,7 +202,10 @@ export function editScene(field, value, locked = true) {
     if (!SCENE_FIELDS.some(([k]) => k === field)) return false;
     const root = metadata(true);
     if (!root) return false;
-    if (locked) root.sceneOverrides[field] = { value: text(value), protected: true };
+    const anchor = correctionAnchor();
+    const entry = { value: text(value), protected: true, anchor };
+    root.correctionHistory.push({ kind: 'scene', key: field, entry: locked ? clone(entry) : null, anchor: anchor || 'seed' });
+    if (locked) root.sceneOverrides[field] = entry;
     else {
         delete root.sceneOverrides[field];
         const chat = ctx().chat || [];
