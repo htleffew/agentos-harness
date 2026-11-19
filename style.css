@@ -347,3 +347,39 @@
 .ri-speaker-panel { background-color: #100e1c; border-radius: .18em; }
 
 .ri-v10-prompt-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+
+.ri-root.ri-v10-progress {
+    margin: 12px 0 4px; padding: 0; border: 0; background: transparent; font-size: .92em;
+}
+#chat > .ri-v10-progress { margin: 8px 12px 12px; }
+.ri-v10-progress .ri-reply-card { padding: 12px 14px; }
+.ri-progress-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 12px; }
+.ri-progress-heading strong { color: #f5f6fb; }
+.ri-progress-caption { color: #bbc9da; font-size: .83em; }
+.ri-progress-stages {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px; list-style: none; margin: 10px 0 0; padding: 0;
+}
+.ri-progress-stages li {
+    display: flex; align-items: center; gap: 6px; margin: 0; padding: 6px 7px;
+    border-radius: 6px; border: 1px solid #394159; background: #18192a;
+    color: #b5bfd3; font-size: .75em; line-height: 1.2; overflow-wrap: anywhere;
+}
+.ri-progress-light {
+    flex: none; width: 7px; height: 7px; border-radius: 50%; background: #778399;
+}
+.ri-progress-stages li[data-status="active"] { border-color: #568fbc; color: #e3f4ff; background: #1b2e47; }
+.ri-progress-stages li[data-status="active"] .ri-progress-light {
+    background: #83dafa; box-shadow: 0 0 8px #58bde9;
+    animation: ri-progress-pulse 1.6s ease-in-out infinite alternate;
+}
+.ri-progress-stages li[data-status="done"] { border-color: #468c83; color: #bbf6ee; background: #143330; }
+.ri-progress-stages li[data-status="done"] .ri-progress-light { background: #77e4d4; }
+.mes_block:has(> .ri-v10-progress) > .ri-v10-reply > .ri-v10-console { display: none; }
+@keyframes ri-progress-pulse {
+    from { box-shadow: 0 0 2px #58bde9; }
+    to { box-shadow: 0 0 11px #83dafa; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ri-progress-stages li[data-status="active"] .ri-progress-light { animation: none; }
+}

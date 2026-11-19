@@ -36,13 +36,27 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             V.queueCheck('reach the ferry','Agility',12);
         });
         L.resetLog();
-        L.mode({reply:block('[Seraphina] “I saw the ferry depart.” The ferry is gone.',{
+        L.mode({chunkMs:320,reply:block('[Seraphina] “I saw the ferry depart.” The ferry is gone.',{
             scene:{where:'Dock',present:'Seraphina',minutes:120},
             changes:[{kind:'fact',id:'ferry-gone',text:'The ferry left the dock.',evidence:'The ferry is gone.'},
                 {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart.'}],
             roast:'The dock has excellent timing, which is to say none.'
         })});
-        await L.send(page,'I run to the dock.');
+        await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
+        const progress=page.locator('.ri-v10-progress');
+        const sending=L.send(page,'I run to the dock.');
+        await progress.getByRole('status').getByText('Waiting for the reply').waitFor();
+        await progress.getByRole('status').getByText('Writing the reply').waitFor();
+        assert.equal(await progress.locator('li[data-status="done"]').count(),1);
+        await page.emulateMedia({reducedMotion:'reduce'});
+        assert.equal(await progress.locator('[data-status="active"] .ri-progress-light').evaluate(node=>getComputedStyle(node).animationName),'none');
+        await progress.getByRole('status').getByText('Receiving the story update').waitFor();
+        assert.equal(await progress.locator('li[data-status="done"]').count(),2);
+        await progress.getByRole('status').getByText('Story state ready').waitFor();
+        assert.equal(await progress.locator('li[data-status="done"]').count(),3);
+        await sending;
+        await progress.waitFor({state:'detached'});
+        await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',false).trigger('change'));
         await page.waitForFunction(async B=>(await import(`${B}/src/v10.js`)).rowsForWorld().then(rows=>rows.some(x=>x.name==='ferry-gone')),L.BASE);
         assert.equal(L.requests().length,1);
         assert.match(L.text(L.requests()[0]),/Resolved action check/);
@@ -155,7 +169,16 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await idle();
         assert((await read()).some(x=>x.id==='brass-key'));
         assert.equal(L.requests().length,6);
+        await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
+        L.mode({chunkMs:350,reply:'She counts the lights in the harbor. '.repeat(50)});
+        await page.evaluate(()=>{
+            globalThis.jQuery('#send_textarea').val('Look out at the harbor.').trigger('input');
+            globalThis.jQuery('#send_but').trigger('click');
+        });
+        await progress.getByRole('status').getByText('Writing the reply').waitFor();
+        await page.locator('#mes_stop').click();
+        await progress.waitFor({state:'detached'});
         assert.deepEqual(errors,[]);
-        console.log('PASS v10 host: companion preset, native updates, pinned lore, guidelines, dice, repairs, plot gates, clock, speaker colors, console, opening, saved-swipe navigation and branch rollback');
+        console.log('PASS v10 host: companion preset, native updates, pinned lore, guidelines, dice, repairs, plot gates, clock, speaker colors, streaming progress, cancellation, console, opening, saved-swipe navigation and branch rollback');
     } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1});

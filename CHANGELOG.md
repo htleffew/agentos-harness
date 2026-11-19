@@ -1,5 +1,9 @@
 # Changelog
 
+## 10.0.1
+
+- The story console lights up as context is prepared, the reply streams, and story state is updated. The temporary progress card clears on cancellation and honors reduced-motion settings.
+
 ## 10.0.0
 
 - The companion preset enables V10 modules with preset defaults and chat overrides. Existing chats can opt in under V10 Story.

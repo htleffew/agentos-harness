@@ -1,3 +1,4 @@
+import { replyProgress, showReplyProgress, clearReplyProgress } from './reply-progress.js';
 import { enabledV10, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
@@ -229,8 +230,13 @@ async function onEntriesLoaded(lore) {
             }
         }
         const native = !!cs && enabledV10();
-        if (native) await addConfiguredBooks(lore, arrays);
         const quiet = !!(gen && !gen.dryRun && gen.skip);
+        if (native && gen && !gen.handled && !quiet && !isOocTurn() && !replyProgress()) {
+            const chat = ctx().chat || [];
+            const replaces = ['swipe','regenerate','continue'].includes(gen.type) && !chat.at(-1)?.is_user;
+            showReplyProgress(gen,'context',replaces ? chat.length-1 : chat.length);
+        }
+        if (native) await addConfiguredBooks(lore, arrays);
         // The story world: its notes, the request for an update block, and now and then an order of its own.
         const kind = gen && !gen.dryRun ? gen.type : 'normal';
         if (kind === 'swipe' && cs && !gen?.guided) undoForSwipe();
@@ -723,7 +729,7 @@ function onScanDone(args) {
         const pace = { phase: plan.phase ? { name: plan.phase.name, chance: plan.phase.chance } : null, quiet: gen.quiet || null };
         cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         if (gen.guided) { gen.guided.afterLastScan = structuredClone(cs.lastScan); gen.guided.afterOverdue = structuredClone(cs.overdue); }
-        pending = { items, type, states, pace, v10:plan.v10Turn, offer:offer?.id,
+        pending = { items, type, states, pace, v10:plan.v10Turn, progressTurn:replyProgress()?.turn, offer:offer?.id,
             lore:plan.v10Turn ? loreReceipt(map.values(),plan.notes,plan.v10Rows,plan.flow?.id,plan.v10Turn.recalled) : null, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
@@ -776,6 +782,7 @@ function onMessageReceived(id, type) {
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene && !x.extra[KEY].stateStale)?.extra?.[KEY]?.scene || {};
         const turn = pending.v10;
+        const progressTurn = turn && pending.progressTurn;
         if (turn) {
             rec.v10 = true;
             rec.v10Check = turn.check || null;
@@ -804,7 +811,18 @@ function onMessageReceived(id, type) {
         attach(m, rec);
         // File what the reply established in the story world. With checking off, a world order counts as done when sent.
         if (earlier) rec.update = earlier.update;
-        afterReply(id, rec, parsed, history('normal').next - 1, () => changed('checked', id), { v10:turn });
+        if (progressTurn) showReplyProgress(progressTurn,'filing',id);
+        afterReply(id, rec, parsed, history('normal').next - 1, () => {
+            changed('checked',id);
+            if (!progressTurn) return;
+            if (!parsed.found || rec.v10Invalid) { clearReplyProgress(progressTurn); return; }
+            showReplyProgress(progressTurn,'ready');
+        }, { v10:turn }).finally(() => {
+            if (progressTurn && replyProgress()?.turn === progressTurn) {
+                if (replyProgress().phase === 'ready') setTimeout(()=>clearReplyProgress(progressTurn),520);
+                else clearReplyProgress(progressTurn);
+            }
+        });
         if (!turn && settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
         // The story so far: a chapter is written in the background when a scene ended or enough replies went by.
         chapterAfterReply(rec.time, history('normal').next - 1, () => changed('messages'));
@@ -999,6 +1017,7 @@ function onPromptReady(data) {
                 return { ...entry, confirmed:!!expanded && full.includes(expanded) };
             });
         }
+        if (record && gen && replyProgress()?.phase === 'context') showReplyProgress(gen,'waiting');
         if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: pending?.items || [], ask: plan.contextAsk || '' }); }
     } catch (e) { console.error(LOG, 'prompt-ready', e); }
 }
@@ -1175,6 +1194,7 @@ export function init() {
         // A dry run (SillyTavern counting tokens for its prompt list) can start while a real reply is being written.
         // It must leave the state of the real reply alone, so only real generations are tracked.
         if (dryRun) return;
+        clearReplyProgress();
         if (guided && type === 'swipe' && guided.chatId === String(ctx().getCurrentChatId?.() || '')) guided.started = true;
         gen = { guided: guided?.started ? guided : null, type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
         if (!gen.skip) {
@@ -1190,10 +1210,31 @@ export function init() {
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
     on('MESSAGE_RECEIVED', onMessageReceived);
-    on('GENERATION_ENDED', () => { const attempt = guided; gen = null; guided = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
-    on('GENERATION_STOPPED', () => { const attempt = guided; guided = null; gen = null; pending = null; pickAgain = false; rerollCat = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
+    on('STREAM_TOKEN_RECEIVED', text => {
+        const progress = replyProgress();
+        if (!gen || progress?.turn !== gen || !['context','waiting','writing'].includes(progress.phase) || typeof text !== 'string' || !text.trim()) return;
+        // SillyTavern reports the accumulated reply. Scan the new segment and
+        // overlap enough to detect an opening tag split across chunks.
+        const offset = Math.max(0,Math.min(gen.progressTextLength || 0,text.length) - 16);
+        gen.progressTextLength = text.length;
+        if (/<story_update\b/i.test(text.slice(offset))) showReplyProgress(gen,'receiving');
+        else if (progress.phase !== 'writing') showReplyProgress(gen,'writing');
+    });
+    on('GENERATION_ENDED', () => {
+        // Streaming unlocks the host UI before it announces the accepted message.
+        // Keep the card available for that event, with cleanup for empty or failed generations.
+        const finished = replyProgress()?.turn;
+        if (finished) setTimeout(() => {
+            if (replyProgress()?.turn === finished && !['filing','ready'].includes(replyProgress().phase)) clearReplyProgress(finished);
+        },1200);
+        const attempt = guided;
+        gen = null; guided = null;
+        if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }
+    });
+    on('GENERATION_STOPPED', () => { clearReplyProgress(); const attempt = guided; guided = null; gen = null; pending = null; pickAgain = false; rerollCat = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
     on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);
     on('CHAT_CHANGED', () => {
+        clearReplyProgress();
         const attempt = guided; guided = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();

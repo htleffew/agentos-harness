@@ -50,9 +50,16 @@ http.createServer((req, res) => {
         if (body.stream) {
             res.setHeader('Content-Type', 'text/event-stream');
             const parts = text.match(/.{1,40}/gs) || [''];
-            for (const p of parts) res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: p } }] })}\n\n`);
-            res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
-            res.write('data: [DONE]\n\n'); res.end();
+            const gap = Number(mode().chunkMs) || 0;
+            (async () => {
+                for (const p of parts) {
+                    if (gap) await new Promise(resolve => setTimeout(resolve,gap));
+                    if (res.destroyed) return;
+                    res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: p } }] })}\n\n`);
+                }
+                res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
+                res.end('data: [DONE]\n\n');
+            })();
         } else {
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ id: 'x', object: 'chat.completion', choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));

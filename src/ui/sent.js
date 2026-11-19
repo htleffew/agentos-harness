@@ -1,3 +1,4 @@
+import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
 import { replyCardHeader } from './reply-cards.js';
@@ -340,6 +341,7 @@ function refreshV10Replies(chat) {
 }
 
 export function refreshUnderReplies() {
+    try { refreshReplyProgress(); } catch (e) { console.warn('[Roleplay Instructions] reply progress',e); }
     try { refreshGuidedControl(); } catch (e) { console.warn('[Roleplay Instructions] guided swipe', e); }
     try { refreshStoryState(ctx().chat || []); refreshV10Replies(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
     try {
