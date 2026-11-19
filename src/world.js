@@ -91,7 +91,13 @@ export const WORLD_KINDS = {
         short: ['summary'],
     },
 };
-export const KIND_ORDER = ['chapter', 'character', 'place', 'faction', 'thread', 'secret', 'seed', 'activity'];
+const recordLabels = { fact:'Story fact', profile:'Character portrayal', knowledge:'Character knowledge',
+    emotion:'NPC emotion', relationship:'Relationship', arc:'Arc milestone', agenda:'Off-screen agenda', event:'Story event', payoff:'Scheduled seed' };
+for (const [kind,label] of Object.entries(recordLabels)) WORLD_KINDS[kind] = {
+    label, plural: label, add: `Add ${label.toLowerCase()}`, nameLabel:'Record title',
+    fields:[F('data','Structured record','Use the V10 Story panel to validate and edit this record.',true)], short:[],
+};
+export const KIND_ORDER = ['chapter', 'character', 'place', 'faction', 'thread', 'secret', 'seed', 'activity', ...Object.keys(recordLabels)];
 export const DONE = { thread: 'done', seed: 'paid', activity: 'done' };
 export const MAX_ACTIVITIES = 3;
 /** The record times of the replies now in the open chat. A branch shares these with the chat it came from, up to where it branched. */
@@ -193,6 +199,7 @@ export function renderEntry(w, { full = true } = {}) {
     // "Hale (captain of the Gull)": the first line of a person, place or group goes in brackets after the name.
     const leadKey = { character: 'role', place: 'what', faction: 'what' }[w.kind];
     const lead = leadKey && keys.includes(leadKey) && val(leadKey) ? ` (${val(leadKey).replace(/[.]+$/, '')})` : '';
+    if (Object.hasOwn(recordLabels,w.kind)) return name;
     const parts = keys.filter(k => k !== leadKey && val(k)).map(k => `${label(w.kind, k)}: ${val(k).replace(/[.]+$/, '')}`);
     const status = def.steps && w.status ? ` [${stepLabel(w.kind, w.status).toLowerCase()}]` : '';
     return `${name}${lead}${status}${parts.length ? `. ${parts.join('. ')}.` : '.'}`;
@@ -208,7 +215,7 @@ export function writeWorldEntry(data, w, id) {
     entry.disable = !w.on;
     // With the extension off this is an ordinary lorebook entry: it is sent when its name appears in the chat.
     entry.constant = false;
-    entry.key = [...new Set([clean(w.name), ...w.aliases.map(clean)].filter(Boolean))];
+    entry.key = Object.hasOwn(recordLabels,w.kind) ? [] : [...new Set([clean(w.name), ...w.aliases.map(clean)].filter(Boolean))];
     entry.useProbability = false; entry.probability = 100;
     entry.sticky = null; entry.cooldown = null; entry.delay = null;
     entry.position = 4; entry.depth = 4; entry.role = 0;   // in the chat, a few messages up: works with every preset

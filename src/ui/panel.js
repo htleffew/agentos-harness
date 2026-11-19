@@ -1,3 +1,4 @@
+import { renderV10 } from './v10.js';
 // The panel: one drawer in the Extensions menu, with an Expand button that shows the same panel full screen.
 import { h, clear, toggle, button } from './dom.js';
 import { settings, saveSettings } from '../store.js';
@@ -21,6 +22,7 @@ const TABS = [
     { id: 'goals', label: 'Character Goals', accent: 'sky' },
     { id: 'state', label: 'Current State', accent: 'green' },
     { id: 'world', label: 'Story World', accent: 'green' },
+    { id: 'v10', label: 'V10 Story', accent: 'sky' },
     { id: 'sent', label: 'What Was Sent', accent: 'blue' },
     { id: 'context', label: 'Context & Memory', accent: 'sky' },
     { id: 'log', label: 'Log', accent: 'sky' },
@@ -91,6 +93,7 @@ export function render() {
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
+    else if (app.tab === 'v10') renderV10(app.body, app);
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
     else if (app.tab === 'context') renderContext(app.body, app);
@@ -132,6 +135,8 @@ export function mount(missing) {
         if (app.tab === 'instructions' && app.route.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'style' && app.sroute.view === 'edit' && what !== 'chat') return;
+        if (app.tab === 'v10' && what !== 'chat' && (app.root?.querySelector('.ri-state-editor, [data-v10-draft]') ||
+            (app.root?.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')))) return;
         if (app.tab === 'world' && (app.wroute.view === 'edit' || app.wroute.sheet) && what !== 'chat') return;
         if (app.tab === 'state' && what !== 'chat' && app.root?.querySelector('.ri-state-editor')) return;
         if (app.tab === 'context' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement?.tagName || '')) return;

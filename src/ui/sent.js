@@ -1,3 +1,5 @@
+import { refreshDialogue } from './v10.js';
+import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
 import { replyCardHeader } from './reply-cards.js';
 import { refreshGuidedControl } from './guided.js';
 import { snapshotState, snapshotScene } from '../state.js';
@@ -104,6 +106,12 @@ function askedRows(rec) {
 
 function recordBody(id, rec, isLast, withButtons) {
     return [
+        rec.v10Request ? h('details',{class:'ri-sentitem'},h('summary',{},'Story guidance sent'),
+            h('pre',{class:'ri-v10-prompt-text'},rec.v10Request)) : null,
+        rec.v10Check ? h('div',{class:'ri-note'},checkText(rec.v10Check)) : null,
+        rec.v10Offer ? h('div',{class:'ri-note'},`Optional plot opportunity offered: ${rec.v10Offer}`) : null,
+        rec.v10Lore?.length ? h('details',{class:'ri-sentitem'},h('summary',{},'World Info selections'),
+            h('ul',{class:'ri-changes'},rec.v10Lore.map(entry=>h('li',{},`${entry.title} · ${entry.book || 'Story World'}${entry.role ? ` (${entry.role})` : ''} · ${entry.confirmed?'confirmed in prompt':'selected'}`)))) : null,
         rec.guided ? h('div', { class: 'ri-note' }, `Guided swipe: ${rec.guided.direction} (${rec.guided.repeatOrders ? 'previous orders repeated' : 'previous orders left out'})`) : null,
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
@@ -124,6 +132,10 @@ function summaryLine(rec) {
     const n = orders.length;
     const also = [];
     if (rec.items.some(i => i.notes)) also.push('story notes');
+    if (rec.v10Request) also.push('story guidance');
+    if (rec.v10Lore?.length) also.push('World Info');
+    if (rec.v10Offer) also.push('plot opportunity');
+    if (rec.v10Check) also.push('action check');
     if (rec.items.some(i => i.noCheck && !i.notes && !i.pace && !('goalTask' in i))) also.push('writing style');
     if (rec.items.some(i => i.noCheck && 'goalTask' in i)) also.push('goal');
     const changed = shownChanges(rec.update?.changes).length;
@@ -169,7 +181,7 @@ function underBlock(id, rec) {
 }
 
 // A reply that draws its own HUD (a preset tracker) needs no scene card from the extension.
-const OWN_HUD = /<(scene_cast|sola_hud|profile|status|tracker|hud)\b|\bpresent\s*=\s*"|^\s*(present|location)\s*:/im;
+const OWN_HUD = /<(scene_cast|sola_hud|internal_states|profile|status|tracker|hud)\b|\bpresent\s*=\s*"|^\s*(present|location)\s*:/im;
 
 /** The scene card: when, where and who is present, from the reply's own scene lines. */
 function sceneCard(sc) {
@@ -183,6 +195,7 @@ function sceneCard(sc) {
 /** One collapsed view of the state after each reply. */
 function refreshStoryState(chat) {
     const st = settings();
+    const v10 = enabledV10();
     const mode = st.enabled ? (st.scene?.card || 'auto') : 'off';
     const seen = new Set();
     for (const mes of document.querySelectorAll('#chat .mes')) {
@@ -199,6 +212,7 @@ function refreshStoryState(chat) {
             if (!person && Object.keys(profile.stable || {}).length) { person = { name: profile.name, fields: {}, protected: {} }; people.push(person); }
             if (person) person.foundation = profile.stable || {};
         }
+        if (v10 || rec.v10) continue;
         const roast = st.cards?.roast !== false ? rec.roast : '';
         if (!Object.keys(sc).length && !people.length && !roast) continue;
         const stamp = JSON.stringify([sc, people, roast, rec.stateOutdated, rec.snapshotEdits]);
@@ -230,9 +244,104 @@ function refreshStoryState(chat) {
     for (const el of document.querySelectorAll('#chat .mes .ri-scene, #chat .mes .ri-cards')) if (!el.closest('.ri-story-state')) el.remove();
 }
 
+function replyTabs(parts, active, id) {
+    const list=h('div',{class:'ri-tabs',role:'tablist','aria-label':'Reply details'});
+    const panels=h('div',{class:'ri-v10-panels'});
+    const ids=parts.map(([name])=>name);
+    const initial=Math.max(0,ids.indexOf(active));
+    const tabs=[];
+    function activate(index,focus=false) {
+        tabs.forEach((tab,i)=>{
+            tab.setAttribute('aria-selected',String(i===index));
+            tab.tabIndex=i===index ? 0 : -1;
+            tab.classList.toggle('ri-tab-on',i===index);
+            panels.children[i].hidden=i!==index;
+        });
+        if (focus) tabs[index]?.focus();
+    }
+    parts.forEach(([label,content],i)=>{
+        const tab=h('button',{class:'ri-tab',type:'button',role:'tab',id:`ri-reply-${id}-tab-${i}`,'aria-controls':`ri-reply-${id}-panel-${i}`,'data-tab':label,onclick:()=>activate(i)},label);
+        tab.addEventListener('keydown',event=>{
+            const next={ArrowLeft:(i+parts.length-1)%parts.length,ArrowRight:(i+1)%parts.length,Home:0,End:parts.length-1}[event.key];
+            if(next!==undefined){event.preventDefault();activate(next,true);}
+        });
+        list.append(tab);tabs.push(tab);
+        panels.append(h('div',{role:'tabpanel',id:`ri-reply-${id}-panel-${i}`,'aria-labelledby':tab.id},content));
+    });
+    activate(initial);
+    return [list,panels];
+}
+
+function refreshV10Replies(chat) {
+    const enabled=settings().enabled;
+    const native=enabledV10();
+    const modules=effectiveModules();
+    const local=ctx().chatMetadata?.[KEY]?.v10 || {};
+    for (const mes of document.querySelectorAll('#chat .mes')) {
+        const id=Number(mes.getAttribute('mesid'));
+        const msg=chat[id];
+        const rec=msg?.extra?.[KEY];
+        const block=mes.querySelector('.mes_block');
+        if (!block) continue;
+        const old=block.querySelector(':scope > .ri-v10-reply');
+        if (!enabled || (!native && !rec?.v10) || msg?.is_user || !rec) {old?.remove();continue;}
+        const showState=settings().scene?.card !== 'off' && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
+        const sc=showState && modules.state ? snapshotScene(id) : {};
+        const people=showState && modules.state ? Object.values(snapshotState(id)).filter(p=>!sc.present || sc.present.toLowerCase().includes(p.name.toLowerCase())) : [];
+        const records=(rec.v10Changes || []).filter(record=>modules[KIND_MODULE[record.kind]]);
+        const profiles=showState && modules.state ? rec.v10Profiles || [] : [];
+        const roast=local.showRoast!==false ? rec.roast : '';
+        const lore=local.showLore!==false ? rec.v10Lore || [] : [];
+        const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
+        const stamp=JSON.stringify([responseKey,sc,people,profiles,records,roast,lore,rec.v10Check,rec.v10Offer,rec.v10Invalid,rec.v10Diagnostics,rec.stateOutdated]);
+        if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
+        const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});
+        out.dataset.stamp=stamp;
+        out.dataset.responseKey=responseKey;
+        const parts=[];
+        const redraw=()=>{out.querySelectorAll('.ri-state-editor').forEach(form=>form.remove());out.dataset.stamp='';refreshUnderReplies();};
+        if (Object.keys(sc).length) {
+            const scene=sceneCard(sc);
+            const edit=h('div',{class:'ri-state-body'});
+            edit.append(button('Edit this scene snapshot',()=>edit.replaceChildren(sceneEditor(sc,redraw,{historicalId:id})),{kind:'ghost'}));
+            parts.push(['Scene',[scene.children[1],edit]]);
+        }
+        const showProfile = profile => profile ? h('div',{class:'ri-state-body'},h('p',{},profile.text),
+            profile.voice && h('p',{class:'ri-help'},`Voice · ${profile.voice}`),profile.facet && h('p',{class:'ri-help'},`Facet · ${profile.facet}`)) : null;
+        for (const person of people) {
+            const card=characterStateCard(person,id,redraw,{historical:true,replyCard:true});
+            parts.push([person.name,[card.children[1],showProfile(profiles.find(profile=>profile.subject===person.name))]]);
+        }
+        for (const profile of profiles.filter(profile=>!people.some(person=>person.name===profile.subject))) parts.push([profile.subject,showProfile(profile)]);
+        if (records.length) parts.push(['Changes',records.map(record=>h('p',{},`${record.subject || record.id}: ${record.text}`))]);
+        if (rec.v10Check || rec.v10Offer || rec.v10Invalid || rec.stateOutdated || rec.v10Diagnostics?.length) parts.push(['Notes',[
+            rec.v10Check && h('p',{},checkText(rec.v10Check)),
+            rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
+            rec.v10Invalid && h('p',{},'Some structured changes could not be applied.'),
+            rec.stateOutdated && h('p',{},'This reply was edited. Its previous state is out of date.'),
+            (rec.v10Diagnostics || []).map(note=>h('p',{},note)),
+        ]]);
+        if(parts.length) out.append(h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
+            replyCardHeader({icon:'◇',eyebrow:'This reply',title:'Story state',subtitle:[sc.where,sc.when].filter(Boolean).join(' · ')}),
+            ...replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id)));
+        if(roast) out.append(h('details',{class:'ri-roast ri-reply-card ri-reply-roast','data-reply-fold':'roast'},
+            replyCardHeader({icon:'✦',eyebrow:'A voice from the sidelines',title:'Roast'}),h('div',{class:'ri-roast-v ri-reply-quote'},roast)));
+        if(lore.length) out.append(h('details',{class:'ri-reply-card ri-v10-lore','data-reply-fold':'lore'},
+            replyCardHeader({icon:'◇',eyebrow:'This reply',title:`World Info · ${lore.length} ${lore.length===1?'entry':'entries'}`}),
+            h('ul',{class:'ri-changes'},lore.map(entry=>h('li',{},`${entry.title} · ${entry.book || 'Story World'}${entry.role ? ` (${entry.role})` : ''} · ${entry.confirmed ? 'confirmed in prompt' : 'selected'}`)))));
+        if(old?.dataset.responseKey===responseKey) for(const fold of out.querySelectorAll('[data-reply-fold]')) {
+            fold.open=!!old.querySelector(`[data-reply-fold="${fold.dataset.replyFold}"]`)?.open;
+        }
+        if(!out.childElementCount) old?.remove();
+        else if(old) old.replaceWith(out);
+        else block.append(out);
+    }
+    refreshDialogue();
+}
+
 export function refreshUnderReplies() {
     try { refreshGuidedControl(); } catch (e) { console.warn('[Roleplay Instructions] guided swipe', e); }
-    try { refreshStoryState(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
+    try { refreshStoryState(ctx().chat || []); refreshV10Replies(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
     try {
         const st = settings();
         const show = st.enabled && st.showUnder === 'display';
@@ -243,7 +352,7 @@ export function refreshUnderReplies() {
                 const id = Number(mes.getAttribute('mesid'));
                 const rec = chat[id]?.extra?.[KEY];
                 const block = mes.querySelector('.mes_block');
-                if (!rec?.items?.length || !block) continue;
+                if (!(rec?.items?.length || rec?.v10Lore?.length || rec?.v10Request || rec?.v10Check || rec?.v10Offer) || !block) continue;
                 const stamp = JSON.stringify([rec.time, rec.checking, rec.items.map(i => [i.status, i.quote]), rec.agency?.quote]);
                 const old = block.querySelector(':scope > .ri-under');
                 seen.add(mes);

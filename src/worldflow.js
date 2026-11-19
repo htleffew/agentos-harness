@@ -1,3 +1,4 @@
+import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10 } from './v10.js';
 import { promptText, promptStatus } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor } from './state.js';
 // Keeping the story world up to date by itself.
@@ -260,6 +261,8 @@ const ARITY = Object.fromEntries(FORM.map(([k, v]) => [k, v.split('|').length]))
 /** Find the block in a reply. Returns { found, ops: [{ k, a, b, c }], ended, block, clean }. */
 export function parseUpdate(text) {
     const src = String(text ?? '');
+    const modern = extractUpdate(src);
+    if (modern) return { ops:[], profiles:[], block:'', ended:false, scene:null, roast:'', ...modern, modern:true };
     const m = src.match(BLOCK);
     if (!m) return { found: false, ops: [], ended: false, block: '', clean: src, scene: null, profiles: [], roast: '' };
     const ops = [];
@@ -453,7 +456,7 @@ export function revertChanges(data, id, changes) {
         if (!w) continue;
         if (c.type === 'hide') { if (showAgain(c.dates)) done++; continue; }
         if (c.type === 'create') { if (w.auto && (!c.createdState || c.createdState === creationFingerprint(w))) { delete data.entries[c.uid]; done++; } continue; }
-        if (c.type === 'set' && clean(w.fields[c.field]) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
+        if (c.type === 'set' && (c.field === 'data' ? w.fields.data : clean(w.fields[c.field])) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'status' && w.status === c.after && (!Object.hasOwn(c, 'afterAt') || JSON.stringify(w.at) === JSON.stringify(c.afterAt))) { w.status = c.before; if (Object.hasOwn(c, 'beforeAt')) w.at = c.beforeAt; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'clock' && Object.hasOwn(c, 'afterAt') && JSON.stringify(w.at) === JSON.stringify(c.afterAt)) { w.at = c.beforeAt || null; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'off' && !w.on) { w.on = true; writeWorldEntry(data, w, id); done++; }
@@ -546,7 +549,7 @@ export function rollOrder(list, present, meta, opts = settings().world, more = {
  * Everything the story world adds to the reply that is about to be written.
  * Returns null when this chat has no world, else { notes, ask, order, id }.
  */
-export async function prepareWorld(type, replyNo, { quiet = false, scale = 100 } = {}) {
+export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, native = false, opportunities = false } = {}) {
     const id = chatWorld();
     if (quiet) return null;
     if (!id) {
@@ -563,9 +566,9 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100 }
     const list = listWorld(data, id);
     const notes = buildNotes(list, type);
     const ooc = isOocTurn();
-    const ask = o.update !== 'off' && !ooc ? buildAsk(list, type) : '';
+    const ask = !native && o.update !== 'off' && !ooc ? buildAsk(list, type) : '';
     const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
-    const order = ooc ? null : rollOrder(list, notes?.present || [], meta, o, { type, scale });
+    const order = ooc || (native && !opportunities) ? null : rollOrder(list, notes?.present || [], meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
     if (order) order.text = promptText('worldOrder', { order: order.text });
     // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene.
     return { id, notes, ask, order, offers: worldOffers(list, notes?.present || [], meta) };
@@ -627,12 +630,60 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
         const wid = chatWorld();
         if (!cs || !wid || !rec) return;
         await syncNow();
+        if (options.v10 && ctx().chat?.[id]?.extra?.[KEY] !== rec) return;
         const o = settings().world;
         const data = await loadWorld(wid);
         if (!data) { if (options.propagate) throw new Error('The story world could not be read.'); return; }
+        if (options.v10 && (chatState() !== cs || ctx().chat?.[id]?.extra?.[KEY] !== rec)) return;
         const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
         const ooc = options.rebuild ? false : isOocTurn();
         const changes = [];
+        if (options.v10 && !ooc && parsed.modern && !parsed.invalid) {
+            const previous = listWorld(data,wid);
+            const records = recordMap(previous);
+            const offer = options.v10.legacyOffer;
+            const quote = clean(parsed.legacyOutcome);
+            const established = offer && previous.find(row=>row.uid===offer.uid && row.kind===offer.kind && row.on && !row.locked);
+            if (established && quote.length >= 4 && clean(parsed.clean).toLowerCase().includes(quote.toLowerCase())) {
+                const before = established.status, beforeAt = established.at;
+                if (before !== offer.to && before !== DONE[offer.kind]) {
+                    established.status = offer.to;
+                    established.at = { chat:meta.chat, n:meta.n };
+                    writeWorldEntry(data,established,wid);
+                    changes.push({uid:established.uid,name:established.name,kind:established.kind,type:'status',
+                        before,after:established.status,beforeAt,afterAt:established.at,legacyV10:true});
+                }
+            }
+            const repair = parsed.repair && parsed.repair === options.v10.repair?.id;
+            const updates = [
+                ...(parsed.changes || []).map(input=>({input,evidence:parsed.clean,source:rec.time})),
+                ...(repair ? parsed.repairChanges || [] : []).map(input=>({input,evidence:options.v10.repair.text,source:parsed.repair})),
+            ];
+            if (parsed.repairChanges?.length && !repair) rec.v10Invalid = true;
+            const updated = new Set();
+            for (const {input,evidence,source} of updates) {
+                const existing = previous.find(row => readRecord(row)?.id === input?.id);
+                if (existing?.locked || existing?.on === false || updated.has(input?.id)) continue;
+                const old = records.get(input?.id);
+                if (source !== rec.time && (old?.source === 'user' || Number(old?.source) > source)) continue;
+                const record = normalizeRecord(input,{ modules:options.v10.modules, rows:records, snapshot:options.v10.records, evidence, clock:rec.v10Minutes, scene:rec.scene });
+                if (!record) { rec.v10Invalid = true; continue; }
+                record.atIndex = id;
+                record.source = source;
+                const kind = record.kind === 'seed' ? 'payoff' : record.kind;
+                updated.add(record.id);
+                const w = existing || newWorldEntry(data,kind);
+                const before = w.fields.data || '';
+                w.name = w.name && existing ? w.name : record.id;
+                w.fields.data = JSON.stringify(record);
+                if (!existing) { w.auto = true; w.at = { chat:meta.chat, n:meta.n }; }
+                writeWorldEntry(data,w,wid);
+                records.set(record.id,record);
+                (rec.v10Changes ||= []).push(record);
+                changes.push(existing ? { uid:w.uid, name:w.name, kind, type:'set', field:'data', before, after:w.fields.data } :
+                    {uid:w.uid, name:w.name, kind, type:'create', createdState:creationFingerprint(w), entry:structuredClone(w)});
+            }
+        }
         if ((parsed.found || parsed.ops?.length) && o.update !== 'off' && !ooc) changes.push(...applyOps(data, wid, parsed.ops, meta, o.update));
         // The cards under the reply show who each person is as the story world has it.
         if (rec.profiles?.length) {
@@ -642,16 +693,22 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
                 if (w) for (const [k] of PROFILE_STABLE) if (clean(w.fields[k])) p.stable[k] = clean(w.fields[k]);
             }
         }
-        if (!ooc && !options.rebuild) changes.push(...tick(data, wid, meta));
+        if (!ooc && !options.rebuild && !options.v10) changes.push(...tick(data, wid, meta));
+        if (options.v10 && !ooc) rec.v10Profiles = [...recordMap(listWorld(data,wid)).values()].filter(row=>row.kind==='profile' && String(rec.scene?.present || '').toLowerCase().split(/[,;\n]/).some(name=>[row.subject,...(row.aliases || [])].some(alias=>alias.toLowerCase() === name.trim()))).slice(0,8);
         if (changes.length) await saveWorld(wid, data);
         // A reply that was continued keeps what its first part filed.
         const before = rec.update && rec.update.world === wid && !rec.update.undone ? rec.update : null;
         rec.update = { world: wid, ops: [...(before?.ops || []), ...parsed.ops], ended: !!parsed.ended, changes: [...(before?.changes || []), ...changes] };
         worldLog(cs).items[String(rec.time)] = { world: wid, changes: rec.update.changes };
+        if (chatState() !== cs) return;
         saveChatState();
         try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
         const shown = shownChanges(changes);
-        if (parsed.found || shown.length) {
+        if (options.v10 && parsed.modern) {
+            addLog({what:'Story state update',ok:rec.v10Invalid ? null : true,
+                result:rec.v10Invalid ? 'Some update fields failed validation. Affected records kept their last valid value.' : `${shown.length} world changes recorded.`,
+                details:shown.map(describeChange),got:''});
+        } else if (parsed.found || shown.length) {
             addLog({ what: 'Story world update', ok: true, result: parsed.found
                 ? `The reply's update block had ${parsed.ops.length} ${parsed.ops.length === 1 ? 'line' : 'lines'}. ${shown.length} ${shown.length === 1 ? 'change was' : 'changes were'} made to the world.${ooc ? ' Nothing was filed, because your message was out of character.' : ''}`
                 : `${shown.length} ${shown.length === 1 ? 'change was' : 'changes were'} made by the clock. The reply had no update block.`,
@@ -791,8 +848,28 @@ async function syncNow() {
         let changes = [];
         if (data && rec.update.ops?.length && settings().world.update !== 'off') {
             changes = applyOps(data, wid, rec.update.ops, { chat: log.chat, n: 0 }, settings().world.update);
-            if (changes.length) { await saveWorld(wid, data); redone += shownChanges(changes).length; }
         }
+        if (data && rec.v10) {
+            for (const change of rec.update.changes || []) {
+                const rows = listWorld(data,wid);
+                const row = rows.find(item=>item.kind===change.kind && item.name===change.name);
+                if (change.type === 'set' && change.field === 'data' && row?.on && !row.locked && row.fields.data === change.before) {
+                    row.fields.data = change.after;
+                    writeWorldEntry(data,row,wid);
+                    changes.push({...change,uid:row.uid});
+                } else if (change.legacyV10 && change.type === 'status' && row?.on && !row.locked && row.status === change.before && JSON.stringify(row.at) === JSON.stringify(change.beforeAt)) {
+                    row.status = change.after;
+                    row.at = change.afterAt;
+                    writeWorldEntry(data,row,wid);
+                    changes.push({...change,uid:row.uid});
+                } else if (change.type === 'create' && change.entry && !row) {
+                    const recreated = {...structuredClone(change.entry),uid:newWorldEntry(data,change.kind).uid};
+                    writeWorldEntry(data,recreated,wid);
+                    changes.push({...change,uid:recreated.uid});
+                }
+            }
+        }
+        if (changes.length) { await saveWorld(wid, data); redone += shownChanges(changes).length; }
         rec.update.changes = changes;
         log.items[t] = { world: rec.update.world, changes };
     }
@@ -856,7 +933,7 @@ async function ownWorld() {
     const from = cs.branchPendingWorld || cs.world;
     // A branch gets its own world by default, even when its parent had none.
     // Sharing an existing world remains an explicit user setting.
-    if (from && settings().world.copyOnBranch === false) { cs.world = from; delete cs.branchPendingWorld; cs.worldOwner = mark; saveChatState(); return; }
+    if (from && !enabledV10() && settings().world.copyOnBranch === false) { cs.world = from; delete cs.branchPendingWorld; cs.worldOwner = mark; saveChatState(); return; }
     const info = from ? setInfo(from) : { name: 'Story world', shared: false };
     const source = from ? await loadWorld(from).catch(() => null) : { entries: {} };
     if (!source) throw new Error('The parent story world could not be read; the branch was not linked to a copy.');
@@ -959,7 +1036,7 @@ export function undoForSwipe() {
 }
 
 /** Prepare a guided swipe transaction without overwriting user-edited world facts. */
-export function prepareGuidedSwipe(id) {
+export function prepareGuidedSwipe(id, {keepManualEdits = false} = {}) {
     return enqueue(async () => {
         const c = ctx(), cs = chatState(), m = c.chat?.[id], rec = m?.extra?.[KEY];
         if (!cs || !m || id !== c.chat.length - 1 || m.is_user || m.is_system) throw new Error('The latest character reply is no longer selected.');
@@ -980,7 +1057,10 @@ export function prepareGuidedSwipe(id) {
         const before = structuredClone(data), after = structuredClone(data);
         const unsupported = item.changes.find(x => !['set', 'status', 'off', 'create', 'clock'].includes(x.type) || (x.type === 'clock' && !Object.hasOwn(x, 'afterAt')) || (x.type === 'status' && !Object.hasOwn(x, 'afterAt') && !/ordered into the scene/.test(x.why || '')));
         if (unsupported) throw new Error('This reply changed chapter or timing data that cannot be safely reversed automatically. Review the story world before guiding a swipe.');
-        const reversible = item.changes.filter(x => ['set', 'status', 'off', 'create', 'clock'].includes(x.type));
+        const corrections = keepManualEdits && rec?.v10
+            ? new Set((cs.manualWorldChanges || []).filter(change=>change.world===item.world && change.anchor===`record:${rec.time}`).map(change=>change.uid))
+            : new Set();
+        const reversible = item.changes.filter(x => ['set','status','off','create','clock'].includes(x.type) && !corrections.has(x.uid));
         if (revertChanges(after, item.world, reversible) !== reversible.length) throw new Error('Some world facts were changed since this reply. Review them in Story World before guiding a swipe; nothing was changed.');
         await saveWorld(item.world, after);
         Object.assign(tx, { world: item.world, before, after: structuredClone(after) });
@@ -1022,4 +1102,31 @@ export function undoReplyChanges(id, onDone) {
         try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
         onDone?.();
     });
+}
+
+/** Explicit character/plot edits use the same native book and branch history. */
+export async function saveV10Record(input) {
+    if (!enabledV10()) throw new Error('Enable the v10 story tools first.');
+    const cs = chatState();
+    const wid = await ensureWorld();
+    return enqueue(async () => {
+        if (chatState() !== cs || chatWorld() !== wid) throw new Error('The story world changed.');
+        const data = await loadWorld(wid);
+        if (!data) throw new Error('Could not load the story world.');
+        if (chatState() !== cs) throw new Error('The chat changed.');
+        const rows = listWorld(data,wid);
+        const record = normalizeRecord(input,{ modules:effectiveModules(), rows:recordMap(rows), manual:true });
+        if (!record) throw new Error('The record has missing or invalid fields.');
+        const kind = record.kind === 'seed' ? 'payoff' : record.kind;
+        const w = rows.find(row => readRecord(row)?.id === record.id) || newWorldEntry(data,kind);
+        const before = data.entries[w.uid] ? structuredClone(data.entries[w.uid]) : null;
+        w.name = record.id;
+        record.atIndex = (ctx().chat || []).length - 1;
+        record.source = 'user';
+        w.fields.data = JSON.stringify(record);
+        writeWorldEntry(data,w,wid);
+        await saveWorld(wid,data);
+        if (chatState() === cs) recordManualWorldChange(wid,w.uid,before,data.entries[w.uid]);
+        return record;
+    }, {propagate:true});
 }

@@ -1,3 +1,4 @@
+import { enabledV10, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
 import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
@@ -12,7 +13,7 @@ import { phaseFor, quietNow, previousRecord, countPresent } from './pacing.js';
 import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
-import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile } from './worldflow.js';
+import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile, parseUpdate } from './worldflow.js';
 import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, invalidateAfterEdit, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
@@ -227,27 +228,49 @@ async function onEntriesLoaded(lore) {
                 }
             }
         }
+        const native = !!cs && enabledV10();
+        if (native) await addConfiguredBooks(lore, arrays);
         const quiet = !!(gen && !gen.dryRun && gen.skip);
         // The story world: its notes, the request for an update block, and now and then an order of its own.
         const kind = gen && !gen.dryRun ? gen.type : 'normal';
         if (kind === 'swipe' && cs && !gen?.guided) undoForSwipe();
         await worldIdle();
         const phase = cs ? phaseFor(history(kind).next) : null;
-        const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet, scale: phase?.chance ?? 100 }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
+        const scale = phase?.chance ?? 100;
+        const modules = native ? effectiveModules() : null;
+        const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
+        if (gen && gen.v10Schedule === undefined && native && !gen.dryRun) gen.v10Schedule = !quiet && kind === 'normal' && modules.worldEvents && chance > 0 && rollInt(100) < chance;
+        const schedule = gen?.v10Schedule === true;
+        const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet, scale, native, opportunities:schedule && modules?.plots }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
         // A story phase can have a line of its own, sent with every reply of the phase.
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
-        if (cs && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
-        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: cardsOn(), excludeTargetOverrides: !!gen?.guided }) : '';
+        if (cs && !native && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
+        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: native ? modules.state : cardsOn(), excludeTargetOverrides: !!gen?.guided }) : '';
         const direction = gen?.guided && kind === 'swipe' ? `[${promptText('guided', { direction: gen.guided.direction })}]` : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
         let contextAsk = '';
-        if (flow?.ask) { contextAsk = [stateText, direction, flow.ask].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
+        let v10Turn = null;
+        let v10Rows = [];
+        if (native && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) {
+            v10Rows = await rowsForWorld().catch(() => []);
+            const old = gen?.guided?.prior || (kind === 'swipe' || kind === 'continue' ? lastRecord() : null);
+            const check = modules.dice ? (gen?.check ?? old?.v10Check ?? null) : null;
+            const scene = readScene(kind);
+            v10Turn = prepareTurn(v10Rows,{where:scene.location,present:scene.present},kind,modules,check,{schedule});
+            if (schedule && !v10Turn.offer && !flow?.order) {
+                v10Turn.offer = {id:'world-event',text:'If the scene has room, introduce one plausible outside development that follows from the current place and circumstances.'};
+            }
+            contextAsk = [modules.state && stateText, direction, v10Turn.text].filter(Boolean).join('\n');
+            if (contextAsk) lore.chatLore.push(askEntry(contextAsk));
+        }
+        else if (native && direction && Array.isArray(lore.chatLore)) { contextAsk = direction; lore.chatLore.push(askEntry(direction)); }
+        else if (!native && flow?.ask) { contextAsk = [stateText, direction, flow.ask].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
         // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) { contextAsk = [stateText, direction, a].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); } }
+        else if (!native && cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) { contextAsk = [stateText, direction, a].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); } }
         else if (direction && Array.isArray(lore.chatLore)) { contextAsk = [stateText, direction].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
-        if (flow) lore.chatLore.push(orderEntry());
+        if (flow && (!native || (flow.order && !v10Turn?.offer))) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
             const g = goals();
@@ -266,6 +289,8 @@ async function onEntriesLoaded(lore) {
             return;
         }
         if (cs) applyTiming(arrays.flat().filter(isManaged), cs);
+        plan.v10Turn = v10Turn;
+        plan.v10Rows = v10Rows;
         plan.contextAsk = contextAsk;
         plan.notes = notes;
         plan.flow = flow;
@@ -616,7 +641,9 @@ function onScanDone(args) {
                 const goalNew = !!(goalOrder?.task && !goalOrder.misses);
                 const room = Math.max(0, cap - continuing.length - overdue.length - (goalAgain ? 1 : 0));
                 const tickets = [...fresh.map(e => ({ e })), ...(goalNew ? [{ goal: true }] : []), ...(worldNew ? [{ world: true }] : [])];
-                const winners = pickWeighted(tickets, () => 1, room);
+                // Required directions take precedence over optional world opportunities in v10.
+                const required = plan.v10Turn ? tickets.filter(ticket => !ticket.world) : [];
+                const winners = required.length ? pickWeighted(required, () => 1, room) : pickWeighted(tickets, () => 1, room);
                 if (worldNew && !winners.some(w => w.world)) worldNew = false;
                 const waiting = fresh.filter(e => !winners.some(w => w.e === e));
                 for (const e of waiting) map.delete(keyOf(e));
@@ -629,7 +656,16 @@ function onScanDone(args) {
             }
 
             if (orderE) {
-                if (worldNew) items.push(makeItem(orderE, 'system', [plan.flow.order.text, plan.flow.order.effect?.silent ? '' : eventLine].filter(Boolean).join(' '), 0, 'new', false, { worldOrder: plan.flow.order.effect, big: plan.flow.order.effect?.kind === 'thread' }));
+                if (plan.v10Turn && (fresh.length || continuing.length || overdue.length || items.some(it=>!it.noCheck))) worldNew = false;
+                if (worldNew && plan.v10Turn && askE && map.has(keyOf(askE))) {
+                    const effect = plan.flow.order.effect;
+                    if (['seed','thread','activity'].includes(effect.kind)) {
+                        plan.v10Turn.legacyOffer = effect;
+                        askE.content += `\nTo confirm the optional legacy opportunity only if it happens in the prose, include legacyOutcome with the exact evidence quote as its value.`;
+                        plan.contextAsk = askE.content;
+                    }
+                }
+                if (worldNew) items.push(makeItem(orderE, 'system', [plan.v10Turn ? `Optional opportunity. Use it only if it fits; otherwise defer: ${plan.flow.order.text.replace(/\bmust\b/gi,'could')}` : plan.flow.order.text, plan.v10Turn || plan.flow.order.effect?.silent ? '' : eventLine].filter(Boolean).join(' '), 0, 'new', false, { worldOrder: plan.flow.order.effect, big: !plan.v10Turn && plan.flow.order.effect?.kind === 'thread', noCheck: !!plan.v10Turn }));
                 else if (!overdue.some(o => o.key === orderKey)) map.delete(orderKey);
             }
 
@@ -675,13 +711,20 @@ function onScanDone(args) {
             }
         }
 
+        const offer = !isRepeat && !gen.quiet && askE && map.has(keyOf(askE)) && !items.some(it => !it.noCheck || it.worldOrder) ? plan.v10Turn?.offer : null;
+        if (offer) {
+            const completion = offer.id === 'world-event' ? 'Record a new event only if it occurs in the prose.' : 'Mark done only if it occurs in the prose.';
+            askE.content += `\nOptional plot opportunity (${offer.id}): ${offer.payoff || offer.text} Defer if it does not fit. ${completion}`;
+            plan.contextAsk = askE.content;
+        }
         sayUserLineOnce(items);
         gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
         if (askE && map.has(keyOf(askE))) gen.result.texts.set(keyOf(askE), askE.content);
         const pace = { phase: plan.phase ? { name: plan.phase.name, chance: plan.phase.chance } : null, quiet: gen.quiet || null };
         cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         if (gen.guided) { gen.guided.afterLastScan = structuredClone(cs.lastScan); gen.guided.afterOverdue = structuredClone(cs.overdue); }
-        pending = { items, type, states, pace, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
+        pending = { items, type, states, pace, v10:plan.v10Turn, offer:offer?.id,
+            lore:plan.v10Turn ? loreReceipt(map.values(),plan.notes,plan.v10Rows,plan.flow?.id,plan.v10Turn.recalled) : null, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
         saveChatState();
@@ -732,6 +775,24 @@ function onMessageReceived(id, type) {
         if (pending.guided) { rec.guided = pending.guided; if (guided) guided.completed = true; }
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene && !x.extra[KEY].stateStale)?.extra?.[KEY]?.scene || {};
+        const turn = pending.v10;
+        if (turn) {
+            rec.v10 = true;
+            rec.v10Check = turn.check || null;
+            rec.v10Offer = pending.offer;
+            rec.v10Lore = pending.lore;
+            if (pending.v10Request) rec.v10Request = pending.v10Request;
+            rec.v10Invalid = parsed.invalid === true;
+            rec.v10RepairAttempt = !!turn.repair;
+            rec.v10Changes = [...(earlier?.v10Changes || [])];
+            rec.v10Diagnostics = replyDiagnostics(parsed.clean || m.mes);
+            if (turn.modules.colors) registerSpeakers(parsed.clean || m.mes,turn.records);
+            if (!turn.modules.roast) parsed.roast = '';
+            if (!turn.modules.state) { parsed.scene = null; parsed.elapsed = undefined; parsed.minutes = undefined; parsed.ops = []; parsed.profiles = []; }
+            if (Number.isInteger(parsed.minutes) && (!Number.isInteger(turn.clock) || parsed.minutes >= turn.clock)) rec.v10Minutes = parsed.minutes;
+            else if (Number.isInteger(turn.clock)) rec.v10Minutes = turn.clock + (parsed.elapsed ?? 0);
+            if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
+        }
         const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
         if (!parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
         if (Object.keys(scene).length) rec.scene = scene;
@@ -743,8 +804,8 @@ function onMessageReceived(id, type) {
         attach(m, rec);
         // File what the reply established in the story world. With checking off, a world order counts as done when sent.
         if (earlier) rec.update = earlier.update;
-        afterReply(id, rec, parsed, history('normal').next - 1, () => changed('checked', id));
-        if (settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
+        afterReply(id, rec, parsed, history('normal').next - 1, () => changed('checked', id), { v10:turn });
+        if (!turn && settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
         // The story so far: a chapter is written in the background when a scene ended or enough replies went by.
         chapterAfterReply(rec.time, history('normal').next - 1, () => changed('messages'));
         if (!rec.items.length) { try { ctx().saveChat?.(); } catch { /* saved with the next change */ } changed('sent', id); return; }
@@ -854,7 +915,7 @@ async function runCheck(id) {
         if (!r) return;
         if (r.done === true && quoteFound(reply, r.quote)) {
             it.status = 'done'; it.quote = String(r.quote).trim();
-            if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
+            if (it.worldOrder && !rec.v10) applyEffect(rec, it.worldOrder, () => changed('checked', id));
             cs.overdue = cs.overdue.filter(o => !(o.key === canon(it.key) && (!o.from || o.from === rec.time)));
         } else if ('goalTask' in it) {
             // A one-time step of the character goal: it is sent again with every reply until it happens.
@@ -929,6 +990,15 @@ function onPromptReady(data) {
             if (typeof msg.content === 'string' && msg.content.includes('<sent_instructions>')) msg.content = stripSentBlock(msg.content);
             else if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string' && part.text.includes('<sent_instructions>')) part.text = stripSentBlock(part.text);
         }
+        if (record && pending?.lore) {
+            const full = data.chat.map(m => typeof m.content === 'string' ? m.content : '').join('\n');
+            const instructions = plan.contextAsk && sub(plan.contextAsk).trim();
+            if (prefs()?.keepTurnGuidance && instructions && full.includes(instructions)) pending.v10Request = instructions;
+            pending.lore = pending.lore.map(({text,...entry}) => {
+                const expanded = typeof text === 'string' ? sub(text).trim() : '';
+                return { ...entry, confirmed:!!expanded && full.includes(expanded) };
+            });
+        }
         if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: pending?.items || [], ask: plan.contextAsk || '' }); }
     } catch (e) { console.error(LOG, 'prompt-ready', e); }
 }
@@ -959,7 +1029,7 @@ export function recentRecords(limit = 30) {
     const out = [];
     for (let i = chat.length - 1; i >= 0 && out.length < limit; i--) {
         const rec = chat[i]?.extra?.[KEY];
-        if (rec?.items?.length || shownChanges(rec?.update?.changes).length || rec?.pace?.quiet) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
+        if (rec?.items?.length || rec?.v10Lore?.length || rec?.v10Request || rec?.v10Offer || rec?.v10Check || shownChanges(rec?.update?.changes).length || rec?.pace?.quiet) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
     }
     return out;
 }
@@ -1054,7 +1124,7 @@ async function cancelGuided(attempt) {
 }
 
 /** Guide one newly generated swipe of the latest character reply. */
-export async function guideSwipe(direction, { repeatOrders = false, keepManualEdits = false } = {}) {
+export async function guideSwipe(direction, { repeatOrders = false, keepManualEdits = false, rerollDice = false } = {}) {
     const c = ctx(), chat = c.chat || [], id = chat.length - 1, m = chat[id];
     const value = String(direction || '').trim();
     if (!settings().enabled) throw new Error('Turn the extension on first.');
@@ -1071,11 +1141,11 @@ export async function guideSwipe(direction, { repeatOrders = false, keepManualEd
     let tx;
     try {
         await worldIdle();
-        tx = await prepareGuidedSwipe(id);
+        tx = await prepareGuidedSwipe(id,{keepManualEdits});
         if (String(ctx().getCurrentChatId?.() || '') !== chatId || ctx().chat?.[id]?.extra?.[KEY]?.time !== selectedTime) { await restoreGuidedSwipe(tx); throw new Error('The chat changed. Try again on the intended reply.'); }
         const cs = chatState();
         pickAgain = false; rerollCat = null;
-        guided = { direction: value, repeatOrders: !!repeatOrders, prior: structuredClone(m.extra[KEY]), tx, chatId, started: false, completed: false, beforeLastScan: structuredClone(cs?.lastScan), beforeOverdue: structuredClone(cs?.overdue || []) };
+        guided = { direction: value, check:rerollDice && m.extra[KEY].v10Check ? resolveCheck(m.extra[KEY].v10Check) : undefined, repeatOrders: !!repeatOrders, prior: structuredClone(m.extra[KEY]), tx, chatId, started: false, completed: false, beforeLastScan: structuredClone(cs?.lastScan), beforeOverdue: structuredClone(cs?.overdue || []) };
     } finally { guidedPreparing = false; }
     try {
         const ok = await triggerSwipe();
@@ -1107,10 +1177,15 @@ export function init() {
         if (dryRun) return;
         if (guided && type === 'swipe' && guided.chatId === String(ctx().getCurrentChatId?.() || '')) guided.started = true;
         gen = { guided: guided?.started ? guided : null, type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
-        if (!gen.skip) pending = null;
+        if (!gen.skip) {
+            pending = null;
+            if (enabledV10()) gen.check = gen.guided?.check ?? (['swipe','regenerate','continue'].includes(gen.type) ? lastRecord()?.v10Check : prefs()?.check);
+        }
     });
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
-        if (dryRun || !settings().enabled || !checkPromise) return;
+        if (dryRun || !settings().enabled) return;
+        if (enabledV10() && !gen?.skip && !isOocTurn() && isChatOpen()) await ensureWorld().catch(e => console.warn(LOG,'v10 story world',e));
+        if (!checkPromise) return;
         // Let a running check finish first, so an instruction that did not happen can be sent again with this reply.
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
@@ -1139,4 +1214,46 @@ export function init() {
         changed('messages');
     });
     return missing;
+}
+
+
+/** Commit only the opening the player has accepted, before other turns exist. */
+export async function acceptV10Opening(draft, prose) {
+    if (!enabledV10() || isGenerating()) throw new Error('V10 opening setup is unavailable right now.');
+    const c = ctx();
+    const chat = c.chat || [];
+    const chatId = c.getCurrentChatId?.();
+    const ready = () => chat.length <= 1 && !chat[0]?.is_user && !chat[0]?.extra?.[KEY]?.v10;
+    if (!ready() || !String(prose || '').trim()) throw new Error('Use opening setup before normal play and enter a greeting.');
+    await ensureWorld();
+    if (ctx().getCurrentChatId?.() !== chatId || ctx().chat !== chat || !ready()) throw new Error('The chat changed.');
+    const rows = await rowsForWorld();
+    if (ctx().getCurrentChatId?.() !== chatId || ctx().chat !== chat || !ready()) throw new Error('The chat changed.');
+    const modules = effectiveModules();
+    const embedded = parseUpdate(prose);
+    let parsed = embedded;
+    if (draft?.parsed && !draft.parsed.invalid && !embedded.found) {
+        parsed = prose === draft.original
+            ? { ...draft.parsed, modern:true, ops:[], block:'' }
+            : { ...embedded, modern:true, changes:draft.parsed.changes };
+    }
+    parsed.clean = embedded.clean;
+    prose = embedded.clean;
+    const m = chat[0] || { name:names().char, is_user:false, is_system:false, send_date:new Date().toISOString(), extra:{} };
+    m.mes = prose;
+    if (m.extra) delete m.extra.display_text;
+    m.swipes = [prose];
+    m.swipe_id = 0;
+    m.swipe_info = [{ send_date:m.send_date, extra:{} }];
+    const newMessage = !chat.length;
+    if (newMessage) chat.push(m);
+    const rec = { v:2, v10:true, items:[], time:Date.now(), type:'opening', stateChanges:modules.state ? changesFromProfiles(parsed.profiles || []) : [], scene:modules.state ? parsed.scene : null,
+        v10Minutes:modules.state ? parsed.minutes : undefined, roast:modules.roast ? parsed.roast : '' };
+    attach(m,rec);
+    if (modules.colors) registerSpeakers(prose,recordMap(rows));
+    if (newMessage) c.addOneMessage?.(m);
+    else c.updateMessageBlock?.(0,m);
+    await afterReply(0,rec,parsed,0,() => changed('messages',0),{ v10:{ modules, records:recordMap(rows) }, propagate:true });
+    await c.saveChat?.();
+    changed('messages',0);
 }

@@ -6,8 +6,8 @@
     "js": "index.js",
     "css": "style.css",
     "author": "Dr. H",
-    "version": "9.0.1",
-    "homePage": "https://github.com/htleffew/agentos-harness/tree/roleplay-instructions-v9",
+    "version": "10.0.0",
+    "homePage": "https://github.com/htleffew/agentos-harness/tree/roleplay-instructions-v10",
     "auto_update": false,
     "minimum_client_version": "1.19.0"
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.0.0
+
+- The companion preset enables V10 modules with preset defaults and chat overrides. Existing chats can opt in under V10 Story.
+- Opening setup previews card greetings and drafts new ones with optional direction. Accepting an opener commits its validated state to the branch book.
+- A pinned Base World and separately selected Behavior & Guidelines books feed World Info. The branch Story World stores editable Chat Facts and Plot Records, with protected corrections and validated history rollback.
+- The ordinary reply carries a versioned state update, including scene time, character portrayal, knowledge, emotions, relationships and plot changes. Eligible repairs ride with the next ordinary reply. Optional plot opportunities share the existing pacing chance. Explicit action checks roll locally with no automatic per-turn dice.
+- A collapsed scene and character console, a separate compact World Info receipt, and a separate opt-in Roast. The dialogue palette is editable per speaker and rendered with local contrast checks.
+
 ## 9.0.1
 
 - Reply cards use independent, collapsed Scene, character and Roast drawers with clear headings, a responsive field layout and the extension's cool palette. Snapshot editing remains available inside each card; open cards stay open across refreshes and editing can be cancelled or saved without getting stuck.

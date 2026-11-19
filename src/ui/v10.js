@@ -1,0 +1,349 @@
+import { h, button, select, section, field, textArea, textInput } from './dom.js';
+import { ctx, KEY, worldNames, isChatOpen, toast, isGenerating } from '../st.js';
+import { saveSettings, saveChatState } from '../store.js';
+import { acceptV10Opening, guideSwipe } from '../engine.js';
+import { chatWorld } from '../world.js';
+import { saveV10Record } from '../worldflow.js';
+import { statNames } from '../dice.js';
+import {
+    PRESET, MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, RECORD_KINDS, AXES, STYLE, OPENING,
+    activePreset, presetDefaults, savePresetDefault, prefs, enabledV10, effectiveModules, pinBase, createGuidelines, queueCheck, checkText, rowsForWorld,
+    readRecord, greetings, draftOpening, setSpeakerColor, displayColor, SPEECH,
+} from '../v10.js';
+
+const options = names => names.map(name => ({ value:name, label:name }));
+const choices = [{value:'inherit',label:'Inherit preset'}, {value:'on',label:'On'}, {value:'off',label:'Off'}];
+const mode = value => value === undefined ? 'inherit' : value ? 'on' : 'off';
+const problem = error => toast('error', error.message || String(error));
+const entryLabel = kind => ({fact:'Fact',profile:'Portrayal',knowledge:'Knowledge',emotion:'Emotion',relationship:'Relationship',arc:'Arc milestone',seed:'Seed',agenda:'Agenda',event:'Event'})[kind];
+const scoped = (label, control) => h('label',{class:'ri-field'},h('span',{class:'ri-label'},label),control);
+
+function profileEditor(local, key, label, fallback, redraw) {
+    const box = textArea(local[key] ?? fallback, () => {}, {rows:5,'aria-label':label});
+    return h('details',{class:'ri-card ri-tight'},h('summary',{},label),box,
+        h('div',{class:'ri-row'}, button('Save guidance',() => { local[key] = box.value.trim(); saveChatState(); }),
+            button('Restore default',() => { delete local[key]; saveChatState(); redraw(); })));
+}
+
+function renderOpening(local, redraw) {
+    const list = greetings();
+    const state = h('div',{class:'ri-note','role':'status'});
+    const chatId = ctx().getCurrentChatId?.();
+    let draft;
+    const area = textArea('',()=>{}, {rows:8, 'aria-label':'Opening preview'});
+    area.addEventListener('input',()=>{area.dataset.v10Draft='';});
+    const direction = textArea('',()=>{}, {oninput:()=>{area.dataset.v10Draft='';},placeholder:'Optional direction for a new opening', 'aria-label':'Opening direction'});
+    const card = select([{value:'new',label:'Generate a new opening'},...list.map((_,i)=>({value:String(i),label:i ? `Alternate greeting ${i}` : 'Main greeting'}))], list.length ? '0':'new',value=>{
+        draft = null; area.value = value === 'new' ? '' : list[Number(value)];
+    },{'aria-label':'Opening source'});
+    area.value = list[0] || '';
+    const run = async (event, stateOnly) => {
+        const trigger = event.currentTarget;
+        trigger.disabled = true;
+        state.textContent = 'Preparing opening…';
+        try {
+            if (stateOnly && !area.value.trim()) throw new Error('Choose or enter a greeting first.');
+            area.dataset.v10Draft='';
+            draft = await draftOpening(stateOnly ? {text:area.value} : {direction:direction.value});
+            area.value = draft.prose;
+            state.textContent = 'Review the draft before using it. Edits are checked against the proposed story facts.';
+        } catch (error) { state.textContent = error.message; } finally { trigger.disabled = false; }
+    };
+    const accept = button('Use this opening',async () => {
+        accept.disabled = true;
+        try {
+            if (ctx().getCurrentChatId?.() !== chatId) throw new Error('The chat changed.');
+            const text = area.value;
+            if (!text.trim()) throw new Error('Choose, generate, or enter an opening first.');
+            if (!draft && !/<story_update[ >]/i.test(text)) {
+                state.textContent = 'Reading opening state…';
+                draft = await draftOpening({text});
+            }
+            await acceptV10Opening(draft,text); redraw();
+        } catch(error) { state.textContent=error.message; accept.disabled=false; }
+    }, {kind:'primary'});
+    const available = (ctx().chat || []).length <= 1 && !ctx().chat?.[0]?.extra?.[KEY]?.v10;
+    return section('Opening setup',profileEditor(local,'opening','Opening message guidance',OPENING,redraw),
+        available ? [scoped('Greeting source',card),direction,
+            h('div',{class:'ri-row'},button('Generate opening',event=>run(event,false)),button('Read state from selected greeting',event=>run(event,true))),
+            scoped('Review or edit opening',area), accept,state] : h('p',{class:'ri-help'},'Opening setup is available at the start of a chat.'));
+}
+
+function renderDice(local, redraw) {
+    const actor = select([{value:'user',label:ctx().name1 || 'Player'}, {value:'char',label:ctx().name2 || 'Character'}], 'user',()=>{}, {'aria-label':'Actor'});
+    const stat = select(options(statNames()), statNames()[0],()=>{}, {'aria-label':'Stat'});
+    const action = textInput('',()=>{}, {placeholder:'What are they attempting?', 'aria-label':'Action to check'});
+    const difficulty = h('input',{type:'number',min:1,max:40,value:12,'aria-label':'Difficulty'});
+    const receipt = h('p',{class:'ri-help','role':'status'},checkText(local.check) || 'No check queued.');
+    const last = ctx().chat?.at(-1)?.extra?.[KEY]?.v10Check;
+    return section('Action check', h('p',{class:'ri-help'},'Choose the actor, action, stat, and difficulty before rolling. Send your next message normally to use the result.'),
+        h('div',{class:'ri-grid2'}, scoped('Actor',actor),scoped('Action',action),scoped('Stat',stat),scoped('Difficulty',difficulty)),
+        h('div',{class:'ri-row'},button('Roll for next reply',()=>{try { receipt.textContent=checkText(queueCheck(action.value,stat.value,Number(difficulty.value),actor.value)); } catch(error){problem(error);} }),
+            button('Clear queued check',()=>{delete local.check;saveChatState();redraw();}),
+            last ? button('Reroll check and replace latest reply',()=>guideSwipe('Rewrite this reply using the newly resolved action check. Preserve the attempted action and other applicable directions.',{repeatOrders:true,rerollDice:true}).catch(problem)) : null), receipt);
+}
+
+function renderBooks(local, redraw) {
+    const books = [{value:'',label:'None'},...options(worldNames().filter(name=>name!==chatWorld()))];
+    const base = select(books,local.base?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
+    const guidelines = select(books,local.guidelines || '',name=>{local.guidelines=name;saveChatState();redraw();});
+    const name = textInput('',()=>{},{placeholder:'Name for a reusable guidelines book','aria-label':'Guidelines book name'});
+    const content = textArea('',()=>{},{placeholder:'Writing or behavior guidance','aria-label':'Guidelines text'});
+    const pins = local.base ? h('details',{class:'ri-card ri-tight'},h('summary',{},'Pinned facts for opening'),
+        Object.values(local.base.entries || {}).filter(row=>!row.disable).map(row=>h('label',{class:'ri-row'},
+            h('input',{type:'checkbox',checked:local.base.pins?.includes(String(row.uid)),onchange:event=>{
+                const ids = new Set(local.base.pins || []);
+                if (event.currentTarget.checked) ids.add(String(row.uid)); else ids.delete(String(row.uid));
+                local.base.pins = [...ids];
+                saveChatState();
+            }}),row.comment || row.key?.[0] || `Entry ${row.uid}`))) : null;
+    return section('Reusable lorebooks',
+        field('Base World','Choose an imported book to pin a read-only starting copy. Its native triggers still apply.',base,
+            local.base ? button('Refresh pinned copy',()=>pinBase(local.base.name).then(redraw).catch(problem)) : null),
+        pins,
+        field('Behavior & Guidelines','Select a reusable book. Set its entry triggers in World Info.',guidelines,
+            local.guidelines ? select([{value:'on',label:'Enabled'}, {value:'off',label:'Disabled'}], local.guidelinesOn === false ? 'off':'on', value=>{local.guidelinesOn=value==='on';saveChatState();redraw();}) : null),
+        h('details',{class:'ri-card'},h('summary',{},'Create a guidelines book'),name,content,
+            button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelines=name.value.trim();local.guidelinesOn=true;saveChatState();redraw();}catch(error){problem(error);}})));
+}
+
+function editRecord(original, save, cancel) {
+    const modules = effectiveModules();
+    const type = select(options(RECORD_KINDS.filter(k=>k===original?.kind || modules[KIND_MODULE[k]])),original?.kind || RECORD_KINDS.find(k=>modules[KIND_MODULE[k]]),render,{'aria-label':'Record type'});
+    type.disabled = !!original;
+    const root = h('div',{class:'ri-state-editor'});
+    const id = textInput(original?.id || '',()=>{}, {'aria-label':'Record ID'});
+    const subject = textInput(original?.subject || '',()=>{}, {'aria-label':'Subject or speaker'});
+    const text = textArea(original?.text || '',()=>{}, {'aria-label':'Record text'});
+    const lock = h('input',{type:'checkbox',checked:original?.protected ?? !original});
+    const chosenLocks = new Set();
+    function render() {
+        const k = type.value;
+        const inputs = {};
+        const string = (key,label) => {
+            const value = Array.isArray(original?.[key]) ? original[key].join(', ') : original?.[key] ?? '';
+            inputs[key] = textInput(value,()=>{}, {'aria-label':label});
+            return scoped(label,inputs[key]);
+        };
+        const choice = (key,label,values,fallback) => {
+            inputs[key] = select(options(values),original?.[key] ?? fallback,()=>{}, {'aria-label':label});
+            return scoped(label,inputs[key]);
+        };
+        const flag = (key,label,initial) => {
+            inputs[key] = h('input',{type:'checkbox',checked:original?.[key] ?? initial});
+            return h('label',{},inputs[key], ' ',label);
+        };
+        const axes = {};
+        const profileLocks = {};
+        root.replaceChildren(scoped('Record type',type),scoped('Stable ID (letters, digits, hyphens)',id),scoped('Subject',subject),scoped('Record',text),
+            h('label',{},lock,' Protect this record from automatic changes'));
+        if (k === 'knowledge') root.append(choice('basis','Source type',['observed','reported','rumor','belief'],'observed'),flag('private','Limit to relevant character',true));
+        if (k === 'fact') root.append(string('aliases','Relevance aliases'),string('link','Related plot record ID'));
+        if (k === 'relationship') root.append(string('other','Other character'),string('perspective','One-sided perspective'));
+        if (k === 'profile') {
+            root.append(string('voice','Voice'),string('facet','Current facet or mask'),string('aliases','Aliases'));
+            for (const [key,label] of [['text','Portrayal'],['voice','Voice'],['aliases','Aliases'],['facet','Facet']]) {
+                const info = original?.profileFields?.[key];
+                profileLocks[key] = h('input',{type:'checkbox',checked:info?.locked ?? false,onchange:()=>chosenLocks.add(key)});
+                const target = key === 'text' ? text : inputs[key];
+                target.addEventListener('input',()=>{
+                    if (!chosenLocks.has(key)) profileLocks[key].checked = true;
+                });
+                const reset = original?.baseline?.[key] !== undefined ? button('Restore source',()=>{
+                    const source = original.baseline[key];
+                    target.value = Array.isArray(source) ? source.join(', ') : source;
+                    profileLocks[key].checked = false;
+                    chosenLocks.add(key);
+                },{kind:'ghost'}) : null;
+                root.append(h('div',{class:'ri-row'},h('label',{},profileLocks[key],` Protect ${label.toLowerCase()}`),
+                    info ? h('span',{class:'ri-help'},`Revision ${info.revision} · ${info.source}`) : null,reset));
+            }
+        }
+        if (k === 'emotion') {
+            const scores = h('div',{class:'ri-grid2'});
+            for (const axis of AXES) {
+                axes[axis] = h('input',{type:'number',min:0,max:10,value:original?.axes?.[axis] ?? '', 'aria-label':axis});
+                scores.append(scoped(axis,axes[axis]));
+            }
+            root.append(scores,string('outward','Outward behavior'));
+        }
+        if (k === 'agenda') root.append(string('whereabouts','Established whereabouts'));
+        if (PLOT_KINDS.includes(k)) root.append(choice('status','Status',['open','done','retired'],'open'),
+            string('parent','Parent arc ID'),string('requires','Required record IDs (comma separated)'),string('location','Required location'),string('due','Due story minute'),
+            string('payoff','Optional payoff guidance'),string('outcome','Established outcome'),flag('schedule','Allow automatic scheduling',false),string('weight','Selection weight'),string('spacing','Minimum spacing in replies'));
+        const failure = h('p',{role:'status',class:'ri-help'});
+        const submit = button('Save record',async()=>{
+            submit.disabled=true;
+            try {
+                const value = {kind:k,id:id.value.trim(),subject:subject.value,text:text.value,protected:lock.checked};
+                for (const [key,input] of Object.entries(inputs)) {
+                    if (input.type === 'checkbox') value[key]=input.checked;
+                    else if (['requires','aliases'].includes(key)) value[key]=input.value.split(',').map(x=>x.trim()).filter(Boolean);
+                    else if (['due','weight','spacing'].includes(key)) { if (input.value.trim()) value[key]=Number(input.value); }
+                    else value[key]=input.value;
+                }
+                if (Object.keys(axes).length) value.axes=Object.fromEntries(Object.entries(axes).filter(([,input])=>input.value!=='').map(([key,input])=>[key,Number(input.value)]));
+                if (k === 'profile') {
+                    value.lockFields=Object.keys(profileLocks).filter(key=>profileLocks[key].checked);
+                    if (original?.source) value.changedFields=Object.keys(profileLocks).filter(key=>{
+                        const fallback = key==='aliases' ? [] : '';
+                        return chosenLocks.has(key) || JSON.stringify(value[key] ?? fallback) !== JSON.stringify(original[key] ?? fallback);
+                    });
+                    value.baseline=original?.baseline;
+                }
+                await save(value);
+            } catch(error) {failure.textContent=error.message;submit.disabled=false;}
+        },{kind:'primary'});
+        root.append(h('div',{class:'ri-row'},submit,button('Cancel',cancel)),failure);
+    }
+    render();
+    return root;
+}
+
+function renderRecords(redraw) {
+    const tabs = h('div',{class:'ri-grid2'});
+    const editor = h('div');
+    const save = async value=>{await saveV10Record(value);redraw();};
+    tabs.append(section('Chat Facts',h('p',{class:'ri-help'},'Loading…')),section('Plot Records',h('p',{class:'ri-help'},'Loading…')));
+    rowsForWorld().then(rows=>{
+        const records=rows.map(readRecord).filter(Boolean);
+        for (const row of rows.filter(row=>row.on && row.kind==='character')) {
+            const id = `character-${row.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,50) || row.uid}`;
+            const baseline={text:row.fields.who || row.fields.role,voice:row.fields.voice,aliases:row.aliases};
+            if (!baseline.text && !baseline.voice) continue;
+            const existing=records.find(record=>record.kind==='profile' && record.subject.toLowerCase()===row.name.toLowerCase());
+            if (existing) existing.baseline=baseline;
+            else records.push({kind:'profile',id,subject:row.name,text:baseline.text || baseline.voice,voice:baseline.voice,aliases:baseline.aliases,baseline});
+        }
+        const card=ctx().characters?.[ctx().characterId];
+        const character=ctx().name2;
+        const source=card?.personality || card?.data?.personality || card?.description || card?.data?.description;
+        if (source && character && !records.some(record=>record.kind==='profile' && record.subject===character)) {
+            records.push({kind:'profile',id:'card-portrayal',subject:character,text:source.slice(0,900),baseline:{text:source.slice(0,900)}});
+        }
+        const group=(title,plot)=>section(title,
+            records.filter(record=>PLOT_KINDS.includes(record.kind)===plot).map(record=>h('details',{class:'ri-card ri-tight'},
+                h('summary',{},`${entryLabel(record.kind)} · ${record.subject || record.id}`),
+                h('p',{},record.text),h('p',{class:'ri-help'},[record.id,record.basis,record.status,record.protected?'Protected':'',record.source==='user'?'Edited by player':record.quote].filter(Boolean).join(' · ')),
+                button('Edit',()=>editor.replaceChildren(editRecord(record,save,()=>editor.replaceChildren()))))));
+        tabs.replaceChildren(group('Chat Facts',false),group('Plot Records',true));
+    }).catch(error=>tabs.replaceChildren(h('p',{role:'status'},error.message)));
+    return section('Story records',tabs,button('Add record',()=>editor.replaceChildren(editRecord(null,save,()=>editor.replaceChildren()))),editor);
+}
+
+function renderSpeakers(local) {
+    const target = document.querySelector('#chat .last_mes .mes_text');
+    return section('Dialogue colors',
+        Object.entries(local.speakers || {}).map(([key,speaker])=>{
+            const picker=h('input',{type:'color',value:speaker.color,'aria-label':`Color for ${speaker.name}`});
+            const status=h('span',{class:'ri-help'});
+            const update=()=>{
+                const theme = target && displayColor(speaker.color,target);
+                const rendered = theme || displayColor(speaker.color,null);
+                status.textContent=`Saved ${speaker.color}${rendered && rendered!==speaker.color ? ` · Displayed ${rendered}` : ''}${theme || !target ? '' : ' · Contrast background applied'}`;
+            };
+            update();
+            picker.addEventListener('input',()=>{try {setSpeakerColor(key,picker.value);update();refreshDialogue();}catch(error){problem(error);}});
+            return h('label',{class:'ri-row'},picker,speaker.name,status);
+        }), !Object.keys(local.speakers || {}).length ? h('p',{class:'ri-help'},'Assigned speakers appear here after a reply uses speaker labels.') : null);
+}
+
+export function renderV10(body, app) {
+    if (!isChatOpen()) return;
+    const local = prefs();
+    const redraw = () => {
+        app.render();
+        import('./sent.js').then(module=>module.refreshUnderReplies());
+    };
+    const preset = activePreset() || PRESET;
+    const enabled = enabledV10();
+    body.append(section('V10 story tools',field('Use V10 for this chat',`Preset: ${preset}. Selecting the companion preset enables these tools by default.`,
+        select(choices,mode(local.enabled),value=>{if(value==='inherit')delete local.enabled;else local.enabled=value==='on';saveChatState();redraw();}))));
+    if (!enabled) return;
+    const modules = effectiveModules();
+    const defaults = presetDefaults(preset);
+    body.append(section('Module ownership',
+        /vexa/i.test(preset) ? h('p',{class:'ri-note ri-note-warn'},'Vexa D&D Sim and Dice Rolls overlap Action checks. World Sim overlaps Autonomous world events and Arcs, seeds and off-screen agendas. Internal States Template overlaps scene, character, knowledge, emotions, and relationships. Vexa also supplies its own writing and dialogue-color instructions. Turn off either source wherever they overlap.') : null,
+        h('div',{class:'ri-grid2'},Object.entries(MODULES).map(([key,label])=>field(label,`Preset default: ${(defaults[key] ?? DEFAULT_MODULES[key]) ? 'on':'off'}. Effective: ${modules[key] ? 'on':'off'}.`,
+            select(choices,mode(local.modules?.[key]),value=>{const over=local.modules ||= {};if(value==='inherit')delete over[key];else over[key]=value==='on';saveChatState();redraw();},{'aria-label':`${label} for this chat`}),
+            select([{value:'factory',label:'Use built-in default'},...choices.slice(1)], defaults[key]===undefined?'factory':mode(defaults[key]),value=>{
+                savePresetDefault(preset,key,value==='factory' ? undefined : value==='on');
+                saveSettings();redraw();
+            },{'aria-label':`${label} preset default`})))),
+        field('World Info under replies','Shows selected titles and source books independently of What Was Sent.',
+            select(choices.slice(1),local.showLore===false?'off':'on',value=>{local.showLore=value==='on';saveChatState();redraw();})),
+        field('Keep exact story guidance','Save the extension’s confirmed story guidance for later inspection in What Was Sent. This does not change model context.',
+            select(choices.slice(1),local.keepTurnGuidance?'on':'off',value=>{local.keepTurnGuidance=value==='on';saveChatState();redraw();})),
+        field('Show Roast cards','Display this separately from generating or feeding back commentary.',
+            select(choices.slice(1),local.showRoast===false?'off':'on',value=>{local.showRoast=value==='on';saveChatState();redraw();}))));
+    if (modules.emotions) {
+        const tuning=local.emotion ||= {};
+        const dial=(key,label,min,max,fallback)=>scoped(label,h('input',{type:'number',min,max,value:tuning[key]??fallback,'aria-label':label,onchange:e=>{
+            tuning[key]=Math.max(min,Math.min(max,Number(e.currentTarget.value)||0));saveChatState();
+        }}));
+        body.append(section('Emotion tuning',h('div',{class:'ri-grid2'},dial('baseline','Baseline',0,10,3),dial('persistence','Persistence in replies',0,40,3),dial('recovery','Recovery per reply',0,10,1),
+            scoped('Sensitivity',select(options(['flexible','subtle','responsive']),tuning.sensitivity || 'flexible',value=>{tuning.sensitivity=value;saveChatState();})))));
+    }
+    body.append(profileEditor(local,'style','Live writing guidance',STYLE,redraw),renderOpening(local,redraw),renderBooks(local,redraw),renderRecords(redraw));
+    if (modules.dice) body.append(renderDice(local,redraw));
+    body.append(renderSpeakers(local));
+}
+
+export function refreshDialogue() {
+    const on = enabledV10() && effectiveModules().colors;
+    const speakers = Object.values(ctx().chatMetadata?.[KEY]?.v10?.speakers || {});
+    for (const mes of document.querySelectorAll('#chat .mes')) {
+        const area = mes.querySelector('.mes_text');
+        if (!area || ctx().chat?.[Number(mes.getAttribute('mesid'))]?.is_user) continue;
+        for (const span of area.querySelectorAll('.ri-speaker-text')) {
+            const speaker = speakers.find(person=>person.aliases.includes(span.dataset.speaker));
+            if (on && speaker) colorDialogue(span,speaker.color,area);
+            else span.replaceWith(...span.childNodes);
+        }
+        if (!on || !speakers.length) continue;
+        for (const paragraph of area.querySelectorAll('p')) {
+            if (paragraph.querySelector('.ri-speaker-text')) continue;
+            const nodes = [];
+            let source = '';
+            const walker = document.createTreeWalker(paragraph,NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                if (node.nodeName === 'BR') source += '\n';
+                if (node.nodeType !== Node.TEXT_NODE) continue;
+                nodes.push({node,start:source.length,end:source.length+node.length});
+                source += node.textContent;
+            }
+            for (const match of [...source.matchAll(SPEECH)].reverse()) {
+                const key = (match[1] || match[2]).trim().toLowerCase().replace(/\s+/g,' ');
+                const speaker = speakers.find(person=>person.aliases.includes(key));
+                if (!speaker) continue;
+                const start = match.index + match[0].length;
+                const end = source.indexOf(source[start] === '“' ? '”' : '"',start+1);
+                const lineEnd = source.indexOf('\n',start);
+                if (end < 0 || (lineEnd >= 0 && end > lineEnd)) continue;
+                const first = nodes.find(item=>item.start <= start && start < item.end);
+                const last = nodes.find(item=>item.start <= end && end < item.end);
+                if (!first || !last) continue;
+                const range = document.createRange();
+                range.setStart(first.node,start-first.start);
+                range.setEnd(last.node,end+1-last.start);
+                const span = h('span',{class:'ri-speaker-text','data-speaker':key,title:speaker.name},range.extractContents());
+                colorDialogue(span,speaker.color,area);
+                range.insertNode(span);
+            }
+        }
+    }
+}
+
+function colorDialogue(span,saved,area) {
+    const theme = displayColor(saved,area);
+    span.classList.toggle('ri-speaker-panel',!theme);
+    span.style.color = theme || displayColor(saved,null) || '';
+}
+
+let refreshTimer;
+const themeObserver = new MutationObserver(()=>{
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(refreshDialogue,100);
+});
+for (const root of [document.documentElement,document.body]) if (root) themeObserver.observe(root,{attributes:true,attributeFilter:['class','style','data-theme']});

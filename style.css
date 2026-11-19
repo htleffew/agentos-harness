@@ -334,3 +334,16 @@
     .ri-reply-stack .ri-reply-card > .ri-state-body, .ri-reply-stack .ri-reply-card > .ri-reply-fields, .ri-reply-stack .ri-reply-card > .ri-reply-quote { padding-left: 12px; padding-right: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .ri-reply-chevron { transition: none; } }
+
+.ri-root.ri-v10-reply { display:grid; gap:9px; margin:12px 0 4px; padding:0; border:0; background:transparent; }
+.ri-v10-reply .ri-tabs { padding:0 9px; margin:0; gap:2px; }
+.ri-v10-reply .ri-tab { font-size:.72em; padding:8px; overflow-wrap:anywhere; }
+.ri-v10-panels { padding:12px; }
+.ri-v10-panels [hidden] { display:none !important; }
+.ri-v10-lore .ri-changes { margin:0; padding:0 1.2em 1em 2em; overflow-wrap:anywhere; }
+.ri-v10-reply [role=tabpanel] .ri-state-body { min-width:0; }
+.ri-speaker-text { overflow-wrap:anywhere; }
+
+.ri-speaker-panel { background-color: #100e1c; border-radius: .18em; }
+
+.ri-v10-prompt-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }

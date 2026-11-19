@@ -1,6 +1,6 @@
 # Roleplay Instructions
 
-A standalone SillyTavern / TauriTavern extension, Version 9. It has five parts that work alone or together:
+A standalone SillyTavern / TauriTavern extension. Version 10 adds story tools and a companion preset alongside the existing modules.
 
 | Part | What it does |
 | --- | --- |
@@ -10,16 +10,25 @@ A standalone SillyTavern / TauriTavern extension, Version 9. It has five parts t
 | **Character Goals** | Something the character works toward in one chat, with one-time steps and repeatable actions. |
 | **Story World** | What is true in one story: people, places, groups, open threads, secrets, planted details, and the story so far. It is sent for who is in the scene and keeps itself up to date. |
 
-Across all of them, at most one new thing starts per reply. After each reply the extension checks whether the order
-happened and sends it again with firmer wording if it did not. Everything is saved in ordinary lorebooks, in one
-shared lorebook or in several.
+The per-reply cap controls how many new directions can start. The optional checker can revisit required instructions. Lorebooks store reusable instructions and world records, and chat metadata keeps per-reply history and overrides.
 
 - Works with any preset, and you can switch presets in the middle of a chat: everything the extension tracks is
   asked for, kept and sent by the extension itself. Chat Completion. Needs SillyTavern 1.19 or later, or a TauriTavern
   build on 1.19.
 - Depends on no other extension.
-- The extension panel lives in the Extensions menu. Collapsed Scene, character, and Roast cards and a Guide a swipe control can also appear under replies; What Was Sent is off under replies by default.
+- The extension panel lives in the Extensions menu. A collapsed story console, World Info, Roast, and Guide a swipe can also appear under replies; What Was Sent is off under replies by default.
 - The dice are the extension's own code. The AI is told the result and never rolls.
+
+## V10 story tools
+
+Import [Roleplay Instructions V10](presets/Roleplay%20Instructions%20V10.json) as a Chat Completion preset, then select it in the host. Choose your API and model through your usual connection profile. Keep the preset's **Chat History** marker enabled. The host supplies the visible chat history, while **Context & Memory** controls which summarized messages are hidden and how much recent text stays visible. To use V10 with another preset, open **V10 Story** and turn it on for that chat. The module controls show effective settings and let you reset any chat override to its preset default. When using Vexa, review its D&D Sim, Dice Rolls, World Sim and Internal States Template sections alongside the matching extension controls.
+
+- **Opening setup** offers the character card's greetings or a new draft with optional direction. Review the prose and accept it when ready. The opening and live writing profiles have individual restores.
+- **Reusable lorebooks** pins an imported World Info book for base canon. Native triggers still apply, with an option to pin selected facts for the opening. Select or create a separate guidelines book. **Chat Facts** and **Plot Records** share the managed Story World book, which is forked with the chat. Protect manual edits in the record editor.
+- **Action check** rolls once for the selected actor, stat, difficulty and action. The next reply receives the resolved outcome. An ordinary swipe reuses the result, and the reroll control explicitly replaces it. Optional plot opportunities use the Story World chance and pacing settings. Enabled Random Instructions remain separate and can issue required directions.
+- **Story state** shows the selected reply's snapshot and recorded changes. **World Info** lists the selected entries independently of **What Was Sent**, and labels entries confirmed in the assembled request. Enable **Keep exact story guidance** to retain the confirmed extension guidance in **What Was Sent**. **Roast** has separate generation, display, and future-prompt settings. **Dialogue colors** shows saved choices and any contrast adjustments.
+
+State extraction and eligible repair use the ordinary reply request. Drafting or reading an opener can use one setup request. The optional instruction checker and chapter summarizer have their own settings. See the [v10 decision log](docs/v10-vexa-decision-log.md) for the design and verification cases.
 
 ## Context and memory
 
@@ -41,7 +50,7 @@ Custom wording is stored separately from built-in defaults. If an update changes
 
 1. **Extensions > Install extension**
 2. Repository URL: `https://github.com/htleffew/agentos-harness`
-3. Branch: `roleplay-instructions-v9`
+3. Branch: `roleplay-instructions-v10`
 4. Install, then reload the app.
 
 ## First use (2 minutes)
