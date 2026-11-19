@@ -6,7 +6,7 @@ import { chatWorld } from '../world.js';
 import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
-    PRESET, MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, RECORD_KINDS, AXES, STYLE, OPENING,
+    PRESET, MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, STYLE, OPENING,
     activePreset, presetDefaults, savePresetDefault, prefs, enabledV10, effectiveModules, pinBase, createGuidelines, queueCheck, checkText, rowsForWorld,
     readRecord, greetings, draftOpening, setSpeakerColor, displayColor, SPEECH,
 } from '../v10.js';
@@ -107,9 +107,9 @@ function renderBooks(local, redraw) {
             button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelines=name.value.trim();local.guidelinesOn=true;saveChatState();redraw();}catch(error){problem(error);}})));
 }
 
-function editRecord(original, save, cancel) {
+function editRecord(original, save, cancel, kinds) {
     const modules = effectiveModules();
-    const type = select(options(RECORD_KINDS.filter(k=>k===original?.kind || modules[KIND_MODULE[k]])),original?.kind || RECORD_KINDS.find(k=>modules[KIND_MODULE[k]]),render,{'aria-label':'Record type'});
+    const type = select(options(kinds.filter(k=>k===original?.kind || modules[KIND_MODULE[k]])),original?.kind || kinds.find(k=>modules[KIND_MODULE[k]]),render,{'aria-label':'Record type'});
     type.disabled = !!original;
     const root = h('div',{class:'ri-state-editor'});
     const id = textInput(original?.id || '',()=>{}, {'aria-label':'Record ID'});
@@ -200,14 +200,14 @@ function editRecord(original, save, cancel) {
     return root;
 }
 
-function renderRecords(redraw) {
-    const tabs = h('div',{class:'ri-grid2'});
+function renderRecords(redraw, title, kinds) {
+    const list = h('div');
     const editor = h('div');
     const save = async value=>{await saveV10Record(value);redraw();};
-    tabs.append(section('Chat Facts',h('p',{class:'ri-help'},'Loading…')),section('Plot Records',h('p',{class:'ri-help'},'Loading…')));
+    list.append(h('p',{class:'ri-help'},'Loading…'));
     rowsForWorld().then(rows=>{
         const records=rows.map(readRecord).filter(Boolean);
-        for (const row of rows.filter(row=>row.on && row.kind==='character')) {
+        for (const row of rows.filter(row=>kinds.includes('profile') && row.on && row.kind==='character')) {
             const id = `character-${row.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,50) || row.uid}`;
             const baseline={text:row.fields.who || row.fields.role,voice:row.fields.voice,aliases:row.aliases};
             if (!baseline.text && !baseline.voice) continue;
@@ -218,17 +218,19 @@ function renderRecords(redraw) {
         const card=ctx().characters?.[ctx().characterId];
         const character=ctx().name2;
         const source=card?.personality || card?.data?.personality || card?.description || card?.data?.description;
-        if (source && character && !records.some(record=>record.kind==='profile' && record.subject===character)) {
+        if (kinds.includes('profile') && source && character && !records.some(record=>record.kind==='profile' && record.subject===character)) {
             records.push({kind:'profile',id:'card-portrayal',subject:character,text:source.slice(0,900),baseline:{text:source.slice(0,900)}});
         }
-        const group=(title,plot)=>section(title,
-            records.filter(record=>PLOT_KINDS.includes(record.kind)===plot).map(record=>h('details',{class:'ri-card ri-tight'},
-                h('summary',{},`${entryLabel(record.kind)} · ${record.subject || record.id}`),
-                h('p',{},record.text),h('p',{class:'ri-help'},[record.id,record.basis,record.status,record.protected?'Protected':'',record.source==='user'?'Edited by player':record.quote].filter(Boolean).join(' · ')),
-                button('Edit',()=>editor.replaceChildren(editRecord(record,save,()=>editor.replaceChildren()))))));
-        tabs.replaceChildren(group('Chat Facts',false),group('Plot Records',true));
-    }).catch(error=>tabs.replaceChildren(h('p',{role:'status'},error.message)));
-    return section('Story records',tabs,button('Add record',()=>editor.replaceChildren(editRecord(null,save,()=>editor.replaceChildren()))),editor);
+        const shown = records.filter(record=>kinds.includes(record.kind));
+        list.replaceChildren(...(shown.length ? shown.map(record=>h('details',{class:'ri-card ri-tight'},
+            h('summary',{},`${entryLabel(record.kind)} · ${record.subject || record.id}`),
+            h('p',{},record.text),h('p',{class:'ri-help'},[record.id,record.basis,record.status,record.protected?'Protected':'',record.source==='user'?'Edited by player':record.quote].filter(Boolean).join(' · ')),
+            button('Edit',()=>editor.replaceChildren(editRecord(record,save,()=>editor.replaceChildren(),kinds)))))
+            : [h('p',{class:'ri-help'},'No records yet.')]));
+    }).catch(error=>list.replaceChildren(h('p',{role:'status'},error.message)));
+    const canAdd = kinds.some(kind=>effectiveModules()[KIND_MODULE[kind]]);
+    return section(title,list,canAdd ? button('Add record',()=>editor.replaceChildren(editRecord(null,save,()=>editor.replaceChildren(),kinds))) : null,editor);
+
 }
 
 function renderSpeakers(local) {
@@ -248,7 +250,7 @@ function renderSpeakers(local) {
         }), !Object.keys(local.speakers || {}).length ? h('p',{class:'ri-help'},'Assigned speakers appear here after a reply uses speaker labels.') : null);
 }
 
-export function renderV10(body, app) {
+export function renderV10(body, app, page) {
     if (!isChatOpen()) return;
     const local = prefs();
     const redraw = () => {
@@ -256,37 +258,58 @@ export function renderV10(body, app) {
         import('./sent.js').then(module=>module.refreshUnderReplies());
     };
     const preset = activePreset() || PRESET;
-    const enabled = enabledV10();
-    body.append(section('V10 story tools',field('Use V10 for this chat',`Preset: ${preset}. Selecting the companion preset enables these tools by default.`,
-        select(choices,mode(local.enabled),value=>{if(value==='inherit')delete local.enabled;else local.enabled=value==='on';saveChatState();redraw();}))));
-    if (!enabled) return;
     const modules = effectiveModules();
     const defaults = presetDefaults(preset);
-    body.append(section('Module ownership',
-        /vexa/i.test(preset) ? h('p',{class:'ri-note ri-note-warn'},'Vexa D&D Sim and Dice Rolls overlap Action checks. World Sim overlaps Autonomous world events and Arcs, seeds and off-screen agendas. Internal States Template overlaps scene, character, knowledge, emotions, and relationships. Vexa also supplies its own writing and dialogue-color instructions. Turn off either source wherever they overlap.') : null,
-        h('div',{class:'ri-grid2'},Object.entries(MODULES).map(([key,label])=>field(label,`Preset default: ${(defaults[key] ?? DEFAULT_MODULES[key]) ? 'on':'off'}. Effective: ${modules[key] ? 'on':'off'}.`,
-            select(choices,mode(local.modules?.[key]),value=>{const over=local.modules ||= {};if(value==='inherit')delete over[key];else over[key]=value==='on';saveChatState();redraw();},{'aria-label':`${label} for this chat`}),
-            select([{value:'factory',label:'Use built-in default'},...choices.slice(1)], defaults[key]===undefined?'factory':mode(defaults[key]),value=>{
-                savePresetDefault(preset,key,value==='factory' ? undefined : value==='on');
-                saveSettings();redraw();
-            },{'aria-label':`${label} preset default`})))),
-        field('World Info under replies','Shows selected titles and source books independently of What Was Sent.',
-            select(choices.slice(1),local.showLore===false?'off':'on',value=>{local.showLore=value==='on';saveChatState();redraw();})),
-        field('Keep exact story guidance','Save the extension’s confirmed story guidance for later inspection in What Was Sent. This does not change model context.',
-            select(choices.slice(1),local.keepTurnGuidance?'on':'off',value=>{local.keepTurnGuidance=value==='on';saveChatState();redraw();})),
-        field('Show Roast cards','Display this separately from generating or feeding back commentary.',
-            select(choices.slice(1),local.showRoast===false?'off':'on',value=>{local.showRoast=value==='on';saveChatState();redraw();}))));
-    if (modules.emotions) {
-        const tuning=local.emotion ||= {};
-        const dial=(key,label,min,max,fallback)=>scoped(label,h('input',{type:'number',min,max,value:tuning[key]??fallback,'aria-label':label,onchange:e=>{
-            tuning[key]=Math.max(min,Math.min(max,Number(e.currentTarget.value)||0));saveChatState();
-        }}));
-        body.append(section('Emotion tuning',h('div',{class:'ri-grid2'},dial('baseline','Baseline',0,10,3),dial('persistence','Persistence in replies',0,40,3),dial('recovery','Recovery per reply',0,10,1),
-            scoped('Sensitivity',select(options(['flexible','subtle','responsive']),tuning.sensitivity || 'flexible',value=>{tuning.sensitivity=value;saveChatState();})))));
+    const chatFlag = (key, label, hint, defaultOn = false) => field(label,hint,
+        select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
+            {'aria-label':label}));
+    if (page === 'v10') {
+        body.append(section('Preset & Modules',field('Use V10 for this chat',`Preset: ${preset}. Selecting the companion preset enables these tools by default.`,
+            select(choices,mode(local.enabled),value=>{if(value==='inherit')delete local.enabled;else local.enabled=value==='on';saveChatState();redraw();}))));
+        if (!enabledV10()) return;
+        body.append(section('Module ownership',
+            /vexa/i.test(preset) ? h('p',{class:'ri-note ri-note-warn'},'Vexa D&D Sim and Dice Rolls overlap Action Checks. World Sim overlaps autonomous events and Plot Records. Internal States Template overlaps character and scene tracking. Choose one source for each behavior.') : null,
+            h('div',{class:'ri-grid2'},Object.entries(MODULES).map(([key,label])=>field(label,`Preset default: ${(defaults[key] ?? DEFAULT_MODULES[key]) ? 'on':'off'}. Effective: ${modules[key] ? 'on':'off'}.`,
+                select(choices,mode(local.modules?.[key]),value=>{const over=local.modules ||= {};if(value==='inherit')delete over[key];else over[key]=value==='on';saveChatState();redraw();},{'aria-label':`${label} for this chat`}),
+                select([{value:'factory',label:'Use built-in default'},...choices.slice(1)], defaults[key]===undefined?'factory':mode(defaults[key]),value=>{
+                    savePresetDefault(preset,key,value==='factory' ? undefined : value==='on');saveSettings();redraw();
+                },{'aria-label':`${label} preset default`})))),
+            chatFlag('generatePlan','Request a reply plan','Ask the companion preset for a short optional outline before the scene.')));
+        return;
     }
-    body.append(profileEditor(local,'style','Live writing guidance',STYLE,redraw),renderOpening(local,redraw),renderBooks(local,redraw),renderRecords(redraw));
-    if (modules.dice) body.append(renderDice(local,redraw));
-    body.append(renderSpeakers(local));
+    if (!enabledV10()) {
+        body.append(h('p',{class:'ri-note'},'Enable V10 for this chat in Setup → Preset & Modules.'));
+        return;
+    }
+    switch (page) {
+        case 'display':
+            body.append(section('Reply Display',
+                chatFlag('showPlanning','Show Reply planning','Show any emitted outline in a collapsed disclosure.',true),
+                chatFlag('showLore','World Info under replies','Show activated titles and source books.',true),
+                chatFlag('showRoast','Show Roast cards','Control Roast display independently of generation and feedback.',true),
+                chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.')));
+            break;
+        case 'opening': body.append(renderOpening(local,redraw)); break;
+        case 'books': body.append(renderBooks(local,redraw)); break;
+        case 'facts': body.append(renderRecords(redraw,'Chat Facts',['fact'])); break;
+        case 'plots': body.append(renderRecords(redraw,'Plot Records',PLOT_KINDS)); break;
+        case 'portrayal': body.append(renderRecords(redraw,'Portrayal & Knowledge',['profile','knowledge'])); break;
+        case 'emotion': {
+            if (modules.emotions) {
+                const tuning=local.emotion ||= {};
+                const dial=(key,label,min,max,fallback)=>scoped(label,h('input',{type:'number',min,max,value:tuning[key]??fallback,'aria-label':label,onchange:e=>{
+                    tuning[key]=Math.max(min,Math.min(max,Number(e.currentTarget.value)||0));saveChatState();
+                }}));
+                body.append(section('Emotion tuning',h('div',{class:'ri-grid2'},dial('baseline','Baseline',0,10,3),dial('persistence','Persistence in replies',0,40,3),dial('recovery','Recovery per reply',0,10,1),
+                    scoped('Sensitivity',select(options(['flexible','subtle','responsive']),tuning.sensitivity || 'flexible',value=>{tuning.sensitivity=value;saveChatState();})))));
+            }
+            body.append(renderRecords(redraw,'Emotions & Relationships',['emotion','relationship']));
+            break;
+        }
+        case 'speakers': body.append(renderSpeakers(local)); break;
+        case 'writing': body.append(profileEditor(local,'style','Live writing guidance',STYLE,redraw)); break;
+        case 'checks': body.append(modules.dice ? renderDice(local,redraw) : h('p',{class:'ri-note'},'Enable Explicit action checks in Setup → Preset & Modules.')); break;
+    }
 }
 
 export function refreshDialogue() {

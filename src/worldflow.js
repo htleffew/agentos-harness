@@ -1,3 +1,4 @@
+import { separateReply } from './reply-format.js';
 import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10 } from './v10.js';
 import { promptText, promptStatus } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor } from './state.js';
@@ -592,16 +593,18 @@ function worldLog(cs) {
 }
 
 /** Take the block out of a reply, on the message and on its swipe. Returns what parseUpdate found. */
-export function liftBlock(id) {
+export function liftBlock(id, paired = false) {
     const c = ctx();
     const m = c.chat?.[id];
     const none = { found: false, ops: [], ended: false, block: '', scene: null, profiles: [], roast: '' };
     if (!m || typeof m.mes !== 'string') return none;
-    const hasBlock = /<story_update\b/i.test(m.mes);
+    const output = paired ? separateReply(m.mes) : {text:m.mes,plan:''};
+    const hasBlock = /<story_update\b/i.test(output.text);
     // A profile or roast written outside the block (some models put it after the block) is taken too.
-    const hasCards = cardsOn() && /<(profile|roast)\b/i.test(m.mes);
-    if (!hasBlock && !hasCards) return none;
-    const parsed = hasBlock ? parseUpdate(m.mes) : { ...none, clean: m.mes };
+    const hasCards = cardsOn() && /<(profile|roast)\b/i.test(output.text);
+    if (!hasBlock && !hasCards && output.text === m.mes) return none;
+    const parsed = hasBlock ? parseUpdate(output.text) : { ...none, clean:output.text };
+    if (output.plan) parsed.plan = output.plan;
     if (hasCards) {
         const stray = parseCards(parsed.clean);
         if (stray.profiles.length || stray.roast) {

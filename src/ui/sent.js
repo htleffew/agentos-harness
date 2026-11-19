@@ -291,10 +291,11 @@ function refreshV10Replies(chat) {
         const people=showState && modules.state ? Object.values(snapshotState(id)).filter(p=>!sc.present || sc.present.toLowerCase().includes(p.name.toLowerCase())) : [];
         const records=(rec.v10Changes || []).filter(record=>modules[KIND_MODULE[record.kind]]);
         const profiles=showState && modules.state ? rec.v10Profiles || [] : [];
+        const planning=local.showPlanning !== false ? rec.v10Plan : '';
         const roast=local.showRoast!==false ? rec.roast : '';
         const lore=local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
-        const stamp=JSON.stringify([responseKey,sc,people,profiles,records,roast,lore,rec.v10Check,rec.v10Offer,rec.v10Invalid,rec.v10Diagnostics,rec.stateOutdated]);
+        const stamp=JSON.stringify([responseKey,sc,people,profiles,records,planning,roast,lore,rec.v10Check,rec.v10Offer,rec.v10Invalid,rec.v10Diagnostics,rec.stateOutdated]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
         const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});
         out.dataset.stamp=stamp;
@@ -325,6 +326,9 @@ function refreshV10Replies(chat) {
         if(parts.length) out.append(h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
             replyCardHeader({icon:'◇',eyebrow:'This reply',title:'Story state',subtitle:[sc.where,sc.when].filter(Boolean).join(' · ')}),
             ...replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id)));
+        if (planning) out.append(h('details',{class:'ri-reply-card ri-v10-plan','data-reply-fold':'planning'},
+            replyCardHeader({icon:'◇',eyebrow:'This reply',title:'Reply planning'}),
+            h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)));
         if(roast) out.append(h('details',{class:'ri-roast ri-reply-card ri-reply-roast','data-reply-fold':'roast'},
             replyCardHeader({icon:'✦',eyebrow:'A voice from the sidelines',title:'Roast'}),h('div',{class:'ri-roast-v ri-reply-quote'},roast)));
         if(lore.length) out.append(h('details',{class:'ri-reply-card ri-v10-lore','data-reply-fold':'lore'},

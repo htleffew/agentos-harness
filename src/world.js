@@ -95,8 +95,9 @@ const recordLabels = { fact:'Story fact', profile:'Character portrayal', knowled
     emotion:'NPC emotion', relationship:'Relationship', arc:'Arc milestone', agenda:'Off-screen agenda', event:'Story event', payoff:'Scheduled seed' };
 for (const [kind,label] of Object.entries(recordLabels)) WORLD_KINDS[kind] = {
     label, plural: label, add: `Add ${label.toLowerCase()}`, nameLabel:'Record title',
-    fields:[F('data','Structured record','Use the V10 Story panel to validate and edit this record.',true)], short:[],
+    fields:[F('data','Structured record','Edit this record on its dedicated Chat Facts, Plot Records, or Characters page.',true)], short:[],
 };
+export const isStructuredWorldKind = kind => Object.hasOwn(recordLabels,kind);
 export const KIND_ORDER = ['chapter', 'character', 'place', 'faction', 'thread', 'secret', 'seed', 'activity', ...Object.keys(recordLabels)];
 export const DONE = { thread: 'done', seed: 'paid', activity: 'done' };
 export const MAX_ACTIVITIES = 3;

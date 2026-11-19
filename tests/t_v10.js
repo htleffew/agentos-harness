@@ -36,7 +36,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             V.queueCheck('reach the ferry','Agility',12);
         });
         L.resetLog();
-        L.mode({chunkMs:320,reply:block('[Seraphina] “I saw the ferry depart.” The ferry is gone.',{
+        const prelude = '<page:boot>\n1. IDENTITY: PRIVATE-PRELUDE-MARKER\n2. GROUNDING: Harbor\n\n';
+        L.mode({chunkMs:320,reply:prelude+block('[Seraphina] “I saw the ferry depart.” The ferry is gone.',{
             scene:{where:'Dock',present:'Seraphina',minutes:120},
             changes:[{kind:'fact',id:'ferry-gone',text:'The ferry left the dock.',evidence:'The ferry is gone.'},
                 {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart.'}],
@@ -48,6 +49,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await progress.getByRole('status').getByText('Waiting for the reply').waitFor();
         await progress.getByRole('status').getByText('Writing the reply').waitFor();
         assert.equal(await progress.locator('li[data-status="done"]').count(),1);
+        await page.locator('#chat .last_mes .ri-stream-preview').waitFor({state:'attached'});
+        assert.equal(await page.locator('#chat .last_mes .mes_text').isVisible(),false);
         await page.emulateMedia({reducedMotion:'reduce'});
         assert.equal(await progress.locator('[data-status="active"] .ri-progress-light').evaluate(node=>getComputedStyle(node).animationName),'none');
         await progress.getByRole('status').getByText('Receiving the story update').waitFor();
@@ -69,7 +72,9 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             return {rec:msg.extra.roleplay_instructions,mes:msg.mes,records:(await V.rowsForWorld()).map(V.readRecord).filter(Boolean),speakers:V.prefs().speakers};
         });
         assert.match(state.rec.v10Request,/Resolved action check/);
-        assert(!state.mes.includes('story_update')); assert.equal(state.rec.v10Minutes,120);
+        assert(!state.mes.includes('story_update'));
+        assert.doesNotMatch(state.mes,/PRIVATE-PRELUDE-MARKER|<page:/);
+        assert.match(state.rec.v10Plan,/PRIVATE-PRELUDE-MARKER/); assert.equal(state.rec.v10Minutes,120);
         assert.equal(state.rec.v10Lore.find(x=>x.role==='Base World').confirmed,true);
         assert.equal(state.rec.v10Lore.find(x=>x.role==='Guidelines').confirmed,true);
         assert.equal(state.records.length,2); assert.equal(state.records.find(x=>x.kind==='emotion').axes.fury,5);
@@ -77,6 +82,10 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         const latest=page.locator('#chat .last_mes');
         await latest.locator('.ri-v10-console').waitFor();
         await latest.locator('.ri-v10-lore').waitFor();
+        const planning = latest.locator('.ri-v10-plan');
+        assert.equal(await planning.evaluate(el=>el.open),false);
+        await planning.locator('summary').click();
+        assert.match(await planning.innerText(),/PRIVATE-PRELUDE-MARKER/);
         assert((await latest.locator('.ri-speaker-text').count()) > 0);
         assert(await latest.locator('.ri-speaker-text').evaluate(span=>span.style.color));
         assert.equal(await latest.locator('.ri-v10-console').evaluate(x=>x.open),false);
@@ -87,6 +96,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         L.mode({reply:'The lamp lights up.\n<story_update v="2">{invalid</story_update>'});
         await L.send(page,'Wait by the lamp.');
         assert.match(L.text(L.requests().at(-1)),/Out-of-story voice feedback/);
+        assert.doesNotMatch(L.text(L.requests().at(-1)),/PRIVATE-PRELUDE-MARKER/);
         assert.doesNotMatch(L.text(L.requests().at(-1)),/Resolved action check/);
         const previous = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.time);
         L.mode({reply:block('The wind drops.',{scene:{elapsed:3},repair:previous,
@@ -169,6 +179,22 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await idle();
         assert((await read()).some(x=>x.id==='brass-key'));
         assert.equal(L.requests().length,6);
+        const navigation = page.locator('#ri_root');
+        await page.evaluate(()=>{
+            const drawer=document.querySelector('#ri_drawer .ri-home');
+            if (drawer) drawer.style.display='block';
+        });
+        const go = name => navigation.locator(`[data-ri-group="${name.toLowerCase()}"]`);
+        // Programmatic clicks keep this test independent of the host's Extensions-drawer layout.
+        await go('Story').evaluate(el=>el.click());
+        assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'Opening');
+        await navigation.locator('[data-ri-page="facts"]').evaluate(el=>el.click());
+        assert.match(await navigation.locator('#ri_panel_page').textContent(),/Chat Facts/);
+        await go('Setup').evaluate(el=>el.click());
+        await navigation.locator('[data-ri-page="display"]').evaluate(el=>el.click());
+        assert.match(await navigation.locator('#ri_panel_page').textContent(),/Show Reply planning/);
+        await go('Story').evaluate(el=>el.click());
+        assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'Chat Facts');
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
         L.mode({chunkMs:350,reply:'She counts the lights in the harbor. '.repeat(50)});
         await page.evaluate(()=>{

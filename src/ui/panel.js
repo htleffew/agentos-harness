@@ -15,19 +15,33 @@ import { renderLog } from './log.js';
 import { onLog } from '../log.js';
 import { isChatOpen } from '../st.js';
 
-const TABS = [
-    { id: 'instructions', label: 'Random Instructions', accent: 'cyan' },
-    { id: 'events', label: 'Random Story Events', accent: 'blue' },
-    { id: 'style', label: 'Random Writing Style', accent: 'green' },
-    { id: 'goals', label: 'Character Goals', accent: 'sky' },
-    { id: 'state', label: 'Current State', accent: 'green' },
-    { id: 'world', label: 'Story World', accent: 'green' },
-    { id: 'v10', label: 'V10 Story', accent: 'sky' },
-    { id: 'sent', label: 'What Was Sent', accent: 'blue' },
-    { id: 'context', label: 'Context & Memory', accent: 'sky' },
-    { id: 'log', label: 'Log', accent: 'sky' },
-    { id: 'settings', label: 'Settings', accent: 'cyan' },
+const GROUPS = [
+    { id:'story', label:'Story', accent:'green', tabs:[
+        ['opening','Opening'],['state','Current State'],['books','Reusable Lorebooks'],['facts','Chat Facts'],['plots','Plot Records'],['world','Story World'],
+    ] },
+    { id:'characters', label:'Characters', accent:'sky', tabs:[
+        ['portrayal','Portrayal & Knowledge'],['emotion','Emotions & Relationships'],['goals','Character Goals'],['speakers','Dialogue Colors'],
+    ] },
+    { id:'direction', label:'Direction', accent:'cyan', tabs:[
+        ['instructions','Random Instructions'],['events','Random Story Events'],['style','Random Writing Style'],['writing','Writing Guidance'],['checks','Action Checks'],
+    ] },
+    { id:'review', label:'Review', accent:'blue', tabs:[
+        ['sent','What Was Sent'],['context','Context & Memory'],['log','Log'],
+    ] },
+    { id:'setup', label:'Setup', accent:'sky', tabs:[
+        ['v10','Preset & Modules'],['display','Reply Display'],['settings','Settings'],
+    ] },
 ];
+const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','portrayal','emotion','speakers','writing','checks']);
+
+function navigate(id, groupId) {
+    if (app.tab !== id) {
+        app.tab = id;
+        app.resetScroll = true;
+        render();
+    }
+    app.root?.querySelector(groupId ? `[data-ri-group="${groupId}"]` : `[data-ri-page="${id}"]`)?.focus({preventScroll:true});
+}
 
 export const app = {
     tab: 'instructions',
@@ -65,8 +79,9 @@ export function render() {
     if (!app.root) return;
     const st = settings();
     const expanded = app.root.classList.contains('ri-expanded');
-    const tab = TABS.find(t => t.id === app.tab) || TABS[0];
-    app.root.dataset.accent = st.accent && st.accent !== 'auto' ? st.accent : tab.accent;
+    const group = GROUPS.find(item=>item.tabs.some(([id])=>id===app.tab)) || GROUPS[2];
+    (app.lastPages ||= {})[group.id] = app.tab;
+    app.root.dataset.accent = st.accent && st.accent !== 'auto' ? st.accent : group.accent;
     // Keep the page from jumping while the panel is rebuilt.
     const keepScroll = app.resetScroll ? 0 : (app.body?.scrollTop || 0);
     app.resetScroll = false;
@@ -80,10 +95,16 @@ export function render() {
             toggle(st.enabled, (v) => { st.enabled = v; saveSettings(); render(); }, 'Turn the whole extension on or off'),
             button(expanded ? 'Close full screen' : 'Expand', () => setExpanded(!expanded), { kind: 'ghost', title: expanded ? 'Go back to the small panel' : 'Show this panel full screen' })));
 
-    const tabs = h('div', { class: 'ri-tabs', role: 'tablist' }, TABS.map(t =>
-        h('button', { type: 'button', class: `ri-tab ${t.id === app.tab ? 'ri-tab-on' : ''}`, role: 'tab', 'aria-selected': String(t.id === app.tab), onclick: () => { app.tab = t.id; render(); } }, t.label)));
+    const categories = h('nav',{class:'ri-categories','aria-label':'Roleplay sections'},
+        GROUPS.map(item=>h('button',{type:'button',class:'ri-category','data-ri-group':item.id,
+            'aria-current':item===group ? 'true' : null,onclick:()=>navigate(app.lastPages[item.id] || item.tabs[0][0],item.id)},item.label)));
+    const pages = GROUPS.map(item=>h('nav',{class:'ri-tabs ri-page-nav','aria-label':`${item.label} pages`,hidden:item!==group},
+        item.tabs.map(([id,label])=>h('button',{type:'button',class:`ri-tab ${id===app.tab ? 'ri-tab-on' : ''}`,
+            'data-ri-page':id,'aria-current':id===app.tab ? 'page' : null,'aria-controls':'ri_panel_page',
+            onclick:()=>navigate(id)},label))));
+    const tabs = h('div',{class:'ri-panel-nav'},categories,pages);
 
-    app.body = h('div', { class: 'ri-body' });
+    app.body = h('div', { id:'ri_panel_page', class: 'ri-body' });
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));
     if (!isChatOpen() && app.tab !== 'settings' && app.tab !== 'log') app.body.appendChild(h('div', { class: 'ri-note' }, 'No chat is open. Open a chat to turn instruction sets on for it and to see what was sent.'));
@@ -93,7 +114,7 @@ export function render() {
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
-    else if (app.tab === 'v10') renderV10(app.body, app);
+    else if (V10_PAGES.has(app.tab)) renderV10(app.body,app,app.tab);
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
     else if (app.tab === 'context') renderContext(app.body, app);
@@ -135,7 +156,7 @@ export function mount(missing) {
         if (app.tab === 'instructions' && app.route.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'style' && app.sroute.view === 'edit' && what !== 'chat') return;
-        if (app.tab === 'v10' && what !== 'chat' && (app.root?.querySelector('.ri-state-editor, [data-v10-draft]') ||
+        if (V10_PAGES.has(app.tab) && what !== 'chat' && (app.root?.querySelector('.ri-state-editor, [data-v10-draft]') ||
             (app.root?.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')))) return;
         if (app.tab === 'world' && (app.wroute.view === 'edit' || app.wroute.sheet) && what !== 'chat') return;
         if (app.tab === 'state' && what !== 'chat' && app.root?.querySelector('.ri-state-editor')) return;

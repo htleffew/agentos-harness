@@ -1,5 +1,6 @@
-import { replyProgress, showReplyProgress, clearReplyProgress } from './reply-progress.js';
-import { enabledV10, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap } from './v10.js';
+import { separateReply, hasReplyScaffolding } from './reply-format.js';
+import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview } from './reply-progress.js';
+import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
 import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
@@ -768,7 +769,7 @@ function keepCards(rec, parsed, earlier, id) {
 function onMessageReceived(id, type) {
     try {
         // The update block is taken out of the reply first, so it is never shown, checked or sent back.
-        const parsed = settings().enabled ? liftBlock(id) : { found: false, ops: [], ended: false, block: '' };
+        const parsed = settings().enabled ? liftBlock(id, type !== 'first_message' && pairedPreset()) : { found: false, ops: [], ended: false, block: '' };
         if (!pending || type === 'first_message') return;
         const m = ctx().chat?.[id];
         if (!m || m.is_user || m.is_system) return;
@@ -785,6 +786,7 @@ function onMessageReceived(id, type) {
         const progressTurn = turn && pending.progressTurn;
         if (turn) {
             rec.v10 = true;
+            if (parsed.plan || earlier?.v10Plan) rec.v10Plan = parsed.plan || earlier.v10Plan;
             rec.v10Check = turn.check || null;
             rec.v10Offer = pending.offer;
             rec.v10Lore = pending.lore;
@@ -1002,9 +1004,14 @@ function onPromptReady(data) {
     try {
         if (!Array.isArray(data?.chat)) return;
         const record = !data.dryRun && !gen?.skip && !isOwnPrompt(data.chat);
+        const paired = pairedPreset();
         for (const msg of data.chat) {
             // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
-            if (msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.includes('<story_update')) msg.content = stripUpdateBlock(msg.content);
+            if (msg.role === 'assistant') {
+                const cleanAssistant = value => stripUpdateBlock(paired ? separateReply(value).text : value);
+                if (typeof msg.content === 'string') msg.content = cleanAssistant(msg.content);
+                if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string') part.text = cleanAssistant(part.text);
+            }
             if (typeof msg.content === 'string' && msg.content.includes('<sent_instructions>')) msg.content = stripSentBlock(msg.content);
             else if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string' && part.text.includes('<sent_instructions>')) part.text = stripSentBlock(part.text);
         }
@@ -1212,7 +1219,12 @@ export function init() {
     on('MESSAGE_RECEIVED', onMessageReceived);
     on('STREAM_TOKEN_RECEIVED', text => {
         const progress = replyProgress();
-        if (!gen || progress?.turn !== gen || !['context','waiting','writing'].includes(progress.phase) || typeof text !== 'string' || !text.trim()) return;
+        if (!gen || progress?.turn !== gen || typeof text !== 'string' || !text.trim()) return;
+        const paired = gen.paired ??= pairedPreset();
+        if (paired && (progress.preview !== undefined || hasReplyScaffolding(text) || /<story_update\b/i.test(text))) {
+            setReplyPreview(gen,stripUpdateBlock(separateReply(text).text));
+        }
+        if (!['context','waiting','writing'].includes(progress.phase)) return;
         // SillyTavern reports the accumulated reply. Scan the new segment and
         // overlap enough to detect an opening tag split across chunks.
         const offset = Math.max(0,Math.min(gen.progressTextLength || 0,text.length) - 16);
@@ -1271,7 +1283,7 @@ export async function acceptV10Opening(draft, prose) {
     const rows = await rowsForWorld();
     if (ctx().getCurrentChatId?.() !== chatId || ctx().chat !== chat || !ready()) throw new Error('The chat changed.');
     const modules = effectiveModules();
-    const embedded = parseUpdate(prose);
+    const embedded = parseUpdate(pairedPreset() ? separateReply(prose).text : prose);
     let parsed = embedded;
     if (draft?.parsed && !draft.parsed.invalid && !embedded.found) {
         parsed = prose === draft.original

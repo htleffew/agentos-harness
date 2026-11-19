@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.2
+
+- Grouped navigation gives opening setup, records, character tools, reply display, and prompt controls their own pages.
+- The companion preset keeps a model-emitted planning prelude in a collapsed Reply planning disclosure. The extension separates it from editable prose, story state, and later prompts even if it arrives with incomplete wrappers.
+
 ## 10.0.1
 
 - The story console lights up as context is prepared, the reply streams, and story state is updated. The temporary progress card clears on cancellation and honors reduced-motion settings.

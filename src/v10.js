@@ -1,3 +1,4 @@
+import { separateReply } from './reply-format.js';
 // V10's canonical update contract and chat-local configuration.
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, isGenerating } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
@@ -6,6 +7,7 @@ import { chatWorld, setChatWorld, loadWorld, listWorld } from './world.js';
 import { statNames, sheet } from './dice.js';
 
 export const PRESET = 'Roleplay Instructions V10';
+export const pairedPreset = () => enabledV10() && activePreset() === PRESET;
 export const MODULES = {
     style: 'Live writing guidance', state: 'Story, scene and character state', knowledge: 'Character knowledge', emotions: 'NPC emotion scales',
     relationships: 'Relationships', plots: 'Arcs, seeds and off-screen agendas', worldEvents: 'Autonomous world events',
@@ -341,8 +343,13 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const baseline = modules.state ? rows.filter(row => row.on && row.kind === 'character' && matches(row.name)).map(row => `${row.name}: ${[row.fields.who,row.fields.voice].filter(Boolean).join(' · ')}`) : [];
     const card = ctx().characters?.[ctx().characterId];
     if (modules.state && card && (card.personality || card.data?.personality || card.description)) baseline.unshift(`${names().char}: ${safeText(card.personality || card.data?.personality || card.description,400)}`);
+    const format = pairedPreset()
+        ? (prefs.generatePlan
+            ? 'If useful, put a brief outline of intended beats, character focus, and continuity checks in one <reply_plan> block before the story prose. Use up to five short bullets, then close it with </reply_plan>. Use the story update for established state.'
+            : 'Begin with the story prose. Keep the chosen viewpoint and each speaker’s knowledge consistent. Give relevant NPCs distinct voices and their own motives, let off-screen activity matter when it reaches the scene, and advance time only as the beat warrants. Keep planning outside the visible reply. Follow the story update format below when applicable.')
+        : '';
     const text = [
-        modules.style && style, formatSpeaker(modules), modules.emotions && `Consider established emotional dimensions and outward bearing. Sensitivity: ${prefs.emotion?.sensitivity || 'flexible'}. Credible sudden or mixed reactions are welcome.`,
+        format, modules.style && style, formatSpeaker(modules), modules.emotions && `Consider established emotional dimensions and outward bearing. Sensitivity: ${prefs.emotion?.sensitivity || 'flexible'}. Credible sudden or mixed reactions are welcome.`,
         baseline.length && `Established portrayal takes precedence over general style:\n${baseline.slice(0,8).join('\n')}`,
         recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`,
         modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`,
@@ -498,8 +505,9 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
     ].filter(Boolean).join('\n\n');
     const result = await request({ what:'Draft v10 opening', system:'Create or analyze the opening of this roleplay. Follow the requested output format.', user, tokens:text?1200:2200, profileId:settings().profileId });
     if (prefs() !== local) throw new Error('The chat changed.');
-    const parsed = extractUpdate(result.text);
-    const prose = text || parsed?.clean || result.text.trim();
+    const output = pairedPreset() ? separateReply(result.text).text : result.text;
+    const parsed = extractUpdate(output);
+    const prose = text || parsed?.clean || output.trim();
     result.note(prose ? 'Opening draft is ready for review.' : 'The result did not contain an opening.',!!prose);
     if (!prose) throw new Error('No opening was returned. Try a new draft.');
     return { prose, parsed, original:prose };

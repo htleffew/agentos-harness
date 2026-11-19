@@ -5,7 +5,7 @@ import { recordManualWorldChange } from '../worldflow.js';
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, chip, download } from './dom.js';
 import { settings, saveSettings, chatState } from '../store.js';
 import { createSet, setInfo, setName, exportSet } from '../books.js';
-import { WORLD_KINDS, KIND_ORDER, MAX_ACTIVITIES, chatWorld, setChatWorld, knownWorlds, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, entryFlags, renderEntry, buildNotes, writeWorldEntryWithAI } from '../world.js';
+import { WORLD_KINDS, KIND_ORDER, isStructuredWorldKind, MAX_ACTIVITIES, chatWorld, setChatWorld, knownWorlds, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, entryFlags, renderEntry, buildNotes, writeWorldEntryWithAI } from '../world.js';
 import { toast, confirmBox, inputBox, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
 import { keptIn, deleteButton } from './sets.js';
@@ -189,7 +189,7 @@ function renderList(body, app) {
         const list = listWorld(data, id);
         const out = [];
         // In the tab the chapters come last, right above their settings.
-        for (const kind of [...KIND_ORDER.filter(k => k !== 'chapter'), 'chapter']) {
+        for (const kind of [...KIND_ORDER.filter(k => k !== 'chapter' && !isStructuredWorldKind(k)), 'chapter']) {
             const def = WORLD_KINDS[kind];
             const mine = list.filter(w => w.kind === kind);
             const rows = mine.map(w => h('div', { class: `ri-card ri-inscard ${w.on ? '' : 'ri-off'}` },

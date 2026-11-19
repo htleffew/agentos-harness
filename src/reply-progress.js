@@ -20,3 +20,9 @@ export function clearReplyProgress(turn) {
     current = null;
     for (const fn of listeners) fn();
 }
+
+export function setReplyPreview(turn, preview) {
+    if (current?.turn !== turn || current.preview === preview) return;
+    current = { ...current, preview };
+    for (const fn of listeners) fn();
+}

@@ -6,7 +6,7 @@
       "name": "Roleplay Instructions V10",
       "system_prompt": true,
       "role": "system",
-      "content": "Continue the fictional scene as {{char}} and any relevant supporting characters. Use the established character and world material. Preserve {{user}}’s choices and follow the active story guidance supplied with the turn.",
+      "content": "Continue the fictional scene as {{char}} and any relevant supporting characters. Use the established character and world material. Preserve {{user}}’s choices and follow the active story guidance supplied with the turn. Return the scene as editable prose. Use the extension’s reply plan and story update formats only when requested. Leave display wrappers to the extension.",
       "identifier": "main"
     },
     {
