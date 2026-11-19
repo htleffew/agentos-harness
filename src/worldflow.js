@@ -73,6 +73,8 @@ const FORM = [
     ['paid', 'Planted detail title | how it paid off'],
     ['elsewhere', 'Short title | who | what they are doing away from the scene'],
 ];
+// CLEAR/RESOLVED are field values, never subjects of automatic world updates.
+const isClearSubject = value => /^(clear|resolved)$/i.test(norm(value));
 const PLACEHOLDER = /^(name|short title|thread title|secret title|planted detail title|title|none|nothing|n\/a|-+|\.+)$/i;
 
 /** The three lines about the scene itself. They are asked for with every reply, with or without a story world, so the
@@ -211,7 +213,7 @@ export function parseCards(text) {
         const nm = String(attrs).match(/name\s*=\s*["“']?([^"”'>]+)/i);
         let name = clean(nm?.[1] || '');
         if (/^\{\{char\}\}$/i.test(name)) name = charName;
-        if (!name || NAME_PLACEHOLDER.test(name) || name.length > 60) return '';
+        if (!name || isClearSubject(name) || NAME_PLACEHOLDER.test(name) || name.length > 60) return '';
         const now = {}, stable = {};
         for (const raw of String(body).split('\n')) {
             const line = raw.replace(/^[\s\-*•]+/, '').replace(/\*\*/g, '').trim();
@@ -289,7 +291,7 @@ export function parseUpdate(text) {
         }
         if (!ARITY[k]) continue;
         const parts = hit[2].split('|').map(clean);
-        if (!parts[0] || PLACEHOLDER.test(parts[0]) || parts[0].length > 80) continue;
+        if (!parts[0] || isClearSubject(parts[0]) || PLACEHOLDER.test(parts[0]) || parts[0].length > 80) continue;
         // A line copied from the form with nothing filled in is left out.
         if (FORM.some(([fk, fv]) => fk === k && norm(fv) === norm(hit[2]))) continue;
         ops.push({ k, a: parts[0], b: parts[1] || '', c: parts.slice(2).join(' | ') });
@@ -369,6 +371,7 @@ export function applyOps(data, id, ops, meta, mode = 'all', maxNew = MAX_NEW) {
 
     for (const op of ops) {
         const { k, a, b, c } = op;
+        if (isClearSubject(a)) continue;
         if (k === 'profile') {
             // Who a person is: a new person gets an entry, and an entry gets the lines it does not have yet.
             const w = findEntry(list, 'character', a);

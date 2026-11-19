@@ -1,8 +1,8 @@
 import { separateReply } from './reply-format.js';
 // V10's canonical update contract and chat-local configuration.
-import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, isGenerating } from './st.js';
+import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
-import { rollInt, createSet } from './books.js';
+import { rollInt, createSet, cleanSetName, setInfo } from './books.js';
 import { chatWorld, setChatWorld, loadWorld, listWorld } from './world.js';
 import { statNames, sheet } from './dice.js';
 
@@ -209,9 +209,47 @@ export async function ensureWorld() {
     return chatWorld();
 }
 
+function managedBookName() {
+    const world = chatWorld();
+    return world ? setInfo(world).book : '';
+}
+
+export function reusableBookNames() {
+    const managed = managedBookName();
+    return worldNames().filter(name=>name!==managed);
+}
+
+export async function uploadBaseBook(file) {
+    const local = prefs();
+    if (!local || !enabledV10()) throw new Error('Enable V10 for the open chat before importing a base book.');
+    let data;
+    try { data = JSON.parse(await file.text()); }
+    catch { throw new Error('Choose a valid World Info JSON export.'); }
+    if (prefs() !== local) throw new Error('The chat changed.');
+    if (!data?.entries || typeof data.entries !== 'object' || Array.isArray(data.entries)) {
+        throw new Error('Choose a SillyTavern or TauriTavern World Info JSON export with an entries object.');
+    }
+    const entries = Object.values(data.entries);
+    if (entries.some(entry=>!entry || !Number.isSafeInteger(entry.uid) || typeof entry.content !== 'string' || !Array.isArray(entry.key))
+        || new Set(entries.map(entry=>entry.uid)).size !== entries.length) {
+        throw new Error('Invalid World Info entries. Import other formats through the host World Info menu first.');
+    }
+    const base = cleanSetName(file.name.replace(/\.json$/i,'')).replace(/^\.+|\.+$/g,'').trim() || 'Base World';
+    const taken = new Set(worldNames().map(name=>name.toLocaleLowerCase()));
+    let name = base;
+    for (let i=2; taken.has(name.toLocaleLowerCase()); i++) name = `${base} (${i})`;
+    await saveBook(name,data);
+    await refreshWorldList();
+    if (!worldNames().includes(name)) throw new Error('The host did not confirm that the lorebook was saved.');
+    if (prefs() !== local) throw new Error(`Imported "${name}". Select it in the intended chat to pin it.`);
+    await pinBase(name);
+    return name;
+}
+
 export async function pinBase(name) {
     const local = prefs();
     if (!local) throw new Error('Open a chat first.');
+    if (name && name === managedBookName()) throw new Error('Choose a book separate from this chat’s managed Story World.');
     const data = name ? await loadBook(name) : null;
     if (prefs() !== local) throw new Error('The chat changed.');
     if (name && !data?.entries) throw new Error('Could not read the base book.');

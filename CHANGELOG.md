@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.3
+
+- Upload and assign a native World Info JSON file directly from Story → Reusable Lorebooks. Duplicate filenames get a new name.
+- Legacy story updates ignore CLEAR and RESOLVED as entry names while preserving field clearing.
+
 ## 10.0.2
 
 - Grouped navigation gives opening setup, records, character tools, reply display, and prompt controls their own pages.

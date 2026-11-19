@@ -195,6 +195,26 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.match(await navigation.locator('#ri_panel_page').textContent(),/Show Reply planning/);
         await go('Story').evaluate(el=>el.click());
         assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'Chat Facts');
+        await navigation.locator('[data-ri-page="books"]').evaluate(el=>el.click());
+        const uploaded = `Uploaded harbor ${Date.now()}`;
+        const bookFile = { name:`${uploaded}.json`, mimeType:'application/json', buffer:Buffer.from(JSON.stringify({
+            entries:{4:{uid:4,key:['harbor'],content:'The harbor closes after sundown.',constant:false,disable:false}}
+        })) };
+        const assign = async () => {
+            await navigation.locator('input[type=file]').setInputFiles(bookFile);
+            await navigation.locator('button').filter({hasText:'Upload and assign Base World'}).evaluate(el=>el.click());
+        };
+        const savedBase = name => page.waitForFunction(name=>SillyTavern.getContext().chatMetadata.roleplay_instructions.v10.base?.name===name,name);
+        await assign();
+        await savedBase(uploaded);
+        const stored = await story(page,async({B,value})=>{
+            const {loadBook}=await import(`${B}/src/st.js`);
+            return loadBook(value);
+        },uploaded);
+        assert.deepEqual(stored.entries[4].key,['harbor']);
+        await assign();
+        await savedBase(`${uploaded} (2)`);
+        assert.equal(L.requests().length,6);
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
         L.mode({chunkMs:350,reply:'She counts the lights in the harbor. '.repeat(50)});
         await page.evaluate(()=>{

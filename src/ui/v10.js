@@ -1,13 +1,12 @@
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
-import { ctx, KEY, worldNames, isChatOpen, toast, isGenerating } from '../st.js';
+import { ctx, KEY, isChatOpen, toast, isGenerating } from '../st.js';
 import { saveSettings, saveChatState } from '../store.js';
 import { acceptV10Opening, guideSwipe } from '../engine.js';
-import { chatWorld } from '../world.js';
 import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
     PRESET, MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, STYLE, OPENING,
-    activePreset, presetDefaults, savePresetDefault, prefs, enabledV10, effectiveModules, pinBase, createGuidelines, queueCheck, checkText, rowsForWorld,
+    activePreset, presetDefaults, savePresetDefault, prefs, enabledV10, effectiveModules, pinBase, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
     readRecord, greetings, draftOpening, setSpeakerColor, displayColor, SPEECH,
 } from '../v10.js';
 
@@ -84,8 +83,19 @@ function renderDice(local, redraw) {
 }
 
 function renderBooks(local, redraw) {
-    const books = [{value:'',label:'None'},...options(worldNames().filter(name=>name!==chatWorld()))];
+    const books = [{value:'',label:'None'},...options(reusableBookNames())];
     const base = select(books,local.base?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
+    const file = h('input',{type:'file',accept:'.json,application/json','aria-label':'Base World JSON file'});
+    const upload = button('Upload and assign Base World',async()=>{
+        if (!file.files[0]) { file.click(); return; }
+        upload.disabled = true;
+        try {
+            const imported = await uploadBaseBook(file.files[0]);
+            toast('success',`Assigned "${imported}" as Base World.`);
+            redraw();
+        } catch (error) { problem(error); }
+        finally { upload.disabled = false; }
+    });
     const guidelines = select(books,local.guidelines || '',name=>{local.guidelines=name;saveChatState();redraw();});
     const name = textInput('',()=>{},{placeholder:'Name for a reusable guidelines book','aria-label':'Guidelines book name'});
     const content = textArea('',()=>{},{placeholder:'Writing or behavior guidance','aria-label':'Guidelines text'});
@@ -98,8 +108,9 @@ function renderBooks(local, redraw) {
                 saveChatState();
             }}),row.comment || row.key?.[0] || `Entry ${row.uid}`))) : null;
     return section('Reusable lorebooks',
-        field('Base World','Choose an imported book to pin a read-only starting copy. Its native triggers still apply.',base,
-            local.base ? button('Refresh pinned copy',()=>pinBase(local.base.name).then(redraw).catch(problem)) : null),
+        field('Base World','Choose an existing World Info book or upload a native JSON export. The pinned copy keeps its triggers.',base,
+            local.base ? button('Refresh pinned copy',()=>pinBase(local.base.name).then(redraw).catch(problem)) : null,
+            h('div',{class:'ri-row'},file,upload)),
         pins,
         field('Behavior & Guidelines','Select a reusable book. Set its entry triggers in World Info.',guidelines,
             local.guidelines ? select([{value:'on',label:'Enabled'}, {value:'off',label:'Disabled'}], local.guidelinesOn === false ? 'off':'on', value=>{local.guidelinesOn=value==='on';saveChatState();redraw();}) : null),
