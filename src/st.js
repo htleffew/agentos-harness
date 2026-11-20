@@ -98,7 +98,8 @@ export function toast(kind, message) {
 export async function confirmBox(text) {
     const c = ctx();
     try {
-        const r = await c.callGenericPopup(String(text), c.POPUP_TYPE?.CONFIRM ?? 2);
+        const escaped = String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        const r = await c.callGenericPopup(escaped, c.POPUP_TYPE?.CONFIRM ?? 2);
         return r === (c.POPUP_RESULT?.AFFIRMATIVE ?? 1) || r === true;
     } catch { return globalThis.confirm(String(text)); }
 }

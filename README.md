@@ -70,6 +70,12 @@ Keep the preset's **Chat History** entry enabled: it supplies the conversation m
 
 The last-request view estimates the assembled text observed in this session for the current chat. It recognizes exact passages for recent conversation, story notes, chapters, events, and other extension text. Preset or extension formatting may prevent recognition, so unmatched passages are reported as unknown and categories are partial rather than a complete sum. The host may modify a request after observation; non-text inputs and model-specific framing are not counted. Token figures use roughly four characters per token and can differ substantially by model and language. The breakdown is unavailable when the host does not expose the chat-completion prompt event; it starts fresh on reload and stores only counts in memory.
 
+## Delete instructions, events and writing styles
+
+Choose **Delete** on an instruction card, or **Delete instruction** in its editor, and confirm. This removes the instruction and all its versions for chats that use the set.
+
+On a story-event or writing-style set card or inside its editor, choose **Delete story event set** or **Delete writing style set**. This removes the set's entries and keeps the World Info book available. **Remove from this list** keeps the set and its entries in the book so they can be added again. To delete just a version, category or item, use its **Delete** control and save the editor.
+
 ## Customize AI instructions
 
 Each feature has a collapsed **Customize AI instructions** section near its settings. Edit the instruction used for that feature and choose **Save instruction**. A **Customized** label shows which instructions differ from the installed default. Each instruction has its own **Restore default** button and an immediate **Undo restore** option. These settings apply across chats; saving or restoring does not make an AI request.

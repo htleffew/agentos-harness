@@ -2,7 +2,7 @@ import { promptGroup } from './prompts.js';
 // Random Story Events tab and Random Writing Style tab. Both are a list of sets and an editor for one set:
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
 import { h, button, toggle, select, choiceList, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
-import { knownSets, loadSet, saveSet, createSet, forgetSet, exportSet, setName, setInfo, freeUid, wrapText, SENT_AS } from '../books.js';
+import { knownSets, loadSet, editSet, createSet, forgetSet, exportSet, setName, setInfo, wrapText, SENT_AS } from '../books.js';
 import { keptIn, removeText, deleteButton } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
@@ -112,7 +112,7 @@ function renderList(body, app) {
                     if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== name); saveChatState(); }
                     app.render();
                 }, { kind: 'ghost' }),
-                deleteButton(app, name))));
+                deleteButton(app, name, `Delete ${c.set}`))));
     }
 }
 
@@ -336,7 +336,8 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
 }
 
 function renderEdit(body, app) {
-    const r = app[cfg.route];
+    const c = cfg;
+    const r = app[c.route];
     const { name, draft } = r;
     const redraw = () => app.render();
     const dirty = () => { r.dirty = true; };
@@ -427,20 +428,23 @@ function renderEdit(body, app) {
         const fixedMissing = draft.categories.find(c => c.on && c.mode === 'keepFixed' && !c.items.some(i => i.on && i.id === c.fixed));
         if (fixedMissing) { toast('info', `Choose the item to keep in "${fixedMissing.name}", or change how it changes.`); return; }
         try {
-            const data = await loadSet(name);
-            if (!data) throw new Error('The lorebook could not be read.');
-            const existing = findEventEntry(data, cfg.type, name);
-            if (existing) draft.uid = existing.uid;
-            else if (data.entries[draft.uid]) draft.uid = freeUid(data);
-            writeEvent(data, draft, name);
-            await saveSet(name, data);
+            await editSet(name, data => {
+                const existing = findEventEntry(data, c.type, name);
+                if (!existing) throw new Error(`This ${c.set} has been deleted.`);
+                draft.uid = existing.uid;
+                writeEvent(data, draft, name);
+            });
             r.dirty = false;
             const ready = draft.categories.some(c => c.on && c.items.some(i => i.on));
-            toast('success', ready ? `${cfg.Set} saved.` : 'Saved. It has no items to pick yet, so it sends nothing.');
-            go(app, { view: 'list' });
+            toast('success', ready ? `${c.Set} saved.` : 'Saved. It has no items to pick yet, so it sends nothing.');
+            go(app, { view: 'list' }, c);
         } catch (e) { toast('error', `Could not save: ${e.message}`); }
     };
     body.appendChild(h('div', { class: 'ri-row ri-savebar' },
         button(`Save ${cfg.set}`, save, { kind: 'primary' }),
-        button('Cancel', () => go(app, { view: 'list' }), { kind: 'ghost' })));
+        button('Cancel', () => go(app, { view: 'list' }), { kind: 'ghost' }),
+        deleteButton(app, name, `Delete ${c.set}`, () => {
+            if (app[c.route] === r) go(app, { view: 'list' }, c);
+            else app.render();
+        })));
 }

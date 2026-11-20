@@ -368,7 +368,15 @@ export function entriesOf(data, id) {
 
 export function freeUid(data) {
     const uids = Object.values(data?.entries || {}).map(e => Number(e.uid)).filter(Number.isFinite);
-    return uids.length ? Math.max(...uids) + 1 : 0;
+    const next = data?.extensions?.riNextUid;
+    return Math.max(Number.isSafeInteger(next) && next >= 0 ? next : 0, uids.length ? Math.max(...uids) + 1 : 0);
+}
+
+/** Keep retired entry IDs out of future allocations so old reply records stay attached to the deleted entry. */
+function removeEntries(data, entries) {
+    if (!entries.length) return;
+    data.extensions = { ...data.extensions, riNextUid: freeUid(data) };
+    for (const entry of entries) delete data.entries[entry.uid];
 }
 
 /** Carry an entry's set name and former keys over to its rewritten extension data. */
@@ -397,6 +405,33 @@ export async function saveSet(id, data) {
         data.extensions = { ...(data.extensions || {}), ri: { v: 1, limit: i.limit, max: i.max, kind: i.kind, ...was } };
     }
     await saveBook(i.book, data);
+}
+
+// Serialize extension edits that rewrite the same physical lorebook, including edits from different sets.
+const bookEdits = new Map();
+
+export async function editSet(id, edit, save = data => saveSet(id, data)) {
+    const { book } = setInfo(id);
+    const previous = bookEdits.get(book);
+    const pending = (previous ?? Promise.resolve()).catch(() => {}).then(async () => {
+        if (!settings().sets[id]) throw new Error('This set is no longer in the list.');
+        const loaded = await loadSet(id);
+        if (!loaded) throw new Error(`The lorebook "${book}" could not be read.`);
+        const data = structuredClone(loaded);
+        edit(data);
+        await save(data);
+        return data;
+    });
+    bookEdits.set(book, pending);
+    try { return await pending; }
+    finally { if (bookEdits.get(book) === pending) bookEdits.delete(book); }
+}
+
+export function deleteInstruction(id, uid) {
+    return editSet(id, data => {
+        const entry = entriesOf(data, id).find(candidate => candidate.uid === uid);
+        if (entry) removeEntries(data, [entry]);
+    });
 }
 
 export function cleanSetName(name) {
@@ -541,17 +576,25 @@ export async function moveSet(id, home) {
     return { id: newId, from: id, keys };
 }
 
-/** Delete a set that is kept inside a shared lorebook: its entries and its name are taken out of that lorebook. */
-export async function deleteSharedSet(id) {
-    const i = setInfo(id);
-    if (!i.shared) throw new Error('This set has a lorebook of its own. Delete that lorebook in World Info.');
-    const data = await loadSet(id);
-    if (!data) throw new Error(`The lorebook "${i.book}" could not be read.`);
-    for (const e of entriesOf(data, id)) delete data.entries[e.uid];
-    const ri = data.extensions?.ri;
-    if (ri?.groups) { const groups = { ...ri.groups }; delete groups[i.group]; data.extensions = { ...data.extensions, ri: { ...ri, groups } }; }
-    forgetSet(id);
-    await saveBook(i.book, data);
+/** Delete the set and its entries while retaining the physical World Info book. */
+export async function deleteSet(id) {
+    const info = setInfo(id);
+    const type = info.kind === 'events' ? 'event' : info.kind === 'style' ? 'style' : null;
+    await editSet(id, data => {
+        const entries = entriesOf(data, id);
+        removeEntries(data, info.shared || !type ? entries : entries.filter(e => e.extensions?.ri?.type === type));
+        const ri = data.extensions?.ri;
+        if (info.shared && ri?.groups) {
+            const groups = { ...ri.groups };
+            delete groups[info.group];
+            data.extensions = { ...data.extensions, ri: { ...ri, groups } };
+        } else if (!info.shared && ri && !ri.shared) {
+            delete data.extensions.ri;
+        }
+    }, async data => {
+        await saveBook(info.book, data);
+        forgetSet(id);
+    });
 }
 
 /** One set as a lorebook file of its own, for export. */

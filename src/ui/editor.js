@@ -1,7 +1,7 @@
 import { promptGroup } from './prompts.js';
 // The instruction editor: one screen, top to bottom. Also the "Write versions with AI" sheet.
 import { h, button, select, choiceList, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear } from './dom.js';
-import { SENT_AS, ACTORS, TARGETS, instructionActors, instructionTargets, loadSet, saveSet, setName, freeUid, writeInstruction, wrapText, listInstructions } from '../books.js';
+import { SENT_AS, ACTORS, TARGETS, instructionActors, instructionTargets, editSet, deleteInstruction, setName, freeUid, writeInstruction, wrapText, listInstructions } from '../books.js';
 import { settings, saveSettings, pronounForms } from '../store.js';
 import { validateVersion, swapNames, pairingNote, actorNote } from '../validate.js';
 import { writeVersions, rewriteVersion, nameHint, versionPromptId } from '../writer.js';
@@ -47,6 +47,21 @@ function versionEditor(initial, onDone, onCancel, actor) {
         h('div', { class: 'ri-row' },
             button('Done', () => { const t = value.replace(/\s+/g, ' ').trim(); if (!t) { toast('info', 'Type the version first.'); return; } onDone(t); }, { kind: 'primary' }),
             button('Cancel', onCancel, { kind: 'ghost' })));
+}
+
+export function deleteInstructionButton(app, set, instruction, onDone, label = 'Delete') {
+    let busy = false;
+    return button(label, async () => {
+        if (busy) return;
+        busy = true;
+        try {
+            if (!await confirmBox(`Delete "${instruction.name}" and all its versions from "${setName(set)}"? This applies to every chat using the set.`)) return;
+            app.cache[set] = await deleteInstruction(set, instruction.uid);
+            toast('success', `"${instruction.name}" was deleted.`);
+            onDone();
+        } catch (e) { toast('error', `Could not delete: ${e.message}`); }
+        finally { busy = false; }
+    }, { kind: 'danger', title: 'Delete this instruction and all its versions' });
 }
 
 export function renderEditor(body, app) {
@@ -184,13 +199,16 @@ export function renderEditor(body, app) {
         if (draft.when === 'pattern' && !/^\/.+\/[a-z]*$/i.test(draft.pattern.trim())) { toast('info', 'Write the pattern like /text/i, or choose "Always allowed".'); return; }
         if (blocked) { toast('error', `${blocked} ${blocked === 1 ? 'version is' : 'versions are'} empty. Type something in ${blocked === 1 ? 'it' : 'them'} or delete ${blocked === 1 ? 'it' : 'them'} first.`); return; }
         try {
-            const data = await loadSet(name);
-            if (!data) throw new Error('The lorebook could not be read.');
-            if (draft.isNew && data.entries[draft.uid]) draft.uid = freeUid(data);
-            if (draft.isNew) draft.order = 100 + listInstructions(data, name).length;
-            writeInstruction(data, draft, name);
-            await saveSet(name, data);
-            app.cache[name] = data;
+            app.cache[name] = await editSet(name, data => {
+                const list = listInstructions(data, name);
+                if (draft.isNew) {
+                    draft.uid = freeUid(data);
+                    draft.order = 100 + list.length;
+                } else if (!list.some(item => item.uid === draft.uid)) {
+                    throw new Error('This instruction has been deleted.');
+                }
+                writeInstruction(data, draft, name);
+            });
             toast('success', draft.versions.length ? 'Instruction saved.' : 'Instruction saved. It has no versions yet, so it sends nothing.');
             app.go({ view: 'set', name });
         } catch (e) { toast('error', `Could not save: ${e.message}`); }
@@ -198,16 +216,7 @@ export function renderEditor(body, app) {
     body.appendChild(h('div', { class: 'ri-row ri-savebar' },
         button('Save instruction', save, { kind: 'primary' }),
         button('Cancel', () => app.go({ view: 'set', name }), { kind: 'ghost' }),
-        draft.isNew ? null : button('Delete instruction', async () => {
-            if (!await confirmBox(`Delete the instruction "${draft.name}" and all its versions?`)) return;
-            try {
-                const data = await loadSet(name);
-                delete data.entries[draft.uid];
-                await saveSet(name, data);
-                app.cache[name] = data;
-                app.go({ view: 'set', name });
-            } catch (e) { toast('error', `Could not delete: ${e.message}`); }
-        }, { kind: 'danger' })));
+        draft.isNew ? null : deleteInstructionButton(app, name, draft, () => app.go({ view: 'set', name }), 'Delete instruction')));
 
 }
 

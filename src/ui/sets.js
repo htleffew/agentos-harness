@@ -1,10 +1,10 @@
 import { promptGroup } from './prompts.js';
 // Random Instructions tab: the list of instruction sets, and the list of instructions inside one set.
 import { h, button, toggle, select, numberInput, chip, field, download } from './dom.js';
-import { knownSets, setOptions, setInfo, setName, patchSet, loadSet, saveSet, createSet, adoptSet, forgetSet, exportSet, deleteSharedSet, listInstructions, estimateTokens, newInstruction, writeInstruction, frequencyText, LIMITS } from '../books.js';
+import { knownSets, setOptions, setInfo, setName, patchSet, loadSet, editSet, createSet, adoptSet, forgetSet, exportSet, deleteSet, listInstructions, estimateTokens, newInstruction, writeInstruction, frequencyText, LIMITS } from '../books.js';
 import { settings, chatState, saveChatState } from '../store.js';
 import { worldNames, toast, confirmBox, inputBox, isChatOpen } from '../st.js';
-import { renderEditor } from './editor.js';
+import { renderEditor, deleteInstructionButton } from './editor.js';
 
 export function renderInstructions(body, app) {
     if (app.route.view !== 'edit') body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'versionRules', 'modelVersionRules', 'systemVersions']));
@@ -130,20 +130,24 @@ function openable() {
     return worldNames().filter(n => !(sets[n] && !sets[n].book)).sort((a, b) => a.localeCompare(b));
 }
 
-/** "Delete this set", for a set kept inside a shared lorebook. A set with a lorebook of its own is deleted in World Info. */
-export function deleteButton(app, id, label = 'Delete this set') {
+/** The extension deletes the set's entries and leaves the physical book available in World Info. */
+export function deleteButton(app, id, label = 'Delete this set', onDone = app.render) {
     const i = setInfo(id);
-    if (!i.shared) return null;
+    if (i.kind === 'world' && !i.shared) return null;
+    let busy = false;
     return button(label, async () => {
-        if (!await confirmBox(`Delete "${i.name}" for good? Its entries are removed from the shared lorebook "${i.book}". The other sets in that lorebook are left alone.`)) return;
+        if (busy) return;
+        busy = true;
         try {
-            await deleteSharedSet(id);
+            if (!await confirmBox(`Delete "${i.name}" and its entries from "${i.book}"? This applies to every chat using the set. The World Info book is kept.`)) return;
+            await deleteSet(id);
             const cs = chatState();
             if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== id); saveChatState(); }
             app.cache = {};
             toast('success', `"${i.name}" was deleted.`);
+            onDone();
         } catch (e) { toast('error', `Could not delete: ${e.message}`); }
-        app.render();
+        finally { busy = false; }
     }, { kind: 'danger' });
 }
 
@@ -191,30 +195,37 @@ function renderSet(body, app) {
         const list = listInstructions(data, name);
         howOften.textContent = `How often: ${frequencyText(list)}`;
         if (!list.length) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'No instructions in this set yet. Press "Add instruction" to make the first one.')); return; }
-        const move = async (index, by) => {
-            const other = index + by;
-            if (other < 0 || other >= list.length) return;
-            [list[index], list[other]] = [list[other], list[index]];
-            list.forEach((ins, i) => { data.entries[ins.uid].order = 100 + i; data.entries[ins.uid].displayIndex = i; });
-            await saveSet(name, data);
-            app.render();
+        const change = async edit => {
+            try {
+                app.cache[name] = await editSet(name, edit);
+                app.render();
+            } catch (e) { toast('error', `Could not update: ${e.message}`); }
         };
+        const move = (uid, by) => change(fresh => {
+            const rows = listInstructions(fresh, name);
+            const index = rows.findIndex(row => row.uid === uid);
+            const other = index + by;
+            if (index < 0 || other < 0 || other >= rows.length) return;
+            [rows[index], rows[other]] = [rows[other], rows[index]];
+            rows.forEach((ins, i) => { fresh.entries[ins.uid].order = 100 + i; fresh.entries[ins.uid].displayIndex = i; });
+        });
         listBox.replaceChildren(...list.map((ins, index) => h('div', { class: `ri-card ri-inscard ${ins.on ? '' : 'ri-off'}` },
             h('div', { class: 'ri-card-top' },
                 h('button', { type: 'button', class: 'ri-card-name', onclick: () => app.go({ view: 'edit', name, draft: structuredClone(ins) }) }, ins.name),
                 h('label', { class: 'ri-switch-row' }, h('span', {}, ins.on ? 'On' : 'Off'),
-                    toggle(ins.on, async (v) => { data.entries[ins.uid].disable = !v; await saveSet(name, data); app.render(); }, `Turn ${ins.name} on or off`))),
+                    toggle(ins.on, v => change(fresh => { if (fresh.entries[ins.uid]) fresh.entries[ins.uid].disable = !v; }), `Turn ${ins.name} on or off`))),
             h('div', { class: 'ri-chips' }, summaryChips(ins)),
             h('div', { class: 'ri-row' },
                 button('Edit', () => app.go({ view: 'edit', name, draft: structuredClone(ins) }), { kind: 'primary' }),
-                button('Move up', () => move(index, -1), { kind: 'ghost', disabled: index === 0 }),
-                button('Move down', () => move(index, 1), { kind: 'ghost', disabled: index === list.length - 1 }),
-                button('Copy', async () => {
-                    const copy = { ...structuredClone(ins), ...{ uid: newInstruction(data, name).uid, name: `${ins.name} (copy)`, isNew: true } };
-                    writeInstruction(data, copy, name);
-                    await saveSet(name, data);
-                    app.render();
-                }, { kind: 'ghost', title: 'Make a second instruction with the same settings and versions' })))));
+                button('Move up', () => move(ins.uid, -1), { kind: 'ghost', disabled: index === 0 }),
+                button('Move down', () => move(ins.uid, 1), { kind: 'ghost', disabled: index === list.length - 1 }),
+                button('Copy', () => change(fresh => {
+                    const source = listInstructions(fresh, name).find(row => row.uid === ins.uid);
+                    if (!source) throw new Error('This instruction has been deleted.');
+                    const copy = { ...source, uid: newInstruction(fresh, name).uid, name: `${source.name} (copy)`, isNew: true };
+                    writeInstruction(fresh, copy, name);
+                }), { kind: 'ghost', title: 'Make a second instruction with the same settings and versions' }),
+                deleteInstructionButton(app, name, ins, app.render)))));
     }).catch((e) => listBox.replaceChildren(h('div', { class: 'ri-empty' }, `This lorebook could not be read: ${e.message}`)));
 
     if (!isChatOpen()) body.appendChild(h('div', { class: 'ri-help' }, 'Names and pronouns in versions are shown for the chat that is open. Open a chat to see them filled in.'));

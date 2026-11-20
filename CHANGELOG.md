@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.13
+
+- Delete an instruction and its versions directly from its list card. Story-event and writing-style sets can be deleted from their list cards or editors, including sets with a dedicated World Info book.
+- Deleting a set removes its entries and keeps its World Info book. New instructions receive fresh IDs after a deletion so earlier replies cannot replay a deleted instruction by mistake.
+
 ## 10.0.12
 
 - Pick several allowed actors or targets when writing random instruction versions with AI. The extension draws from the selected pairs and shows each assignment in the writer review.
