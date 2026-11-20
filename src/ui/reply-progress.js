@@ -4,7 +4,7 @@ import { settings } from '../store.js';
 import { enabledV10 } from '../v10.js';
 import { h } from './dom.js';
 
-const stages = ['Context','Reply','Story state'];
+const stages = [['Context','◇'],['Reply','▱'],['Story state','▤']];
 const phases = {
     context: [0,'Preparing context'],
     waiting: [1,'Waiting for the reply'],
@@ -54,21 +54,30 @@ export function refreshReplyProgress() {
         return;
     }
     if (!card) {
-        nodes = stages.map(label=>h('li',{},h('span',{class:'ri-progress-light','aria-hidden':'true'}),label));
+        nodes = stages.map(([label,icon])=>h('li',{},
+            h('span',{class:'ri-progress-light','aria-hidden':'true'},icon),
+            h('span',{class:'ri-progress-stage-label'},label),
+            h('span',{class:'ri-progress-stage-status','aria-hidden':'true'})));
         caption = h('span',{class:'ri-progress-caption',role:'status'});
         card = h('div',{class:'ri-root ri-reply-stack ri-v10-progress','data-accent':'sky'},
             h('div',{class:'ri-reply-card'},
-                h('div',{class:'ri-progress-heading'},h('strong',{},'Story state'),caption),
+                h('div',{class:'ri-progress-heading'},
+                    h('span',{class:'ri-reply-symbol','aria-hidden':'true'},'◇'),
+                    h('div',{},h('strong',{},'Story state'),caption)),
                 h('ol',{class:'ri-progress-stages','aria-label':'Reply progress'},nodes)));
     }
     if (lastPhase !== progress.phase) {
         const [active,label] = phases[progress.phase];
         nodes.forEach((node,index)=>{
-            node.dataset.status = index < active ? 'done' : index === active ? 'active' : 'waiting';
+            const done = index < active;
+            node.dataset.status = done ? 'done' : index === active ? 'active' : 'waiting';
+            node.children[0].textContent = done ? '✓' : stages[index][1];
+            node.children[2].textContent = done ? 'Complete' : index === active ? 'In progress' : 'Waiting';
             if (index === active) node.setAttribute('aria-current','step');
             else node.removeAttribute('aria-current');
         });
         caption.textContent = label;
+        card.style.setProperty('--ri-track-fill',`${Math.min(active,stages.length-1)/(stages.length-1)*100}%`);
         card.dataset.phase = progress.phase;
         lastPhase = progress.phase;
     }

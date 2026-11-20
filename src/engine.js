@@ -1245,6 +1245,7 @@ export function init() {
     });
     on('GENERATION_STOPPED', () => { clearReplyProgress(); const attempt = guided; guided = null; gen = null; pending = null; pickAgain = false; rerollCat = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
     on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);
+    on('OAI_PRESET_CHANGED_AFTER', () => changed('preset'));
     on('CHAT_CHANGED', () => {
         clearReplyProgress();
         const attempt = guided; guided = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }

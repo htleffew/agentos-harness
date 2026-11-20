@@ -47,8 +47,65 @@ export function enabledV10() {
     const local = chatState()?.v10?.enabled;
     return settings().enabled && (local ?? (activePreset() === PRESET));
 }
+const HOST_OVERLAPS = {
+    style: ['Prose Rules'],
+    dice: ['D&D Sim','Dice Rolls'],
+    worldEvents: ['World Sim'],
+    plots: ['World Sim','Internal States Template'],
+    state: ['Internal States Template'],
+    knowledge: ['Internal States Template'],
+    emotions: ['Internal States Template'],
+    relationships: ['Internal States Template'],
+    colors: ['Colored Dialogue + Tone Tags (Regex Required)','Colored Dialogue (LEGACY - No Regex Required)'],
+};
+
+export function moduleOwnership(preset = activePreset()) {
+    if (!preset) return {};
+    const c = ctx();
+    if (c.mainApi && c.mainApi !== 'openai') return {};
+    const host = c.chatCompletionSettings;
+    const prompts = Array.isArray(host?.prompts) ? host.prompts : null;
+    // SillyTavern's global Chat Completion prompt manager uses this order.
+    const order = host?.prompt_order?.find?.(row=>String(row?.character_id)==='100001')?.order;
+    const flags = Array.isArray(order) ? new Map(order.filter(row=>row?.identifier).map(row=>[row.identifier,row.enabled===true])) : null;
+    const listed = new Map();
+    for (const row of prompts || []) if (typeof row?.name === 'string') {
+        const label = row.name.trim().toLowerCase();
+        const identifiers = listed.get(label) || [];
+        identifiers.push(row.identifier);
+        listed.set(label,identifiers);
+    }
+    const owners = chatState()?.v10?.moduleOwners;
+    const choices = owners && Object.hasOwn(owners,preset) ? owners[preset] : {};
+    const ownership = {};
+    for (const [module,names] of Object.entries(HOST_OVERLAPS)) {
+        const blocks = names.filter(name=>listed.has(name.toLowerCase()) || (!prompts && /vexa/i.test(preset))).map(name=>({
+            name,
+            enabled:flags && listed.has(name.toLowerCase()) ? listed.get(name.toLowerCase()).some(id=>flags.get(id)===true) : null,
+        }));
+        if (!blocks.length) continue;
+        const blocked = blocks.some(block=>block.enabled!==false);
+        const choice = choices?.[module] ?? (blocked ? 'preset' : 'extension');
+        ownership[module] = {blocks,choice,usesExtension:choice==='extension' && !blocked,blocked};
+    }
+    return ownership;
+}
+
+export function setModuleOwner(preset, key, value) {
+    if (!Object.hasOwn(HOST_OVERLAPS,key) || !['preset','extension'].includes(value) || !preset) return;
+    const local = prefs();
+    if (!local) return;
+    const owners = local.moduleOwners ||= {};
+    const selection = Object.hasOwn(owners,preset) ? owners[preset] : {};
+    Object.defineProperty(owners,preset,{value:{...selection,[key]:value},enumerable:true,writable:true,configurable:true});
+    saveChatState();
+}
+
 export function effectiveModules() {
-    return { ...DEFAULT_MODULES, ...presetDefaults(), ...(chatState()?.v10?.modules || {}) };
+    const preset = activePreset();
+    const modules = { ...DEFAULT_MODULES, ...presetDefaults(preset), ...(chatState()?.v10?.modules || {}) };
+    for (const [key, owner] of Object.entries(moduleOwnership(preset))) if (!owner.usesExtension) modules[key] = false;
+    return modules;
 }
 export function presetDefaults(name = activePreset()) {
     const presets = settings().v10Presets || {};
@@ -313,7 +370,9 @@ export function updateContract(modules, opening = false) {
         modules.relationships && 'For a relationship use subject and other for the two people. Consider relevant relationships in dialogue and choices. Use perspective for meaningful asymmetry and record only lasting dynamics or turning points.',
         modules.knowledge && 'For knowledge include basis: observed, reported, rumor or belief; private defaults to true. Do not promote rumor to established fact.',
         modules.emotions && 'For emotion include axes (tenderness, fury, dread, yearning, each 0–10 or omitted) and optional outward behavior. Consider every applicable dimension without forcing each to change or be displayed.',
-        (modules.plots || modules.worldEvents) && 'For plot records use status open or done, plus optional parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. Record an outcome only on completion. Use schedule:true with optional weight and spacing in replies only when a future opportunity should be surfaced. An agenda can include established whereabouts. An offer or deadline alone does not establish completion.',
+        (modules.plots || modules.worldEvents) && 'For plot and event records use status open or done. Record an outcome only on completion. An offer or deadline alone does not establish completion.',
+        modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts.',
+        modules.plots && modules.worldEvents && 'Use schedule:true with optional weight and spacing in replies only when a future opportunity should be surfaced.',
         modules.roast && 'roast: optional short out-of-story voice critique when it adds value.',
     ].filter(Boolean);
     if (!sections.length) return '';
@@ -381,13 +440,16 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const baseline = modules.state ? rows.filter(row => row.on && row.kind === 'character' && matches(row.name)).map(row => `${row.name}: ${[row.fields.who,row.fields.voice].filter(Boolean).join(' · ')}`) : [];
     const card = ctx().characters?.[ctx().characterId];
     if (modules.state && card && (card.personality || card.data?.personality || card.description)) baseline.unshift(`${names().char}: ${safeText(card.personality || card.data?.personality || card.description,400)}`);
-    const format = pairedPreset()
+    const paired = pairedPreset();
+    const format = paired
         ? (prefs.generatePlan
             ? 'If useful, put a brief outline of intended beats, character focus, and continuity checks in one <reply_plan> block before the story prose. Use up to five short bullets, then close it with </reply_plan>. Use the story update for established state.'
-            : 'Begin with the story prose. Keep the chosen viewpoint and each speaker’s knowledge consistent. Give relevant NPCs distinct voices and their own motives, let off-screen activity matter when it reaches the scene, and advance time only as the beat warrants. Keep planning outside the visible reply. Follow the story update format below when applicable.')
+            : 'Begin with the story prose. Keep planning outside the visible reply. Follow the story update format below when applicable.')
         : '';
     const text = [
-        format, modules.style && style, formatSpeaker(modules), modules.emotions && `Consider established emotional dimensions and outward bearing. Sensitivity: ${prefs.emotion?.sensitivity || 'flexible'}. Credible sudden or mixed reactions are welcome.`,
+        format, modules.style && style, formatSpeaker(modules),
+        paired && modules.knowledge && 'Respect what each character could know from their own observations and conversations.',
+        paired && modules.plots && 'Let off-screen activity matter when it reaches the scene.', modules.emotions && `Consider established emotional dimensions and outward bearing. Sensitivity: ${prefs.emotion?.sensitivity || 'flexible'}. Credible sudden or mixed reactions are welcome.`,
         baseline.length && `Established portrayal takes precedence over general style:\n${baseline.slice(0,8).join('\n')}`,
         recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`,
         modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`,

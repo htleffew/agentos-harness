@@ -6,7 +6,7 @@ import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, STYLE, OPENING,
-    activePreset, presetDefaults, savePresetDefault, prefs, enabledV10, effectiveModules, pinBase, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
+    activePreset, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
     readRecord, greetings, draftOpening, setSpeakerColor, displayColor, SPEECH,
 } from '../v10.js';
 
@@ -277,15 +277,24 @@ const MODULE_HELP = {
     roast: 'Asks the model for optional commentary in the same reply.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
-const VEXA_BLOCKS = {
-    dice: 'D&D Sim and Dice Rolls',
-    worldEvents: 'World Sim',
-    plots: 'World Sim and Internal States Template',
-    state: 'Internal States Template',
-    knowledge: 'Internal States Template',
-    emotions: 'Internal States Template',
-    relationships: 'Internal States Template',
-};
+function hostOverlap(key, owner, preset, redraw) {
+    const id = `ri-owner-${key}`;
+    return h('div',{class:'ri-module-overlap'},
+        h('label',{htmlFor:id},'Instruction source'),
+        select([{value:'preset',label:'Host preset'}, {value:'extension',label:'Roleplay Instructions'}],owner.choice,value=>{
+            setModuleOwner(preset,key,value);
+            redraw();
+            document.getElementById(id)?.focus({preventScroll:true});
+        },{id,'aria-describedby':`${id}-status`}),
+        h('p',{class:'ri-help',id:`${id}-status`},owner.usesExtension
+            ? 'Roleplay Instructions owns this feature.'
+            : owner.choice === 'extension'
+                ? 'Roleplay Instructions is waiting for these blocks to be off in the host preset editor.'
+                : owner.blocks.some(block=>block.enabled===true)
+                    ? 'The host preset owns this feature.'
+                    : 'The extension is off for this feature. See the host block status below.'),
+        h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in host preset`))));
+}
 const onOff = value => value ? 'On' : 'Off';
 
 function moduleSettings(local, app, preset, modules, redraw) {
@@ -298,8 +307,9 @@ function moduleSettings(local, app, preset, modules, redraw) {
         app.root?.querySelector(`[data-module-scope="${scope}"]`)?.focus({preventScroll:true});
     };
     const controlScope = editingPreset ? 'preset' : 'chat';
-    const vexa = /vexa/i.test(preset);
+    const ownership = moduleOwnership(preset);
     const rows = Object.entries(MODULES).map(([key,label])=>{
+        const owner = ownership[key];
         const override = local.modules?.[key];
         const presetValue = defaults[key];
         const defaultOn = presetValue ?? DEFAULT_MODULES[key];
@@ -326,15 +336,19 @@ function moduleSettings(local, app, preset, modules, redraw) {
             }
             redraw();
             document.getElementById(controlId)?.focus({preventScroll:true});
-        },{id:controlId,'aria-describedby':`${controlId}-help ${controlId}-status`});
+        },{id:controlId,disabled:owner && !owner.usesExtension,'aria-describedby':`${controlId}-help ${controlId}-status ${controlId}-comparison`});
+        const comparison = h('div',{class:'ri-module-comparison',id:`${controlId}-comparison`},
+            h('span',{},`${owner ? 'Extension default' : 'Preset default'} · ${onOff(defaultOn)}${presetValue === undefined ? ' (built-in)' : ''}`),
+            h('span',{},override === undefined ? 'This chat · Inherits default' : `Chat override · ${onOff(override)}`));
         return h('div',{class:'ri-module-row','data-module':key},
             h('div',{class:'ri-module-heading'},
                 h('label',{htmlFor:controlId},label),
                 h('span',{class:'ri-module-status',id:`${controlId}-status`,'data-enabled':String(modules[key])},
-                    `${onOff(modules[key])} in this chat · ${source}`)),
+                    owner && !owner.usesExtension ? 'Extension off · See instruction source' : `${onOff(modules[key])} in this chat · ${source}`)),
             h('p',{class:'ri-help',id:`${controlId}-help`},MODULE_HELP[key]),
-            vexa && VEXA_BLOCKS[key] ? h('p',{class:'ri-help ri-module-overlap'},`Related Vexa blocks: ${VEXA_BLOCKS[key]}`) : null,
-            control);
+            comparison,
+            control,
+            owner ? hostOverlap(key,owner,preset,redraw) : null);
     });
     return section('Extension modules',
         h('div',{class:'ri-module-scopes',role:'group','aria-label':'Settings scope'},
@@ -346,7 +360,8 @@ function moduleSettings(local, app, preset, modules, redraw) {
             ? `Defaults for “${preset}” apply wherever that preset is active and the chat uses its default. Chat overrides take precedence.`
             : canEditPreset ? `Settings for this chat. “Use preset default” follows “${preset}”. Choose On or Off to override it here.`
             : 'The host has no active preset name. You can use the built-in defaults or override them for this chat.'),
-        vexa ? h('p',{class:'ri-note ri-note-warn'},'These controls apply to the Roleplay Instructions extension. Manage Vexa’s own prompt blocks in the preset editor.') : null,
+        Object.keys(ownership).length ? h('div',{class:'ri-note'},'Instruction source is saved for this chat and preset. Related blocks are managed in the host preset editor. The extension yields while those blocks are on or their status is unavailable.',
+            h('div',{class:'ri-row'},button('Refresh source status',redraw,{kind:'ghost'}))) : null,
         h('div',{class:'ri-module-list'},rows));
 }
 

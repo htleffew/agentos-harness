@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.5
+
+- Module rows show the preset default alongside the chat override. Known overlapping Chat Completion blocks have an instruction source selector with on/off status. V10 yields while related host blocks are enabled or their status is unavailable.
+- Reply cards use distinct cool accents, readable scene and World Info chips, and clearer tabs. The loading card connects stages and checks each one off as it completes.
+
 ## 10.0.4
 
 - Preset & Modules uses separate This chat and Preset defaults views. Each module explains its behavior and shows which setting controls it in the current chat.

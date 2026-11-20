@@ -1,7 +1,7 @@
 import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
-import { replyCardHeader } from './reply-cards.js';
+import { replyCardHeader, replyChip } from './reply-cards.js';
 import { refreshGuidedControl } from './guided.js';
 import { snapshotState, snapshotScene } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
@@ -276,6 +276,13 @@ function replyTabs(parts, active, id) {
     return [list,panels];
 }
 
+function replyLoreRows(lore) {
+    return h('ul',{class:'ri-lore-receipt'},lore.map(entry=>h('li',{},
+        h('div',{class:'ri-lore-receipt-title'},h('strong',{},entry.title),h('span',{},entry.book || 'Story World')),
+        h('div',{class:'ri-reply-chip-rail'},entry.role && replyChip(entry.role,'indigo'),
+            replyChip(entry.confirmed ? 'Confirmed in prompt' : 'Selected',entry.confirmed ? 'mint' : 'slate')))));
+}
+
 function refreshV10Replies(chat) {
     const enabled=settings().enabled;
     const native=enabledV10();
@@ -318,7 +325,9 @@ function refreshV10Replies(chat) {
             parts.push([person.name,[card.children[1],showProfile(profiles.find(profile=>profile.subject===person.name))]]);
         }
         for (const profile of profiles.filter(profile=>!people.some(person=>person.name===profile.subject))) parts.push([profile.subject,showProfile(profile)]);
-        if (records.length) parts.push(['Changes',records.map(record=>h('p',{},`${record.subject || record.id}: ${record.text}`))]);
+        if (records.length) parts.push(['Changes',h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
+            h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
+            replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))]);
         if (rec.v10Check || rec.v10Offer || rec.v10Invalid || rec.stateOutdated || rec.v10Diagnostics?.length) parts.push(['Notes',[
             rec.v10Check && h('p',{},checkText(rec.v10Check)),
             rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
@@ -327,16 +336,22 @@ function refreshV10Replies(chat) {
             (rec.v10Diagnostics || []).map(note=>h('p',{},note)),
         ]]);
         if(parts.length) out.append(h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
-            replyCardHeader({icon:'◇',eyebrow:'This reply',title:'Story state',subtitle:[sc.where,sc.when].filter(Boolean).join(' · ')}),
+            replyCardHeader({icon:'◇',title:'Story state',chips:[
+                sc.where && {text:sc.where,tone:'sky'},
+                sc.when && {text:sc.when,tone:'indigo'},
+                records.length && {text:`${records.length} ${records.length===1 ? 'change' : 'changes'}`,tone:'mint'},
+            ].filter(Boolean)}),
             ...replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id)));
         if (planning) out.append(h('details',{class:'ri-reply-card ri-v10-plan','data-reply-fold':'planning'},
-            replyCardHeader({icon:'◇',eyebrow:'This reply',title:'Reply planning'}),
+            replyCardHeader({icon:'≋',title:'Reply planning'}),
             h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)));
         if(roast) out.append(h('details',{class:'ri-roast ri-reply-card ri-reply-roast','data-reply-fold':'roast'},
-            replyCardHeader({icon:'✦',eyebrow:'A voice from the sidelines',title:'Roast'}),h('div',{class:'ri-roast-v ri-reply-quote'},roast)));
+            replyCardHeader({icon:'✦',title:'Roast'}),h('div',{class:'ri-roast-v ri-reply-quote'},roast)));
         if(lore.length) out.append(h('details',{class:'ri-reply-card ri-v10-lore','data-reply-fold':'lore'},
-            replyCardHeader({icon:'◇',eyebrow:'This reply',title:`World Info · ${lore.length} ${lore.length===1?'entry':'entries'}`}),
-            h('ul',{class:'ri-changes'},lore.map(entry=>h('li',{},`${entry.title} · ${entry.book || 'Story World'}${entry.role ? ` (${entry.role})` : ''} · ${entry.confirmed ? 'confirmed in prompt' : 'selected'}`)))));
+            replyCardHeader({icon:'▤',title:'World Info',chips:[
+                {text:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}`,tone:'sky'},
+                ...(lore.some(entry=>entry.confirmed) ? [{text:`${lore.filter(entry=>entry.confirmed).length} confirmed`,tone:'mint'}] : []),
+            ]}),replyLoreRows(lore)));
         if(old?.dataset.responseKey===responseKey) for(const fold of out.querySelectorAll('[data-reply-fold]')) {
             fold.open=!!old.querySelector(`[data-reply-fold="${fold.dataset.replyFold}"]`)?.open;
         }
