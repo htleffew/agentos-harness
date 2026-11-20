@@ -283,6 +283,22 @@ function replyLoreRows(lore) {
             replyChip(entry.confirmed ? 'Confirmed in prompt' : 'Selected',entry.confirmed ? 'mint' : 'slate')))));
 }
 
+function updateSceneHeader(mes,id,show) {
+    const area = mes.querySelector('.mes_text');
+    if (!area) return;
+    const existing = area.parentElement.querySelector(':scope > .ri-scene-header');
+    if (!show) { existing?.remove(); return; }
+    const scene = snapshotScene(id);
+    const fields = [['Time',scene.time || scene.when],['Date',scene.date],['Location',scene.where],['Weather',scene.weather]];
+    const stamp = JSON.stringify(fields);
+    if (existing?.dataset.scene === stamp) return;
+    const header = h('div',{class:'ri-scene-header','aria-label':'Scene details','data-scene':stamp},
+        h('dl',{},fields.map(([label,value])=>h('div',{class:`ri-scene-header-${label.toLowerCase()}`},
+            h('dt',{},label),h('dd',{},value || h('span',{class:'ri-scene-header-empty','aria-label':'Unspecified'},'—'))))));
+    if (existing) existing.replaceWith(header);
+    else area.before(header);
+}
+
 function refreshV10Replies(chat) {
     const enabled=settings().enabled;
     const native=enabledV10();
@@ -295,7 +311,10 @@ function refreshV10Replies(chat) {
         const block=mes.querySelector('.mes_block');
         if (!block) continue;
         const old=block.querySelector(':scope > .ri-v10-reply');
-        if (!enabled || (!native && !rec?.v10) || msg?.is_user || !rec) {old?.remove();continue;}
+        const showHeader = enabled && !!msg && (native || rec?.v10) && !msg.is_user && !msg.is_system;
+        const show = showHeader && !!rec;
+        updateSceneHeader(mes,id,showHeader);
+        if (!show) {old?.remove();continue;}
         const showState=settings().scene?.card !== 'off' && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
         const sc=showState && modules.state ? snapshotScene(id) : {};
         const people=showState && modules.state ? Object.values(snapshotState(id)).filter(p=>!sc.present || sc.present.toLowerCase().includes(p.name.toLowerCase())) : [];
@@ -305,7 +324,7 @@ function refreshV10Replies(chat) {
         const roast=local.showRoast!==false ? rec.roast : '';
         const lore=local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
-        const stamp=JSON.stringify([responseKey,sc,people,profiles,records,planning,roast,lore,rec.v10Check,rec.v10Offer,rec.v10Invalid,rec.v10Diagnostics,rec.stateOutdated]);
+        const stamp=JSON.stringify([responseKey,sc,people,profiles,records,planning,roast,lore,rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.stateOutdated]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
         const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});
         out.dataset.stamp=stamp;
@@ -328,11 +347,17 @@ function refreshV10Replies(chat) {
         if (records.length) parts.push(['Changes',h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
             h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
             replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))]);
-        if (rec.v10Check || rec.v10Offer || rec.v10Invalid || rec.stateOutdated || rec.v10Diagnostics?.length) parts.push(['Notes',[
+        if (rec.v10Plot?.length) parts.push(['Plot',h('ul',{class:'ri-lore-receipt'},rec.v10Plot.map(row=>h('li',{},
+            h('strong',{},row.id),
+            h('div',{class:'ri-reply-chip-rail'},row.recalled && replyChip('Recalled','sky'),
+                replyChip(row.eligible ? 'Eligible' : 'Prerequisites pending',row.eligible ? 'mint' : 'slate'),
+                row.id===rec.v10Offer && replyChip('Offered','indigo'),row.realized && replyChip('Established in reply','mint')))))]);
+        if (rec.v10Check || (!rec.v10Plot?.length && rec.v10Offer) || rec.v10Invalid || rec.stateOutdated || rec.v10Diagnostics?.length) parts.push(['Notes',[
             rec.v10Check && h('p',{},checkText(rec.v10Check)),
-            rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
+            !rec.v10Plot?.length && rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
             rec.v10Invalid && h('p',{},'Some structured changes could not be applied.'),
             rec.stateOutdated && h('p',{},'This reply was edited. Its previous state is out of date.'),
+            (rec.v10Issues || []).map(note=>h('p',{},note)),
             (rec.v10Diagnostics || []).map(note=>h('p',{},note)),
         ]]);
         if(parts.length) out.append(h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},

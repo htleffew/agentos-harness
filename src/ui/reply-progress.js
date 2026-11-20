@@ -4,14 +4,14 @@ import { settings } from '../store.js';
 import { enabledV10 } from '../v10.js';
 import { h } from './dom.js';
 
-const stages = [['Context','◇'],['Reply','▱'],['Story state','▤']];
+const stages = [['Context','◇'],['Prose','▱'],['Update','▤'],['Saved','✓']];
 const phases = {
     context: [0,'Preparing context'],
     waiting: [1,'Waiting for the reply'],
     writing: [1,'Writing the reply'],
     receiving: [2,'Receiving the story update'],
-    filing: [2,'Checking and saving story state'],
-    ready: [3,'Story state ready'],
+    filing: [3,'Checking and saving story state'],
+    ready: [4,'Story state ready'],
 };
 
 let card;
@@ -63,7 +63,8 @@ export function refreshReplyProgress() {
             h('div',{class:'ri-reply-card'},
                 h('div',{class:'ri-progress-heading'},
                     h('span',{class:'ri-reply-symbol','aria-hidden':'true'},'◇'),
-                    h('div',{},h('strong',{},'Story state'),caption)),
+                    h('div',{},h('strong',{},'Story state'),caption),
+                    h('span',{class:'ri-progress-signal','aria-hidden':'true'},h('i'),h('i'),h('i'))),
                 h('ol',{class:'ri-progress-stages','aria-label':'Reply progress'},nodes)));
     }
     if (lastPhase !== progress.phase) {

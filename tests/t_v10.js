@@ -29,7 +29,12 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             await V.pinBase(base);
             const guidelines=`Harbor guidance ${Date.now()}`;
             await V.createGuidelines(guidelines,'REACTION-GUIDE: Use restrained reactions.');
+            await saveBook(guidelines,{entries:{
+                0:{...blankEntry(0),comment:'Reaction guide',constant:true,useProbability:false,content:'REACTION-GUIDE: Use restrained reactions.'},
+                1:{...blankEntry(1),comment:'Dock guide',constant:true,useProbability:false,content:'DOCK-GUIDE: Keep landing logistics visible.'},
+            }});
             V.prefs().guidelines=guidelines;
+            V.prefs().guidelineScopes={[guidelines]:{1:{location:'Dock',module:'state'}}};
             V.prefs().modules={roast:true,roastFeedback:true};
             V.prefs().keepTurnGuidance=true;
             const {saveChatState}=await import(`${B}/src/store.js`); saveChatState();
@@ -39,7 +44,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         L.resetLog();
         const prelude = '<page:boot>\n1. IDENTITY: PRIVATE-PRELUDE-MARKER\n2. GROUNDING: Harbor\n\n';
         L.mode({chunkMs:320,reply:prelude+block('“I saw the ferry depart,” Seraphina said. “We just missed it,” added Mira. The ferry is gone.\n\nSeraphina thought, *We can still try the bridge.* Mira thought, *The bridge might be closed.*\n\n*No one can be sure.*',{
-            scene:{where:'Dock',present:'Seraphina',minutes:120},
+            scene:{where:'Dock',present:'Seraphina',time:'Late morning',date:'Day 1',weather:'Light rain',minutes:120},
             changes:[{kind:'fact',id:'ferry-gone',text:'The ferry left the dock.',evidence:'The ferry is gone.'},
                 {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart,'}],
             roast:'The dock has excellent timing, which is to say none.'
@@ -58,7 +63,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await progress.getByRole('status').getByText('Receiving the story update').waitFor();
         assert.equal(await progress.locator('li[data-status="done"]').count(),2);
         await progress.getByRole('status').getByText('Story state ready').waitFor();
-        assert.equal(await progress.locator('li[data-status="done"]').count(),3);
+        assert.equal(await progress.locator('li[data-status="done"]').count(),4);
         await sending;
         await progress.waitFor({state:'detached'});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',false).trigger('change'));
@@ -69,6 +74,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.doesNotMatch(L.text(L.requests()[0]),/in square brackets on its own/);
         assert.equal(L.text(L.requests()[0]).split('THE-HARBOR-MARKER').length-1,1);
         assert.equal(L.text(L.requests()[0]).split('REACTION-GUIDE').length-1,1);
+        assert.doesNotMatch(L.text(L.requests()[0]),/DOCK-GUIDE/);
         assert.match(L.text(L.requests()[0]),/I run to the dock/);
         const state=await story(page,async({B})=>{
             const V=await import(`${B}/src/v10.js`);
@@ -85,6 +91,14 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(state.records.length,2); assert.equal(state.records.find(x=>x.kind==='emotion').axes.fury,5);
         assert(Object.values(state.speakers).some(x=>x.name==='Seraphina'));
         const latest=page.locator('#chat .last_mes');
+        const header=latest.locator('.ri-scene-header');
+        assert.deepEqual(await header.locator('dt').allTextContents(),['Time','Date','Location','Weather']);
+        assert.deepEqual(await header.locator('dd').allTextContents(),['Late morning','Day 1','Dock','Light rain']);
+        assert.equal(await header.evaluate(node=>node.nextElementSibling?.classList.contains('mes_text')),true);
+        for (const name of ['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs']) {
+            const marker=preset.prompts.find(prompt=>prompt.name===name).content.split('. ')[0];
+            assert.equal(L.text(L.requests()[0]).split(marker).length-1,1,name);
+        }
         await latest.locator('.ri-v10-console').waitFor();
         await latest.locator('.ri-v10-lore').waitFor();
         const planning = latest.locator('.ri-v10-plan');
@@ -128,6 +142,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.match(lamp,/Seraphina said, “The lamp lights up.”/);
         assert.doesNotMatch(lamp,/\[Seraphina\]/);
         assert.match(L.text(L.requests().at(-1)),/Out-of-story voice feedback/);
+        assert.match(L.text(L.requests().at(-1)),/DOCK-GUIDE/);
         assert.doesNotMatch(L.text(L.requests().at(-1)),/PRIVATE-PRELUDE-MARKER/);
         assert.doesNotMatch(L.text(L.requests().at(-1)),/Resolved action check/);
         const previous = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.time);
@@ -163,6 +178,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.match(next,/bell \[seed, open, prerequisites pending\]/);
         assert.doesNotMatch(next,/LOCKED-BELL-PAYOFF|REACTION-GUIDE|Resolved action check|recover a missing state change/);
         assert.equal((await read()).find(x=>x.id==='bell').status,'open');
+        assert.deepEqual(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Plot.find(row=>row.id==='bell')),
+            {id:'bell',eligible:false,recalled:true});
         L.mode({reply:block('Rain falls instead.',{scene:{elapsed:2},changes:[{kind:'fact',id:'rain',text:'Rain has started.',evidence:'Rain falls instead.'}]})});
         await story(page,async({B})=>(await import(`${B}/src/engine.js`)).guideSwipe('Change the snow to rain.'));
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('Rain falls instead.'));
@@ -233,23 +250,26 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             el.dispatchEvent(new Event('change',{bubbles:true}));
         },value);
         assert.equal(await relationships.locator('select').count(),1);
+        assert.match(await navigation.locator('#ri_panel_page').textContent(),/Active preset: Roleplay Instructions V10/);
+        assert.match(await navigation.locator('#ri_panel_page').textContent(),/Viewpoint & player agency · On/);
+        assert.match(await navigation.locator('#ri_panel_page').textContent(),/Story workflow for this chat/);
         assert.equal(await scope('chat').getAttribute('aria-pressed'),'true');
-        assert.equal(await chosen(),'Use preset default (On)');
-        assert.equal(await status(),'On in this chat · Built-in default');
+        assert.equal(await chosen(),'On');
+        assert.equal(await status(),'On in this chat');
         await setChoice('off');
         await scope('preset').evaluate(el=>el.click());
-        assert.equal(await chosen(),'Use built-in default (On)');
+        assert.equal(await chosen(),'On');
         await setChoice('on');
-        assert.equal(await status(),'Off in this chat · Chat override');
+        assert.match(await relationships.textContent(),/This chat keeps its own setting \(Off\)/);
         await setChoice('off');
         await scope('chat').evaluate(el=>el.click());
-        assert.equal(await chosen(),'Off for this chat');
-        await setChoice('inherit');
-        assert.equal(await chosen(),'Use preset default (Off)');
-        assert.equal(await status(),'Off in this chat · Preset default');
+        assert.equal(await chosen(),'Off');
+        await relationships.locator('button').filter({hasText:'Reset to preset setting (Off)'}).evaluate(el=>el.click());
+        assert.equal(await chosen(),'Off');
+        assert.match(await relationships.textContent(),/Following the preset setting/);
         await scope('preset').evaluate(el=>el.click());
-        await setChoice('inherit');
-        assert.equal(await status(),'On in this chat · Built-in default');
+        await relationships.locator('button').filter({hasText:'Reset to extension setting (On)'}).evaluate(el=>el.click());
+        assert.equal(await status(),'Default for this preset: On');
         assert.match(await navigation.locator('[data-module="dice"]').textContent(),/regular replies proceed without a roll/i);
         await navigation.locator('[data-ri-page="display"]').evaluate(el=>el.click());
         assert.match(await navigation.locator('#ri_panel_page').textContent(),/Show Reply planning/);

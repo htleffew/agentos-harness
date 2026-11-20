@@ -1,5 +1,5 @@
 import { separateReply } from './reply-format.js';
-import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10 } from './v10.js';
+import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, prefs } from './v10.js';
 import { promptText, promptStatus } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor } from './state.js';
 // Keeping the story world up to date by itself.
@@ -672,7 +672,8 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
                 if (existing?.locked || existing?.on === false || updated.has(input?.id)) continue;
                 const old = records.get(input?.id);
                 if (source !== rec.time && (old?.source === 'user' || Number(old?.source) > source)) continue;
-                const record = normalizeRecord(input,{ modules:options.v10.modules, rows:records, snapshot:options.v10.records, evidence, clock:rec.v10Minutes, scene:rec.scene });
+                const record = normalizeRecord(input,{ modules:options.v10.modules, rows:records, snapshot:options.v10.records, evidence, clock:rec.v10Minutes, scene:rec.scene, sceneId:rec.v10SceneId,
+                    baseline:baselineFor(options.v10.baselines,input?.subject ?? old?.subject,input?.aliases ?? old?.aliases), base:options.v10.base });
                 if (!record) { rec.v10Invalid = true; continue; }
                 record.atIndex = id;
                 record.source = source;
@@ -686,6 +687,11 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
                 writeWorldEntry(data,w,wid);
                 records.set(record.id,record);
                 (rec.v10Changes ||= []).push(record);
+                if (record.realized && PLOT_KINDS.includes(record.kind) && !old?.realized && old?.status!=='done') {
+                    const audit = rec.v10Plot?.find(row=>row.id===record.id);
+                    if (audit) audit.realized = true;
+                    else (rec.v10Plot ||= []).push({id:record.id,eligible:true,recalled:false,realized:true});
+                }
                 changes.push(existing ? { uid:w.uid, name:w.name, kind, type:'set', field:'data', before, after:w.fields.data } :
                     {uid:w.uid, name:w.name, kind, type:'create', createdState:creationFingerprint(w), entry:structuredClone(w)});
             }
@@ -700,7 +706,10 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
             }
         }
         if (!ooc && !options.rebuild && !options.v10) changes.push(...tick(data, wid, meta));
-        if (options.v10 && !ooc) rec.v10Profiles = [...recordMap(listWorld(data,wid)).values()].filter(row=>row.kind==='profile' && String(rec.scene?.present || '').toLowerCase().split(/[,;\n]/).some(name=>[row.subject,...(row.aliases || [])].some(alias=>alias.toLowerCase() === name.trim()))).slice(0,8);
+        if (options.v10 && !ooc) rec.v10Profiles = [...recordMap(listWorld(data,wid)).values()].filter(row=>row.kind==='profile' && String(rec.scene?.present || '').toLowerCase().split(/[,;\n]/).some(name=>[row.subject,...(row.aliases || [])].some(alias=>alias.toLowerCase() === name.trim()))).slice(0,8).map(row=>{
+            const profile = effectivePortrayal(row,baselineFor(options.v10.baselines,row.subject,row.aliases));
+            return profile.facetScene===rec.v10SceneId ? profile : {...profile,facet:''};
+        });
         if (changes.length) await saveWorld(wid, data);
         // A reply that was continued keeps what its first part filed.
         const before = rec.update && rec.update.world === wid && !rec.update.undone ? rec.update : null;
@@ -1121,7 +1130,7 @@ export async function saveV10Record(input) {
         if (!data) throw new Error('Could not load the story world.');
         if (chatState() !== cs) throw new Error('The chat changed.');
         const rows = listWorld(data,wid);
-        const record = normalizeRecord(input,{ modules:effectiveModules(), rows:recordMap(rows), manual:true });
+        const record = normalizeRecord(input,{ modules:effectiveModules(), rows:recordMap(rows), sceneId:(ctx().chat || []).map(message=>message.extra?.[KEY]?.v10SceneId).filter(Boolean).at(-1), base:prefs()?.base, manual:true });
         if (!record) throw new Error('The record has missing or invalid fields.');
         const kind = record.kind === 'seed' ? 'payoff' : record.kind;
         const w = rows.find(row => readRecord(row)?.id === record.id) || newWorldEntry(data,kind);

@@ -306,12 +306,17 @@ export async function startNewChapter(draft, burnedSoFar) {
     // 1. What travels with the story.
     const g = goals();
     const p = goalProgress('normal');
+    const v10 = cs.v10 ? structuredClone(cs.v10) : undefined;
+    if (v10) delete v10.check;
+    const v10ClockSeed = [...(c.chat || [])].reverse().find(message=>!message.extra?.[KEY]?.stateStale &&
+        Number.isInteger(message.extra?.[KEY]?.v10Minutes))?.extra[KEY].v10Minutes ?? cs.v10ClockSeed;
     const carry = {
+        v10, v10ClockSeed,
         activeSets: [...cs.activeSets], world: wid, presets: structuredClone(cs.presets), locks: structuredClone(cs.locks),
         used: structuredClone(cs.used), picks: structuredClone(cs.picks), pronouns: cs.pronouns ? structuredClone(cs.pronouns) : undefined,
         goals: g ? { ...structuredClone(g), steps: g.steps.map(s => ({ ...s, doneManual: stepDone(s, p) || !!s.doneManual })) } : undefined,
         burned: burnedHere(burnedSoFar),
-        stateSeed: structuredClone(stateAt(Infinity, { overrides: false })),
+        stateSeed: structuredClone(stateAt(Infinity, { overrides: false, includeTemporary: false })),
         sceneSeed: structuredClone(sceneAt(Infinity, { overrides: false })),
         stateOverrides: Object.fromEntries(Object.entries(cs.stateOverrides || {}).map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),
         sceneOverrides: Object.fromEntries(Object.entries(cs.sceneOverrides || {}).map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),

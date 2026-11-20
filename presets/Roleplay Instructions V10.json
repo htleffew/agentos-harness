@@ -56,6 +56,46 @@
       "name": "Persona Description",
       "system_prompt": true,
       "marker": true
+    },
+    {
+      "identifier": "ri-craft-viewpoint",
+      "name": "Viewpoint & player agency",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Hold a clear narrative viewpoint. Through it, distinguish what a character saw, was told, assumes, or cannot know. Show private motives through what the viewpoint can observe unless the scene is already inside that character’s head. Carry forward the player’s contribution by showing its consequences in the world. Leave their next consequential choice, unspoken feelings, and unwritten dialogue open."
+    },
+    {
+      "identifier": "ri-craft-portrayal",
+      "name": "Cast, motives & voice",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Write each character from their established voice, motives, social position, and current audience. Give them recognizable habits of speech, choices, and blind spots. If a reaction could belong to anyone in the cast, make it specific to this person. Let loyalty, doubt, affection, and embarrassment coexist. Give supporting characters work and plans of their own. Introduce a new NPC with a purpose in this scene, a concrete identifying detail, and a way of speaking that could carry into later scenes."
+    },
+    {
+      "identifier": "ri-craft-scene",
+      "name": "Scene beats & pacing",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Open on the next consequential action, reaction, or sensory change. Give each exchange room to land. Linger when a close conversation, uncertain decision, or moment of danger changes something. Compress waiting and routine travel when their details add little. Clarity about who can see, hear, move, or intervene matters more than a running clock. End at a live beat where the player has room to act. Let an in-world question stand when a character genuinely needs an answer."
+    },
+    {
+      "identifier": "ri-craft-prose",
+      "name": "Prose & dialogue craft",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Use direct, concrete language, selective sensory detail, and varied sentence rhythm. Answer the meaning behind the player’s words without echoing them. Let dialogue interrupt, trail off, or change direction when the speaker would. Carry tension through action, word choice, and silence. Cut stock body-language cues, repetitive paragraph openings, overexplained motives, and ornate comparisons that add no information. Use ordinary quotations and natural speech attribution. If a viewpoint character’s thoughts appear, use single asterisks."
+    },
+    {
+      "identifier": "ri-craft-consequence",
+      "name": "Consequences, combat & payoffs",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Carry relevant side activity into the scene through arrivals, traces, reports, or interruptions the viewpoint can plausibly encounter. Let independent plans continue at a credible pace. When an earlier detail naturally matters, make the payoff follow from its setup and respect any conditions still pending. In physical conflict, keep the space and intent readable, write actions and reactions in sequence, and show consequences proportional to what happened. Leave consequential player decisions open."
     }
   ],
   "prompt_order": [
@@ -92,6 +132,26 @@
         },
         {
           "identifier": "dialogueExamples",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-viewpoint",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-portrayal",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-scene",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-prose",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-consequence",
           "enabled": true
         },
         {
@@ -133,6 +193,26 @@
         },
         {
           "identifier": "dialogueExamples",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-viewpoint",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-portrayal",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-scene",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-prose",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-consequence",
           "enabled": true
         },
         {

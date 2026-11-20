@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.0.7
+
+- Replies show a responsive HTML scene header with the accepted time, date, location and weather above the prose. The story console stays collapsed by default. Progress lights follow the context, prose, update and saved stages and respect reduced-motion settings.
+- Setup distinguishes the active host preset, its prompt blocks, the Roleplay Instructions extension and its modules. Module controls show On or Off for their scope and give changed settings a reset button with the resulting value.
+- The companion preset restores five editable writing prompts covering viewpoint, cast and voice, scene pacing, prose and dialogue, and consequences. Reimport the updated companion preset to use them.
+- Reusable guideline entries can be scoped by character, location or extension module. Chat facts can reference pinned Base World entries. Portrayals honor editable source baselines and scene-only facets. Temporary physical conditions expire unless established as durable.
+- Plot history distinguishes recalled, eligible, offered and established developments. Agenda completion respects minimum travel time, and the reply update can preserve valid fields while reporting a rejected field.
+
 ## 10.0.6
 
 - Replies use natural dialogue attribution. The extension colors identified quotations and asterisk-wrapped character thoughts, including multiple speakers in one paragraph. Earlier bracket labels are hidden in the chat display.

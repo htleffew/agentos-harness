@@ -19,6 +19,9 @@ export const DEFAULT_MODULES = {
     dice: true, colors: true, roast: false, roastFeedback: false,
 };
 export const STYLE = 'Write direct, concrete fiction. Give the current cast distinct voices and independent motives. Show actions and speech, respect viewpoint knowledge, and leave the player’s speech, thoughts and choices to the player. End on a live beat without a meta question or choice menu. Most people are generally well, rested and capable; transient setbacks usually resolve quickly. Let significant moments breathe and skip uneventful intervals when appropriate.';
+const COMPANION_STYLE = 'Treat good health and rest as normal. Minor setbacks usually resolve quickly. Carry a lasting limitation only when the story establishes one.';
+const COMPANION_WRITING_BLOCKS = new Set(['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs']);
+export const defaultWritingGuidance = () => pairedPreset() ? COMPANION_STYLE : STYLE;
 export const OPENING = 'Write a rich opening of roughly 350–650 words. Establish the place, who is present and what is already in motion through concrete action and dialogue. Follow the selected point of view, tense and voice. Use normal paragraphs and quoted dialogue, with natural alternation between narration and speech. Default to close third-person past from the viewpoint NPC unless the shared profile specifies otherwise. Describe action in prose and identify speakers through ordinary narration or a speech verb. If using viewpoint NPC thoughts, mark them with asterisks. Leave player thoughts and decisions open. End at a natural opportunity to respond.';
 export const AXES = ['tenderness', 'fury', 'dread', 'yearning'];
 export const KIND_MODULE = { fact:'state', profile:'state', knowledge:'knowledge', emotion:'emotions', relationship:'relationships', arc:'plots', seed:'plots', agenda:'plots', event:'worldEvents' };
@@ -36,7 +39,7 @@ const mentions = (text, value) => {
     const name = normalize(value).replace(/[^\p{L}\p{N}]+/gu,' ').trim();
     return !!name && ` ${normalize(text).replace(/[^\p{L}\p{N}]+/gu,' ')} `.includes(` ${name} `);
 };
-const fields = ['where','when','present','environment'];
+const fields = ['where','when','present','time','date','weather','environment'];
 
 export function activePreset() {
     const c = ctx();
@@ -60,6 +63,19 @@ const HOST_OVERLAPS = {
     colors: ['Colored Dialogue + Tone Tags (Regex Required)','Colored Dialogue (LEGACY - No Regex Required)'],
 };
 
+export function activeHostPrompts() {
+    const c = ctx();
+    if (c.mainApi && c.mainApi !== 'openai') return null;
+    const host = c.chatCompletionSettings;
+    const order = host?.prompt_order?.find?.(row=>String(row?.character_id)==='100001')?.order;
+    if (!Array.isArray(order) || !Array.isArray(host?.prompts)) return null;
+    const prompts = new Map(host.prompts.map(prompt=>[prompt.identifier,prompt]));
+    return order.flatMap(entry=>{
+        const prompt = prompts.get(entry.identifier);
+        return prompt ? [{name:prompt.name || entry.identifier, enabled:entry.enabled===true, content:prompt.content || '', marker:!!prompt.marker}] : [];
+    });
+}
+
 export function moduleOwnership(preset = activePreset()) {
     if (!preset) return {};
     const c = ctx();
@@ -70,6 +86,7 @@ export function moduleOwnership(preset = activePreset()) {
     const order = host?.prompt_order?.find?.(row=>String(row?.character_id)==='100001')?.order;
     const flags = Array.isArray(order) ? new Map(order.filter(row=>row?.identifier).map(row=>[row.identifier,row.enabled===true])) : null;
     const listed = new Map();
+    const hostBlocks = activeHostPrompts();
     for (const row of prompts || []) if (typeof row?.name === 'string') {
         const label = row.name.trim().toLowerCase();
         const identifiers = listed.get(label) || [];
@@ -81,7 +98,7 @@ export function moduleOwnership(preset = activePreset()) {
     const ownership = {};
     for (const [module,names] of Object.entries(HOST_OVERLAPS)) {
         const blocks = names.filter(name=>listed.has(name.toLowerCase()) || (!prompts && /vexa/i.test(preset))).map(name=>({
-            name,
+            name, blocks:hostBlocks?.filter(block=>block.name.trim().toLowerCase()===name.toLowerCase()) || [],
             enabled:flags && listed.has(name.toLowerCase()) ? listed.get(name.toLowerCase()).some(id=>flags.get(id)===true) : null,
         }));
         if (!blocks.length) continue;
@@ -120,7 +137,7 @@ export function savePresetDefault(name,key,value) {
 }
 export const formatSpeaker = modules => modules.colors ? 'Use ordinary quoted dialogue and natural speech attribution when a speaker would otherwise be unclear, such as “Wait,” Mira said. Use prose paragraphs for narration and speaker changes. If a character’s thoughts appear, italicize them with single asterisks and identify the thinker naturally where needed. Keep speaker labels and color markup out of the prose.' : '';
 
-export function extractUpdate(raw) {
+export function extractUpdate(raw, { sourceProse, allowPlayerThoughts = false } = {}) {
     const text = String(raw || '');
     const start = TAG.exec(text);
     if (!start || !/\bv\s*=/i.test(start[1])) return null;
@@ -133,19 +150,40 @@ export function extractUpdate(raw) {
     if (!VERSION.test(start[1]) || TAG.test(remainder) || !value || Array.isArray(value) || value.v !== 2 || ['changes','repairChanges'].some(key => value[key] !== undefined && !Array.isArray(value[key]))) {
         return { clean: cleanText, invalid:true, found:true };
     }
-    const scene = Object.fromEntries(fields.filter(key => typeof value.scene?.[key] === 'string').map(key => [key, safeText(value.scene[key],300)]));
+    const issues = [];
+    const inputScene = value.scene && typeof value.scene === 'object' && !Array.isArray(value.scene) ? value.scene : {};
+    if (value.scene !== undefined && value.scene !== inputScene) issues.push('Scene must be an object.');
+    const scene = {};
+    for (const key of fields) if (Object.hasOwn(inputScene,key)) {
+        if (typeof inputScene[key] === 'string') scene[key] = safeText(inputScene[key],300);
+        else issues.push(`Invalid scene field: ${key}.`);
+    }
+    const elapsed = inputScene.elapsed;
+    const minutes = Number.isSafeInteger(inputScene.minutes) && inputScene.minutes >= 0 ? inputScene.minutes : undefined;
+    for (const [key,valid] of [['minutes',minutes!==undefined],['elapsed',Number.isInteger(elapsed) && elapsed>=0 && elapsed<=5256000],
+        ['ended',typeof inputScene.ended==='boolean']]) if (Object.hasOwn(inputScene,key) && !valid) issues.push(`Invalid scene field: ${key}.`);
+    if (value.characters !== undefined && !Array.isArray(value.characters)) issues.push('Characters must be an array.');
     const profiles = (Array.isArray(value.characters) ? value.characters : []).slice(0,8).flatMap(item => {
         const name = safeText(item?.name,90);
         const evidence = safeText(item?.evidence,300);
-        if (!name || normalize(name) === normalize(names().user) || evidence.length < 4 || !normalize(cleanText).includes(normalize(evidence))) return [];
-        const now = Object.fromEntries(['mind','heart','body','psyche'].map(key=>[key,safeText(item[key],220)]).filter(([,text])=>text));
-        return Object.keys(now).length ? [{name,now,stable:{}}] : [];
+        if (name && !allowPlayerThoughts && normalize(name) === normalize(names().user)) return [];
+        if (!name || evidence.length < 4 || !normalize(sourceProse ?? cleanText).includes(normalize(evidence))) {
+            issues.push('A character snapshot lacked a name or evidence in the accepted prose.');
+            return [];
+        }
+        const now = {};
+        for (const key of ['mind','heart','body','psyche']) if (Object.hasOwn(item,key)) {
+            if (item[key] === null || /^(clear|resolved)$/i.test(clean(item[key]))) now[key] = null;
+            else if (typeof item[key] === 'string' && clean(item[key])) now[key] = safeText(item[key],220);
+            else issues.push(`Invalid character field: ${key}.`);
+        }
+        return Object.keys(now).length ? [{name,now,stable:{},temporaryBody:item.bodyLasting!==true,evidence}] : [];
     });
-    const elapsed = value.scene?.elapsed;
-    const minutes = Number.isInteger(value.scene?.minutes) && value.scene.minutes >= 0 ? value.scene.minutes : undefined;
+    if (Object.hasOwn(value,'roast') && typeof value.roast!=='string') issues.push('Roast must be text.');
+    if (Object.hasOwn(value,'repair') && !Number.isSafeInteger(value.repair)) issues.push('Repair must reference an accepted reply.');
     return {
-        clean: cleanText, found:true, scene, profiles, minutes, elapsed: Number.isInteger(elapsed) && elapsed >= 0 && elapsed <= 5256000 ? elapsed : undefined,
-        ended: value.scene?.ended === true, legacyOutcome:safeText(value.legacyOutcome,400), roast: safeText(value.roast,1000), changes:(value.changes || []).slice(0,12),
+        clean: cleanText, found:true, scene, profiles, issues, minutes, elapsed: Number.isInteger(elapsed) && elapsed >= 0 && elapsed <= 5256000 ? elapsed : undefined,
+        ended: inputScene.ended === true, legacyOutcome:safeText(value.legacyOutcome,400), roast: safeText(value.roast,1000), changes:(value.changes || []).slice(0,12),
         repairChanges: (value.repairChanges || []).slice(0,4), repair: Number.isSafeInteger(value.repair) ? value.repair : null,
     };
 }
@@ -158,16 +196,74 @@ export function readRecord(row) {
 export function gate(record, rows, clock, scene) {
     if (record.status === 'retired') return false;
     if (record.due !== undefined && (!Number.isInteger(clock) || clock < record.due)) return false;
+    if (record.travel && (!Number.isInteger(clock) || clock<record.travel.earliest)) return false;
     if (record.location && normalize(scene?.where) !== normalize(record.location)) return false;
     for (const key of record.requires || []) {
         const prerequisite = rows.get(key);
-        if (!prerequisite || (PLOT_KINDS.includes(prerequisite.kind) && prerequisite.status !== 'done')) return false;
+        if (!prerequisite || (PLOT_KINDS.includes(prerequisite.kind) && prerequisite.status !== 'done' && !(prerequisite.status==='retired' && prerequisite.realized))) return false;
         if (prerequisite.kind === 'knowledge' && prerequisite.basis !== 'observed') return false;
     }
     return true;
 }
 
-export function normalizeRecord(input, { modules, rows, snapshot, evidence, clock, scene, manual = false }) {
+const commonWords = new Set('with from into that this then they there their were have will would about after before could what when where while present heard saw said observed reported rumor belief completed finishes finish arrived started went gone'.split(' '));
+const evidenceTerms = value => normalize(value).match(/[\p{L}\p{N}]+/gu)?.filter(word=>word.length>=4 && !commonWords.has(word)).map(word=>word.replace(/(?:ing|ed|s)$/u,'')) || [];
+export function supportsClaim(claim, quote, subject, prose) {
+    const who = evidenceTerms(subject);
+    const wanted = evidenceTerms(claim).filter(term=>!who.includes(term));
+    const supplied = new Set(evidenceTerms(quote));
+    const source = normalize(prose), target = normalize(quote);
+    const where = source.indexOf(target);
+    const nearby = where<0 ? '' : source.slice(Math.max(0,where-110),where+target.length+110);
+    const subjectKnown = !subject || mentions(nearby,subject) || evidenceTerms(nearby).some(term=>who.includes(term));
+    return subjectKnown && wanted.some(term=>supplied.has(term));
+}
+
+export function portrayalSources(rows) {
+    const sources = [];
+    const context = ctx();
+    const card = context.characters?.[context.characterId];
+    const name = names().char;
+    const text = safeText([card?.personality || card?.data?.personality, card?.description || card?.data?.description].filter(Boolean).join(' · '),650);
+    const voice = safeText(card?.mes_example || card?.data?.mes_example,260);
+    if (name && (text || voice)) sources.push({name,text,voice,source:'Character card'});
+    const base = prefs()?.base;
+    const known = [name,...rows.filter(row=>row.on && row.kind==='character').map(row=>row.name),
+        ...rows.filter(row=>row.on).map(readRecord).filter(row=>row?.kind==='profile').map(row=>row.subject)];
+    for (const entry of Object.values(base?.entries || {})) {
+        if (entry.disable || !(entry.extensions?.ri?.kind==='character' || base.pins?.includes(String(entry.uid)))) continue;
+        const aliases = Array.isArray(entry.key) ? entry.key.filter(key=>typeof key==='string' && key.trim()) : [];
+        const subject = known.find(candidate=>candidate && aliases.some(alias=>normalize(alias)===normalize(candidate)));
+        if (subject && entry.content) sources.push({name:subject,text:safeText(entry.content,400),aliases,source:`Base World · ${entry.comment || subject}`});
+    }
+    for (const row of rows) if (row.on && row.kind==='character' && (row.fields.who || row.fields.role || row.fields.voice)) {
+        sources.push({name:row.name,text:row.fields.who || row.fields.role,voice:row.fields.voice,aliases:row.aliases,source:'Story World portrayal'});
+    }
+    const merged = new Map();
+    for (const source of sources) {
+        const key = normalize(source.name);
+        const prior = merged.get(key) || {name:source.name,sources:[],aliases:[]};
+        merged.set(key,{...prior,text:safeText([prior.text,source.text].filter(Boolean).join(' · '),900),voice:prior.voice || source.voice,
+            aliases:[...new Set([...prior.aliases,...(source.aliases || [])])].slice(0,8),sources:[...prior.sources,source.source]});
+    }
+    return merged;
+}
+
+export function baselineFor(sources, subject, aliases = []) {
+    const labels = [subject,...(Array.isArray(aliases) ? aliases : [])].map(normalize).filter(Boolean);
+    return [...(sources?.values() || [])].find(source=>[source.name,...source.aliases].some(name=>labels.includes(normalize(name))));
+}
+
+export function effectivePortrayal(record, source) {
+    if (!source) return record;
+    const next = {...record,baseline:source};
+    for (const key of ['text','voice','aliases']) {
+        if (!record.protected && !record.profileFields?.[key]?.locked && source[key]?.length) next[key] = source[key];
+    }
+    return next;
+}
+
+export function normalizeRecord(input, { modules, rows, snapshot, evidence, clock, scene, sceneId, baseline, base, manual = false }) {
     if (!input || !Object.hasOwn(KIND_MODULE,input.kind) || (!manual && !modules[KIND_MODULE[input.kind]]) || !validId(input.id)) return null;
     const kind = input.kind;
     const previous = rows.get(input.id);
@@ -185,6 +281,7 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
     if (kind === 'emotion' && normalize(record.subject) === normalize(names().user)) return null;
     if (kind === 'knowledge') {
         if (!['observed','reported','rumor','belief'].includes(input.basis)) return null;
+        if (!manual && !supportsClaim(text,quote,record.subject,evidence)) return null;
         record.basis = input.basis;
         record.private = input.private !== false;
         if (!manual && previous?.private) record.private = true;
@@ -192,6 +289,12 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
     if (kind === 'fact') {
         record.aliases = (Array.isArray(input.aliases) ? input.aliases : previous?.aliases || []).filter(alias=>typeof alias === 'string').map(alias=>safeText(alias,90)).filter(Boolean).slice(0,8);
         record.link = validId(input.link) ? input.link : previous?.link;
+        const uid = input.baseEntry === '' ? undefined : input.baseEntry ?? previous?.baseEntry;
+        if (uid !== undefined && /^\d+$/.test(String(uid))) record.baseEntry = String(uid);
+        if (record.baseEntry && !Object.values(base?.entries || {}).some(entry=>String(entry.uid)===record.baseEntry)) return null;
+        if (record.baseEntry) record.baseBook = base.name;
+        if (record.baseEntry) record.baseRelation = ['extends','updates-present','contradicts'].includes(input.baseRelation) ? input.baseRelation : previous?.baseRelation || 'extends';
+        if (!manual && record.baseRelation === 'contradicts') return null;
     }
     if (kind === 'relationship') {
         record.other = safeText(input.other ?? previous?.other,90);
@@ -200,19 +303,25 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
     if (kind === 'profile') {
         record.aliases = [...new Set((Array.isArray(input.aliases) ? input.aliases : previous?.aliases || []).map(alias=>safeText(alias,90)).filter(Boolean))].slice(0,8);
         record.facet = safeText(input.facet ?? previous?.facet,180);
+        if (record.facet) record.facetScene = Object.hasOwn(input,'facet') ? sceneId ?? previous?.facetScene : previous?.facetScene;
         record.voice = safeText(input.voice ?? previous?.voice,260);
         record.profileFields = { ...previous?.profileFields };
-        if (previous?.baseline || (manual && input.baseline)) record.baseline = previous?.baseline || input.baseline;
+        if (baseline || previous?.baseline || (manual && input.baseline)) record.baseline = baseline || previous?.baseline || input.baseline;
         const locks = new Set(Array.isArray(input.lockFields) ? input.lockFields : []);
         for (const key of ['text','voice','aliases','facet']) {
             const existing = previous?.[key];
+            const authored = baseline?.[key];
             const meta = previous?.profileFields?.[key];
             const changed = JSON.stringify(record[key]) !== JSON.stringify(existing);
             const stale = snapshot && JSON.stringify(snapshot.get(input.id)?.[key]) !== JSON.stringify(existing);
             if (manual && previous && Array.isArray(input.changedFields) && !input.changedFields.includes(key)) record[key] = existing;
             const edited = !Array.isArray(input.changedFields) || input.changedFields.includes(key);
             const locked = manual && edited ? locks.has(key) : !!meta?.locked;
-            if (!manual && (stale || locked || (changed && existing?.length && key !== 'facet' && !input.development))) record[key] = existing;
+            if (!manual && authored?.length && changed && !locked && !stale) record[key] = existing?.length ? existing : authored;
+            if (!manual && (stale || locked || (changed && existing?.length && key !== 'facet' && !input.development))) {
+                record[key] = existing;
+                if (key === 'facet') record.facetScene = previous?.facetScene;
+            }
             if (JSON.stringify(record[key]) !== JSON.stringify(existing) || locked !== !!meta?.locked) {
                 record.profileFields[key] = { source:manual ? 'player' : quote, revision:(meta?.revision || 0)+1, updated:Date.now(), locked };
             }
@@ -227,11 +336,12 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
     if (PLOT_KINDS.includes(kind)) {
         const status = input.status ?? previous?.status ?? 'open';
         if (!['open','done','retired'].includes(status)) return null;
-        if (!manual && previous?.status === 'retired') return null;
+        if (!manual && (previous?.status==='retired' || status==='retired')) return null;
         if (!manual && status === 'done' && previous && !gate(previous,rows,clock,scene)) return null;
         record.status = status;
         record.requires = previous && !manual ? previous.requires : [...new Set((Array.isArray(input.requires) ? input.requires : []).filter(x => validId(x) && x !== input.id))].slice(0,8);
         record.parent = previous && !manual ? previous.parent : validId(input.parent) && input.parent !== input.id ? input.parent : undefined;
+        if (record.parent && rows.get(record.parent)?.kind !== 'arc') return null;
         record.location = safeText(previous && !manual ? previous.location : input.location,120);
         const due = previous && !manual ? previous.due : input.due;
         if (Number.isInteger(due) && due >= 0) record.due = due;
@@ -239,9 +349,25 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
         record.weight = Math.max(1,Math.min(100,Number(previous && !manual ? previous.weight : input.weight) || 1));
         record.spacing = Math.max(0,Math.min(500,Math.floor(Number(previous && !manual ? previous.spacing : input.spacing) || 0)));
         record.payoff = safeText(previous && !manual ? previous.payoff : input.payoff,300);
-        if (kind === 'agenda') record.whereabouts = safeText(input.whereabouts ?? previous?.whereabouts,220);
-        record.outcome = status === 'done' ? safeText(input.outcome ?? previous?.outcome,400) || quote : '';
-        if (!manual && status === 'done' && !gate(record,rows,clock,scene)) return null;
+        if (kind === 'agenda') {
+            record.whereabouts = safeText(input.whereabouts ?? previous?.whereabouts,220);
+            const trip = !manual && previous?.travel ? previous.travel : input.travel;
+            if (trip && (manual || !previous?.travel)) {
+                const from = safeText(trip.from,120), to = safeText(trip.to,120);
+                if (!from || !to || normalize(from)===normalize(to) || !Number.isSafeInteger(trip.departed) || trip.departed<0 ||
+                    !Number.isSafeInteger(trip.minutes) || trip.minutes<1 || !Number.isSafeInteger(trip.departed+trip.minutes)) return null;
+                record.travel = {from,to,departed:trip.departed,minutes:trip.minutes,earliest:trip.departed+trip.minutes};
+            } else if (trip) record.travel = trip;
+            if (!manual && status==='done' && !supportsClaim(record.whereabouts || text,quote,record.subject,evidence)) return null;
+            if (!manual && record.travel && status==='done' && (!mentions(quote,record.travel.to) ||
+                /\b(?:never arrived|not arrived|not yet (?:at|in)|planned to (?:travel|go)|still en route)\b/i.test(quote))) return null;
+        }
+        record.realized = status==='done' || (status==='retired' && (previous?.status==='done' || previous?.realized===true));
+        record.outcome = record.realized ? safeText(input.outcome ?? previous?.outcome,400) || quote : '';
+        if (!manual && status === 'done') {
+            if (!gate(record,rows,clock,scene)) return null;
+            if (kind !== 'agenda' && !supportsClaim(safeText(input.outcome,400) || text,quote,record.subject,evidence)) return null;
+        }
     }
     if (manual && input.protected !== false) record.protected = true;
     return record;
@@ -279,7 +405,7 @@ export function reusableBookNames() {
 
 export async function uploadBaseBook(file) {
     const local = prefs();
-    if (!local || !enabledV10()) throw new Error('Enable V10 for the open chat before importing a base book.');
+    if (!local || !enabledV10()) throw new Error('Choose the Structured story workflow before importing a Base World book.');
     let data;
     try { data = JSON.parse(await file.text()); }
     catch { throw new Error('Choose a valid World Info JSON export.'); }
@@ -364,15 +490,15 @@ export function previousV10(type) {
 export function updateContract(modules, opening = false) {
     const kinds = RECORD_KINDS.filter(kind => modules[KIND_MODULE[kind]]);
     const sections = [
-        modules.state && 'scene: {"where":"...","when":"...","present":"comma-separated names","environment":"...","minutes":0,"elapsed":0,"ended":false}. Include only established changes. minutes is an exact absolute story minute; elapsed adds minutes to a known clock. Use approximate when if timing is uncertain.',
+        modules.state && 'scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","minutes":0,"elapsed":0,"ended":false}. Use time, date, location (where), and weather only when the story establishes them. Use when for approximate timing. Use an empty environment string when a condition resolves. minutes is an exact absolute story minute; elapsed adds minutes to a known clock. Use approximate when if timing is uncertain.',
         kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). Record meaningful changes, not repetition.`,
-        modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (established lasting physical fact or explicit recovery), or psyche (salient internal tension). Omit unsupported dimensions and leave the player’s private state to the player.',
-        modules.state && 'For profiles include voice, aliases or current facet when applicable. Set development:true only for lasting character growth that the reply establishes. Preserve card canon and player edits. Keep transient setbacks out of durable facts. A fact may link to the plot record that established it.',
+        modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Set bodyLasting:true only for an established durable condition. Omit unsupported dimensions and leave the player’s private state to the player.',
+        modules.state && 'For profiles include voice, aliases or current facet when applicable. Set development:true only for lasting character growth that the reply establishes. Preserve card canon and player edits. Keep transient setbacks out of durable facts. A fact may link to the plot record that established it and reference a known baseEntry and baseRelation (extends or updates-present).',
         modules.relationships && 'For a relationship use subject and other for the two people. Consider relevant relationships in dialogue and choices. Use perspective for meaningful asymmetry and record only lasting dynamics or turning points.',
-        modules.knowledge && 'For knowledge include basis: observed, reported, rumor or belief; private defaults to true. Do not promote rumor to established fact.',
+        modules.knowledge && 'For knowledge include basis: observed, reported, rumor or belief; private defaults to true. Quote the passage that establishes who learned the information and what they learned. Preserve rumors as rumors.',
         modules.emotions && 'For emotion include axes (tenderness, fury, dread, yearning, each 0–10 or omitted) and optional outward behavior. Consider every applicable dimension without forcing each to change or be displayed.',
         (modules.plots || modules.worldEvents) && 'For plot and event records use status open or done. Record an outcome only on completion. An offer or deadline alone does not establish completion.',
-        modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts.',
+        modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts and a travel object with from, to, departed (exact story minute), and minutes (minimum duration), when timing and travel are established.',
         modules.plots && modules.worldEvents && 'Use schedule:true with optional weight and spacing in replies only when a future opportunity should be surfaced.',
         modules.roast && 'roast: optional short out-of-story voice critique when it adds value.',
     ].filter(Boolean);
@@ -383,30 +509,41 @@ export function updateContract(modules, opening = false) {
 export function prepareTurn(rows, scene, type, modules, check, { schedule = false } = {}) {
     const history = previousV10(type);
     const latest = history.at(-1);
-    const clock = [...history].reverse().find(x => Number.isInteger(x.record.v10Minutes))?.record.v10Minutes;
+    const sceneId = latest?.record.v10SceneEnded ? null : latest?.record.v10SceneId ?? latest?.record.time;
+    const clock = [...history].reverse().find(x => Number.isInteger(x.record.v10Minutes))?.record.v10Minutes ?? chatState()?.v10ClockSeed;
     const records = recordMap(rows);
+    const baselines = modules.state ? portrayalSources(rows) : new Map();
     const recent = (ctx().chat || []).slice(0, ['swipe','regenerate'].includes(type) ? -1 : undefined).slice(-5).map(m => m.mes).join('\n');
     const context = normalize(`${scene?.where || ''} ${scene?.present || ''} ${recent}`);
     const cast = normalize(scene?.present);
     const matches = subject => mentions(context,subject);
     const relevant = [];
     const recalled = [];
+    const plotAudit = [];
+    const local = prefs() || {};
     let offer;
-    for (const row of records.values()) {
+    for (const saved of records.values()) {
+        const row = saved.kind === 'profile' ? effectivePortrayal(saved,baselineFor(baselines,saved.subject,saved.aliases)) : saved;
         if (!modules[KIND_MODULE[row.kind]]) continue;
         const eligible = gate(row,records,clock,scene);
         if (PLOT_KINDS.includes(row.kind)) {
-            if (row.status === 'retired') continue;
+            if (row.status === 'retired' && !row.realized) continue;
             if (row.kind === 'agenda' && !matches(row.subject) && !(row.due !== undefined && eligible)) continue;
-            if (row.kind === 'event' && row.status !== 'done') continue;
-            if (row.status === 'done' && ![row.subject,...(row.aliases || []),row.location,...row.text.split(/[^\p{L}\p{N}]+/u).filter(x=>x.length>=5)].some(matches)) continue;
-            const text = `${row.id} [${row.kind}, ${row.status}${row.parent ? `, arc ${row.parent}` : ''}${eligible ? '' : ', prerequisites pending'}]: ${row.text}${row.whereabouts ? ` Whereabouts: ${row.whereabouts}` : ''}${row.outcome ? ` Outcome: ${row.outcome}` : ''}`;
+            if (row.kind === 'event' && row.status !== 'done' && !row.realized) continue;
+            if ((row.status === 'done' || row.realized) && ![row.subject,...(row.aliases || []),row.location,...row.text.split(/[^\p{L}\p{N}]+/u).filter(x=>x.length>=5)].some(matches)) continue;
+            if (row.status==='open') plotAudit.push({id:row.id,eligible,recalled:false});
+            const text = `${row.id} [${row.kind}, ${row.status}${row.parent ? `, arc ${row.parent}` : ''}${eligible ? '' : ', prerequisites pending'}]: ${row.text}${row.whereabouts ? ` Whereabouts: ${row.whereabouts}` : ''}${row.travel ? ` Travel from ${row.travel.from} to ${row.travel.to}. Earliest arrival: story minute ${row.travel.earliest}.` : ''}${row.outcome ? ` Outcome: ${row.outcome}` : ''}`;
             relevant.push({record:row,text});
         } else if (row.kind === 'knowledge' && row.private && !mentions(cast,row.subject)) {
             continue;
         } else if (!row.subject || [row.subject,row.other,...(row.aliases || [])].some(matches)) {
             let suffix = '';
-            if (row.kind === 'profile') suffix = `${row.voice ? ` Voice: ${row.voice}` : ''}${row.facet ? ` Current facet: ${row.facet}` : ''}`;
+            if (row.kind === 'profile') suffix = `${row.voice ? ` Voice: ${row.voice}` : ''}${row.facet && row.facetScene!=null && row.facetScene===sceneId ? ` Current facet: ${row.facet}` : ''}`;
+            if (row.kind==='fact' && row.baseEntry) {
+                const canonical = !row.baseBook || row.baseBook===local.base?.name
+                    ? Object.values(local.base?.entries || {}).find(entry=>String(entry.uid)===row.baseEntry) : undefined;
+                if (canonical) suffix = ` ${row.baseRelation==='updates-present' ? 'Current condition building on' : row.baseRelation==='contradicts' ? 'Player correction in this chat conflicts with' : 'Builds on'} Base World entry ${canonical.uid} (${canonical.comment || canonical.key?.[0] || 'untitled'}).`;
+            }
             if (row.kind === 'relationship') suffix = [row.other,row.perspective].filter(Boolean).join(' · ');
             if (row.kind === 'emotion') {
                 const tuning = chatState()?.v10?.emotion || {};
@@ -424,41 +561,44 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     relevant.sort((a,b) => Number(PLOT_KINDS.includes(a.record.kind)) - Number(PLOT_KINDS.includes(b.record.kind)));
     for (const item of relevant) if (cost + item.text.length <= 6800) {
         recalled.push(item);
+        const status = plotAudit.find(row=>row.id===item.record.id);
+        if (status) status.recalled = true;
         cost += item.text.length + 1;
     }
     if (schedule && modules.plots && modules.worldEvents) {
         const candidates = [...records.values()].filter(row => PLOT_KINDS.includes(row.kind) && row.status === 'open' && row.schedule && gate(row,records,clock,scene) &&
-            !history.slice(-(row.spacing || 1)).some(item => item.record.v10Offer === row.id));
+            (!row.spacing || !history.slice(-row.spacing).some(item => item.record.v10Offer === row.id)));
         const total = candidates.reduce((sum,row) => sum + row.weight,0);
         let draw = total ? rollInt(total) : 0;
         offer = candidates.find(row => (draw -= row.weight) < 0);
     }
-    const repair = latest?.record.v10Invalid && !latest.record.v10RepairAttempt
+    const repair = type==='normal' && latest?.record.v10Invalid && !latest.record.v10RepairAttempt
         ? { id:latest.record.time, text:safeText(latest.message.mes,1600) } : null;
     const feedback = modules.roastFeedback ? history.filter(x => x.record.roast).slice(-2).map(x => safeText(x.record.roast,300)) : [];
-    const prefs = chatState()?.v10 || {};
-    const style = prefs.style ?? STYLE;
-    const baseline = modules.state ? rows.filter(row => row.on && row.kind === 'character' && matches(row.name)).map(row => `${row.name}: ${[row.fields.who,row.fields.voice].filter(Boolean).join(' · ')}`) : [];
-    const card = ctx().characters?.[ctx().characterId];
-    if (modules.state && card && (card.personality || card.data?.personality || card.description)) baseline.unshift(`${names().char}: ${safeText(card.personality || card.data?.personality || card.description,400)}`);
+    const style = local.style ?? defaultWritingGuidance();
+    const baseline = [...baselines.values()].filter(source=>
+        (normalize(source.name)===normalize(names().char) || [source.name,...source.aliases].some(matches)) &&
+        !recalled.some(item=>item.record.kind==='profile' && baselineFor(baselines,item.record.subject,item.record.aliases)===source))
+        .slice(0,8).map(source=>`${source.name}: ${[source.text,source.voice && `Voice: ${source.voice}`].filter(Boolean).join(' · ')}`);
     const paired = pairedPreset();
     const format = paired
-        ? (prefs.generatePlan
+        ? (local.generatePlan
             ? 'If useful, put a brief outline of intended beats, character focus, and continuity checks in one <reply_plan> block before the story prose. Use up to five short bullets, then close it with </reply_plan>. Use the story update for established state.'
             : 'Begin with the story prose. Keep planning outside the visible reply. Follow the story update format below when applicable.')
         : '';
     const text = [
         format, modules.style && style, formatSpeaker(modules),
         paired && modules.knowledge && 'Respect what each character could know from their own observations and conversations.',
-        paired && modules.plots && 'Let off-screen activity matter when it reaches the scene.', modules.emotions && `Consider established emotional dimensions and outward bearing. Sensitivity: ${prefs.emotion?.sensitivity || 'flexible'}. Credible sudden or mixed reactions are welcome.`,
+        paired && modules.plots && 'Let off-screen activity matter when it reaches the scene.', modules.emotions && `Consider established emotional dimensions and outward bearing. Sensitivity: ${local.emotion?.sensitivity || 'flexible'}. Credible sudden or mixed reactions are welcome.`,
         baseline.length && `Established portrayal takes precedence over general style:\n${baseline.slice(0,8).join('\n')}`,
+        plotAudit.some(row=>!row.eligible && row.recalled) && 'Pending prerequisites constrain reveals and payoffs, including when introducing a required or optional event.',
         recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`,
         modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`,
         checkText(check), feedback.length && `Out-of-story voice feedback, not canon:\n${feedback.join('\n')}`,
         repair && `If supported, recover a missing state change from accepted reply ${repair.id}, using exact evidence and placing it in repairChanges alongside "repair":${repair.id}. Keep new changes in changes. Respect newer facts. Prior prose: ${JSON.stringify(repair.text)}`,
         updateContract(modules),
     ].filter(Boolean).join('\n');
-    return { text, offer, repair, records, clock, check, modules, recalled };
+    return { text, offer, repair, records, clock, check, modules, recalled, baselines, base:local?.base, plotAudit };
 }
 
 export function loreReceipt(entries, notes, rows, book, recalled = []) {
@@ -481,7 +621,15 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
     return receipt.slice(0,120);
 }
 
-export async function addConfiguredBooks(lore, arrays) {
+export function guidelineEligible(entry, local, scene, modules) {
+    const scopes = local.guidelineScopes;
+    const scope = scopes && Object.hasOwn(scopes,local.guidelines) ? scopes[local.guidelines][entry.uid] : undefined;
+    return scope?.enabled !== false && (!scope?.module || modules[scope.module]) &&
+        (!scope?.character || mentions(scene?.present,scope.character)) &&
+        (!scope?.location || mentions(scene?.where,scope.location));
+}
+
+export async function addConfiguredBooks(lore, arrays, scene, modules) {
     const local = chatState()?.v10;
     if (!local || !Array.isArray(lore.chatLore)) return;
     if (local.base) {
@@ -500,7 +648,9 @@ export async function addConfiguredBooks(lore, arrays) {
         }
         if (local.guidelinesOn !== false) {
             const data = byId.size ? {entries:Object.fromEntries(byId)} : await loadBook(local.guidelines).catch(() => null);
-            if (Array.isArray(lore.chatLore)) lore.chatLore.push(...Object.values(data?.entries || {}).map(entry => ({ ...entry, world:local.guidelines })));
+            if (Array.isArray(lore.chatLore)) lore.chatLore.push(...Object.values(data?.entries || {})
+                .filter(entry=>guidelineEligible(entry,local,scene,modules))
+                .map(entry=>({ ...entry, world:local.guidelines })));
         }
     }
 }
@@ -583,7 +733,7 @@ export function greetings() {
 
 export async function draftOpening({ text = '', direction = '' } = {}) {
     const local = prefs();
-    if (!enabledV10() || !local || isGenerating()) throw new Error('Enable V10 and wait for generation to finish.');
+    if (!enabledV10() || !local || isGenerating()) throw new Error('Choose the Structured story workflow and wait for the current reply to finish.');
     const { request } = await import('./ai.js');
     const card = ctx().characters?.[ctx().characterId] || {};
     const modules = effectiveModules();
@@ -600,20 +750,27 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
         return [secondary.some(Boolean),secondary.some(value=>!value),secondary.every(value=>!value),secondary.every(Boolean)][row.selectiveLogic || 0];
     }).map(row=>row.content).join('\n').slice(0,6000);
     const base = selectEntries(local.base?.entries,local.base?.pins);
-    const guidance = local.guidelines && local.guidelinesOn !== false ? selectEntries((await loadBook(local.guidelines))?.entries) : '';
+    const guidelineData = local.guidelines && local.guidelinesOn !== false ? await loadBook(local.guidelines) : null;
+    const guidance = selectEntries(Object.values(guidelineData?.entries || {}).filter(entry=>
+        guidelineEligible(entry,local,{present:`${names().char}, ${names().user}`},modules)));
     const source = [base && `Pre-opening canon:\n${base}`,...cardSource,persona && `Player persona:\n${persona}`,guidance && `Selected writing guidance:\n${guidance}`].filter(Boolean).join('\n').slice(0,15000);
-    const writing = modules.style ? local.style ?? STYLE : '';
-    const format = [local.opening ?? OPENING,writing,formatSpeaker(modules)].filter(Boolean).join('\n');
+    const writing = modules.style ? local.style ?? defaultWritingGuidance() : '';
+    const companionWriting = pairedPreset() && !text ? (activeHostPrompts() || [])
+        .filter(block=>block.enabled && COMPANION_WRITING_BLOCKS.has(block.name)).map(block=>block.content).join('\n') : '';
+    const openingPermission = local.openingPlayerThoughts === true
+        ? 'For this opening only, the player authorizes writing their viewpoint thoughts in single asterisks. Leave their dialogue and consequential actions open.'
+        : 'The player supplies their own thoughts, dialogue, and choices.';
+    const format = [companionWriting,local.opening ?? OPENING,writing,formatSpeaker(modules),openingPermission].filter(Boolean).join('\n');
     const user = [
         text ? 'Extract scene state from the chosen greeting. Return only the update block. Preserve what the greeting establishes and do not invent facts.' : format,
         `Character: ${names().char}. Player: ${names().user}.`, source && `Source material:\n${source}`,
         text && `Chosen greeting:\n${text}`, direction && `Opening direction:\n${safeText(direction,2000)}`,
         updateContract(modules,true),
     ].filter(Boolean).join('\n\n');
-    const result = await request({ what:'Draft v10 opening', system:'Create or analyze the opening of this roleplay. Follow the requested output format.', user, tokens:text?1200:2200, profileId:settings().profileId });
+    const result = await request({ what:text ? 'Read greeting for story state' : 'Draft story opening', system:'Create or analyze the opening of this roleplay. Follow the requested output format.', user, tokens:text?1200:2200, profileId:settings().profileId });
     if (prefs() !== local) throw new Error('The chat changed.');
     const output = pairedPreset() ? separateReply(result.text).text : result.text;
-    const parsed = extractUpdate(output);
+    const parsed = extractUpdate(output,{sourceProse:text || undefined,allowPlayerThoughts:local.openingPlayerThoughts===true});
     const prose = text || parsed?.clean || output.trim();
     result.note(prose ? 'Opening draft is ready for review.' : 'The result did not contain an opening.',!!prose);
     if (!prose) throw new Error('No opening was returned. Try a new draft.');

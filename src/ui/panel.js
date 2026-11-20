@@ -29,7 +29,7 @@ const GROUPS = [
         ['sent','What Was Sent'],['context','Context & Memory'],['log','Log'],
     ] },
     { id:'setup', label:'Setup', accent:'sky', tabs:[
-        ['v10','Preset & Modules'],['display','Reply Display'],['settings','Settings'],
+        ['v10','Preset & Extension'],['display','Reply Display'],['settings','Settings'],
     ] },
 ];
 const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','portrayal','emotion','speakers','writing','checks']);

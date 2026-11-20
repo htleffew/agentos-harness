@@ -1,7 +1,7 @@
 import { proseDialogue } from './dialogue.js';
 import { separateReply, hasReplyScaffolding } from './reply-format.js';
 import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview } from './reply-progress.js';
-import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap } from './v10.js';
+import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
 import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
@@ -238,7 +238,6 @@ async function onEntriesLoaded(lore) {
             const replaces = ['swipe','regenerate','continue'].includes(gen.type) && !chat.at(-1)?.is_user;
             showReplyProgress(gen,'context',replaces ? chat.length-1 : chat.length);
         }
-        if (native) await addConfiguredBooks(lore, arrays);
         // The story world: its notes, the request for an update block, and now and then an order of its own.
         const kind = gen && !gen.dryRun ? gen.type : 'normal';
         if (kind === 'swipe' && cs && !gen?.guided) undoForSwipe();
@@ -246,6 +245,8 @@ async function onEntriesLoaded(lore) {
         const phase = cs ? phaseFor(history(kind).next) : null;
         const scale = phase?.chance ?? 100;
         const modules = native ? effectiveModules() : null;
+        const activeScene = native ? readScene(kind) : null;
+        if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules);
         const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
         if (gen && gen.v10Schedule === undefined && native && !gen.dryRun) gen.v10Schedule = !quiet && kind === 'normal' && modules.worldEvents && chance > 0 && rollInt(100) < chance;
         const schedule = gen?.v10Schedule === true;
@@ -265,8 +266,7 @@ async function onEntriesLoaded(lore) {
             v10Rows = await rowsForWorld().catch(() => []);
             const old = gen?.guided?.prior || (kind === 'swipe' || kind === 'continue' ? lastRecord() : null);
             const check = modules.dice ? (gen?.check ?? old?.v10Check ?? null) : null;
-            const scene = readScene(kind);
-            v10Turn = prepareTurn(v10Rows,{where:scene.location,present:scene.present},kind,modules,check,{schedule});
+            v10Turn = prepareTurn(v10Rows,{where:activeScene.location,present:activeScene.present},kind,modules,check,{schedule});
             if (schedule && !v10Turn.offer && !flow?.order) {
                 v10Turn.offer = {id:'world-event',text:'If the scene has room, introduce one plausible outside development that follows from the current place and circumstances.'};
             }
@@ -782,7 +782,9 @@ function onMessageReceived(id, type) {
         if (pending.usedUp) rec.usedUp = pending.usedUp;
         if (pending.guided) { rec.guided = pending.guided; if (guided) guided.completed = true; }
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
-        const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene && !x.extra[KEY].stateStale)?.extra?.[KEY]?.scene || {};
+        const previousRecord = [...(ctx().chat || []).slice(0,id)].reverse()
+            .map(row=>row?.extra?.[KEY]).find(record=>record?.scene && !record.stateStale);
+        const previousScene = previousRecord?.scene || {};
         const turn = pending.v10;
         const plainDialogue = turn && (turn.modules.colors || pairedPreset()) ? proseDialogue(m.mes) : m.mes;
         const rewrittenDialogue = plainDialogue !== m.mes;
@@ -796,9 +798,12 @@ function onMessageReceived(id, type) {
             if (parsed.plan || earlier?.v10Plan) rec.v10Plan = parsed.plan || earlier.v10Plan;
             rec.v10Check = turn.check || null;
             rec.v10Offer = pending.offer;
+            rec.v10Plot = turn.plotAudit?.filter(row=>row.recalled || row.eligible || row.id===pending.offer).slice(0,40);
+            if (pending.offer && !rec.v10Plot?.some(row=>row.id===pending.offer)) (rec.v10Plot ||= []).push({id:pending.offer,eligible:true,recalled:false});
             rec.v10Lore = pending.lore?.map(({text, ...entry})=>entry);
             if (pending.v10Request) rec.v10Request = pending.v10Request;
-            rec.v10Invalid = parsed.invalid === true;
+            rec.v10Invalid = parsed.invalid === true || !!parsed.issues?.length;
+            if (parsed.issues?.length) rec.v10Issues = parsed.issues;
             rec.v10RepairAttempt = !!turn.repair;
             rec.v10Changes = [...(earlier?.v10Changes || [])];
             rec.v10Diagnostics = replyDiagnostics(parsed.clean || m.mes);
@@ -806,11 +811,25 @@ function onMessageReceived(id, type) {
             if (!turn.modules.roast) parsed.roast = '';
             if (!turn.modules.state) { parsed.scene = null; parsed.elapsed = undefined; parsed.minutes = undefined; parsed.ops = []; parsed.profiles = []; }
             if (Number.isInteger(parsed.minutes) && (!Number.isInteger(turn.clock) || parsed.minutes >= turn.clock)) rec.v10Minutes = parsed.minutes;
-            else if (Number.isInteger(turn.clock)) rec.v10Minutes = turn.clock + (parsed.elapsed ?? 0);
+            else if (Number.isInteger(turn.clock)) {
+                rec.v10Minutes = turn.clock + (parsed.elapsed ?? 0);
+                if (Number.isInteger(parsed.minutes) && parsed.minutes<turn.clock) {
+                    rec.v10Invalid = true;
+                    (rec.v10Issues ||= []).push('Story time cannot move backwards within the current scene.');
+                }
+            }
             if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
         }
-        const scene = { ...(earlier?.scene || {}), ...(parsed.scene || {}) };
-        if (!parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
+        const scene = { ...(turn?.modules.state ? previousScene : {}), ...(earlier?.scene || {}), ...(parsed.scene || {}) };
+        if (turn?.modules.state) {
+            const moved = parsed.scene?.where && previousScene.where && parsed.scene.where.toLowerCase()!==previousScene.where.toLowerCase();
+            rec.v10SceneId = earlier?.v10SceneId ?? (moved || previousRecord?.v10SceneEnded ? rec.time : previousRecord?.v10SceneId ?? previousRecord?.time ?? rec.time);
+            rec.v10SceneEnded = parsed.ended === true || (earlier?.v10SceneEnded && !parsed.scene?.where);
+            if (moved && parsed.scene?.weather===undefined) delete scene.weather;
+            if (parsed.scene?.when!==undefined && parsed.scene?.time===undefined) delete scene.time;
+            if ((moved || previousRecord?.v10SceneEnded || parsed.ended) && parsed.scene?.environment===undefined) delete scene.environment;
+        }
+        if (!turn?.modules.state && !parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
         if (Object.keys(scene).length) rec.scene = scene;
         keepCards(rec, parsed, earlier, id);
         rec.stateChanges = [...(earlier?.stateChanges || []), ...changesFromProfiles(parsed.profiles)];
@@ -1287,7 +1306,7 @@ export function init() {
 
 /** Commit only the opening the player has accepted, before other turns exist. */
 export async function acceptV10Opening(draft, prose) {
-    if (!enabledV10() || isGenerating()) throw new Error('V10 opening setup is unavailable right now.');
+    if (!enabledV10() || isGenerating()) throw new Error('Opening setup requires the Structured story workflow and an idle chat.');
     const c = ctx();
     const chat = c.chat || [];
     const chatId = c.getCurrentChatId?.();
@@ -1298,13 +1317,16 @@ export async function acceptV10Opening(draft, prose) {
     const rows = await rowsForWorld();
     if (ctx().getCurrentChatId?.() !== chatId || ctx().chat !== chat || !ready()) throw new Error('The chat changed.');
     const modules = effectiveModules();
-    const embedded = parseUpdate(pairedPreset() ? separateReply(prose).text : prose);
+    const accepted = pairedPreset() ? separateReply(prose).text : prose;
+    const embedded = parseUpdate(accepted);
+    if (prefs()?.openingPlayerThoughts === true && embedded.modern) Object.assign(embedded,extractUpdate(accepted,{allowPlayerThoughts:true}));
     let parsed = embedded;
     if (draft?.parsed && !draft.parsed.invalid && !embedded.found) {
         parsed = prose === draft.original
             ? { ...draft.parsed, modern:true, ops:[], block:'' }
-            : { ...embedded, modern:true, changes:draft.parsed.changes };
+            : { ...embedded, modern:true, changes:draft.parsed.changes, profiles:draft.parsed.profiles };
     }
+    if (parsed.profiles?.length) parsed.profiles = parsed.profiles.filter(profile=>!profile.evidence || embedded.clean.includes(profile.evidence));
     parsed.clean = embedded.clean;
     prose = modules.colors || pairedPreset() ? proseDialogue(embedded.clean) : embedded.clean;
     const m = chat[0] || { name:names().char, is_user:false, is_system:false, send_date:new Date().toISOString(), extra:{} };
@@ -1317,11 +1339,12 @@ export async function acceptV10Opening(draft, prose) {
     if (newMessage) chat.push(m);
     const rec = { v:2, v10:true, items:[], time:Date.now(), type:'opening', stateChanges:modules.state ? changesFromProfiles(parsed.profiles || []) : [], scene:modules.state ? parsed.scene : null,
         v10Minutes:modules.state ? parsed.minutes : undefined, roast:modules.roast ? parsed.roast : '' };
+    rec.v10SceneId = rec.time;
     attach(m,rec);
     if (modules.colors) registerSpeakers(prose,recordMap(rows));
     if (newMessage) c.addOneMessage?.(m);
     else c.updateMessageBlock?.(0,m);
-    await afterReply(0,rec,parsed,0,() => changed('messages',0),{ v10:{ modules, records:recordMap(rows) }, propagate:true });
+    await afterReply(0,rec,parsed,0,() => changed('messages',0),{ v10:{ modules, records:recordMap(rows), baselines:portrayalSources(rows), base:prefs()?.base }, propagate:true });
     await c.saveChat?.();
     changed('messages',0);
 }

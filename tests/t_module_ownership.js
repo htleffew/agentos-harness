@@ -33,20 +33,32 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         await savePreset(imported);
         await switchTo(companion);
         await L.openChat(page);
-        await ext(async({B})=>{
-            const V=await import(`${B}/src/v10.js`);
-            V.prefs().enabled=true;
-            V.savePresetDefault(V.activePreset(),'relationships',false);
-        });
+        await ext(async({B})=>(await import(`${B}/src/v10.js`)).prefs().enabled=true);
+        const row = page.locator('#ri_root [data-module="relationships"]');
+        const openModules = () => page.locator('#ri_root [data-ri-page="v10"]').evaluate(el=>el.click());
+        const scope = value => page.locator(`#ri_root [data-module-scope="${value}"]`).evaluate(el=>el.click());
+        const setting = row.locator('#ri-module-relationships');
+        const set = value => setting.evaluate((el,value)=>{
+            el.value=value;
+            el.dispatchEvent(new Event('change',{bubbles:true}));
+        },value);
+        await openModules();
+        await scope('preset');
+        assert.deepEqual(await setting.locator('option').allTextContents(),['On','Off']);
+        await set('off');
+        assert.match(await row.textContent(),/Default for this preset: Off/);
+        await scope('chat');
+        assert.match(await row.textContent(),/Off in this chat/);
+        assert.match(await row.textContent(),/Following the preset setting/);
         L.resetLog();
         assert.equal(n(await send('Is anyone at the door?'),extensionRule),0);
-        await ext(async({B})=>(await import(`${B}/src/v10.js`)).prefs().modules={relationships:true});
+        await set('on');
+        assert.match(await row.textContent(),/On in this chat/);
         assert.equal(n(await send('I listen.'),extensionRule),1);
-        await ext(async({B})=>{delete (await import(`${B}/src/v10.js`)).prefs().modules.relationships;});
+        await row.locator('button').filter({hasText:'Reset to preset setting (Off)'}).evaluate(el=>el.click());
         assert.equal(n(await send('I wait.'),extensionRule),0);
         await switchTo(imported);
-        const row = page.locator('#ri_root [data-module="relationships"]');
-        await page.locator('#ri_root [data-ri-page="v10"]').evaluate(el=>el.click());
+        await openModules();
         assert.match(await row.textContent(),/Internal States Template · On in host preset/);
         assert.equal(await row.locator('#ri-module-relationships').isDisabled(),true);
         assert.equal(await row.locator('#ri-owner-relationships').inputValue(),'preset');
@@ -73,11 +85,10 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.equal(n(text,extensionRule),1);
         await switchTo(companion);
         assert.equal(n(await send('I close the door.'),extensionRule),0);
-        await ext(async({B})=>{
-            const V=await import(`${B}/src/v10.js`);
-            V.savePresetDefault(V.activePreset(),'relationships',undefined);
-            (await import(`${B}/src/store.js`)).saveSettings();
-        });
+        await openModules();
+        await scope('preset');
+        await row.locator('button').filter({hasText:'Reset to extension setting (On)'}).evaluate(el=>el.click());
+        assert.match(await row.textContent(),/Default for this preset: On/);
         assert.equal(L.requests().length,7);
         assert.deepEqual(errors,[]);
         console.log('PASS module ownership: inherited preset values, chat override and reset, separate preset blocks and exclusive instructions on the wire.');

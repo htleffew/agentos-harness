@@ -4,7 +4,7 @@ import { promptText } from './prompts.js';
 import { ctx, KEY } from './st.js';
 
 export const STATE_FIELDS = [['mind', 'Mind'], ['heart', 'Heart'], ['body', 'Body'], ['psyche', 'Psyche']];
-export const SCENE_FIELDS = [['present', 'Present'], ['where', 'Where'], ['when', 'When'], ['environment', 'Environment']];
+export const SCENE_FIELDS = [['present', 'Present'], ['where', 'Where'], ['when', 'When'], ['time', 'Time'], ['date', 'Date'], ['weather', 'Weather'], ['environment', 'Environment']];
 const norm = s => String(s || '').trim().toLocaleLowerCase();
 const clone = v => JSON.parse(JSON.stringify(v));
 const validField = field => STATE_FIELDS.some(([k]) => k === field);
@@ -47,11 +47,22 @@ function applyEdit(state, edit) {
     if (edit.value) item.fields[edit.field] = edit.value; else delete item.fields[edit.field];
     if (edit.protected) item.protected[edit.field] = true; else delete item.protected[edit.field];
 }
-export function stateAt(before = Infinity, { overrides = before === Infinity } = {}) {
+export function stateAt(before = Infinity, { overrides = before === Infinity, includeTemporary = true } = {}) {
     const state = clone(metadata()?.stateSeed || {});
+    const temporary = new Map();
+    let turn = 0, previousScene;
     for (const m of (ctx().chat || []).slice(0, before)) {
         const rec = m?.extra?.[KEY];
         if (!rec || m.is_user) continue;
+        if (!rec.stateStale) {
+            if (rec.time !== previousScene?.time) turn++;
+            const boundary = rec.scene?.where && previousScene?.where && norm(rec.scene.where)!==norm(previousScene.where);
+            for (const [key, until] of temporary) if (boundary || previousScene?.ended || turn>=until) {
+                if (!state[key]?.protected.body) delete state[key]?.fields.body;
+                temporary.delete(key);
+            }
+            previousScene = {where:rec.scene?.where || previousScene?.where,ended:rec.v10SceneEnded,time:rec.time};
+        }
         for (const p of rec.stateStale ? [] : changes(rec)) {
             const key = norm(p.name);
             if (!key) continue;
@@ -60,11 +71,19 @@ export function stateAt(before = Infinity, { overrides = before === Infinity } =
             for (const [field, value] of Object.entries(p.fields || {})) {
                 if (!validField(field) || item.protected[field]) continue;
                 if (value === null) delete item.fields[field]; else item.fields[field] = value;
+                if (field === 'body') {
+                    if (value && p.temporaryBody) temporary.set(key,turn+2);
+                    else temporary.delete(key);
+                }
             }
         }
         // Compatibility with v6 preview edits already stored on messages.
-        for (const edit of rec.stateEdits || []) applyEdit(state, edit);
+        for (const edit of rec.stateEdits || []) {
+            if (edit.field==='body') temporary.delete(norm(edit.name));
+            applyEdit(state, edit);
+        }
     }
+    if (!includeTemporary) for (const key of temporary.keys()) if (!state[key]?.protected.body) delete state[key]?.fields.body;
     if (overrides) for (const edit of Object.values(metadata()?.stateOverrides || {})) applyEdit(state, edit);
     return state;
 }
@@ -127,7 +146,7 @@ export function statePrompt(type = 'normal', limit = 1400, { includeCharacters =
     return rows.length ? `[Current story state. ${promptText('stateContext')}\n${rows.join('\n')}]` : '';
 }
 export function changesFromProfiles(profiles) {
-    return (profiles || []).map(p => ({ name: p.name, fields: Object.fromEntries(STATE_FIELDS.filter(([k]) => Object.hasOwn(p.now || {}, k)).map(([k]) => [k, p.now[k]])) })).filter(p => Object.keys(p.fields).length);
+    return (profiles || []).map(p => ({ name: p.name, ...(p.temporaryBody ? {temporaryBody:true} : {}), fields: Object.fromEntries(STATE_FIELDS.filter(([k]) => Object.hasOwn(p.now || {}, k)).map(([k]) => [k, p.now[k]])) })).filter(p => Object.keys(p.fields).length);
 }
 /** Identify the newest story message at the moment a user makes a correction. */
 export function correctionAnchor() {

@@ -361,11 +361,11 @@
 .ri-progress-heading strong { display: block; color: #f5f6fb; }
 .ri-progress-caption { color: #bbc9da; font-size: .83em; }
 .ri-progress-stages {
-    position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 5px; list-style: none; margin: 16px 0 0; padding: 0;
 }
 .ri-progress-stages::before {
-    content: ''; position: absolute; inset: 14px calc(100% / 6) auto; height: 2px; border-radius: 5px;
+    content: ''; position: absolute; inset: 14px 12.5% auto; height: 2px; border-radius: 5px;
     background: linear-gradient(90deg, #6edacf var(--ri-track-fill, 0%), #33415a var(--ri-track-fill, 0%));
 }
 .ri-progress-stages li {
@@ -423,7 +423,7 @@
 .ri-module-row .ri-help { margin: 0; }
 .ri-module-row .ri-input { width: min(100%, 24rem); }
 
-.ri-module-comparison { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .82em; color: var(--ri-text-2); }
+.ri-module-actions > .ri-input { width: auto; min-width: 6rem; }
 .ri-module-overlap { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--ri-line); border-radius: 8px; font-size: .85em; }
 .ri-module-overlap > label { color: var(--ri-label); }
 .ri-module-overlap ul { margin: 5px 0; padding-left: 1.4em; }
@@ -471,4 +471,49 @@
     .ri-v10-reply .ri-reply-symbol, .ri-progress-heading .ri-reply-symbol { flex-basis: 30px; width: 30px; height: 30px; }
     .ri-reply-chip { padding: 3px 6px; }
     .ri-v10-reply .ri-tabs { padding-inline: 8px; }
+}
+
+.ri-scene-header {
+    position: relative; overflow: hidden; margin: 2px 0 16px; padding: 1px;
+    border-radius: 10px;
+    background: linear-gradient(110deg,#689ab3,#323a5b 44%,#6370a2 74%,#396770);
+    color: #eef4fc; box-shadow: 0 8px 20px #080b1666;
+}
+.ri-scene-header dl {
+    display: grid; grid-template-columns: .8fr 1fr 1.6fr 1fr; align-items: stretch;
+    gap: 0; margin: 0; padding: 0; border-radius: 9px;
+    background: radial-gradient(ellipse at top left,#1b364c 0,transparent 76%),#141a2c;
+}
+.ri-scene-header dl > div { min-width: 0; padding: 10px 13px 11px; border-inline-end: 1px solid #64758b33; }
+.ri-scene-header dl > div:last-child { border-inline-end: none; }
+.ri-scene-header dt { color: #abd7e8; font-size: .64em; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.ri-scene-header dd { margin: 3px 0 0; color: #f3f7fd; font-size: .86em; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.ri-scene-header-location dd { color: #bdeee7; }
+.ri-scene-header-empty { color: #a4b3cc; }
+.ri-progress-signal { display: flex; gap: 4px; margin-inline-start: auto; align-items: center; }
+.ri-progress-signal i {
+    display: block; width: 4px; height: 12px; border-radius: 3px; background: #80d8eb;
+    animation: ri-status-signal .95s ease-in-out infinite alternate;
+}
+.ri-progress-signal i:nth-child(2) { animation-delay: .15s; }
+.ri-progress-signal i:nth-child(3) { animation-delay: .3s; }
+.ri-v10-progress[data-phase="ready"] .ri-progress-signal i { background: #76e1c9; animation: none; }
+.ri-progress-stages::after {
+    content: ''; position: absolute; inset: 14px 12.5% auto; height: 2px; pointer-events: none;
+    background: linear-gradient(90deg,transparent,#d0effb,transparent);
+    background-size: 35% 100%; background-repeat: no-repeat;
+    animation: ri-status-travel 1.7s ease-in-out infinite;
+}
+.ri-progress-stages li { z-index: 1; }
+.ri-v10-progress[data-phase="ready"] .ri-progress-stages::after { display: none; }
+@keyframes ri-status-signal { from { opacity: .45; transform: scaleY(.65); } to { opacity: 1; transform: scaleY(1.2); } }
+@keyframes ri-status-travel { from { opacity: 0; background-position: 0 0; } 35% { opacity: .8; } to { opacity: 0; background-position: 100% 0; } }
+@media (max-width: 540px) {
+    .ri-scene-header dl { grid-template-columns: 1fr 1fr; }
+    .ri-scene-header dl > div:nth-child(even) { border-inline-end: 0; }
+    .ri-scene-header dl > div:nth-child(-n+2) { border-block-end: 1px solid #64758b33; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ri-progress-signal i, .ri-progress-stages::after { animation: none; }
+    .ri-progress-stages::after { display: none; }
 }
