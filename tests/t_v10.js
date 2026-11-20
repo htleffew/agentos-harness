@@ -299,7 +299,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             entries:{4:{uid:4,key:['harbor'],content:'The harbor closes after sundown.',constant:false,disable:false}}
         })) };
         const assign = async () => {
-            await navigation.locator('input[type=file]').setInputFiles(bookFile);
+            await navigation.getByLabel('Base World JSON file').setInputFiles(bookFile);
             await navigation.locator('button').filter({hasText:'Upload and assign Base World'}).evaluate(el=>el.click());
         };
         const savedBase = name => page.waitForFunction(name=>SillyTavern.getContext().chatMetadata.roleplay_instructions.v10.base?.name===name,name);

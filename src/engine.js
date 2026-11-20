@@ -211,7 +211,7 @@ async function loadMemory(lore, arrays) {
     const components = memoryComponents();
     if (turn && ['swipe','regenerate'].includes(type)) undoForSwipe();
     await worldIdle();
-    if (components.world) await addConfiguredBooks(lore,arrays,{}, {}, {guidelines:false});
+    await addConfiguredBooks(lore,arrays,{}, {}, {base:components.world,guidelines:false,reference:components.world,type});
     const flow = await prepareWorld(type,0,{memory:true,components});
     if (flow?.notes) lore.chatLore.push(notesEntry(flow.notes.text));
     if (turn) turn.memoryFlow = flow;
@@ -266,7 +266,7 @@ async function onEntriesLoaded(lore) {
         const scale = phase?.chance ?? 100;
         const modules = native ? effectiveModules() : null;
         const activeScene = native ? readScene(kind) : null;
-        if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules,{base:memoryComponents().world});
+        if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules,{base:memoryComponents().world,reference:memoryComponents().world,type:kind});
         const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
         if (gen && gen.v10Schedule === undefined && native && !gen.dryRun) gen.v10Schedule = !quiet && kind === 'normal' && modules.worldEvents && chance > 0 && rollInt(100) < chance;
         const schedule = gen?.v10Schedule === true;

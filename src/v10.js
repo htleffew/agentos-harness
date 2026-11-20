@@ -1,3 +1,4 @@
+import { beginBookTriggers, bookTriggerSource, reusableKeywordMatch, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
 import { recallPolicy } from './recall.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
@@ -449,9 +450,11 @@ export function reusableBookNames() {
     return worldNames().filter(name=>name!==managed);
 }
 
-export async function uploadBaseBook(file) {
+export async function uploadReusableBook(file, role = 'base') {
     const local = prefs();
-    if (!local || !(enabledV10() || memoryOnly() && memoryComponents().world)) throw new Error('Enable World Info before importing a Base World book.');
+    if (!local || !(enabledV10() || memoryOnly() && memoryComponents().world && role !== 'guidelines')) {
+        throw new Error('Enable the corresponding World Info workflow before importing a book.');
+    }
     let data;
     try { data = JSON.parse(await file.text()); }
     catch { throw new Error('Choose a valid World Info JSON export.'); }
@@ -464,15 +467,16 @@ export async function uploadBaseBook(file) {
         || new Set(entries.map(entry=>entry.uid)).size !== entries.length) {
         throw new Error('Invalid World Info entries. Import other formats through the host World Info menu first.');
     }
-    const base = cleanSetName(file.name.replace(/\.json$/i,'')).replace(/^\.+|\.+$/g,'').trim() || 'Base World';
+    const base = cleanSetName(file.name.replace(/\.json$/i,'')).replace(/^\.+|\.+$/g,'').trim() || 'World Info';
     const taken = new Set(worldNames().map(name=>name.toLocaleLowerCase()));
     let name = base;
     for (let i=2; taken.has(name.toLocaleLowerCase()); i++) name = `${base} (${i})`;
     await saveBook(name,data);
     await refreshWorldList();
     if (!worldNames().includes(name)) throw new Error('The host did not confirm that the lorebook was saved.');
-    if (prefs() !== local) throw new Error(`Imported "${name}". Select it in the intended chat to pin it.`);
-    await pinBase(name);
+    if (prefs() !== local) throw new Error(`Imported "${name}". Assign it in the intended chat.`);
+    if (role === 'base') await pinBase(name);
+    else assignReusableBook(name, role);
     return name;
 }
 
@@ -481,18 +485,43 @@ function rememberReusableBook(name) {
     if (root && name) root.reusableBookHistory = [...new Set([...(root.reusableBookHistory || []),name])];
 }
 
-export function selectGuidelines(name) {
+export const uploadBaseBook = file => uploadReusableBook(file, 'base');
+
+export const reusableBookRoles = { guidelines: 'Behavior & Guidelines', reference: 'Knowledge & Reference' };
+
+export function reusableAssignments(local = chatState()?.v10) {
+    const legacy = local?.guidelines ? [{ name: local.guidelines, role: 'guidelines', on: local.guidelinesOn !== false }] : [];
+    return (local?.reusableBooks || legacy).filter(book => book.name !== local?.base?.name);
+}
+
+export function assignReusableBook(name, role, on = true) {
     const local = prefs();
     if (!local) return;
-    rememberReusableBook(local.guidelines);
-    local.guidelines = name;
+    if (!name || name === managedBookName() || name === local.base?.name) throw new Error('Choose a separate World Info book.');
+    if (!Object.hasOwn(reusableBookRoles, role)) throw new Error('Choose a book role.');
+    const assigned = reusableAssignments(local);
+    const book = { name, role, on };
+    local.reusableBooks = assigned.some(existing => existing.name === name)
+        ? assigned.map(existing => existing.name === name ? book : existing) : [...assigned, book];
     rememberReusableBook(name);
     saveChatState();
+}
+
+export function unassignReusableBook(name) {
+    const local = prefs();
+    if (!local) return;
+    local.reusableBooks = reusableAssignments(local).filter(book => book.name !== name);
+    saveChatState();
+}
+
+export function selectGuidelines(name) {
+    if (name) assignReusableBook(name, 'guidelines');
 }
 
 export async function pinBase(name) {
     const local = prefs();
     if (!local) throw new Error('Open a chat first.');
+    if (reusableAssignments(local).some(book => book.name === name)) throw new Error('Unassign this reusable book before selecting it as Base World.');
     if (name && name === managedBookName()) throw new Error('Choose a book separate from this chat’s managed Story World.');
     const data = name ? await loadBook(name) : null;
     if (prefs() !== local) throw new Error('The chat changed.');
@@ -503,15 +532,22 @@ export async function pinBase(name) {
     saveChatState();
 }
 
-export async function createGuidelines(name, content) {
-    if (!clean(name) || !clean(content)) throw new Error('Enter a book name and guidance.');
-    if (ctx().getWorldInfoNames?.().includes(name)) throw new Error('This book already exists.');
-    const { blankEntry } = await import('./books.js');
-    const entry = blankEntry(0);
-    Object.assign(entry,{ comment:'Writing guidelines', content, constant:true, key:[], disable:false, useProbability:false, probability:100 });
-    await saveBook(name,{ entries:{0:entry} });
+export async function createReusableBook(name, content = '') {
+    name = cleanSetName(name).replace(/^\.+|\.+$/g, '').trim();
+    if (!name) throw new Error('Enter a book name.');
+    if (worldNames().some(existing => existing.toLowerCase() === name.toLowerCase())) throw new Error('This book already exists.');
+    const entries = {};
+    if (clean(content)) {
+        const { blankEntry } = await import('./books.js');
+        entries[0] = { ...blankEntry(0), comment:'Writing guidelines', content, constant:true, useProbability:false, probability:100 };
+    }
+    await saveBook(name,{ entries });
     await refreshWorldList();
+    if (!worldNames().includes(name)) throw new Error('The host did not confirm that the lorebook was saved.');
+    return name;
 }
+
+export const createGuidelines = createReusableBook;
 
 export async function rowsForWorld() {
     const id = chatWorld();
@@ -697,9 +733,11 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
         if (!seen.has(key)) { seen.add(key); receipt.push(item); }
     };
     const local = prefs();
+    const roles = new Map(reusableAssignments(local).map(book => [book.name,
+        book.role === 'guidelines' ? 'Guidelines' : reusableBookRoles[book.role]]));
     for (const entry of entries) {
         if (!entry?.world || entry.world.startsWith('Roleplay Instructions ')) continue;
-        add({ book:entry.world, uid:entry.uid, title:entry.comment || entry.key?.[0] || `Entry ${entry.uid}`, role:entry.world === local?.base?.name ? 'Base World' : entry.world === local?.guidelines ? 'Guidelines' : 'World Info', selected:true, text:entry.content });
+        add({ book:entry.world, uid:entry.uid, title:entry.comment || entry.key?.[0] || `Entry ${entry.uid}`, role:entry.world === local?.base?.name ? 'Base World' : roles.get(entry.world) || 'World Info', selected:true, text:entry.content });
     }
     for (const uid of notes?.ids || []) {
         const row = rows.find(item => item.uid === uid);
@@ -709,15 +747,15 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
     return receipt.slice(0,120);
 }
 
-export function guidelineEligible(entry, local, scene, modules) {
+export function guidelineEligible(entry, local, scene, modules, book = local.guidelines) {
     const scopes = local.guidelineScopes;
-    const scope = scopes && Object.hasOwn(scopes,local.guidelines) ? scopes[local.guidelines][entry.uid] : undefined;
+    const scope = scopes && Object.hasOwn(scopes,book) ? scopes[book][entry.uid] : undefined;
     return scope?.enabled !== false && (!scope?.module || modules[scope.module]) &&
         (!scope?.character || mentions(scene?.present,scope.character)) &&
         (!scope?.location || mentions(scene?.where,scope.location));
 }
 
-export async function addConfiguredBooks(lore, arrays, scene, modules, { base = true, guidelines = true } = {}) {
+export async function addConfiguredBooks(lore, arrays, scene, modules, { base = true, guidelines = true, reference = true, type = 'normal' } = {}) {
     const local = chatState()?.v10;
     if (!local || !Array.isArray(lore.chatLore)) return;
     if (base && local.base) {
@@ -728,17 +766,19 @@ export async function addConfiguredBooks(lore, arrays, scene, modules, { base = 
             ...(opening && local.base.pins?.includes(String(entry.uid)) && !entry.disable ? {constant:true} : {}),
         })));
     }
-    if (guidelines && local.guidelines && local.guidelines !== local.base?.name) {
-        const byId = new Map();
-        for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (list[i].world === local.guidelines) {
-            const [entry] = list.splice(i,1);
-            byId.set(entry.uid,entry);
+    beginBookTriggers();
+    const texts = scopedTriggerTexts(ctx().chat || [], type);
+    for (const book of reusableAssignments(local)) {
+        for (const list of arrays) for (let i = list.length - 1; i >= 0; i--) {
+            const entry = list[i];
+            if (entry.world === book.name && !entry.extensions?.ri?.type && !entry.extensions?.ri?.set) list.splice(i, 1);
         }
-        if (local.guidelinesOn !== false) {
-            const data = byId.size ? {entries:Object.fromEntries(byId)} : await loadBook(local.guidelines).catch(() => null);
-            if (Array.isArray(lore.chatLore)) lore.chatLore.push(...Object.values(data?.entries || {})
-                .filter(entry=>guidelineEligible(entry,local,scene,modules))
-                .map(entry=>({ ...entry, world:local.guidelines })));
+        if (book.on === false || !(book.role === 'guidelines' ? guidelines : reference)) continue;
+        const data = await loadBook(book.name).catch(() => null);
+        for (const entry of Object.values(data?.entries || {})) {
+            if (entry.extensions?.ri?.type || entry.extensions?.ri?.set) continue;
+            if (book.role === 'guidelines' && !guidelineEligible(entry, local, scene, modules, book.name)) continue;
+            lore.chatLore.push(scopedBookEntry({ ...entry, world: book.name }, texts));
         }
     }
 }
@@ -838,10 +878,22 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
         return [secondary.some(Boolean),secondary.some(value=>!value),secondary.every(value=>!value),secondary.every(Boolean)][row.selectiveLogic || 0];
     }).map(row=>row.content).join('\n').slice(0,6000);
     const base = selectEntries(local.base?.entries,local.base?.pins);
-    const guidelineData = local.guidelines && local.guidelinesOn !== false ? await loadBook(local.guidelines) : null;
-    const guidance = selectEntries(Object.values(guidelineData?.entries || {}).filter(entry=>
-        guidelineEligible(entry,local,{present:`${names().char}, ${names().user}`},modules)));
-    const source = [base && `Pre-opening canon:\n${base}`,...cardSource,persona && `Player persona:\n${persona}`,guidance && `Selected writing guidance:\n${guidance}`].filter(Boolean).join('\n').slice(0,15000);
+    const selected = { guidelines: [], reference: [] };
+    const openingScene = { present: `${names().char}, ${names().user}` };
+    for (const book of reusableAssignments(local)) {
+        if (book.on === false) continue;
+        const data = await loadBook(book.name).catch(() => null);
+        const entries = Object.values(data?.entries || {}).filter(entry=>
+            !entry.disable && !entry.extensions?.ri?.type && !entry.extensions?.ri?.set &&
+            (book.role !== 'guidelines' || guidelineEligible(entry,local,openingScene,modules,book.name)) &&
+            (entry.constant || bookTriggerSource(entry) === 'chat' && reusableKeywordMatch(entry,clue)) &&
+            (entry.useProbability === false || rollInt(100) < Number(entry.probability ?? 100)));
+        selected[book.role].push(...entries.map(entry => entry.content));
+    }
+    const guidance = selected.guidelines.join('\n').slice(0,4500);
+    const reference = selected.reference.join('\n').slice(0,3500);
+    const source = [base && `Pre-opening canon:\n${base}`, ...cardSource, persona && `Player persona:\n${persona}`,
+        reference && `Reference lore:\n${reference}`, guidance && `Selected writing guidance:\n${guidance}`].filter(Boolean).join('\n').slice(0,15000);
     const writing = modules.style ? local.style ?? defaultWritingGuidance() : '';
     const companionWriting = pairedPreset() && !text ? (activeHostPrompts() || [])
         .filter(block=>block.enabled && COMPANION_WRITING_BLOCKS.has(block.name)).map(block=>block.content).join('\n') : '';

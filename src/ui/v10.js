@@ -10,7 +10,7 @@ import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES,
-    PRESET, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, selectGuidelines, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
+    PRESET, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText, rowsForWorld,
     readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor,
 } from '../v10.js';
 
@@ -89,9 +89,7 @@ function renderDice(local, redraw) {
             last ? button('Reroll check and replace latest reply',()=>guideSwipe('Rewrite this reply using the newly resolved action check. Preserve the attempted action and other applicable directions.',{repeatOrders:true,rerollDice:true}).catch(problem)) : null), receipt);
 }
 
-function guidelineScopes(local) {
-    const book = local.guidelines;
-    if (!book || local.guidelinesOn===false) return null;
+function guidelineScopes(local, book) {
     const entries = h('div',{class:'ri-help'},'Loading entries…');
     loadBook(book).then(data=>{
         if (!entries.isConnected) return;
@@ -121,6 +119,56 @@ function guidelineScopes(local) {
         h('p',{class:'ri-help'},'Apply extra conditions for this chat. Eligible entries still use their World Info triggers.'),entries);
 }
 
+function reusableBookControls(local, redraw, memory) {
+    const assigned = reusableAssignments(local);
+    const available = reusableBookNames().filter(name => name !== local.base?.name && !assigned.some(book => book.name === name));
+    const roles = Object.entries(reusableBookRoles).filter(([key]) => !memory || key === 'reference');
+    const role = select(roles.map(([value,label]) => ({value,label})), memory ? 'reference' : 'guidelines', () => {}, {'aria-label':'Reusable book role'});
+    const picker = select([{value:'',label:'Choose an existing book'}, ...options(available)], '', () => {}, {'aria-label':'Existing reusable book'});
+    const files = h('input', {type:'file', multiple:true, accept:'.json,application/json', 'aria-label':'Reusable book JSON files'});
+    const name = textInput('', () => {}, { 'aria-label':'New book name', placeholder:'New book name' });
+    const upload = button('Upload and assign books', async () => {
+        const batch = [...files.files];
+        if (!batch.length) { files.click(); return; }
+        upload.disabled = true;
+        const chosenRole = role.value;
+        let imported = 0;
+        for (const file of batch) {
+            if (prefs() !== local) break;
+            try { await uploadReusableBook(file, chosenRole); imported++; }
+            catch (error) { toast('error', `${file.name}: ${error.message}`); }
+        }
+        if (imported) toast('success', `Assigned ${imported} ${imported === 1 ? 'book' : 'books'}.`);
+        redraw();
+    });
+    return section('Guideline and reference books',
+        field('Role for books you add', 'Guidelines supply writing nudges. Reference books hold facts about people, places, or anything else.', role),
+        assigned.length ? h('p', {class:'ri-help'}, 'Pausing a book stops its use here. Unassigning leaves any host World Info selection in effect.') : null,
+        h('div', {class:'ri-row'}, picker, button('Assign book', () => {
+            if (!picker.value) return;
+            try { assignReusableBook(picker.value, role.value); redraw(); } catch (error) { problem(error); }
+        })),
+        h('div', {class:'ri-row'}, files, upload),
+        h('details', {}, h('summary', {}, 'Create an empty book'),
+            field('Name', 'The new book uses the selected role. Add its entries under World Info books for this chat.', name),
+            button('Create and assign', async () => {
+                const chosenRole = role.value;
+                try {
+                    const book = await createReusableBook(name.value);
+                    if (prefs() !== local) return;
+                    assignReusableBook(book, chosenRole);
+                    redraw();
+                } catch (error) { problem(error); }
+            })),
+        assigned.map(book => h('div', {class:'ri-card ri-tight'},
+            h('strong', {}, book.name),
+            h('p', {class:'ri-help'}, reusableBookRoles[book.role]),
+            h('div', {class:'ri-row'},
+                button(book.on === false ? 'Enable in this chat' : 'Pause in this chat', () => { assignReusableBook(book.name, book.role, book.on === false); redraw(); }),
+                button('Unassign', () => { unassignReusableBook(book.name); redraw(); }, {kind:'ghost'})),
+            book.role === 'guidelines' && !memory && guidelineScopes(local, book.name))));
+}
+
 function renderBooks(local, redraw, app, baseOnly = false) {
     const books = [{value:'',label:'None'},...options(reusableBookNames())];
     const base = select(books,local.base?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
@@ -135,9 +183,6 @@ function renderBooks(local, redraw, app, baseOnly = false) {
         } catch (error) { problem(error); }
         finally { upload.disabled = false; }
     });
-    const guidelines = select(books,local.guidelines || '',name=>{selectGuidelines(name);redraw();});
-    const name = textInput('',()=>{},{placeholder:'Name for a reusable guidelines book','aria-label':'Guidelines book name'});
-    const content = textArea('',()=>{},{placeholder:'Writing or behavior guidance','aria-label':'Guidelines text'});
     const pins = local.base ? h('details',{class:'ri-card ri-tight'},h('summary',{},'Pinned facts for opening'),
         Object.values(local.base.entries || {}).filter(row=>!row.disable).map(row=>h('label',{class:'ri-row'},
             h('input',{type:'checkbox',checked:local.base.pins?.includes(String(row.uid)),onchange:event=>{
@@ -151,11 +196,7 @@ function renderBooks(local, redraw, app, baseOnly = false) {
             local.base ? button('Refresh pinned copy',()=>pinBase(local.base.name).then(redraw).catch(problem)) : null,
             h('div',{class:'ri-row'},file,upload)),
         pins,
-        !baseOnly && field('Behavior & Guidelines','Select a reusable book. Set its entry triggers in World Info.',guidelines,
-            local.guidelines ? select([{value:'on',label:'Enabled'}, {value:'off',label:'Disabled'}], local.guidelinesOn === false ? 'off':'on', value=>{local.guidelinesOn=value==='on';saveChatState();redraw();}) : null),
-        !baseOnly && guidelineScopes(local),
-        !baseOnly && h('details',{class:'ri-card'},h('summary',{},'Create a guidelines book'),name,content,
-            button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelinesOn=true;selectGuidelines(name.value.trim());redraw();}catch(error){problem(error);}})),
+        reusableBookControls(local, redraw, baseOnly),
         h('div',{class:'ri-row'},
             button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
             !baseOnly && button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
@@ -479,8 +520,8 @@ export function renderV10(body, app, page) {
         select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
             {'aria-label':label}));
     if (page === 'books') {
-        body.append(renderChatBooks(app));
         if (enabledV10() || memoryOnly() && memoryComponents().world) body.append(renderBooks(local,redraw,app,memoryOnly()));
+        body.append(renderChatBooks(app));
         return;
     }
     if (page === 'v10') {

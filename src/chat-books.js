@@ -3,7 +3,7 @@ import { chatState, settings } from './store.js';
 import { ctx, KEY, worldNames } from './st.js';
 import { chatWorld } from './world.js';
 import { memoryComponents, memoryOnly } from './components.js';
-import { enabledV10 } from './v10.js';
+import { enabledV10, reusableAssignments, reusableBookRoles } from './v10.js';
 
 let observed;
 const hostSources = {
@@ -42,10 +42,14 @@ export function chatBooks() {
         if (id && id!==world) add(setInfo(id).book,'Earlier or source Story World');
     }
     if (local.v10?.base) add(local.v10.base.name,components.world && (enabledV10() || memoryOnly()) ? 'Pinned Base World' : 'Pinned Base World · paused');
-    if (local.v10?.guidelines) add(local.v10.guidelines,enabledV10() && local.v10.guidelinesOn!==false
-        ? 'Behavior & Guidelines' : 'Behavior & Guidelines · paused');
+    const assignments = reusableAssignments(local.v10);
+    for (const book of assignments) {
+        const active = book.on !== false && (book.role === 'guidelines'
+            ? enabledV10() : components.world && (enabledV10() || memoryOnly()));
+        add(book.name, reusableBookRoles[book.role] + (active ? '' : ' · paused'));
+    }
     for (const name of local.reusableBookHistory || []) {
-        if (name!==local.v10?.base?.name && name!==local.v10?.guidelines) add(name,'Previously assigned reusable book');
+        if (name !== local.v10?.base?.name && !assignments.some(book => book.name === name)) add(name, 'Previously assigned reusable book');
     }
     const labels = {instructions:'Random Instructions',events:'Random Story Events',style:'Random Writing Style',world:'Story World'};
     for (const id of local.activeSets) {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.14
+
+- Assign, batch-import, or create multiple Behavior & Guidelines and Knowledge & Reference books per chat. Manage each assignment under Story → Reusable Lorebooks.
+- Add and edit entries in the extension. Use native chance, stickiness, and cooldown for random reminders, or choose keywords in recent chat, the latest user message, or the previous model reply.
+
 ## 10.0.13
 
 - Delete an instruction and its versions directly from its list card. Story-event and writing-style sets can be deleted from their list cards or editors, including sets with a dedicated World Info book.
