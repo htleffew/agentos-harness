@@ -398,3 +398,15 @@
 .ri-page-nav[hidden] { display: none; }
 .ri-stream-preview { overflow-wrap: anywhere; }
 .ri-stream-preview + .mes_text { display: none !important; }
+
+
+.ri-module-scopes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ri-module-scopes [aria-pressed="true"] { border-color: var(--ri-accent); color: var(--ri-text); }
+.ri-module-list { margin-top: 8px; }
+.ri-module-row { display: grid; gap: 7px; padding: 12px 0; border-top: 1px solid var(--ri-line); }
+.ri-module-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 5px 12px; flex-wrap: wrap; }
+.ri-module-heading label { font-weight: 650; }
+.ri-module-status { font-size: .82em; color: var(--ri-text-2); }
+.ri-module-status[data-enabled="true"] { color: var(--ri-accent); }
+.ri-module-row .ri-help { margin: 0; }
+.ri-module-row .ri-input { width: min(100%, 24rem); }

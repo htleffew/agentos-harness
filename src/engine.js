@@ -789,7 +789,7 @@ function onMessageReceived(id, type) {
             if (parsed.plan || earlier?.v10Plan) rec.v10Plan = parsed.plan || earlier.v10Plan;
             rec.v10Check = turn.check || null;
             rec.v10Offer = pending.offer;
-            rec.v10Lore = pending.lore;
+            rec.v10Lore = pending.lore?.map(({text, ...entry})=>entry);
             if (pending.v10Request) rec.v10Request = pending.v10Request;
             rec.v10Invalid = parsed.invalid === true;
             rec.v10RepairAttempt = !!turn.repair;
@@ -1016,13 +1016,13 @@ function onPromptReady(data) {
             else if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string' && part.text.includes('<sent_instructions>')) part.text = stripSentBlock(part.text);
         }
         if (record && pending?.lore) {
-            const full = data.chat.map(m => typeof m.content === 'string' ? m.content : '').join('\n');
+            const full = data.chat.flatMap(({content})=>Array.isArray(content) ? content.map(part=>part?.text || '') : typeof content === 'string' ? [content] : []).join('\n');
             const instructions = plan.contextAsk && sub(plan.contextAsk).trim();
             if (prefs()?.keepTurnGuidance && instructions && full.includes(instructions)) pending.v10Request = instructions;
-            pending.lore = pending.lore.map(({text,...entry}) => {
-                const expanded = typeof text === 'string' ? sub(text).trim() : '';
-                return { ...entry, confirmed:!!expanded && full.includes(expanded) };
-            });
+            for (const entry of pending.lore) {
+                const expanded = typeof entry.text === 'string' ? sub(entry.text).trim() : '';
+                entry.confirmed = !!expanded && full.includes(expanded);
+            }
         }
         if (record && gen && replyProgress()?.phase === 'context') showReplyProgress(gen,'waiting');
         if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: pending?.items || [], ask: plan.contextAsk || '' }); }

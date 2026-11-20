@@ -55,6 +55,7 @@ export const app = {
     home: null,
     missing: [],
     render,
+    openPage: navigate,
     go(route) { app.route = route; app.resetScroll = true; render(); app.root?.scrollIntoView?.({ block: 'start' }); },
 };
 

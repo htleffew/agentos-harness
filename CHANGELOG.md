@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.4
+
+- Preset & Modules uses separate This chat and Preset defaults views. Each module explains its behavior and shows which setting controls it in the current chat.
+- Reusable Lorebooks, Reply Display, and What Was Sent link directly to World Info visibility and review. Multiple prompt assembly passes retain the entry text needed for delivery confirmation.
+
 ## 10.0.3
 
 - Upload and assign a native World Info JSON file directly from Story → Reusable Lorebooks. Duplicate filenames get a new name.

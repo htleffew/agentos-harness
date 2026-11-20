@@ -5,7 +5,7 @@ import { acceptV10Opening, guideSwipe } from '../engine.js';
 import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
-    PRESET, MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, STYLE, OPENING,
+    MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, STYLE, OPENING,
     activePreset, presetDefaults, savePresetDefault, prefs, enabledV10, effectiveModules, pinBase, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
     readRecord, greetings, draftOpening, setSpeakerColor, displayColor, SPEECH,
 } from '../v10.js';
@@ -82,7 +82,7 @@ function renderDice(local, redraw) {
             last ? button('Reroll check and replace latest reply',()=>guideSwipe('Rewrite this reply using the newly resolved action check. Preserve the attempted action and other applicable directions.',{repeatOrders:true,rerollDice:true}).catch(problem)) : null), receipt);
 }
 
-function renderBooks(local, redraw) {
+function renderBooks(local, redraw, app) {
     const books = [{value:'',label:'None'},...options(reusableBookNames())];
     const base = select(books,local.base?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
     const file = h('input',{type:'file',accept:'.json,application/json','aria-label':'Base World JSON file'});
@@ -115,7 +115,10 @@ function renderBooks(local, redraw) {
         field('Behavior & Guidelines','Select a reusable book. Set its entry triggers in World Info.',guidelines,
             local.guidelines ? select([{value:'on',label:'Enabled'}, {value:'off',label:'Disabled'}], local.guidelinesOn === false ? 'off':'on', value=>{local.guidelinesOn=value==='on';saveChatState();redraw();}) : null),
         h('details',{class:'ri-card'},h('summary',{},'Create a guidelines book'),name,content,
-            button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelines=name.value.trim();local.guidelinesOn=true;saveChatState();redraw();}catch(error){problem(error);}})));
+            button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelines=name.value.trim();local.guidelinesOn=true;saveChatState();redraw();}catch(error){problem(error);}})),
+        h('div',{class:'ri-row'},
+            button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
+            button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
 }
 
 function editRecord(original, save, cancel, kinds) {
@@ -261,6 +264,92 @@ function renderSpeakers(local) {
         }), !Object.keys(local.speakers || {}).length ? h('p',{class:'ri-help'},'Assigned speakers appear here after a reply uses speaker labels.') : null);
 }
 
+const MODULE_HELP = {
+    style: 'Sends your Writing Guidance with the reply to steer prose, voice, and pacing.',
+    state: 'Tracks the scene, story clock, character snapshots, and durable story facts.',
+    knowledge: 'Tracks what each character has observed, heard, or believes.',
+    emotions: 'Tracks tunable NPC emotion axes and outward behavior.',
+    relationships: 'Keeps brief notes on relationships and meaningful changes.',
+    plots: 'Tracks unresolved threads, planted details, payoffs, and off-screen agendas.',
+    worldEvents: 'Uses an automatic chance check to offer an optional development. Random Instructions are controlled separately.',
+    dice: 'Rolls once when you queue an action in Direction → Action Checks. Regular replies proceed without a roll.',
+    colors: 'Assigns editable colors to attributed dialogue and renders them in the chat.',
+    roast: 'Asks the model for optional commentary in the same reply.',
+    roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
+};
+const VEXA_BLOCKS = {
+    dice: 'D&D Sim and Dice Rolls',
+    worldEvents: 'World Sim',
+    plots: 'World Sim and Internal States Template',
+    state: 'Internal States Template',
+    knowledge: 'Internal States Template',
+    emotions: 'Internal States Template',
+    relationships: 'Internal States Template',
+};
+const onOff = value => value ? 'On' : 'Off';
+
+function moduleSettings(local, app, preset, modules, redraw) {
+    const canEditPreset = Boolean(preset);
+    const editingPreset = canEditPreset && app.moduleScope === 'preset';
+    const defaults = presetDefaults(preset);
+    const changeScope = scope => {
+        app.moduleScope = scope;
+        redraw();
+        app.root?.querySelector(`[data-module-scope="${scope}"]`)?.focus({preventScroll:true});
+    };
+    const controlScope = editingPreset ? 'preset' : 'chat';
+    const vexa = /vexa/i.test(preset);
+    const rows = Object.entries(MODULES).map(([key,label])=>{
+        const override = local.modules?.[key];
+        const presetValue = defaults[key];
+        const defaultOn = presetValue ?? DEFAULT_MODULES[key];
+        const source = override !== undefined ? 'Chat override' : presetValue !== undefined ? 'Preset default' : 'Built-in default';
+        const options = editingPreset ? [
+            {value:'inherit',label:`Use built-in default (${onOff(DEFAULT_MODULES[key])})`},
+            {value:'on',label:'On by default'},
+            {value:'off',label:'Off by default'},
+        ] : [
+            {value:'inherit',label:`Use ${canEditPreset ? 'preset' : 'built-in'} default (${onOff(defaultOn)})`},
+            {value:'on',label:'On for this chat'},
+            {value:'off',label:'Off for this chat'},
+        ];
+        const controlId = `ri-module-${key}`;
+        const control = select(options,mode(editingPreset ? presetValue : override),value=>{
+            if (editingPreset) {
+                savePresetDefault(preset,key,value==='inherit' ? undefined : value==='on');
+                saveSettings();
+            } else {
+                const over = local.modules ||= {};
+                if (value==='inherit') delete over[key];
+                else over[key]=value==='on';
+                saveChatState();
+            }
+            redraw();
+            document.getElementById(controlId)?.focus({preventScroll:true});
+        },{id:controlId,'aria-describedby':`${controlId}-help ${controlId}-status`});
+        return h('div',{class:'ri-module-row','data-module':key},
+            h('div',{class:'ri-module-heading'},
+                h('label',{htmlFor:controlId},label),
+                h('span',{class:'ri-module-status',id:`${controlId}-status`,'data-enabled':String(modules[key])},
+                    `${onOff(modules[key])} in this chat · ${source}`)),
+            h('p',{class:'ri-help',id:`${controlId}-help`},MODULE_HELP[key]),
+            vexa && VEXA_BLOCKS[key] ? h('p',{class:'ri-help ri-module-overlap'},`Related Vexa blocks: ${VEXA_BLOCKS[key]}`) : null,
+            control);
+    });
+    return section('Extension modules',
+        h('div',{class:'ri-module-scopes',role:'group','aria-label':'Settings scope'},
+            h('button',{type:'button',class:'ri-btn ri-btn-ghost','data-module-scope':'chat','aria-pressed':String(controlScope==='chat'),
+                onclick:()=>changeScope('chat')},'This chat'),
+            h('button',{type:'button',class:'ri-btn ri-btn-ghost','data-module-scope':'preset','aria-pressed':String(controlScope==='preset'),
+                disabled:!canEditPreset,onclick:()=>changeScope('preset')},'Preset defaults')),
+        h('p',{class:'ri-help'},editingPreset
+            ? `Defaults for “${preset}” apply wherever that preset is active and the chat uses its default. Chat overrides take precedence.`
+            : canEditPreset ? `Settings for this chat. “Use preset default” follows “${preset}”. Choose On or Off to override it here.`
+            : 'The host has no active preset name. You can use the built-in defaults or override them for this chat.'),
+        vexa ? h('p',{class:'ri-note ri-note-warn'},'These controls apply to the Roleplay Instructions extension. Manage Vexa’s own prompt blocks in the preset editor.') : null,
+        h('div',{class:'ri-module-list'},rows));
+}
+
 export function renderV10(body, app, page) {
     if (!isChatOpen()) return;
     const local = prefs();
@@ -268,24 +357,21 @@ export function renderV10(body, app, page) {
         app.render();
         import('./sent.js').then(module=>module.refreshUnderReplies());
     };
-    const preset = activePreset() || PRESET;
+    const preset = activePreset();
     const modules = effectiveModules();
-    const defaults = presetDefaults(preset);
     const chatFlag = (key, label, hint, defaultOn = false) => field(label,hint,
         select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
             {'aria-label':label}));
     if (page === 'v10') {
-        body.append(section('Preset & Modules',field('Use V10 for this chat',`Preset: ${preset}. Selecting the companion preset enables these tools by default.`,
-            select(choices,mode(local.enabled),value=>{if(value==='inherit')delete local.enabled;else local.enabled=value==='on';saveChatState();redraw();}))));
+        body.append(section('Preset & Modules',field('Use V10 for this chat',
+            preset ? `Active preset: ${preset}. The companion preset enables V10 by default.` : 'Select the companion preset or enable V10 here.',
+            select([{value:'inherit',label:'Automatic'},...choices.slice(1)],mode(local.enabled),value=>{
+                if(value==='inherit')delete local.enabled;else local.enabled=value==='on';
+                saveChatState();redraw();
+            },{'aria-label':'Use V10 for this chat'}))));
         if (!enabledV10()) return;
-        body.append(section('Module ownership',
-            /vexa/i.test(preset) ? h('p',{class:'ri-note ri-note-warn'},'Vexa D&D Sim and Dice Rolls overlap Action Checks. World Sim overlaps autonomous events and Plot Records. Internal States Template overlaps character and scene tracking. Choose one source for each behavior.') : null,
-            h('div',{class:'ri-grid2'},Object.entries(MODULES).map(([key,label])=>field(label,`Preset default: ${(defaults[key] ?? DEFAULT_MODULES[key]) ? 'on':'off'}. Effective: ${modules[key] ? 'on':'off'}.`,
-                select(choices,mode(local.modules?.[key]),value=>{const over=local.modules ||= {};if(value==='inherit')delete over[key];else over[key]=value==='on';saveChatState();redraw();},{'aria-label':`${label} for this chat`}),
-                select([{value:'factory',label:'Use built-in default'},...choices.slice(1)], defaults[key]===undefined?'factory':mode(defaults[key]),value=>{
-                    savePresetDefault(preset,key,value==='factory' ? undefined : value==='on');saveSettings();redraw();
-                },{'aria-label':`${label} preset default`})))),
-            chatFlag('generatePlan','Request a reply plan','Ask the companion preset for a short optional outline before the scene.')));
+        body.append(moduleSettings(local,app,preset,modules,redraw),
+            chatFlag('generatePlan','Request a reply plan','Ask the companion preset for a short optional outline before the scene.'));
         return;
     }
     if (!enabledV10()) {
@@ -296,12 +382,13 @@ export function renderV10(body, app, page) {
         case 'display':
             body.append(section('Reply Display',
                 chatFlag('showPlanning','Show Reply planning','Show any emitted outline in a collapsed disclosure.',true),
-                chatFlag('showLore','World Info under replies','Show activated titles and source books.',true),
+                chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
+                button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
                 chatFlag('showRoast','Show Roast cards','Control Roast display independently of generation and feedback.',true),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.')));
             break;
         case 'opening': body.append(renderOpening(local,redraw)); break;
-        case 'books': body.append(renderBooks(local,redraw)); break;
+        case 'books': body.append(renderBooks(local,redraw,app)); break;
         case 'facts': body.append(renderRecords(redraw,'Chat Facts',['fact'])); break;
         case 'plots': body.append(renderRecords(redraw,'Plot Records',PLOT_KINDS)); break;
         case 'portrayal': body.append(renderRecords(redraw,'Portrayal & Knowledge',['profile','knowledge'])); break;

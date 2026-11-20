@@ -151,9 +151,12 @@ function summaryLine(rec) {
     return parts.join(' · ');
 }
 
-export function renderSent(body) {
+export function renderSent(body, app) {
     if (!isChatOpen()) return;
     const st = settings();
+    if (enabledV10()) body.append(h('div',{class:'ri-note'},
+        'Expand a reply and open World Info selections to see the chosen entries and source books. Confirmed means the extension found the entry text in the assembled request. Selected means it could not confirm delivery.',
+        h('div',{class:'ri-row'},button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'}))));
     const waiting = overdueList();
     if (waiting.length) body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `Waiting to be sent again with the next reply: ${waiting.map(o => o.name).join(', ')}.`,
         h('div', { class: 'ri-row ri-row-tight' }, button('Do not send these again', () => clearQueue(), { kind: 'ghost' }))));
