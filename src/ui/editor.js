@@ -1,3 +1,4 @@
+import { BOOK_TRIGGER_SOURCES } from '../book-triggers.js';
 import { promptGroup } from './prompts.js';
 // The instruction editor: one screen, top to bottom. Also the "Write versions with AI" sheet.
 import { h, button, select, choiceList, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear } from './dom.js';
@@ -5,7 +6,7 @@ import { SENT_AS, ACTORS, TARGETS, instructionActors, instructionTargets, editSe
 import { settings, saveSettings, pronounForms } from '../store.js';
 import { validateVersion, swapNames, pairingNote, actorNote } from '../validate.js';
 import { writeVersions, rewriteVersion, nameHint, versionPromptId } from '../writer.js';
-import { toast, confirmBox, sub, names, isChatOpen } from '../st.js';
+import { ctx, toast, confirmBox, sub, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
 
 const writerPrompts = actor => promptGroup([versionPromptId(actor), 'systemVersions'], 'Customize Write with AI prompts', { contextual: true });
@@ -88,10 +89,13 @@ export function renderEditor(body, app) {
             textInput(draft.name, (v) => { draft.name = v; dirty(); }, { placeholder: 'Example: Picks a fight' }))));
 
     // ----- When it can be sent -----
-    const whenHelp = { always: 'It can be sent with any reply. Chance and timing below decide when.', words: 'It can be sent only when one of these words is in the recent chat.', pattern: 'It can be sent only when this pattern (a regular expression) matches the recent chat.' };
+    const whenHelp = { always: 'It can be sent with any reply. Chance and timing below decide when.', words: 'It can be sent only when a word or phrase matches the selected source.', pattern: 'It can be sent only when this pattern (a regular expression) matches the selected source.' };
     body.appendChild(section('When it can be sent',
         field('When it is allowed', whenHelp[draft.when],
             select([{ value: 'always', label: 'Always allowed' }, { value: 'words', label: 'Only when these words appear' }, { value: 'pattern', label: 'Only when this pattern matches' }], draft.when, (v) => { draft.when = v; dirty(); redraw(); })),
+        draft.when !== 'always' ? field('Where to look', 'Previous model reply checks the latest visible model reply when preparing the next response.',
+            select(Object.entries(BOOK_TRIGGER_SOURCES).filter(([value])=>value==='chat' || ctx().registerMacro)
+                .map(([value,label])=>({value,label})), draft.triggerSource || 'chat', value=>{draft.triggerSource=value;dirty();}, {'aria-label':'Where to look'})) : null,
         draft.when === 'words' ? field('Words', 'Separate words or phrases with commas.', textInput(draft.words, (v) => { draft.words = v; dirty(); }, { placeholder: 'rain, storm, thunder' })) : null,
         draft.when === 'pattern' ? field('Pattern', 'Written like /text/i.', textInput(draft.pattern, (v) => { draft.pattern = v; dirty(); }, { placeholder: '/\\b(rain|storm)\\b/i' })) : null,
         h('div', { class: 'ri-grid2' },

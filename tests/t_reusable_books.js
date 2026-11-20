@@ -63,7 +63,15 @@ const L = require('./lib.js');
         }
 
         const row = root.locator('[data-book-name]').filter({ has: page.getByText(names.user, { exact: true }) });
+        assert.ok(await row.evaluate(card => card.classList.contains('ri-assigned-book')));
+        await row.getByRole('button', { name:'Pause in this chat' }).waitFor();
         await row.getByText('Edit or delete entries', { exact: true }).click();
+        const userEntry = row.locator('.ri-book-entry').filter({ hasText:'User entry' });
+        await userEntry.getByText('View full entry', { exact:true }).click();
+        assert.equal(await userEntry.locator('pre').innerText(), 'USER_NUDGE_MARK');
+        assert.match(await userEntry.innerText(), /Keyword triggered.*Sticky 0.*Cooldown 0 messages/s);
+        await userEntry.getByText('Chat-specific conditions', { exact:true }).click();
+        await userEntry.getByText('Use this entry in this chat', { exact:true }).waitFor();
         const edit = comment => row.locator('li').filter({ hasText: comment }).getByRole('button', { name: 'Edit', exact: true });
         await edit('User entry').click();
         await row.getByLabel('Keyword source', { exact: true }).selectOption('user');
@@ -109,6 +117,74 @@ const L = require('./lib.js');
         L.resetLog();
         await L.send(page, 'They cross the Old bridge.');
         assert.ok(L.text(L.requests()[0]).includes('BRIDGE_REFERENCE_MARK'));
+
+        const bridge = newRow.locator('.ri-book-entry').filter({hasText:'Old bridge'});
+        // A reply can refresh the Reusable Lorebooks page and collapse the book editor.
+        const manager = newRow.locator('.ri-book-entry-editor');
+        if (!await manager.evaluate(element=>element.open)) await newRow.getByText('Edit or delete entries',{exact:true}).click();
+        await bridge.getByRole('button',{name:'Edit',exact:true}).click();
+        await bridge.getByLabel('Activation',{exact:true}).selectOption('vector');
+        await bridge.getByRole('button',{name:'Save entry'}).click();
+        await bridge.getByText(/Vector matching · 100% chance/).waitFor();
+        await bridge.getByRole('button',{name:'Edit',exact:true}).click();
+        await bridge.getByLabel('Activation',{exact:true}).selectOption('always');
+        await bridge.getByLabel('Chance (%)',{exact:true}).fill('27');
+        await bridge.getByLabel('Native sticky messages',{exact:true}).fill('3');
+        await bridge.getByLabel('Cooldown (host messages)',{exact:true}).fill('8');
+        await bridge.getByRole('button',{name:'Save entry'}).click();
+        await bridge.getByText(/Always eligible · 27% chance · Sticky 3 · Cooldown 8 messages/).waitFor();
+        await bridge.getByRole('button',{name:'Edit',exact:true}).click();
+        await bridge.getByLabel('Activation',{exact:true}).selectOption('off');
+        await bridge.getByRole('button',{name:'Save entry'}).click();
+        await bridge.getByText(/Disabled · 27% chance · Sticky 3 · Cooldown 8 messages/).waitFor();
+        const dialog = page.locator('dialog[open]');
+        await bridge.getByRole('button',{name:'Delete',exact:true}).click();
+        await dialog.locator('.popup-button-cancel').click();
+        await bridge.waitFor();
+        await bridge.getByRole('button',{name:'Delete',exact:true}).click();
+        await dialog.locator('.popup-button-ok').click();
+        await newRow.getByText('This book has no entries.').waitFor();
+        const guideline = root.locator('.ri-assigned-book').filter({has:page.getByText(names.assistant,{exact:true})});
+        await guideline.getByRole('button',{name:'Copy to Random Instructions'}).click();
+        await root.getByRole('button',{name:'Add instruction',exact:true}).waitFor();
+        const draft = await page.evaluate(async base => {
+            const { app } = await import(`${base}/src/ui/panel.js`);
+            const B = await import(`${base}/src/books.js`);
+            const S = await import(`${base}/src/store.js`);
+            const set = app.route.name;
+            await B.editSet(set, book => {
+                const entry = B.newInstruction(book,set);
+                Object.assign(entry,{ name:'Phrase feedback', when:'words', words:'landed like', chance:100, wait:0,
+                    actor:'model', target:'unspecified', versions:[{text:'PHRASE_FEEDBACK_MARK. Use plain wording for the reaction.'}] });
+                B.writeInstruction(book,entry,set);
+            });
+            const book = await B.loadSet(set);
+            const entries = B.listInstructions(book,set);
+            app.cache[set] = book;
+            app.render();
+            return { inactive:!S.chatState().activeSets.includes(set), copied:entries.find(entry=>entry.name==='Model entry') };
+        }, L.BASE);
+        assert.ok(draft.inactive);
+        assert.equal(draft.copied.actor,'model');
+        assert.equal(draft.copied.triggerSource,'assistant');
+        assert.equal(draft.copied.words,'Modelkey');
+        await root.locator('.ri-inscard').filter({hasText:'Phrase feedback'}).getByRole('button',{name:'Edit',exact:true}).click();
+        await root.getByLabel('Where to look',{exact:true}).selectOption('assistant');
+        await root.getByRole('button',{name:'Save instruction',exact:true}).click();
+        await root.getByRole('button',{name:'Add instruction',exact:true}).waitFor();
+        await root.getByRole('switch',{name:/on or off for this chat/}).click();
+
+        L.mode({reply:'It landed like a stone.'});
+        L.resetLog();
+        await L.send(page,'I used the words landed like.');
+        assert.equal(L.requests().length,1);
+        assert.doesNotMatch(L.text(L.requests()[0]),/PHRASE_FEEDBACK_MARK/);
+
+        L.mode({reply:'She flinched.'});
+        L.resetLog();
+        await L.send(page,'And then?');
+        assert.equal(L.requests().length,1);
+        assert.match(L.text(L.requests()[0]),/PHRASE_FEEDBACK_MARK/);
         console.log('PASS multiple guideline/reference imports, editable triggers and role-specific prompt delivery');
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

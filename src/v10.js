@@ -1,4 +1,4 @@
-import { beginBookTriggers, bookTriggerSource, reusableKeywordMatch, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
+import { bookTriggerSource, reusableKeywordMatch, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
 import { recallPolicy } from './recall.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
@@ -766,7 +766,6 @@ export async function addConfiguredBooks(lore, arrays, scene, modules, { base = 
             ...(opening && local.base.pins?.includes(String(entry.uid)) && !entry.disable ? {constant:true} : {}),
         })));
     }
-    beginBookTriggers();
     const texts = scopedTriggerTexts(ctx().chat || [], type);
     for (const book of reusableAssignments(local)) {
         for (const list of arrays) for (let i = list.length - 1; i >= 0; i--) {

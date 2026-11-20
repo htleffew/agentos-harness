@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.0.15
+
+- Manage entries directly on guideline and reference book cards. Inspect full entry text, edit activation, chance, stickiness and cooldown, and delete one entry or a selection.
+- Guideline chat-specific conditions appear on the corresponding entry alongside its shared World Info settings.
+- Copy a guidelines book to an inactive Random Instructions set. Instructions can match text in the latest user message or previous model reply.
+- Reusable book entries can opt into the host’s World Info vector search.
+
 ## 10.0.14
 
 - Assign, batch-import, or create multiple Behavior & Guidelines and Knowledge & Reference books per chat. Manage each assignment under Story → Reusable Lorebooks.

@@ -525,6 +525,14 @@
 
 .ri-chat-books { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .ri-chat-books > li { overflow-wrap: anywhere; }
+.ri-assigned-book, .ri-book-entry-editor, .ri-book-entry { min-width: 0; overflow-wrap: anywhere; }
+.ri-book-entry-editor { width: 100%; margin-block: 10px 0; border-top: 1px solid var(--ri-line); padding-top: 10px; }
+.ri-book-entry-editor > summary, .ri-book-text > summary, .ri-book-scope > summary { cursor: pointer; }
+.ri-book-entry { padding: 8px 0 12px; border-bottom: 1px solid var(--ri-line); }
+.ri-book-entry > .ri-help { margin-block: 4px; }
+.ri-book-text pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.ri-book-scope { margin-top: 8px; }
+
 
 .ri-progress-sections {
     display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,150px),1fr));

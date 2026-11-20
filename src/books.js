@@ -1,3 +1,4 @@
+import { bookTriggerSource } from './book-triggers.js';
 import { promptText } from './prompts.js';
 // Instruction sets. A set is kept in a lorebook of its own, or as a group inside a shared lorebook.
 // One instruction is one World Info entry.
@@ -198,6 +199,7 @@ export function readInstruction(entry) {
         uid: entry.uid,
         name: String(entry.comment || `Instruction ${entry.uid}`),
         on: !entry.disable,
+        triggerSource: bookTriggerSource(entry),
         when: entry.constant ? 'always' : (isPattern ? 'pattern' : 'words'),
         words: isPattern ? '' : keys.join(', '),
         pattern: isPattern ? keys[0] : '',
@@ -258,7 +260,7 @@ export function writeInstruction(data, ins, id = '') {
     entry.comment = ins.name.trim() || `Instruction ${ins.uid}`;
     entry.disable = !ins.on;
     entry.constant = ins.when === 'always';
-    if (ins.when === 'words') entry.key = ins.words.split(',').map(x => x.trim()).filter(Boolean);
+    if (ins.when === 'words' && (ins.isNew || before.when !== 'words' || before.words !== ins.words)) entry.key = ins.words.split(',').map(x => x.trim()).filter(Boolean);
     else if (ins.when === 'pattern') entry.key = ins.pattern.trim() ? [ins.pattern.trim()] : [];
     entry.useProbability = true;
     entry.probability = Math.max(0, Math.min(100, Math.round(Number(ins.chance) || 0)));
@@ -290,6 +292,8 @@ export function writeInstruction(data, ins, id = '') {
     };
     keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
+    if (['user','assistant'].includes(ins.triggerSource)) entry.extensions.riTriggerSource = ins.triggerSource;
+    else if (ins.triggerSource === 'chat') delete entry.extensions.riTriggerSource;
     entry.content = buildContent(ri);
     return entry;
 }
@@ -373,7 +377,7 @@ export function freeUid(data) {
 }
 
 /** Keep retired entry IDs out of future allocations so old reply records stay attached to the deleted entry. */
-function removeEntries(data, entries) {
+export function removeEntries(data, entries) {
     if (!entries.length) return;
     data.extensions = { ...data.extensions, riNextUid: freeUid(data) };
     for (const entry of entries) delete data.entries[entry.uid];
@@ -487,6 +491,32 @@ export async function createSet(name, kind = 'instructions', data = { entries: {
     await saveSet(id, book);
     await refreshWorldList();
     return id;
+}
+
+/** Copy ordinary guidance entries to a reviewable, inactive set of model-directed instructions. */
+export async function copyGuidelinesToInstructions(book) {
+    const source = await loadBook(book);
+    if (!source?.entries) throw new Error('The guidelines book could not be read.');
+    const entries = {};
+    for (const entry of Object.values(source.entries)) {
+        if (entry.extensions?.ri?.type || entry.extensions?.ri?.set || !entry.content?.trim()) continue;
+        const copy = structuredClone(entry);
+        const ri = { v:1, sentAs:'system', actor:'model', target:'unspecified',
+            versions:[{text:copy.content.trim(),keep:false}] };
+        copy.extensions = { ...copy.extensions, ri };
+        copy.content = buildContent(ri);
+        copy.vectorized = false;
+        copy.role = 0;
+        copy.automationId = '';
+        entries[copy.uid] = copy;
+    }
+    if (!Object.keys(entries).length) throw new Error('This book has no guidance entries to copy.');
+    const stem = cleanSetName(book).slice(0,64);
+    const base = `${stem || 'Guidelines'} (instructions)`;
+    const taken = new Set([...worldNames(), ...Object.keys(settings().sets)].map(name=>name.toLowerCase()));
+    let name = base;
+    for (let n=2; taken.has(name.toLowerCase()); n++) name = `${base} ${n}`;
+    return createSet(name, 'instructions', { entries }, '');
 }
 
 /**

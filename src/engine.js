@@ -1,3 +1,4 @@
+import { beginBookTriggers, bookTriggerSource, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
 import { streamUpdate } from './stream-update.js';
 import { observeHostBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from './components.js';
@@ -221,6 +222,7 @@ async function onEntriesLoaded(lore) {
     try {
         const st = settings();
         if (!st.enabled || !lore) return;
+        beginBookTriggers();
         const arrays = [lore.globalLore, lore.characterLore, lore.chatLore, lore.personaLore].filter(Array.isArray);
         observeHostBooks(lore);
         if (gen?.memory ?? memoryOnly()) { await loadMemory(lore,arrays); return; }
@@ -315,6 +317,12 @@ async function onEntriesLoaded(lore) {
                 for (let i = arr.length - 1; i >= 0; i--) if (isManaged(arr[i])) arr.splice(i, 1);
             }
             return;
+        }
+        const scopedInstructions = arrays.flat().filter(entry =>
+            isManaged(entry) && setInfo(setOf(entry)).kind === 'instructions' && !entry.constant && bookTriggerSource(entry) !== 'chat');
+        if (scopedInstructions.length) {
+            const texts = scopedTriggerTexts(ctx().chat || [], kind);
+            for (const entry of scopedInstructions) Object.assign(entry, scopedBookEntry(entry, texts));
         }
         if (cs) applyTiming(arrays.flat().filter(isManaged), cs);
         plan.v10Turn = v10Turn;

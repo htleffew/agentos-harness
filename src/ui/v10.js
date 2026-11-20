@@ -1,9 +1,11 @@
+import { copyGuidelinesToInstructions } from '../books.js';
+import { bookEntryEditor } from './book-entry-editor.js';
 import { renderChatBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
-import { ctx, KEY, isChatOpen, toast, isGenerating, loadBook } from '../st.js';
+import { ctx, KEY, isChatOpen, toast, isGenerating } from '../st.js';
 import { settings, chatState, saveSettings, saveChatState } from '../store.js';
 import { acceptV10Opening, guideSwipe } from '../engine.js';
 import { saveV10Record } from '../worldflow.js';
@@ -89,37 +91,28 @@ function renderDice(local, redraw) {
             last ? button('Reroll check and replace latest reply',()=>guideSwipe('Rewrite this reply using the newly resolved action check. Preserve the attempted action and other applicable directions.',{repeatOrders:true,rerollDice:true}).catch(problem)) : null), receipt);
 }
 
-function guidelineScopes(local, book) {
-    const entries = h('div',{class:'ri-help'},'Loading entries…');
-    loadBook(book).then(data=>{
-        if (!entries.isConnected) return;
-        const scopes = local.guidelineScopes || {};
-        const existing = Object.hasOwn(scopes,book) ? scopes[book] : {};
-        const rows = Object.values(data?.entries || {});
-        entries.replaceChildren(...(rows.length ? rows.map(entry=>{
-            const scope = {...existing[entry.uid]};
-            const save = (key,value) => {
-                if (value==='' || value===true) delete scope[key];
-                else scope[key]=value;
-                existing[entry.uid]=scope;
-                Object.defineProperty(scopes,book,{value:existing,writable:true,configurable:true,enumerable:true});
-                local.guidelineScopes=scopes;
-                saveChatState();
-            };
-            return h('details',{class:'ri-card ri-tight'},
-                h('summary',{},entry.comment || entry.key?.[0] || `Entry ${entry.uid}`),
-                scoped('Use this entry in this chat',h('input',{type:'checkbox',checked:scope.enabled!==false,onchange:event=>save('enabled',event.currentTarget.checked)})),
-                scoped('Required extension module',select([{value:'',label:'Any'},...Object.entries(MODULES).map(([value,label])=>({value,label}))],scope.module || '',value=>save('module',value))),
-                scoped('Character in scene',textInput(scope.character || '',value=>save('character',value.trim()),{placeholder:'Any character'})),
-                scoped('Scene location',textInput(scope.location || '',value=>save('location',value.trim()),{placeholder:'Any location'})),
-                entry.disable && h('p',{class:'ri-help'},'This entry is disabled in World Info.'));
-        }) : [h('p',{},'No entries in this book.')]));
-    }).catch(error=>{entries.textContent=error.message;});
-    return h('details',{class:'ri-card ri-tight'},h('summary',{},'Guideline entry scopes'),
-        h('p',{class:'ri-help'},'Apply extra conditions for this chat. Eligible entries still use their World Info triggers.'),entries);
+function guidelineScope(local, book, entry) {
+    const old = local.guidelineScopes;
+    const scope = { ...(old && Object.hasOwn(old, book) ? old[book][entry.uid] : null) };
+    const save = (key, value) => {
+        if (prefs() !== local) return;
+        const scopes = local.guidelineScopes ||= {};
+        const entries = Object.hasOwn(scopes, book) ? scopes[book] : {};
+        if (value === '' || value === true) delete scope[key];
+        else scope[key] = value;
+        entries[entry.uid] = scope;
+        Object.defineProperty(scopes, book, { value:entries, writable:true, configurable:true, enumerable:true });
+        saveChatState();
+    };
+    return h('details', { class:'ri-book-scope' },
+        h('summary', {}, 'Chat-specific conditions'),
+        scoped('Use this entry in this chat', h('input', { type:'checkbox', checked:scope.enabled!==false, onchange:event=>save('enabled',event.currentTarget.checked) })),
+        scoped('Required extension module', select([{value:'',label:'Any'}, ...Object.entries(MODULES).map(([value,label])=>({value,label}))],scope.module || '',value=>save('module',value))),
+        scoped('Character in scene', textInput(scope.character || '',value=>save('character',value.trim()),{placeholder:'Any character'})),
+        scoped('Scene location', textInput(scope.location || '',value=>save('location',value.trim()),{placeholder:'Any location'})));
 }
 
-function reusableBookControls(local, redraw, memory) {
+function reusableBookControls(local, redraw, memory, app) {
     const assigned = reusableAssignments(local);
     const available = reusableBookNames().filter(name => name !== local.base?.name && !assigned.some(book => book.name === name));
     const roles = Object.entries(reusableBookRoles).filter(([key]) => !memory || key === 'reference');
@@ -150,7 +143,7 @@ function reusableBookControls(local, redraw, memory) {
         })),
         h('div', {class:'ri-row'}, files, upload),
         h('details', {}, h('summary', {}, 'Create an empty book'),
-            field('Name', 'The new book uses the selected role. Add its entries under World Info books for this chat.', name),
+            field('Name', 'The new book uses the selected role. Add entries from the new book’s card.', name),
             button('Create and assign', async () => {
                 const chosenRole = role.value;
                 try {
@@ -160,13 +153,28 @@ function reusableBookControls(local, redraw, memory) {
                     redraw();
                 } catch (error) { problem(error); }
             })),
-        assigned.map(book => h('div', {class:'ri-card ri-tight'},
+        assigned.map(book => h('div', {class:'ri-card ri-tight ri-assigned-book', 'data-book-name':book.name},
             h('strong', {}, book.name),
             h('p', {class:'ri-help'}, reusableBookRoles[book.role]),
             h('div', {class:'ri-row'},
                 button(book.on === false ? 'Enable in this chat' : 'Pause in this chat', () => { assignReusableBook(book.name, book.role, book.on === false); redraw(); }),
-                button('Unassign', () => { unassignReusableBook(book.name); redraw(); }, {kind:'ghost'})),
-            book.role === 'guidelines' && !memory && guidelineScopes(local, book.name))));
+                button('Unassign', () => { unassignReusableBook(book.name); redraw(); }, {kind:'ghost'}),
+                book.role === 'guidelines' && !memory ? button('Copy to Random Instructions', async event => {
+                    const control = event.currentTarget;
+                    control.disabled = true;
+                    try {
+                        const name = await copyGuidelinesToInstructions(book.name);
+                        toast('success','Created an inactive instruction set. Review it before turning it on.');
+                        if (prefs() === local) {
+                            app.tab = 'instructions';
+                            app.go({ view:'set', name });
+                        }
+                    } catch (error) { problem(error); }
+                    finally { control.disabled = false; }
+                }, {kind:'ghost', title:'Create an inactive set so you can review the guidance and its triggers'}) : null),
+            bookEntryEditor(book.name, { reusable:true,
+                entryOptions: book.role === 'guidelines' && !memory ? entry => guidelineScope(local, book.name, entry) : null,
+            }))));
 }
 
 function renderBooks(local, redraw, app, baseOnly = false) {
@@ -196,7 +204,7 @@ function renderBooks(local, redraw, app, baseOnly = false) {
             local.base ? button('Refresh pinned copy',()=>pinBase(local.base.name).then(redraw).catch(problem)) : null,
             h('div',{class:'ri-row'},file,upload)),
         pins,
-        reusableBookControls(local, redraw, baseOnly),
+        reusableBookControls(local, redraw, baseOnly, app),
         h('div',{class:'ri-row'},
             button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
             !baseOnly && button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
@@ -520,8 +528,9 @@ export function renderV10(body, app, page) {
         select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
             {'aria-label':label}));
     if (page === 'books') {
-        if (enabledV10() || memoryOnly() && memoryComponents().world) body.append(renderBooks(local,redraw,app,memoryOnly()));
-        body.append(renderChatBooks(app));
+        const manage = enabledV10() || memoryOnly() && memoryComponents().world;
+        if (manage) body.append(renderBooks(local,redraw,app,memoryOnly()));
+        body.append(renderChatBooks(app, { assignedEditors:manage }));
         return;
     }
     if (page === 'v10') {
