@@ -314,14 +314,19 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await savedBase(`${uploaded} (2)`);
         assert.equal(L.requests().length,6);
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
-        L.mode({chunkMs:350,reply:'She counts the lights in the harbor. '.repeat(50)});
+        L.mode({chunkMs:350,reply:block('She counts the lights in the harbor.',{
+            scene:{where:'UNSAVED-HARBOR'},
+            changes:[{kind:'fact',id:'unsaved-harbor',text:'Unfinished data. '.repeat(60),evidence:'She counts the lights'}],
+        })});
         await page.evaluate(()=>{
             globalThis.jQuery('#send_textarea').val('Look out at the harbor.').trigger('input');
             globalThis.jQuery('#send_but').trigger('click');
         });
-        await progress.getByRole('status').getByText('Writing the reply').waitFor();
+        await progress.locator('[data-section="scene"]').getByText('UNSAVED-HARBOR').waitFor();
         await page.locator('#mes_stop').click();
         await progress.waitFor({state:'detached'});
+        assert(!(await read()).some(row=>row.id==='unsaved-harbor'));
+        assert.equal(await page.locator('#chat .ri-scene-header').filter({hasText:'UNSAVED-HARBOR'}).count(),0);
         assert.deepEqual(errors,[]);
         console.log('PASS v10 host: companion preset, native updates, pinned lore, guidelines, dice, repairs, plot gates, clock, speaker colors, streaming progress, cancellation, console, opening, saved-swipe navigation and branch rollback');
     } finally { await browser.close(); }

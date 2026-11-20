@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { separateReply } from '../../src/reply-format.js';
+import { separateReply, trimPartialReplyTag } from '../../src/reply-format.js';
 
 const state = '<story_update v="2">{"v":2}</story_update>';
 const prose = 'The column moved north.\n\nAnders checked the road.';
@@ -46,3 +46,11 @@ assert.deepEqual(separateReply(`<think>\n<page:boot>\n1. IDENTITY: Planner\n</pa
 assert.equal(separateReply(`<page:aux>\n- Pending\n${prose}`).text,prose);
 assert.equal(separateReply(`<reply_plan>\n- Pending\nA full sentence belongs in the closed outline.\n</reply_plan>\n${prose}`).text,prose);
 assert.equal(separateReply(`<reply_plan>\n- Pending\n${state}`).text,state);
+
+assert.equal(trimPartialReplyTag('The rain clears. <story_up'),'The rain clears.');
+assert.equal(trimPartialReplyTag('The rain clears. <story_update v="2"'),'The rain clears.');
+assert.equal(trimPartialReplyTag('The amount was < 5.'),'The amount was < 5.');
+assert.equal(separateReply(`<reply_plan>
+${state}
+</reply_plan>
+${prose}`).text,prose);

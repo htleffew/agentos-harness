@@ -2,6 +2,16 @@
 const planTag = /^\s*(?:⇥\s*)?<\/?(?:page:[\w-]+|reply_plan)(?:\s[^>]*)?\s*>/i;
 const stateTag = /^\s*<\/?(?:internal_states|state:[\w-]+)(?:\s[^>]*)?\s*>/i;
 const thoughtWrapper = /^\s*<(\/)?(?:think|thinking|analysis)\s*>\s*$/i;
+const streamTagNames = ['story_update','reply_plan','page:','state:','internal_states','think','thinking','analysis'];
+export function trimPartialReplyTag(value) {
+    const match = /<\/?([\w:-]*)(?:\s[^<>]*)?$/.exec(value);
+    if (!match) return value;
+    const tag = match[1].toLowerCase();
+    const nameOnly = match[0].length === tag.length + (match[0].startsWith('</') ? 2 : 1);
+    return streamTagNames.some(name=>name===tag || nameOnly && name.startsWith(tag) || name.endsWith(':') && tag.startsWith(name))
+        ? value.slice(0,match.index).trimEnd() : value;
+}
+
 const identity = /^\s*(?:1[.)]\s+)?IDENTITY\s*:/i;
 const list = /^\s*(?:[-*•][ \t]+|\w{1,3}[.)]\s|[A-Z][A-Z -]{2,}:\s*$|➤|<\/?fn:)/;
 export const hasReplyScaffolding = text => /(^|\n)[\t ]*(?:⇥\s*)?(?:<\/?(?:page:[\w-]+|reply_plan|internal_states|state:[\w-]+)\b|<!--\s*GFX_START\b|(?:1[.)]\s+)?IDENTITY\s*:)/i.test(text);
@@ -31,7 +41,7 @@ export function separateReply(raw) {
             }
             continue;
         }
-        if (update || !thinkEnd && /^\s*<story_update\b/i.test(line)) {
+        if (update || !thinkEnd && !(section==='plan' && bounded) && /^\s*<story_update\b/i.test(line)) {
             section = '';
             prose.push(line);
             update = !/<\/story_update\s*>/i.test(line);

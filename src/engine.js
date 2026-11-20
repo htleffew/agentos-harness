@@ -2,7 +2,7 @@ import { streamUpdate } from './stream-update.js';
 import { observeHostBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { proseDialogue } from './dialogue.js';
-import { separateReply, hasReplyScaffolding } from './reply-format.js';
+import { separateReply, hasReplyScaffolding, trimPartialReplyTag } from './reply-format.js';
 import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview, setReplySections } from './reply-progress.js';
 import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate } from './v10.js';
 import { captureContext } from './context-budget.js';
@@ -1307,19 +1307,14 @@ export function init() {
         const progress = replyProgress();
         if (!gen || progress?.turn !== gen || typeof text !== 'string' || !text.trim()) return;
         const paired = gen.paired ??= pairedPreset();
-        if (paired && (progress.preview !== undefined || hasReplyScaffolding(text) || /<story_update\b/i.test(text))) {
-            setReplyPreview(gen,stripUpdateBlock(separateReply(text).text));
-        }
-        if (['context','waiting','writing','receiving'].includes(progress.phase)) {
-            const sections = streamUpdate(text);
-            if (sections) setReplySections(gen,sections);
-        }
-        if (!['context','waiting','writing'].includes(progress.phase)) return;
-        // SillyTavern reports the accumulated reply. Scan the new segment and
-        // overlap enough to detect an opening tag split across chunks.
-        const offset = Math.max(0,Math.min(gen.progressTextLength || 0,text.length) - 16);
-        gen.progressTextLength = text.length;
-        if (/<story_update\b/i.test(text.slice(offset))) showReplyProgress(gen,'receiving');
+        const partial = paired ? trimPartialReplyTag(text) : text;
+        const previewNeeded = paired && (partial!==text || progress.preview!==undefined || hasReplyScaffolding(partial) || /<story_update\b/i.test(partial));
+        const visible = previewNeeded ? separateReply(partial).text : text;
+        if (previewNeeded) setReplyPreview(gen,stripUpdateBlock(visible));
+        if (!['context','waiting','writing','receiving'].includes(progress.phase)) return;
+        const sections = streamUpdate(visible);
+        if (sections) setReplySections(gen,sections);
+        if (sections || /<story_update\b/i.test(visible)) showReplyProgress(gen,'receiving');
         else if (progress.phase !== 'writing') showReplyProgress(gen,'writing');
     });
     on('GENERATION_ENDED', () => {
