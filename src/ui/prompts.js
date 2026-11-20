@@ -3,7 +3,7 @@ import { h, button } from './dom.js';
 import { PROMPTS, promptText, promptStatus, validatePrompt, savePrompt, restorePrompt } from '../prompts.js';
 import { settings, saveSettings } from '../store.js';
 
-export function promptEditor(id) {
+export function promptEditor(id, { saveLabel = 'Save instruction', onChange = () => {} } = {}) {
     const def = PROMPTS[id];
     if (!def) throw new Error(`Unknown instruction: ${id}`);
     const title = h('span', {}, def.label);
@@ -20,22 +20,22 @@ export function promptEditor(id) {
         defaultView.hidden = !status.defaultChanged;
         if (status.defaultChanged) note.textContent = 'The built-in default has changed since you saved this instruction. Your wording is still in use.';
     };
-    const save = button('Save instruction', () => {
+    const save = button(saveLabel, () => {
         const error = validatePrompt(id, box.value);
         if (error) { note.textContent = error; return; }
-        try { savePrompt(id, box.value); update(); note.textContent = 'Saved.'; } catch (e) { note.textContent = e.message; }
+        try { savePrompt(id, box.value); update(); onChange(); note.textContent = 'Saved.'; } catch (e) { note.textContent = e.message; }
     }, { kind: 'primary' });
     let undoValue = null;
     const undo = button('Undo restore', () => {
         if (!undoValue) return;
         const st = settings(); st.prompts ||= {}; st.prompts[id] = undoValue; saveSettings();
-        box.value = undoValue.text; undoValue = null; undo.hidden = true; update(); note.textContent = 'Your previous instruction was restored.';
+        box.value = undoValue.text; undoValue = null; undo.hidden = true; update(); onChange(); note.textContent = 'Your previous instruction was restored.';
     }, { kind: 'ghost' });
     undo.hidden = true;
     const restore = button('Restore default', () => {
         const previous = settings().prompts?.[id];
         undoValue = previous ? structuredClone(previous) : null;
-        restorePrompt(id); box.value = def.text; undo.hidden = !undoValue; update(); note.textContent = 'Restored to the installed default.';
+        restorePrompt(id); box.value = def.text; undo.hidden = !undoValue; update(); onChange(); note.textContent = 'Restored to the installed default.';
     }, { kind: 'ghost' });
     const wrap = h('details', { class: 'ri-prompt-editor' },
         h('summary', {}, title, badge),
@@ -44,8 +44,20 @@ export function promptEditor(id) {
     update(); return wrap;
 }
 
-export function promptGroup(ids, label = 'Customize AI instructions') {
-    return h('details', { class: 'ri-prompt-group' }, h('summary', {}, label),
-        h('div', { class: 'ri-help' }, 'Edit the instruction used by this feature. Live chat data and required output formats are assembled separately. Changes apply across chats.'),
-        ids.map(promptEditor));
+export function promptGroup(ids, label = 'Customize AI instructions', { contextual = false, onChange = () => {} } = {}) {
+    const badge = h('span', { class: 'ri-prompt-badge' });
+    const refresh = () => {
+        const customized = ids.filter(id => promptStatus(id).customized).length;
+        badge.textContent = customized ? `Customized (${customized})` : 'Default';
+    };
+    const options = {
+        onChange: () => { if (contextual) refresh(); onChange(); },
+        saveLabel: contextual ? 'Save prompt' : 'Save instruction',
+    };
+    const group = h('details', { class: contextual ? 'ri-prompt-group ri-prompt-contextual' : 'ri-prompt-group' },
+        h('summary', {}, h('span', {}, label), contextual ? badge : null),
+        h('div', { class: 'ri-help' }, 'Edits apply to this feature across chats. Live chat data and required output formats are assembled separately.'),
+        ids.map(id => promptEditor(id, options)));
+    if (contextual) refresh();
+    return group;
 }

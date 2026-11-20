@@ -24,6 +24,8 @@ const NPC = {
 
 export const ACTORS = {
     char: { label: 'The character ({{char}})', text: 'the character, {{char}}' },
+    model: { label: 'The model (writing the reply)', text: 'the AI model composing the next reply' },
+    unspecified: { label: 'Unspecified', text: 'follow the direction as written. Leave the choice open if it does not name an actor, and only include an actor when the direction calls for one' },
     ...NPC,
     world: { label: 'The surroundings', text: 'the surroundings (weather, a place, an object, an animal, a crowd); no person acts' },
 };
@@ -31,6 +33,7 @@ export const ACTORS = {
 export const TARGETS = {
     user: { label: 'You ({{user}})', text: '{{user}}' },
     char: { label: 'The character ({{char}})', text: 'the character, {{char}}' },
+    unspecified: { label: 'Unspecified', text: 'follow the direction as written. Only name a target or subject if the direction calls for one' },
     ...NPC,
 };
 

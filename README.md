@@ -25,6 +25,12 @@ Import [Roleplay Instructions V10](presets/Roleplay%20Instructions%20V10.json) a
 
 In **Setup → Preset & Extension**, inspect the active **Host preset** and its ordered prompt blocks. Select the **Structured story workflow** to use the newer extension modules with another preset. **This chat** changes individual extension modules for the current chat. **Module defaults by preset** sets their default behavior for any chat using the named preset. Reset a changed setting to resume following its default. If the host preset supplies a recognized set of overlapping instructions, the module’s **Instruction source** shows the exact host blocks and their settings. Select the extension as the source and turn the named blocks off in the host preset editor to use the extension’s version.
 
+### Edit prompts where they are used
+
+In an individual instruction, expand **Customize in-chat instruction wording** under **What it sends** to edit the framing and see it reflected in the preview. In **Versions**, expand **Customize Write with AI prompts** beside the writing controls. The same group is available inside **Write versions with AI**. In event and writing-style sets, open a category to find its writing prompts beside **Write items with AI** and inside the writer. Each prompt shows **Default** or **Customized**, and has **Save prompt**, **Restore default**, and **Undo restore**. These are shared feature templates. **Review → Log** shows the assembled writer request.
+
+For a direction about how to write the reply, choose **The model (writing the reply)** as the **Actor** under **What it sends**. Set **Target or subject** to **Unspecified** if your wording already identifies the subject or you want to leave it open. Either field can be unspecified. With **System note**, the direction rides along with the regular reply request and skips the story-action check. You can use `{{personality}}` and `{{description}}` for the active character card fields. A direction to review earlier replies can use the history included in that request.
+
 ### Scene checks and live reply sections
 
 The Structured workflow's **Scene and character checks** module adds a short checklist to the ordinary reply request. It uses the known cast to guide solo or ensemble scenes and can check viewpoint access, NPC independence, specific relationships, off-screen agendas and continuity before writing. Open **Direction → Writing Guidance** to edit the checks, select grounded or heightened portrayal, add stock phrases to avoid, or enable word and dialogue metrics. Known Antithesis blocks in the active host preset take ownership of the checklist.
@@ -117,17 +123,17 @@ instruction is sent with the chance and timing you set, one version at a time.
 | Wait before sending again | After it is sent, it cannot be sent for this many replies. |
 | Do not send before reply number | Holds it back at the start of a chat. |
 | Only-one group | Instructions with the same group name compete, and one of them is sent per reply. |
-| Only once per chat | Once it has happened in a chat, it is retired for that chat. |
+| Only once per chat | A story action is retired once it happens. A model direction is retired when it is sent. |
 | Sent as | A system note, an out-of-character note, a line spoken by the character, or exactly as written. |
-| Who does it, who it happens to | Used when versions are written with AI. {{user}} is never offered as the one who acts. |
+| Actor, Target or subject | Guide **Write with AI**. Either can be left unspecified. |
 
 - **Versions do not repeat** until every version of that instruction has been used once.
-- **Who does it.** Besides the character, someone who is present, someone new, or the surroundings, you can pick
+- **In-scene actors.** Besides the character, someone who is present, someone new, or the surroundings, you can pick
   "any character", "any female character" or "any male character", each "already in the story or new". The AI
   then uses someone who is there, or brings someone in, so the order can always be carried out.
-- **Notes on your choices.** A pairing of "who does it" and "who it happens to" that leaves the AI little to work
+- **Notes on your choices.** A pairing of actor and target that leaves the AI little to work
   with gets a note (for example the character acting on themself, or two new people at once). A version that
-  disagrees with "who does it" gets one line of advice. Both are notes: you can keep things as they are.
+  disagrees with the chosen actor gets one line of advice. Both are notes: you can keep things as they are.
 - **Names and pronouns** are placeholders. Tap the name and pronoun buttons while editing. Set pronouns once per
   chat in Settings. One instruction set then works with any character and persona.
 - **{{user}} never acts.** A version where {{user}} is the subject of the order, is made to speak or decide, or has

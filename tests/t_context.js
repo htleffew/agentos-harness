@@ -35,7 +35,8 @@ const assert = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c)
         assert(/Who does it: any one female character other than \[\[user\]\]: the roleplay AI chooses either a woman or girl who is already in the story/.test(t) && /Who it happens to: any one character other than \[\[user\]\]/.test(t), 'who does it: "any female character, already in the story or new" reaches the AI writer');
         const opts = await page.evaluate(async (BASE) => { const B = await import(`${BASE}/src/books.js`); return [Object.values(B.ACTORS).map(a => a.label), Object.values(B.TARGETS).map(a => a.label)]; }, L.BASE);
         console.log(opts[0]);
-        assert(opts[0].length === 7 && opts[1].length === 7 && opts[0].filter(l => /already in the story or new/.test(l)).length === 3, 'the pickers offer any, female and male "already in the story or new" for who does it and who it happens to');
+        assert(opts.every(labels => labels.filter(label => /already in the story or new/.test(label)).length === 3), 'both pickers offer any, female and male "already in the story or new"');
+        assert(opts[0].includes('The model (writing the reply)') && opts.every(labels => labels.includes('Unspecified')), 'the actor can be the model, and both actor and target can be unspecified');
         // the panel
         await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Expand').click());
         await page.evaluate(async (B) => { const M = await import(`${B}/src/books.js`); const n = 'Ctx ' + Date.now(); await M.createSet(n); const P = await import(`${B}/src/ui/panel.js`); P.app.cache = {}; P.app.tab = 'instructions'; P.app.go({ view: 'set', name: n }); }, L.BASE);

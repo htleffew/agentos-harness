@@ -361,7 +361,8 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     const item = { key: keyOf(entry), world: entry.world, set: setOf(entry), uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
     // A story event also keeps what the dice picked, and the state of its categories after this event.
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
-    if (extra?.noCheck) item.noCheck = true;
+    if (entry.extensions?.ri?.actor === 'model') item.modelDirection = true;
+    if (extra?.noCheck || item.modelDirection) item.noCheck = true;
     if (extra?.notes) item.notes = extra.notes;
     if (extra?.big) item.big = true;
     if (Array.isArray(extra?.dice)) { item.dice = extra.dice; item.name = 'Dice'; }
@@ -573,7 +574,7 @@ function onScanDone(args) {
             for (const it of before) {
                 const e = find(it.key);
                 if (!e) continue;
-                if (gen.guided && !gen.guided.repeatOrders && (isEvent(e) || it.worldOrder || (!it.noCheck && !('goalTask' in it)))) continue;
+                if (gen.guided && !gen.guided.repeatOrders && (isEvent(e) || it.worldOrder || it.modelDirection || e.extensions?.ri?.actor === 'model' || (!it.noCheck && !('goalTask' in it)))) continue;
                 if (isEvent(e) && !eventAllowed(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, blockedEventTags())) continue;
                 let misses = it.misses || 0;
                 const od = type === 'continue' ? null : cs.overdue.find(o => o.key === it.key);
@@ -1055,6 +1056,7 @@ export function statusLabel(it) {
     if (it.notes) return 'Sent (story notes are facts, with nothing to check)';
     if (it.pace) return 'Sent (the line of the story phase)';
     if (it.dice) return 'Sent (dice results, to be used only for an attempt with real stakes)';
+    if (it.modelDirection) return 'Sent (reply-writing guidance)';
     if (it.noCheck) return 'Sent (writing style is not checked)';
     switch (it.status) {
         case 'pending': return 'Not yet: it is sent again with the next reply';

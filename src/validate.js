@@ -89,9 +89,10 @@ export function actorNote(text, actor) {
     const s = String(text ?? '').trim();
     if (!s) return '';
     const charLeads = new RegExp(`^(?:then,?\\s+|next,?\\s+)?\\{\\{char\\}\\}\\s+(?:must|has to|needs to|is to|will)\\b`, 'i').test(s);
-    if (actor === 'char' && !/\{\{char(?:\.[A-Za-z]+)?\}\}/i.test(s)) return 'This instruction is set to "the character does it", and this version does not name {{char}}. Change the version, or change "Who does it".';
-    if (actor === 'world' && charLeads) return 'This instruction is set to "the surroundings do it", and this version has {{char}} do it. Change the version, or change "Who does it".';
-    if ((actor === 'other' || actor === 'new') && charLeads) return `This instruction is set to "${actor === 'new' ? 'someone new' : 'a named character other than {{char}}'} does it", and this version has {{char}} do it. Change the version, or change "Who does it".`;
+    if (actor === 'char' && !/\{\{char(?:\.[A-Za-z]+)?\}\}/i.test(s)) return 'This instruction is set to "the character does it", and this version does not name {{char}}. Change the version, or change "Actor".';
+    if (actor === 'world' && charLeads) return 'This instruction is set to "the surroundings do it", and this version has {{char}} do it. Change the version, or change "Actor".';
+    if (actor === 'model' && charLeads) return 'This version gives {{char}} an action. Address the model if the instruction is about how to write the reply.';
+    if ((actor === 'other' || actor === 'new') && charLeads) return `This instruction is set to "${actor === 'new' ? 'someone new' : 'a named character other than {{char}}'} does it", and this version has {{char}} do it. Change the version, or change "Actor".`;
     return '';
 }
 

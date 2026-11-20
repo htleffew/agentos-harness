@@ -1,11 +1,15 @@
+import { promptGroup } from './prompts.js';
 // The instruction editor: one screen, top to bottom. Also the "Write versions with AI" sheet.
 import { h, button, select, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear } from './dom.js';
 import { SENT_AS, ACTORS, TARGETS, loadSet, saveSet, setName, freeUid, writeInstruction, wrapText, listInstructions } from '../books.js';
 import { settings, saveSettings, pronounForms } from '../store.js';
 import { validateVersion, swapNames, pairingNote, actorNote } from '../validate.js';
-import { writeVersions, rewriteVersion, nameHint } from '../writer.js';
+import { writeVersions, rewriteVersion, nameHint, versionPromptId } from '../writer.js';
 import { toast, confirmBox, sub, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
+
+const writerPrompts = actor => promptGroup([versionPromptId(actor), 'systemVersions'], 'Customize Write with AI prompts', { contextual: true });
+const modelExample = "Review the last five replies for drift from {{char}}'s established personality ({{personality}}). Apply the corrections to the next reply.";
 
 const opts = (map) => Object.entries(map).map(([value, v]) => ({ value, label: v.label }));
 
@@ -36,9 +40,9 @@ function flagsFor(text, actor = '') {
 }
 
 /** Editing one version in place. */
-function versionEditor(initial, onDone, onCancel) {
+function versionEditor(initial, onDone, onCancel, actor) {
     let value = initial;
-    const box = textArea(value, (v) => { value = v; }, { rows: 4, placeholder: 'Example: {{char}} must pay {{user}} a compliment.' });
+    const box = textArea(value, (v) => { value = v; }, { rows: 4, placeholder: actor === 'model' ? modelExample : 'Example: {{char}} must pay {{user}} a compliment.' });
     return h('div', { class: 'ri-vedit' }, box, insertRow(() => box),
         h('div', { class: 'ri-row' },
             button('Done', () => { const t = value.replace(/\s+/g, ' ').trim(); if (!t) { toast('info', 'Type the version first.'); return; } onDone(t); }, { kind: 'primary' }),
@@ -47,6 +51,7 @@ function versionEditor(initial, onDone, onCancel) {
 
 export function renderEditor(body, app) {
     const { name, draft } = app.route;
+    const model = draft.actor === 'model';
     const ui = app.route.ui || (app.route.ui = { editing: -1, adding: false, busy: -1, sheet: null });
     const redraw = () => app.render();
     const dirty = () => { app.route.dirty = true; };
@@ -79,24 +84,33 @@ export function renderEditor(body, app) {
         h('div', { class: 'ri-grid2' },
             field('Only-one group', 'Instructions with the same group name compete: only one of them is sent per reply. Leave empty for no group.', textInput(draft.group, (v) => { draft.group = v; dirty(); }, { placeholder: 'No group' })),
             field('Weight in its Only-one group', 'A higher number wins more often. 100 is normal.', numberInput(draft.weight, { min: 1, max: 1000, unit: '' }, (n) => { draft.weight = n; dirty(); })),
-            field('Only once per chat', 'On: once this has happened in a chat, it is retired and never sent again in that chat. With checking on, it retires when the check finds it happened. With checking off, it retires when it is sent.', select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], draft.once ? 'yes' : 'no', (v) => { draft.once = v === 'yes'; dirty(); })),
+            field('Only once per chat', model ? 'On sends this guidance once per chat.' : 'On: once this has happened in a chat, it is retired and never sent again in that chat. With checking on, it retires when the check finds it happened. With checking off, it retires when it is sent.', select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], draft.once ? 'yes' : 'no', (v) => { draft.once = v === 'yes'; dirty(); })),
             field('Send-together group', 'Used when the set is limited to "One Send-together group per reply". Instructions with the same name can go out together.', textInput(draft.sendTogether, (v) => { draft.sendTogether = v; dirty(); }, { placeholder: 'No group' })))));
 
     // ----- What it sends -----
     const positions = [{ value: 4, label: 'In the chat, counted from the newest message' }, { value: 0, label: "Before the character's description" }, { value: 1, label: "After the character's description" }];
     if (![0, 1, 4].includes(draft.position)) positions.push({ value: draft.position, label: 'Another place (set in World Info)' });
-    const example = draft.versions[0]?.text || '{{char}} must pay {{user}} a compliment.';
+    const example = draft.versions[0]?.text || (model ? modelExample : '{{char}} must pay {{user}} a compliment.');
+    const preview = h('div', { class: 'ri-preview' });
+    const refreshPreview = () => { preview.textContent = sub(wrapText(draft.sentAs, example)); };
+    refreshPreview();
     body.appendChild(section('What it sends',
         field('Sent as', SENT_AS[draft.sentAs].help, select(opts(SENT_AS), draft.sentAs, (v) => { draft.sentAs = v; dirty(); redraw(); })),
         h('div', { class: 'ri-grid2' },
             field('Where it is placed', 'Closer to the newest message is followed more strongly.', select(positions, draft.position, (v) => { draft.position = Number(v); dirty(); redraw(); })),
             draft.position === 4 ? field('Messages from the newest message', '0 places it after the newest message. 1 places it just before the newest message.', numberInput(draft.depth, { min: 0, max: 100, unit: '' }, (n) => { draft.depth = n; dirty(); })) : null),
         h('div', { class: 'ri-grid2' },
-            field('Who does it', 'Used when versions are written with AI. The "already in the story or new" choices always have someone who can do it. {{user}} is never offered here: you write your own actions.', select(opts(ACTORS), draft.actor, (v) => { draft.actor = v; dirty(); redraw(); })),
-            field('Who it happens to', 'Used when versions are written with AI.', select(opts(TARGETS), draft.target, (v) => { draft.target = v; dirty(); redraw(); }))),
+            field('Actor', 'Guides Write with AI. Choose the model for directions about how to write the reply. Unspecified leaves the choice to the direction you enter.', select(opts(ACTORS), draft.actor, (v) => { draft.actor = v; dirty(); redraw(); })),
+            field('Target or subject', 'Guides Write with AI. Choose Unspecified when the direction already names its subject or needs none.', select(opts(TARGETS), draft.target, (v) => { draft.target = v; dirty(); redraw(); }))),
+        model && draft.sentAs === 'char' ? h('div', { class: 'ri-note ri-note-warn' }, 'This is set to a line spoken by the character. Choose System note to address the model directly.') : null,
+        model ? h('div', { class: 'ri-help' }, 'This guidance goes with the regular reply request and skips the story-action check.') : null,
         pairingNote(draft.actor, draft.target) ? h('div', { class: 'ri-note ri-note-warn' }, pairingNote(draft.actor, draft.target), ' You can keep it as it is.') : null,
-        field('Exactly what the AI will receive', isChatOpen() ? 'Shown with the first version, filled in for this chat.' : 'Shown with the first version. Open a chat to see names filled in.',
-            h('div', { class: 'ri-preview' }, sub(wrapText(draft.sentAs, example, 0))))));
+        field('Exactly what the AI will receive', draft.versions.length
+            ? (isChatOpen() ? 'Shows the first saved or drafted version with this chat’s names.' : 'Shows the first version. Open a chat to fill in names.')
+            : 'Example wording. Add a version to send this instruction during play.',
+            preview),
+        promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder'], 'Customize in-chat instruction wording',
+            { contextual: true, onChange: refreshPreview })));
 
     // ----- Versions -----
     const versionsBox = h('div', { class: 'ri-versions' });
@@ -106,7 +120,7 @@ export function renderEditor(body, app) {
         if (flags.blocks.length) blocked++;
         if (ui.editing === i) {
             versionsBox.appendChild(h('div', { class: 'ri-version ri-version-editing' }, h('div', { class: 'ri-vnum' }, `Version ${i + 1} of ${draft.versions.length}`),
-                versionEditor(v.text, (t) => { v.text = t; ui.editing = -1; dirty(); redraw(); }, () => { ui.editing = -1; redraw(); })));
+                versionEditor(v.text, (t) => { v.text = t; ui.editing = -1; dirty(); redraw(); }, () => { ui.editing = -1; redraw(); }, draft.actor)));
             return;
         }
         versionsBox.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` },
@@ -128,14 +142,17 @@ export function renderEditor(body, app) {
     if (!draft.versions.length) versionsBox.appendChild(h('div', { class: 'ri-empty' }, 'No versions yet. Write one yourself, or press "Write versions with AI".'));
     if (ui.adding) {
         versionsBox.appendChild(h('div', { class: 'ri-version ri-version-editing' }, h('div', { class: 'ri-vnum' }, 'New version'),
-            versionEditor('', (t) => { draft.versions.push({ text: swapNames(t).text, keep: false }); ui.adding = false; dirty(); redraw(); }, () => { ui.adding = false; redraw(); })));
+            versionEditor('', (t) => { draft.versions.push({ text: swapNames(t).text, keep: false }); ui.adding = false; dirty(); redraw(); }, () => { ui.adding = false; redraw(); }, draft.actor)));
     }
     body.appendChild(section('Versions (one is picked at random each time it is sent)',
-        h('div', { class: 'ri-help' }, 'Each version is one way to give the order. Write it as an order: say who must do what. Every version is used once before any repeats.'),
+        h('div', { class: 'ri-help' }, model
+            ? 'Each version tells the model how to compose the reply. Every version is used once before any repeats.'
+            : 'Each version is one way to give the order. Say what must happen. Every version is used once before any repeats.'),
         versionsBox,
         h('div', { class: 'ri-row' },
             button('Write versions with AI', () => { ui.sheet = { seed: ui.lastSeed || '', count: settings().writer.count, replace: false, results: null, busy: false, error: '' }; redraw(); }, { kind: 'primary' }),
-            button('Add a version yourself', () => { ui.adding = true; ui.editing = -1; redraw(); }))));
+            button('Add a version yourself', () => { ui.adding = true; ui.editing = -1; redraw(); })),
+        writerPrompts(draft.actor)));
 
     // ----- Notes -----
     body.appendChild(section('Notes',
@@ -179,6 +196,7 @@ export function renderEditor(body, app) {
 
 function writerSheet(app, draft, ui, redraw, dirty) {
     const sheet = ui.sheet;
+    const model = draft.actor === 'model';
     const close = () => { ui.sheet = null; redraw(); };
     const box = h('div', { class: 'ri-sheet-box' });
     const wrap = h('div', { class: 'ri-sheet' }, h('div', { class: 'ri-row' }, button('‹ Back to the instruction', () => { if (!sheet.busy) close(); }, { kind: 'ghost' })), box);
@@ -186,13 +204,16 @@ function writerSheet(app, draft, ui, redraw, dirty) {
     box.appendChild(h('div', { class: 'ri-h2' }, 'Write versions with AI'));
     box.appendChild(h('div', { class: 'ri-grid' },
         h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Sent as'), h('span', { class: 'ri-v' }, SENT_AS[draft.sentAs].label)),
-        h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Who does it'), h('span', { class: 'ri-v' }, ACTORS[draft.actor].label)),
-        h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Who it happens to'), h('span', { class: 'ri-v' }, TARGETS[draft.target].label))));
+        h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Actor'), h('span', { class: 'ri-v' }, ACTORS[draft.actor].label)),
+        h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Target or subject'), h('span', { class: 'ri-v' }, TARGETS[draft.target].label))));
     box.appendChild(h('div', { class: 'ri-help' }, `These come from the instruction. Close this and change them there if needed. ${isChatOpen() ? nameHint() : ''}`));
 
     if (!sheet.results) {
-        box.appendChild(field('What should happen', 'One or two sentences. The AI turns this into different versions of the same order.',
-            textArea(sheet.seed, (v) => { sheet.seed = v; }, { rows: 3, placeholder: 'Example: {{char}} picks a fight with {{user}} over something small.' })));
+        box.appendChild(writerPrompts(draft.actor));
+        box.appendChild(field(model ? 'What should the model do?' : 'What should happen', model
+            ? 'Describe how to write the next reply. Use {{personality}} or {{description}} to refer to the active character card.'
+            : 'One or two sentences. The AI turns this into different versions of the same order.',
+            textArea(sheet.seed, (v) => { sheet.seed = v; }, { rows: 3, placeholder: model ? modelExample : 'Example: {{char}} picks a fight with {{user}} over something small.' })));
         box.appendChild(h('div', { class: 'ri-grid2' },
             field('How many versions to write', '', numberInput(sheet.count, { min: 1, max: 30, unit: 'versions' }, (n) => { sheet.count = n; })),
             contextField()));
@@ -200,7 +221,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
         box.appendChild(h('div', { class: 'ri-row' },
             button(sheet.busy ? 'Writing...' : 'Write the versions', async () => {
                 if (sheet.busy) return;
-                if (!sheet.seed.trim()) { sheet.error = 'Type what should happen first.'; redraw(); return; }
+                if (!sheet.seed.trim()) { sheet.error = model ? 'Type what the model should do first.' : 'Type what should happen first.'; redraw(); return; }
                 sheet.busy = true; sheet.error = ''; redraw();
                 const st = settings();
                 st.writer.count = sheet.count; saveSettings();
@@ -220,10 +241,10 @@ function writerSheet(app, draft, ui, redraw, dirty) {
     box.appendChild(h('div', { class: 'ri-help' }, 'Tick the versions to add. A version marked "Check" may have {{user}} acting. It starts unticked: read it, and tick it if it reads right to you.'));
     const list = h('div', { class: 'ri-versions' });
     sheet.results.forEach((r, i) => {
-        const flags = flagsFor(r.text);
+        const flags = flagsFor(r.text, draft.actor);
         if (flags.blocks.length) r.keep = false;
         if (r.editing) {
-            list.appendChild(h('div', { class: 'ri-version ri-version-editing' }, versionEditor(r.text, (t) => { r.text = t; r.editing = false; r.keep = validateVersion(t).blocks.length === 0; redraw(); }, () => { r.editing = false; redraw(); })));
+            list.appendChild(h('div', { class: 'ri-version ri-version-editing' }, versionEditor(r.text, (t) => { r.text = t; r.editing = false; r.keep = validateVersion(t).blocks.length === 0; redraw(); }, () => { r.editing = false; redraw(); }, draft.actor)));
             return;
         }
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: r.keep, disabled: flags.blocks.length > 0, onchange: () => { r.keep = tick.checked; } });

@@ -7,7 +7,7 @@ import { keptIn, removeText, deleteButton } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { validateVersion, swapNames, userDrives } from '../validate.js';
-import { writeItems, rewriteAnywhere } from '../writer.js';
+import { writeItems, rewriteAnywhere, itemContextPromptIds } from '../writer.js';
 import { toast, confirmBox, inputBox, sub, isChatOpen } from '../st.js';
 import { eventLeft, unburnSet } from '../engine.js';
 import { contextField } from './context.js';
@@ -33,6 +33,9 @@ const STYLE = {
     itemPlaceholder: 'Type a new item, for example: short sentences and concrete nouns', themeLabel: 'What you want from this category', themeHelp: 'A few words about the story or the kind of writing you like. The AI writes items that fit.', themePlaceholder: 'Example: tense, grounded fantasy with dry humour',
 };
 let cfg = EVENTS;
+const itemWriterPrompts = category => promptGroup(cfg.kind === 'style'
+    ? ['styleWriterRules', 'systemStyleItems'] : ['eventWriterRules', ...itemContextPromptIds(category), 'systemItems'],
+    'Customize Write with AI prompts', { contextual: true });
 
 export function renderEvents(body, app) { cfg = EVENTS; if (app.eroute.view !== 'edit') body.appendChild(promptGroup(['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite'])); return app.eroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
 export function renderStyle(body, app) { cfg = STYLE; if (app.sroute.view !== 'edit') body.appendChild(promptGroup(['style', 'styleWriterRules', 'systemStyleItems'])); return app.sroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
@@ -224,6 +227,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         cfg.kind === 'events' && cat.items.length ? button('Make these work anywhere', () => { ui.rw = { busy: false, error: '', results: null, which: 'on' }; ui.ai = null; redraw(); }, { title: 'One AI request rewrites the items of this list so each works in any setting, keeping what it does to the people. You see every change before it is made.' }) : null,
         button('Write items with AI', () => { ui.rw = null; ui.ai = { theme: app[cfg.route].lastTheme || '', count: 12, busy: false, error: '', results: null }; redraw(); }, { kind: 'primary' })));
 
+    if (!ui.ai) body.push(itemWriterPrompts(cat));
     if (ui.ai) body.push(aiBox(app, draft, cat, ui, redraw, dirty));
     if (ui.rw) body.push(rewriteBox(draft, cat, ui, redraw, dirty));
 
@@ -245,6 +249,7 @@ function rewriteBox(draft, cat, ui, redraw, dirty) {
     const pool = () => cat.items.filter(it => rw.which === 'all' || it.on);
     if (!rw.results) {
         box.append(
+            promptGroup(['rewriteRules', ...itemContextPromptIds(cat), 'systemRewrite'], 'Customize rewrite prompts', { contextual: true }),
             h('div', { class: 'ri-help' }, 'One AI request rewrites each item so that it makes sense wherever the scene is when it fires, and keeps what it does to the people. Items that already work anywhere come back as they were. Nothing changes until you choose.'),
             field('Which items', '', select([{ value: 'on', label: `The items that are on (${cat.items.filter(i => i.on).length})` }, { value: 'all', label: `Every item (${cat.items.length})` }], rw.which, (v) => { rw.which = v; redraw(); })));
         if (rw.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, rw.error));
@@ -285,6 +290,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
     const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, `Write items for "${cat.name}" with AI`));
     if (!ai.results) {
         box.append(
+            itemWriterPrompts(cat),
             field(cfg.themeLabel, cfg.themeHelp, textInput(ai.theme, (v) => { ai.theme = v; }, { placeholder: cfg.themePlaceholder })),
             h('div', { class: 'ri-grid2' },
                 field('How many items to write', '', numberInput(ai.count, { min: 1, max: 40, unit: 'items' }, (n) => { ai.count = n; })),
@@ -403,7 +409,15 @@ function renderEdit(body, app) {
             else { r.example = sub(wrapText(draft.sentAs, rolled.text, 0)); r.exampleState = rolled.state; }
             redraw();
         })),
-        field('Exactly what the AI would receive', cfg.exampleHelp, preview)));
+        field('Exactly what the AI would receive', cfg.exampleHelp, preview),
+        promptGroup([cfg.kind === 'style' ? 'style' : 'event'], 'Customize in-chat wording', {
+            contextual: true,
+            onChange: () => {
+                if (!r.example) return;
+                preview.textContent = 'Roll an example to preview the current wording.';
+                delete r.example;
+            },
+        })));
 
     body.appendChild(section('Notes', field('Notes for yourself', 'Never sent in the chat.', textArea(draft.notes, (v) => { draft.notes = v; dirty(); }, { rows: 2 }))));
 

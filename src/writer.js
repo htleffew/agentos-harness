@@ -60,26 +60,33 @@ export function contextText(c = {}) {
 export const EVENT_LEAD = 'What is known about the story. Use it for the kind of story and the people in it. The items still have to work in any setting of this story, and still use the placeholders for names:';
 export const STORY_LEAD = 'What is known about the story. Use it so that what you write fits these people and this moment, and still use the placeholders for names:';
 
+export const versionPromptId = actor => actor === 'model' ? 'modelVersionRules' : 'versionRules';
+
 export function buildWriterPrompt({ ins, seed, count, context, existing }) {
     const actor = ACTORS[ins.actor] || ACTORS.char;
     const target = TARGETS[ins.target] || TARGETS.user;
+    const model = ins.actor === 'model';
     const lines = [
         `Write ${count} different versions of one instruction for a roleplay.`,
         '',
-        `What should happen: ${seed}`,
+        `${model ? 'What the model should do' : 'What should happen'}: ${seed}`,
         `Who does it: ${actor.text}`,
-        `Who it happens to: ${target.text}`,
+        `${model ? 'Target or subject' : 'Who it happens to'}: ${target.text}`,
         `Instruction name: ${ins.name}`,
         ins.notes ? `Notes: ${ins.notes}` : '',
         `How it is sent: ${(SENT_AS[ins.sentAs] || SENT_AS.system).label}`,
         '',
         'Rules for every version:',
-        promptText('versionRules'),
-        '- [[user]] is only ever the one it happens to. Every action, spoken line, decision, thought and feeling in the version belongs to someone other than [[user]].',
-        '- Each version is a different way the same thing can go.',
+        promptText(versionPromptId(ins.actor)),
+        ins.actor === 'unspecified' ? '- If the direction calls for no actor, describe what changes without introducing one.' : '',
+        model
+            ? '- These are writing instructions. Leave [[user]] in control of their own actions, speech, decisions, thoughts and feelings in the scene.'
+            : '- [[user]] is only ever the one it happens to. Every action, spoken line, decision, thought and feeling in the version belongs to someone other than [[user]].',
+        model ? '' : '- Each version is a different way the same thing can go.',
         '- Use these placeholders exactly as written, with the double square brackets, wherever a name or pronoun is needed, and write real names nowhere:',
         `  ${pronounLine('char', 'the character')}`,
         `  ${pronounLine('user', 'the other person')}`,
+        '- Keep any character-card placeholders from the direction exactly as supplied (for example [[personality]] or [[description]]). The chat fills them in later.',
     ];
     if (existing.length) lines.push('', 'Versions that already exist (write new ones that differ from these):', ...existing.slice(0, 30).map(v => `- ${brackets(v)}`));
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
@@ -89,10 +96,17 @@ export function buildWriterPrompt({ ins, seed, count, context, existing }) {
     return brackets(lines.filter(l => l !== null && l !== undefined).join('\n'));
 }
 
-const brackets = text => String(text ?? '').replace(/\{\{((?:char|user)(?:\.[A-Za-z]+)?)\}\}/g, '[[$1]]');
+const CARD_MACROS = ['description', 'personality', 'scenario', 'charDescription', 'charPersonality', 'charScenario', 'persona', 'mesExamples', 'mesExamplesRaw'];
+const cardMacro = new Map(CARD_MACROS.map(name => [name.toLowerCase(), name]));
+const brackets = text => String(text ?? '').replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, name) =>
+    /^(?:char|user)(?:\.[a-z]+)?$/i.test(name) || cardMacro.has(name.toLowerCase()) ? `[[${name}]]` : match);
 
 function tidy(text) {
     let s = String(text ?? '').replace(/\s+/g, ' ').trim();
+    s = s.replace(/\[\[\s*([a-z]+)\s*\]\]/gi, (match, name) => {
+        const macro = cardMacro.get(name.toLowerCase());
+        return macro ? `{{${macro}}}` : match;
+    });
     // Back from the prompt's [[char]] form, then common slips in placeholder spelling.
     s = s.replace(/\[\[\s*((?:char|user)(?:\s*[._:]\s*[A-Za-z]+)?)\s*\]\]/gi, '{{$1}}').replace(/\[((?:char|user)\.[A-Za-z]+)\](?!\])/gi, '{{$1}}');
     s = s.replace(/\{\{\s*(char|user)\s*\}\}/gi, (m, r) => `{{${r.toLowerCase()}}}`);
@@ -151,8 +165,12 @@ export async function writeVersions({ ins, seed, count, context }) {
 
 /** What makes an item of a story event list work in any setting, with examples for that kind of list. */
 const ROLE_PROMPTS = { situation: 'situationRules', complication: 'complicationRules', driver: 'driverRules', tone: 'toneRules', stake: 'stakeRules' };
-function anywhereRules(role) {
-    return [promptText('anywhere'), promptText(ROLE_PROMPTS[role] || ROLE_PROMPTS.situation)];
+export function itemContextPromptIds(category) {
+    return ['anywhere', ROLE_PROMPTS[listRole(category)] || ROLE_PROMPTS.situation];
+}
+
+function anywhereRules(category) {
+    return itemContextPromptIds(category).map(id => promptText(id));
 }
 
 /** The answer form for items with a "works anywhere" mark. */
@@ -194,7 +212,7 @@ export async function writeItems({ category, theme, count, context, existing, ot
         'Rules for every item:',
         promptText('eventWriterRules'),
         ...(from ? [`- Every item is an event that ${from}.`] : []),
-        ...anywhereRules(listRole(category)),
+        ...anywhereRules(category),
         '- [[user]] is only ever someone things happen to. Every action, spoken line, decision, thought and feeling belongs to someone other than [[user]].',
         '- Where a name is needed use [[char]] for the main character and [[user]] for the other person, with the double square brackets, and write real names nowhere.',
         '- Each item is clearly different from the others.',
@@ -235,7 +253,6 @@ export async function writeItems({ category, theme, count, context, existing, ot
  * unchanged.
  */
 export async function rewriteAnywhere({ category, items, others = [] }) {
-    const role = listRole(category);
     const lines = [
         `Rewrite the items of one list of story ingredients so that each one works in any setting of the story. A roleplay AI is later given one item from each list and must make an event happen from them, wherever the scene is.`,
         '',
@@ -245,7 +262,7 @@ export async function rewriteAnywhere({ category, items, others = [] }) {
         'Rules:',
         promptText('rewriteRules'),
         '- Keep [[char]] and [[user]] where the item has them, with the double square brackets, and write real names nowhere.',
-        ...anywhereRules(role),
+        ...anywhereRules(category),
         '',
         ...writerRules(),
         '',
@@ -316,7 +333,8 @@ export async function writeGoal({ about, context }) {
 
 /** Rewrite one version, keeping its meaning. Returns the new text. */
 export async function rewriteVersion({ ins, text }) {
-    const res = await writeVersions({ ins: { ...ins, versions: ins.versions }, seed: `The same thing as this version, worded and staged in a new way: ${text}`, count: 1, context: settings().writer.context });
+    const direction = ins.actor === 'model' ? 'Rewrite this direction without changing what it asks for' : 'The same thing as this version, worded and staged in a new way';
+    const res = await writeVersions({ ins, seed: `${direction}: ${text}`, count: 1, context: settings().writer.context });
     return res[0];
 }
 

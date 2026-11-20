@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.11
+
+- Edit shared writer prompts from inside individual instruction and category editors and in the corresponding AI writing dialogs. Each prompt shows its Default or Customized status and has its own restore control.
+- In-chat instruction framing is editable beside its live preview. Event and style set editors also expose their in-chat templates beside the example.
+- Random Instructions can address the model writing the reply or leave either participant unspecified. Model-directed guidance uses the regular reply request and skips story-action verification. The AI writer preserves character card macros in generated versions.
+
 ## 10.0.10
 
 - Streamed replies preview complete scene, character, change, repair, and commentary sections as they arrive. Validation and saving still occur after the reply completes.

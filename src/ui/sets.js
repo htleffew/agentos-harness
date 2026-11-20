@@ -7,7 +7,7 @@ import { worldNames, toast, confirmBox, inputBox, isChatOpen } from '../st.js';
 import { renderEditor } from './editor.js';
 
 export function renderInstructions(body, app) {
-    if (app.route.view !== 'edit') body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'versionRules', 'systemVersions']));
+    if (app.route.view !== 'edit') body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'versionRules', 'modelVersionRules', 'systemVersions']));
     if (app.route.view === 'edit') return renderEditor(body, app);
     if (app.route.view === 'set') return renderSet(body, app);
     return renderSets(body, app);
