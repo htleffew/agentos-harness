@@ -517,3 +517,6 @@
     .ri-progress-signal i, .ri-progress-stages::after { animation: none; }
     .ri-progress-stages::after { display: none; }
 }
+
+.ri-chat-books { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.ri-chat-books > li { overflow-wrap: anywhere; }

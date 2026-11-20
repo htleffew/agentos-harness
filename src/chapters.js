@@ -1,7 +1,8 @@
+import { readActivation } from './recall.js';
 import { separateReply } from './reply-format.js';
 import { memoryComponents, memoryOnly } from './components.js';
 import { promptText } from './prompts.js';
-import { stateAt, sceneAt } from './state.js';
+import { stateAt, sceneAt, normalizeScene, SCENE_FIELDS } from './state.js';
 import { creationFingerprint } from './worldflow.js';
 // The story so far, kept by the extension itself.
 //  - Chapters: one AI request writes a summary of a stretch of replies. It is filed in the chat's story world as a
@@ -9,12 +10,13 @@ import { creationFingerprint } from './worldflow.js';
 //    replies, or by hand.
 //  - New chapter: a detailed summary and a new first message, then a brand new chat that carries everything over.
 //  - Starter world: one AI request reads the character card, its lorebook and the greeting, and proposes entries.
-import { ctx, KEY, LOG, names, parseJson, isReply, isStory } from './st.js';
+import { ctx, KEY, LOG, names, parseJson, isReply, isStory, worldNames, loadBook } from './st.js';
 import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
-import { chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE, chatTimes, chapterIsMine } from './world.js';
+import { chatWorld, setChatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE, chatTimes, chapterIsMine } from './world.js';
 import { enqueue, worldIdle, attachChange, parseUpdate, applyOps, stripUpdateBlock, shownChanges, describeChange } from './worldflow.js';
+import { createSet, entriesOf, setName, cleanSetName } from './books.js';
 import { goals, goalProgress, stepDone } from './goals.js';
 import { writerRules } from './pacing.js';
 import { hideCovered } from './hide.js';
@@ -232,9 +234,13 @@ async function rollUpIfNeeded() {
     await enqueue(async () => {
         const d = await loadWorld(wid);
         const now = listWorld(d, wid);
-        const roll = now.find(w => w.kind === 'chapter' && w.rollup) || Object.assign(newWorldEntry(d, 'chapter'), { name: 'Before the latest chapters', rollup: true, auto: true });
+        const roll = now.find(w => w.kind === 'chapter' && w.rollup && w.on) || Object.assign(newWorldEntry(d, 'chapter'), { name: 'Before the latest chapters', rollup: true, auto: true });
         Object.assign(roll.fields, { summary: clean(obj.summary), people: asList(obj.people), places: asList(obj.places) });
         roll.span = { chat, from: 1, to: old[old.length - 1].span.to, ...(old[old.length - 1].span.time ? { time: old[old.length - 1].span.time } : {}) };
+        if (roll.activation?.mode==='window') {
+            const keys = [obj.people,obj.places].flatMap(value=>Array.isArray(value) ? value : []);
+            roll.activation = {...roll.activation,after:replies().length,keys:[...new Set([...roll.activation.keys,...keys])]};
+        }
         delete roll.isNew;
         writeWorldEntry(d, roll, wid);
         // The chapters that went into it: automatic ones are removed, ones you saved yourself are switched off.
@@ -264,6 +270,7 @@ export async function draftNewChapter(wish = '') {
     } else {
         parts.push('The story, oldest message first:', '"""', storyText(1, replies().length, 26000), '"""', '');
     }
+    const currentScene = sceneAt();
     const user = [
         `A roleplay story is moving into a new chat. The main character is ${n.char}. The other person is ${n.user}. Write two things.`,
         '',
@@ -272,9 +279,11 @@ export async function draftNewChapter(wish = '') {
         `FIRST MESSAGE: ${promptText('newChapterFirst', { user: n.user })}`,
         clean(wish) ? `\nWhat the user wants for the new chapter: ${clean(wish)}` : '',
         '', 'For the first message only:', ...writerRules(),
-        '', ...parts,
+        '', currentScene && Object.keys(currentScene).length ? `Established scene at the end of this chat: ${JSON.stringify(currentScene)}` : '',
+        ...parts,
         'Answer in exactly this form, with these two headings in capitals and nothing before the first one:',
         'SUMMARY:', '(the summary)', '', 'FIRST MESSAGE:', '(the first message)',
+        'After the first message append one <chapter_scene> JSON object with time, date, where, weather, and present strings </chapter_scene>. Use only what is established in the new opening. For a field made uncertain by a scene change, give an empty string.',
     ].join('\n');
     const res = await request({ what: 'Write a new chapter (summary and first message)', system: 'You continue a roleplay story into a new chat. You follow the form you are given.', user, tokens: 1800, profileId: settings().profileId });
     const answer = String(res.text);
@@ -285,7 +294,15 @@ export async function draftNewChapter(wish = '') {
         throw new Error(msg);
     }
     res.note('A summary and a first message were read. Nothing changes until you start the new chat.', true);
-    return { summary: m[1].trim(), first: m[2].trim() };
+    const block = /<chapter_scene>\s*([\s\S]*?)\s*<\/chapter_scene>\s*$/i.exec(m[2]);
+    const parsed = block ? parseJson(block[1]) : null;
+    const scene = normalizeScene({...currentScene,...chapterSceneFields(parsed)});
+    return {summary:m[1].trim(),first:(block ? m[2].slice(0,block.index) : m[2]).trim(),scene};
+}
+
+function chapterSceneFields(scene) {
+    return Object.fromEntries(SCENE_FIELDS.flatMap(([key])=>
+        typeof scene?.[key]==='string' ? [[key,scene[key].trim().slice(0,300)]] : []));
 }
 
 /** What has already happened for good in this chat ("only once" instructions, retired story event items), to carry over. */
@@ -308,6 +325,9 @@ export async function startNewChapter(draft, burnedSoFar) {
     await worldIdle();
     const wid = chatWorld();
     const oldChat = chatId();
+    if (chatState()!==cs) throw new Error('The chat changed before the continuation could start.');
+    const oldReplyCount = replies().length;
+    const attachedHostBook = c.chatMetadata?.world_info;
     // 1. What travels with the story.
     const g = goals();
     const p = goalProgress('normal');
@@ -315,48 +335,70 @@ export async function startNewChapter(draft, burnedSoFar) {
     if (v10) delete v10.check;
     const v10ClockSeed = [...(c.chat || [])].reverse().find(message=>!message.extra?.[KEY]?.stateStale &&
         Number.isInteger(message.extra?.[KEY]?.v10Minutes))?.extra[KEY].v10Minutes ?? cs.v10ClockSeed;
+    const reviewedScene = chapterSceneFields(draft.scene);
+    const openingScene = normalizeScene({...sceneAt(),...reviewedScene});
     const carry = {
         v10, v10ClockSeed, components:cs.components ? structuredClone(cs.components) : undefined,
-        activeSets: [...cs.activeSets], world: wid, presets: structuredClone(cs.presets), locks: structuredClone(cs.locks),
+        activeSets: [...cs.activeSets], presets: structuredClone(cs.presets), locks: structuredClone(cs.locks),
         used: structuredClone(cs.used), picks: structuredClone(cs.picks), pronouns: cs.pronouns ? structuredClone(cs.pronouns) : undefined,
         goals: g ? { ...structuredClone(g), steps: g.steps.map(s => ({ ...s, doneManual: stepDone(s, p) || !!s.doneManual })) } : undefined,
         burned: burnedHere(burnedSoFar),
         stateSeed: structuredClone(stateAt(Infinity, { overrides: false, includeTemporary: false })),
-        sceneSeed: structuredClone(sceneAt(Infinity, { overrides: false })),
+        sceneSeed: openingScene,
         stateOverrides: Object.fromEntries(Object.entries(cs.stateOverrides || {}).map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),
-        sceneOverrides: Object.fromEntries(Object.entries(cs.sceneOverrides || {}).map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),
+        sceneOverrides: Object.fromEntries(Object.entries(cs.sceneOverrides || {})
+            .filter(([key,value])=>!Object.hasOwn(reviewedScene,key) || reviewedScene[key]===value.value)
+            .map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),
         blockedEventTags: structuredClone(cs.blockedEventTags || []),
-        chapterOf: oldChat,
+        chapterOf: oldChat, reusableBookHistory:cs.reusableBookHistory ? [...cs.reusableBookHistory] : undefined,
+        previousStoryWorlds: [...new Set([wid,...(cs.previousStoryWorlds || [])].filter(Boolean))],
     };
-    // 2. The summary becomes the account of everything before the new chat.
-    let name = '';
-    if (wid) {
-        await enqueue(async () => {
-            const d = await loadWorld(wid);
-            const now = listWorld(d, wid);
-            const roll = now.find(w => w.kind === 'chapter' && w.rollup) || Object.assign(newWorldEntry(d, 'chapter'), { rollup: true });
-            Object.assign(roll, { name: 'The story before this chat', auto: false, on: true });
-            Object.assign(roll.fields, { summary, when: '', settled: '' });
-            roll.span = { chat: oldChat, from: 1, to: replies().length };
-            delete roll.isNew;
-            writeWorldEntry(d, roll, wid);
-            await saveWorld(wid, d);
-            name = roll.name;
-        });
-    }
+    // Save the continuation in its own physical book before switching chats.
+    const name = 'The story before this chat';
+    const nextWorld = await enqueue(async () => {
+        const source = wid ? await loadWorld(wid) : null;
+        if (wid && !source) throw new Error('The current Story World could not be read.');
+        if (chatState()!==cs) throw new Error('The chat changed before the continuation could start.');
+        const data = { entries:{} };
+        if (source) for (const item of entriesOf(source,wid)) {
+            const entry = structuredClone(item);
+            if (entry.extensions?.ri) {
+                delete entry.extensions.ri.set;
+                if (entry.extensions.ri.kind==='chapter') entry.disable = true;
+            }
+            data.entries[entry.uid] = entry;
+        }
+        const label = cleanSetName(wid ? setName(wid) : names().char).slice(0,58);
+        const taken = new Set([...worldNames(),...Object.keys(settings().sets)].map(value=>value.toLowerCase()));
+        let title = `${label || 'Story World'} (chapter)`;
+        for (let number=2;taken.has(title.toLowerCase());number++) title = `${label || 'Story World'} (chapter ${number})`;
+        const roll = newWorldEntry(data,'chapter');
+        Object.assign(roll,{name,auto:false,on:true,rollup:true,span:{chat:oldChat,from:1,to:oldReplyCount}});
+        roll.fields.summary = summary;
+        roll.activation = readActivation({mode:'window',window:6,chance:100,sticky:0,
+            keys:[openingScene.where,...String(openingScene.present || '').split(/,|;/)].filter(value=>value?.trim()),
+            ...draft.activation,after:0});
+        writeWorldEntry(data,roll,title);
+        const id = await createSet(title,'world',data,'');
+        const saved = await loadBook(id);
+        if (saved?.entries?.[roll.uid]?.extensions?.ri?.fields?.summary!==summary) {
+            throw new Error('The host did not confirm saving the continuation summary. The source chat is still open.');
+        }
+        return id;
+    },{propagate:true});
+    if (chatState()!==cs) throw new Error('The continuation book was saved. Reopen the source chat to start the new chat.');
     // 3. The new chat.
     await c.executeSlashCommandsWithOptions('/newchat');
     for (let i = 0; i < 100 && (chatId() === oldChat || !chatId()); i++) await new Promise(r => setTimeout(r, 100));
-    if (chatId() === oldChat) throw new Error('The new chat did not open. The chat you are in is unchanged.');
+    if (!chatId() || chatId() === oldChat) throw new Error(`The new chat did not open. The prepared World Info book was saved as “${nextWorld}”.`);
     const ncs = chatState();
     for (const [k, v] of Object.entries(carry)) if (v !== undefined) ncs[k] = v;
     // Corrections inherited from the prior chapter are the baseline for every branch of this new chat.
     ncs.correctionHistory = [...Object.entries(ncs.stateOverrides || {}).map(([key, entry]) => ({ kind: 'state', key, entry: structuredClone(entry), anchor: 'seed' })), ...Object.entries(ncs.sceneOverrides || {}).map(([key, entry]) => ({ kind: 'scene', key, entry: structuredClone(entry), anchor: 'seed' }))];
-    // The new chat shares the world on purpose, so it is its owner and is never copied as a branch.
-    ncs.worldOwner = String(ctx().chatMetadata?.integrity || chatId());
+    setChatWorld(nextWorld);
+    if (typeof attachedHostBook==='string' && attachedHostBook) ctx().chatMetadata.world_info = attachedHostBook;
     delete ncs.worldFrom;
-    // With no story world, the summary travels in the new chat itself and is sent with every reply.
-    if (!wid) ncs.carried = summary;
+    delete ncs.carried;
     saveChatState();
     try { await c.saveMetadata?.(); } catch { /* saved with the next change */ }
     // 4. The first message replaces the card's greeting.
@@ -369,9 +411,14 @@ export async function startNewChapter(draft, burnedSoFar) {
     } else {
         chat.unshift({ name: names().char, is_user: false, is_system: false, send_date: new Date().toISOString(), mes: first, extra: {} });
     }
+    const opening = chat[0];
+    if (opening) {
+        opening.extra ||= {};
+        opening.extra[KEY] = { v:1,time:Date.now(),items:[],type:'chapter-opening',scene:carry.sceneSeed };
+    }
     try { await c.saveChat?.(); } catch { /* saved with the next change */ }
     try { await c.reloadCurrentChat?.(); } catch { /* the chat is redrawn the next time it is opened */ }
-    addLog({ what: 'New chapter', ok: true, result: `A new chat was started. It carries ${carry.activeSets.length} ${carry.activeSets.length === 1 ? 'set' : 'sets'} that were on${wid ? ', the story world' : ''}${g?.on ? ', the goal' : ''}, the pronouns, what has already happened for good, the summary and the first message. The chat you were in is unchanged.`, details: [], got: '' });
+    addLog({ what: 'New chapter', ok: true, result: `A new chat was started. It carries ${carry.activeSets.length} ${carry.activeSets.length === 1 ? 'set' : 'sets'} that were on, a separate Story World book${g?.on ? ', the goal' : ''}, the pronouns, what has already happened for good, the summary and the first message. The chat you were in is unchanged.`, details: [], got: '' });
     return name;
 }
 

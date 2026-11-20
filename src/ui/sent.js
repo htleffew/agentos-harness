@@ -290,7 +290,7 @@ function updateSceneHeader(mes,id,show) {
     const existing = area.parentElement.querySelector(':scope > .ri-scene-header');
     if (!show) { existing?.remove(); return; }
     const scene = snapshotScene(id);
-    const fields = [['Time',scene.time || scene.when],['Date',scene.date],['Location',scene.where],['Weather',scene.weather]];
+    const fields = [['Time',scene.time ?? scene.when],['Date',scene.date],['Location',scene.where],['Weather',scene.weather]];
     const stamp = JSON.stringify(fields);
     if (existing?.dataset.scene === stamp) return;
     const header = h('div',{class:'ri-scene-header','aria-label':'Scene details','data-scene':stamp},

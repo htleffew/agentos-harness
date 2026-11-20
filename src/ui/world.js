@@ -30,11 +30,12 @@ function worldPicker(app) {
     const worlds = knownWorlds();
     const options = [{ value: '', label: 'No story world for this chat' }, ...worlds.map(w => { const i = setInfo(w); return { value: w, label: i.shared ? `${i.name} (in "${i.book}")` : i.name }; })];
     return section('The story world of this chat',
+        button('See this chat’s World Info books',()=>app.openPage('books'),{kind:'ghost'}),
         h('div', { class: 'ri-help' }, 'A story world holds what is true in one story: its people, places, groups, secrets, open threads, planted details and what is going on elsewhere. One chat uses one world. Before each reply the extension reads who is in the scene and sends the entries that matter as one block of story notes. This makes no extra AI request.'),
         field('World used by this chat', id ? '' : 'Choose a world, or make a new one for this story.',
             select(options, id, (v) => { setChatWorld(v); go(app, { view: 'list' }); })),
         id ? keptIn(id) : null,
-        id && chatState()?.worldFrom && knownWorlds().includes(chatState().worldFrom) && chatState().worldFrom !== id ? h('div', { class: 'ri-note' }, `This chat is a branch, so it uses its own copy of "${setName(chatState().worldFrom)}". What happens here changes only the copy. To share the original world with the chat this came from, choose "${setName(chatState().worldFrom)}" above. Replies written before that keep pointing at the copy.`) : null,
+        id && chatState()?.worldFrom && knownWorlds().includes(chatState().worldFrom) && chatState().worldFrom !== id ? h('div', { class: 'ri-note' }, `This chat uses its own copy of "${setName(chatState().worldFrom)}". What happens here changes only the copy. To share the original world with the chat this came from, choose "${setName(chatState().worldFrom)}" above. Replies written before that keep pointing at the copy.`) : null,
         h('div', { class: 'ri-row' }, button('Make a new story world', async () => {
             const name = await inputBox('Name for the new story world:', `${names().char}'s story`);
             if (!name) return;
@@ -84,7 +85,7 @@ function summarySection(app, id) {
             }, { disabled: ui.busy || chapterBusy(), title: 'Summarise everything since the last chapter, with one AI request' })) : null,
         ] : h('div', { class: 'ri-muted' }, 'Chapters are kept in a story world. Choose or make one above to have the story so far written as you play.'),
         h('div', { class: 'ri-label' }, 'A new chapter in a new chat'),
-        h('div', { class: 'ri-help' }, 'When a chat has grown long, carry the story into a brand new chat. One AI request writes a very detailed summary and a first message, which you can change. The new chat is for the same character and brings along the story world, the sets that are on, the goal, the pronouns and everything that has already happened for good. The chat you are in stays as it is.'),
+        h('div', { class: 'ri-help' }, 'When a chat has grown long, carry the story into a brand new chat. One AI request writes a very detailed summary and a first message, which you can change. The new chat has its own Story World book with the approved summary and a copy of this world’s records. The active reusable books, sets, goal and pronouns carry forward.'),
         h('div', { class: 'ri-row' }, button('Start a new chapter in a new chat', () => { app.wroute.sheet = { kind: 'chapter', wish: '', busy: false, error: '', draft: null }; app.render(); }, { kind: 'primary' })));
 }
 
@@ -142,11 +143,20 @@ function chapterSheet(app) {
             button('Cancel', close, { kind: 'ghost', disabled: sh.busy })));
         return box;
     }
-    const id = chatWorld();
+    const scene = sh.draft.scene ||= {};
+    const recall = sh.draft.activation ||= {mode:'window',window:6};
+    const recallMode = select([{value:'window',label:'Initial window, then triggers'},
+        {value:'always',label:'Always eligible'},{value:'triggered',label:'Triggers only'},{value:'off',label:'Off'}],
+        recall.mode,value=>{recall.mode=value;});
+
     box.append(
-        field('Summary of the story so far', id ? 'Saved in the story world as "The story before this chat" and sent with every reply of the new chat.' : 'This chat has no story world, so the summary is kept in the new chat itself and sent with every reply.',
+        field('Summary of the story so far', 'Saved in the new chat’s Story World as “The story before this chat” and recalled when Chapter summaries is on.',
             textArea(sh.draft.summary, (v) => { sh.draft.summary = v; }, { rows: 12 })),
         field('First message of the new chat', 'It takes the place of the character\'s greeting in the new chat.', textArea(sh.draft.first, (v) => { sh.draft.first = v; }, { rows: 10 })),
+        h('div',{class:'ri-grid2'},[['time','Opening time'],['date','Opening date'],['where','Opening location'],['weather','Opening weather']].map(([key,label])=>
+            field(label,'',textInput(scene[key] || '',value=>{scene[key]=value;},{'aria-label':label})))),
+        field('Carryover summary recall','Trigger phrases default to the opening location and cast. Edit these in Reusable Lorebooks.',recallMode,
+            numberInput(recall.window,{min:0,max:200,unit:'initial replies'},value=>{recall.window=value;})),
         h('div', { class: 'ri-help' }, 'The new chat brings along: the story world, the sets that are on, the goal with the steps already done, the pronouns, locked picks, and what has already happened for good ("only once" instructions and retired story event items). The chat you are in stays exactly as it is, and you can go back to it.'));
     if (sh.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, sh.error));
     box.appendChild(h('div', { class: 'ri-row' },

@@ -85,3 +85,10 @@ context.mainApi='openai';
 assert.equal(activePreset(),'Roleplay Instructions V10');
 context.mainApi='textgenerationwebui';
 assert.equal(activePreset(),'');
+
+const {normalizeScene} = await import('../../src/state.js');
+assert.deepEqual(normalizeScene({time:'Wednesday, Month 7, Day 14, 3:45 AM, Clear 38°F'}),{
+    time:'3:45 AM',date:'Wednesday, Month 7, Day 14',weather:'Clear 38°F',
+});
+assert.deepEqual(normalizeScene({time:'Late morning'}),{time:'Late morning'});
+assert.equal(normalizeScene({time:'Day 4, 9:15 PM, Snow',weather:'Rain'}).weather,'Rain');

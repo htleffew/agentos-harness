@@ -1,3 +1,4 @@
+import { readActivation, recallPolicy } from './recall.js';
 import { memoryComponents, memoryOnly } from './components.js';
 import { promptText } from './prompts.js';
 import { sceneAt, sceneProtected } from './state.js';
@@ -141,6 +142,8 @@ export function setChatWorld(id) {
     try { const c = ctx(); const cs0 = chatState(); if (cs0) cs0.worldOwner = String(c.chatMetadata?.integrity || c.getCurrentChatId?.() || ''); } catch { /* only a mark */ }
     const cs = chatState();
     if (!cs) return;
+    if (cs.world && cs.world!==id) cs.previousStoryWorlds = [...new Set([cs.world,...(cs.previousStoryWorlds || [])])];
+    if (id && cs.previousStoryWorlds) cs.previousStoryWorlds = cs.previousStoryWorlds.filter(world=>world!==id);
     cs.world = id || '';
     delete cs.branchPendingWorld;
     saveChatState();
@@ -167,7 +170,8 @@ export function readWorldEntry(entry) {
         locked: !!ri.locked,      // "keep this entry as I wrote it": automatic updates leave it alone
         at: ri.at && typeof ri.at === 'object' ? { chat: String(ri.at.chat || ''), n: Number(ri.at.n) || 0 } : null,   // the chat and reply where it was made or last moved
         span: ri.span && typeof ri.span === 'object' ? { chat: String(ri.span.chat || ''), from: Number(ri.span.from) || 0, to: Number(ri.span.to) || 0, ...(ri.span.time ? { time: String(ri.span.time) } : {}) } : null,   // a chapter: the replies it covers
-        rollup: !!ri.rollup,      // a chapter that holds everything before the newer chapters
+        rollup: !!ri.rollup,
+        activation: readActivation(ri.activation),      // a chapter that holds everything before the newer chapters
     };
 }
 
@@ -234,6 +238,7 @@ export function writeWorldEntry(data, w, id) {
     if (w.at) ri.at = { chat: w.at.chat, n: w.at.n };
     if (w.span) ri.span = { chat: w.span.chat, from: w.span.from, to: w.span.to, ...(w.span.time ? { time: String(w.span.time) } : {}) };
     if (w.rollup) ri.rollup = true;
+    if (w.activation) ri.activation = readActivation(w.activation);
     keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
     entry.content = `[${def.label}] ${renderEntry({ ...w, show: w.kind === 'secret' ? w.show : 'shadow' })}`;
@@ -348,7 +353,15 @@ function sentLately(type, turns = 3) {
  */
 export function buildNotes(list, type = 'normal', opts = settings().world,
     { chapters = memoryComponents().chapters, memory = false } = {}) {
-    const on = list.filter(w => w.on);
+    const policy = recallPolicy(chatWorld(),type);
+    const sourceChapter = chatState()?.chapterOf;
+    const custom = new Map(list.map(row=>{
+        const inherited = sourceChapter && row.rollup && row.span?.chat===sourceChapter && !row.activation;
+        const activation = inherited ? readActivation({mode:'window',window:6,keys:[row.fields.people,row.fields.places]
+            .flatMap(value=>String(value || '').split(/[,;]/)).filter(Boolean)}) : row.activation;
+        return [row.uid,policy(activation===row.activation ? row : {...row,activation})];
+    }));
+    const on = list.filter(w => w.on && custom.get(w.uid)?.on);
     if (!on.length) return null;
     const budget = Math.max(100, Math.round(Number(opts.budget) || 600)) * 4; // in characters
     const scene = readScene(type);
@@ -376,6 +389,7 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
     let used = 0;
     const room = (text) => used + text.length <= budget;
     const take = (section, w, text, isExtra = false) => {
+        if (ids.includes(w.uid)) return;
         used += text.length + 3;
         section.lines.push(`- ${text}`);
         ids.push(w.uid);
@@ -417,6 +431,12 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
     }
 
     // 1. Open threads and things going on elsewhere are short and always in view.
+    const chosen = section('Selected World Info');
+    for (const row of on.filter(w=>w.activation && !['chapter','fact','profile','knowledge','emotion','relationship','arc','payoff','agenda','event'].includes(w.kind))) {
+        if (ids.includes(row.uid)) continue;
+        const text = renderEntry(row);
+        if (room(text)) take(chosen,row,text);
+    }
     const threads = section('Open threads');
     for (const w of by('thread').filter(w => w.status !== DONE.thread)) take(threads, w, renderEntry(w, { full: false }));
     const elsewhere = section('Going on elsewhere');
@@ -466,14 +486,14 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
             const names = [fact.subject,...(Array.isArray(fact.aliases) ? fact.aliases : [])].filter(x=>typeof x==='string' && x.trim());
             const title = String(entry.name || '').replace(/[-_]/g,' ');
             if (!names.length && title.length>=5) names.push(title);
-            if (!fact.protected && !names.some(name=>namedIn(evidence,{name,aliases:[]}))) continue;
+            if (!entry.activation && !fact.protected && !names.some(name=>namedIn(evidence,{name,aliases:[]}))) continue;
             if (room(fact.text)) take(facts,entry,fact.text);
         }
     }
     const body = sections.filter(s => s.lines.length).map(s => `${s.title}:\n${s.lines.join('\n')}`).join('\n');
     if (!body) return null;
     const text = memory ? `[Story memory\n${body}]` : `[Story notes. ${promptText('storyNotes')}\n${body}]`;
-    return { text, tokens: Math.round(text.length / 4), ids, extra, present: present.map(w => w.name), missing, place: place?.name || '', location: clean(scene.location), how };
+    return { text, tokens: Math.round(text.length / 4), ids, fresh:ids.filter(uid=>custom.get(uid)?.fresh).map(String), extra, present: present.map(w => w.name), missing, place: place?.name || '', location: clean(scene.location), how };
 }
 
 export function storyRecall(list, type = 'normal', { memory = memoryOnly(), components = memoryComponents() } = {}) {

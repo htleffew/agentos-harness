@@ -427,3 +427,7 @@ The highest-value writing candidates are concrete source-fidelity rules, selecta
 ### Follow-up in extension 10.0.8
 
 Memory only runs the host preset alongside independently selected World Info recall, chapter summaries, and auto-hide. The extension leaves the host preset in charge of prose, mechanics, and rendering in that workflow. The companion preset now has editable prompts for decisive NPCs, richer recurring NPCs, voice continuity, ordinary-turn length, and same-reply quality checks. Slow-burn pacing and a player-limited viewpoint are optional blocks. Evaluate these prompts with the same model, card, and connection settings before treating their prose as equivalent to Vexa's.
+
+### Follow-up in extension 10.0.9
+
+The current-chat book inventory distinguishes physical books, book roles, and earlier Story Worlds. Continuations now save a separate managed book before switching chats. The accepted carryover recap is available during an editable initial window and on later trigger matches, and chapter rollups can replace it with a refreshed account. Chapters, chat facts and plot records continue to share one managed book. Base World, Behavior & Guidelines, set books and host attachments retain their own files and associations. Entry editing and bulk controls are available from the inventory. Managed recall uses reply-based timing. Native World Info uses the host’s timing.

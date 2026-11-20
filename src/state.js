@@ -92,6 +92,23 @@ export function snapshotState(id) {
     for (const edit of ctx().chat?.[id]?.extra?.[KEY]?.snapshotEdits || []) applyEdit(state, edit);
     return state;
 }
+/** Older updates sometimes put the date and weather in the same time field. */
+export function normalizeScene(fields = {}) {
+    const out = {...fields};
+    const combined = String(out.time ?? out.when ?? '');
+    const clock = /\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s*[AP]\.?M\.?)?/i.exec(combined);
+    if (!clock) return out;
+    const before = combined.slice(0,clock.index).trim().replace(/[,;|·–— -]+$/u,'').trim();
+    const after = combined.slice(clock.index+clock[0].length).trim().replace(/^[,;|·–— -]+/u,'').trim();
+    const date = /\b(?:day|month|year)\s+\d+|\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b|\b\d{4}-\d{2}-\d{2}\b/i.test(before);
+    const weather = /(?:\b(?:clear|sunny|rain\w*|snow\w*|cloud\w*|fog\w*|wind\w*|overcast|storm\w*)\b|\d\s*°\s*[FC])/i.test(after);
+    if (!date && !weather) return out;
+    out.time = clock[0].trim();
+    if (date && !Object.hasOwn(out,'date')) out.date = before;
+    if (weather && !Object.hasOwn(out,'weather')) out.weather = after;
+    return out;
+}
+
 export function sceneAt(before = Infinity, { overrides = before === Infinity } = {}) {
     const chat = ctx().chat || [];
     let scene = { ...(metadata()?.sceneSeed || {}) };
@@ -101,7 +118,7 @@ export function sceneAt(before = Infinity, { overrides = before === Infinity } =
     if (overrides) for (const [key, entry] of Object.entries(metadata()?.sceneOverrides || {})) {
         if (SCENE_FIELDS.some(([field]) => field === key)) scene[key] = entry.value;
     }
-    return scene;
+    return normalizeScene(scene);
 }
 export function currentState(type = 'normal') {
     const chat = ctx().chat || [];
@@ -255,7 +272,7 @@ export function sceneProtected(field) { return !!metadata()?.sceneOverrides?.[fi
 export function snapshotScene(id) {
     const scene = sceneAt(id + 1, { overrides: false });
     const edits = ctx().chat?.[id]?.extra?.[KEY]?.sceneSnapshotEdits || {};
-    return { ...scene, ...edits };
+    return normalizeScene({ ...scene, ...edits });
 }
 export function editSceneSnapshot(id, field, value) {
     if (!SCENE_FIELDS.some(([k]) => k === field)) return false;

@@ -1,3 +1,4 @@
+import { renderChatBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
@@ -9,7 +10,7 @@ import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING,
-    PRESET, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
+    PRESET, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, selectGuidelines, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
     readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor,
 } from '../v10.js';
 
@@ -134,7 +135,7 @@ function renderBooks(local, redraw, app, baseOnly = false) {
         } catch (error) { problem(error); }
         finally { upload.disabled = false; }
     });
-    const guidelines = select(books,local.guidelines || '',name=>{local.guidelines=name;saveChatState();redraw();});
+    const guidelines = select(books,local.guidelines || '',name=>{selectGuidelines(name);redraw();});
     const name = textInput('',()=>{},{placeholder:'Name for a reusable guidelines book','aria-label':'Guidelines book name'});
     const content = textArea('',()=>{},{placeholder:'Writing or behavior guidance','aria-label':'Guidelines text'});
     const pins = local.base ? h('details',{class:'ri-card ri-tight'},h('summary',{},'Pinned facts for opening'),
@@ -154,7 +155,7 @@ function renderBooks(local, redraw, app, baseOnly = false) {
             local.guidelines ? select([{value:'on',label:'Enabled'}, {value:'off',label:'Disabled'}], local.guidelinesOn === false ? 'off':'on', value=>{local.guidelinesOn=value==='on';saveChatState();redraw();}) : null),
         !baseOnly && guidelineScopes(local),
         !baseOnly && h('details',{class:'ri-card'},h('summary',{},'Create a guidelines book'),name,content,
-            button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelines=name.value.trim();local.guidelinesOn=true;saveChatState();redraw();}catch(error){problem(error);}})),
+            button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelinesOn=true;selectGuidelines(name.value.trim());redraw();}catch(error){problem(error);}})),
         h('div',{class:'ri-row'},
             button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
             !baseOnly && button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
@@ -475,9 +476,9 @@ export function renderV10(body, app, page) {
     const chatFlag = (key, label, hint, defaultOn = false) => field(label,hint,
         select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
             {'aria-label':label}));
-    if (page === 'books' && memoryOnly()) {
-        if (memoryComponents().world) body.append(renderBooks(local,redraw,app,true));
-        else body.append(h('p',{class:'ri-note'},'Turn on World Info recall in Setup → Preset & Extension.'));
+    if (page === 'books') {
+        body.append(renderChatBooks(app));
+        if (enabledV10() || memoryOnly() && memoryComponents().world) body.append(renderBooks(local,redraw,app,memoryOnly()));
         return;
     }
     if (page === 'v10') {
@@ -516,7 +517,6 @@ export function renderV10(body, app, page) {
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.')));
             break;
         case 'opening': body.append(renderOpening(local,redraw)); break;
-        case 'books': body.append(renderBooks(local,redraw,app)); break;
         case 'facts': body.append(renderRecords(redraw,'Chat Facts',['fact'])); break;
         case 'plots': body.append(renderRecords(redraw,'Plot Records',PLOT_KINDS)); break;
         case 'portrayal': body.append(renderRecords(redraw,'Portrayal & Knowledge',['profile','knowledge'])); break;

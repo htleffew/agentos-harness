@@ -1,3 +1,4 @@
+import { recallPolicy } from './recall.js';
 import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
 import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, prefs } from './v10.js';
@@ -571,13 +572,15 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, 
     const list = listWorld(data, id);
     const { rows, notes } = storyRecall(list,type,{memory,components});
     if (memory) return {id,notes,rows,ask:'',order:null};
+    const policy = recallPolicy(id,type);
+    const eligible = list.filter(row=>policy(row).on);
     const ooc = isOocTurn();
     const ask = !native && o.update !== 'off' && !ooc ? buildAsk(list, type) : '';
     const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
-    const order = ooc || (native && !opportunities) ? null : rollOrder(list, notes?.present || [], meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
+    const order = ooc || (native && !opportunities) ? null : rollOrder(eligible, notes?.present || [], meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
     if (order) order.text = promptText('worldOrder', { order: order.text });
     // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene.
-    return { id, notes, ask, order, offers: worldOffers(list, notes?.present || [], meta) };
+    return { id, notes, ask, order, offers: worldOffers(eligible, notes?.present || [], meta) };
 }
 
 // ---------- after the reply ----------
@@ -1003,6 +1006,10 @@ async function ownWorld() {
     // The records of this branch now point at the copy.
     let moved = 0;
     for (const rec of allRecords()) {
+        if (rec.recall?.book===from) {
+            rec.recall.book=to;
+            rec.recall.fresh=(rec.recall.fresh || []).filter(id=>uids[id]!==undefined).map(id=>String(uids[id]));
+        }
         if (rec.update?.world !== from) continue;
         rec.update.world = to;
         for (const c of rec.update.changes || []) if (c && uids[String(c.uid)] !== undefined) c.uid = uids[String(c.uid)];

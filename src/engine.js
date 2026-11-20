@@ -1,3 +1,4 @@
+import { observeHostBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { proseDialogue } from './dialogue.js';
 import { separateReply, hasReplyScaffolding } from './reply-format.js';
@@ -5,7 +6,7 @@ import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview }
 import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
-import { changesFromProfiles, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
+import { changesFromProfiles, normalizeScene, sceneAt, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
@@ -220,6 +221,7 @@ async function onEntriesLoaded(lore) {
         const st = settings();
         if (!st.enabled || !lore) return;
         const arrays = [lore.globalLore, lore.characterLore, lore.chatLore, lore.personaLore].filter(Array.isArray);
+        observeHostBooks(lore);
         if (gen?.memory ?? memoryOnly()) { await loadMemory(lore,arrays); return; }
         const cs = chatState();
         if (cs) syncChat(cs);
@@ -525,7 +527,8 @@ function onScanDone(args) {
             for (const entry of map.values()) if (isManaged(entry) && !isNotes(entry)) map.delete(keyOf(entry));
             if (!gen.skip) {
                 const flow = gen.memoryFlow;
-                pending = {memory:true,type:gen.type,notes:flow?.notes?.text || '',lore:loreReceipt(map.values(),flow?.notes,flow?.rows || [],flow?.id)};
+                const selectedNotes = [...map.values()].some(isNotes) ? flow?.notes : null;
+                pending = {memory:true,type:gen.type,recall:{book:flow?.id,fresh:selectedNotes?.fresh || []},notes:selectedNotes?.text || '',lore:loreReceipt(map.values(),selectedNotes,flow?.rows || [],flow?.id)};
             }
             return;
         }
@@ -756,7 +759,8 @@ function onScanDone(args) {
         const pace = { phase: plan.phase ? { name: plan.phase.name, chance: plan.phase.chance } : null, quiet: gen.quiet || null };
         cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         if (gen.guided) { gen.guided.afterLastScan = structuredClone(cs.lastScan); gen.guided.afterOverdue = structuredClone(cs.overdue); }
-        pending = { items, type, states, pace, v10:plan.v10Turn, progressTurn:replyProgress()?.turn, offer:offer?.id,
+        pending = { items, type, states, pace, v10:plan.v10Turn,
+            recall:{book:plan.flow?.id,fresh:[...new Set([...(items.some(item=>item.notes) ? plan.notes?.fresh || [] : []),...(askE && map.has(keyOf(askE)) ? plan.v10Turn?.recallFresh || [] : [])])]}, progressTurn:replyProgress()?.turn, offer:offer?.id,
             lore:plan.v10Turn ? loreReceipt(map.values(),plan.notes,plan.v10Rows,plan.flow?.id,plan.v10Turn.recalled) : null, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
@@ -803,7 +807,7 @@ function onMessageReceived(id, type) {
             const previous = turn.type==='continue' ? message.extra?.[KEY] : null;
             const time = previous?.time || Date.now();
             const v10Lore = turn.lore.map(({text,...entry})=>entry);
-            attach(message,{...previous,v:1,memory:true,items:previous?.items || [],type:turn.type,time,v10Lore});
+            attach(message,{...previous,v:1,memory:true,items:previous?.items || [],type:turn.type,time,v10Lore,recall:turn.recall});
             try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
             chapterAfterReply(time,history('normal').next-1,()=>changed('messages'));
             changed('sent',id);
@@ -816,7 +820,7 @@ function onMessageReceived(id, type) {
         if (!m || m.is_user || m.is_system) return;
         // A continued reply keeps the time of its record, so what its first part filed in the story world still belongs to it.
         const earlier = pending.type === 'continue' ? m.extra?.[KEY] || null : null;
-        const rec = { v: 1, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
+        const rec = { v: 1, recall:pending.recall, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
@@ -824,7 +828,7 @@ function onMessageReceived(id, type) {
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const previousRecord = [...(ctx().chat || []).slice(0,id)].reverse()
             .map(row=>row?.extra?.[KEY]).find(record=>record?.scene && !record.stateStale);
-        const previousScene = previousRecord?.scene || {};
+        const previousScene = normalizeScene(previousRecord?.scene || sceneAt(id,{overrides:false}));
         const turn = pending.v10;
         const plainDialogue = turn && (turn.modules.colors || pairedPreset()) ? proseDialogue(m.mes) : m.mes;
         const rewrittenDialogue = plainDialogue !== m.mes;
@@ -860,13 +864,14 @@ function onMessageReceived(id, type) {
             }
             if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
         }
-        const scene = { ...(turn?.modules.state ? previousScene : {}), ...(earlier?.scene || {}), ...(parsed.scene || {}) };
+        const acceptedScene = normalizeScene(parsed.scene || {});
+        const scene = { ...(turn?.modules.state ? previousScene : {}), ...(earlier?.scene || {}), ...acceptedScene };
         if (turn?.modules.state) {
             const moved = parsed.scene?.where && previousScene.where && parsed.scene.where.toLowerCase()!==previousScene.where.toLowerCase();
             rec.v10SceneId = earlier?.v10SceneId ?? (moved || previousRecord?.v10SceneEnded ? rec.time : previousRecord?.v10SceneId ?? previousRecord?.time ?? rec.time);
             rec.v10SceneEnded = parsed.ended === true || (earlier?.v10SceneEnded && !parsed.scene?.where);
-            if (moved && parsed.scene?.weather===undefined) delete scene.weather;
-            if (parsed.scene?.when!==undefined && parsed.scene?.time===undefined) delete scene.time;
+            if (moved && acceptedScene.weather===undefined) delete scene.weather;
+            if (parsed.scene?.when!==undefined && acceptedScene.time===undefined) delete scene.time;
             if ((moved || previousRecord?.v10SceneEnded || parsed.ended) && parsed.scene?.environment===undefined) delete scene.environment;
         }
         if (!turn?.modules.state && !parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
@@ -1287,7 +1292,7 @@ export function init() {
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
         if (dryRun || !settings().enabled) return;
         if (enabledV10() && !gen?.skip && !isOocTurn() && isChatOpen()) await ensureWorld().catch(e => console.warn(LOG,'v10 story world',e));
-        if (gen?.memory && !gen.skip && memoryComponents().chapters && isChatOpen()) await ensureWorld().catch(e=>console.warn(LOG,'chapter story world',e));
+        if ((gen?.memory || chatState()?.carried) && !gen?.skip && memoryComponents().chapters && isChatOpen()) await ensureWorld().catch(e=>console.warn(LOG,'chapter story world',e));
         if (gen?.memory || !checkPromise) return;
         // Let a running check finish first, so an instruction that did not happen can be sent again with this reply.
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);

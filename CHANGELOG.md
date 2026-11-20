@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.0.9
+
+- Reusable Lorebooks lists physical books associated with the current chat, their roles, and earlier Story Worlds. Open a book in the host or edit, export and delete selected entries inside the extension.
+- New chapter creates a separate native Story World, including when the source chat had none. The source book keeps its own summary. The continuation summary starts with a six-reply recall window and can be recalled by trigger or refreshed by chapter rollups.
+- The chapter-opening draft has editable time, date, location and weather. The scene header separates recognized legacy fields packed into one timestamp.
+- World Info recall can be set per entry or in batches. Native entries keep host trigger and timing semantics. Managed entries use reply-based activation, chance, and stickiness.
+
 ## 10.0.8
 
 - Memory only lets the host preset control writing, mechanics, and rendering. Choose World Info recall, chapter summaries, and auto-hide independently for each chat. Turning off auto-hide or chapter summaries restores history hidden by the extension.

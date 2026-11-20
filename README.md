@@ -25,6 +25,12 @@ Import [Roleplay Instructions V10](presets/Roleplay%20Instructions%20V10.json) a
 
 In **Setup → Preset & Extension**, inspect the active **Host preset** and its ordered prompt blocks. Select the **Structured story workflow** to use the newer extension modules with another preset. **This chat** changes individual extension modules for the current chat. **Module defaults by preset** sets their default behavior for any chat using the named preset. Reset a changed setting to resume following its default. If the host preset supplies a recognized set of overlapping instructions, the module’s **Instruction source** shows the exact host blocks and their settings. Select the extension as the source and turn the named blocks off in the host preset editor to use the extension’s version.
 
+### World Info books and chapter continuations
+
+Open **Story → Reusable Lorebooks → World Info books for this chat** to see the managed Story World, assigned Base World and guidelines, active set books, exposed host attachments, and earlier books tied to the chat. Each row can open the physical book in World Info or export JSON. **Edit or delete entries** edits that book. Shared-book edits apply wherever the book is used, and bulk deletion asks for confirmation. Actual entry selection for a specific turn remains available under **What Was Sent**.
+
+**Start a new chapter** prepares a separate native Story World containing the accepted recap and copied story records. The source chat keeps its book. You can review opening time, date, location, and weather before starting. The inherited recap is eligible for the first six replies by default, then returns on matching triggers. Later chapter rollups can incorporate it into a refreshed recap. Open its entry to change the window, triggers, chance or stickiness, choose always-on recall, or disable it. Native book entries use the host's message-based sticky setting. Managed Story World entries use replies.
+
 ### Use Vexa or another host preset with extension memory
 
 Select the preset in the host. In **Setup → Preset & Extension → Story workflow for this chat**, choose **Memory only**. The active host preset controls writing, mechanics, and reply rendering. The extension can still add three components:

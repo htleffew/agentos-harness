@@ -1,3 +1,4 @@
+import { recallPolicy } from './recall.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
@@ -5,7 +6,7 @@ import { separateReply } from './reply-format.js';
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
 import { rollInt, createSet, cleanSetName, setInfo } from './books.js';
-import { chatWorld, setChatWorld, loadWorld, listWorld } from './world.js';
+import { chatWorld, setChatWorld, loadWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
 import { statNames, sheet } from './dice.js';
 
 export const PRESET = 'Roleplay Instructions V10';
@@ -389,9 +390,21 @@ export async function ensureWorld() {
     const base = `${names().char} — Story World`;
     let label = base;
     for (let i = 2; Object.hasOwn(settings().sets,label) || ctx().getWorldInfoNames?.().includes(label); i++) label = `${base} ${i}`;
-    const id = await createSet(label,'world',{ entries:{} },'');
+    const root = chatState();
+    const data = {entries:{}};
+    if (root?.carried) {
+        const chapter = newWorldEntry(data,'chapter');
+        Object.assign(chapter,{name:'The story before this chat',rollup:true,span:{chat:root.chapterOf || '',from:1,to:0},
+            activation:{mode:'window',window:6,keys:[root.sceneSeed?.where].filter(Boolean)}});
+        chapter.fields.summary = root.carried;
+        writeWorldEntry(data,chapter,label);
+    }
+    const id = await createSet(label,'world',data,'');
     if (ctx().getCurrentChatId?.() !== chatId) throw new Error('The chat changed while creating the story book.');
-    if (!chatWorld()) setChatWorld(id);
+    if (!chatWorld()) {
+        if (root?.carried) delete root.carried;
+        setChatWorld(id);
+    }
     return chatWorld();
 }
 
@@ -432,6 +445,20 @@ export async function uploadBaseBook(file) {
     return name;
 }
 
+function rememberReusableBook(name) {
+    const root = chatState();
+    if (root && name) root.reusableBookHistory = [...new Set([...(root.reusableBookHistory || []),name])];
+}
+
+export function selectGuidelines(name) {
+    const local = prefs();
+    if (!local) return;
+    rememberReusableBook(local.guidelines);
+    local.guidelines = name;
+    rememberReusableBook(name);
+    saveChatState();
+}
+
 export async function pinBase(name) {
     const local = prefs();
     if (!local) throw new Error('Open a chat first.');
@@ -439,6 +466,8 @@ export async function pinBase(name) {
     const data = name ? await loadBook(name) : null;
     if (prefs() !== local) throw new Error('The chat changed.');
     if (name && !data?.entries) throw new Error('Could not read the base book.');
+    rememberReusableBook(local.base?.name);
+    rememberReusableBook(name);
     local.base = name ? { name, entries:structuredClone(data.entries), pins:local.base?.name === name ? local.base.pins || [] : [] } : null;
     saveChatState();
 }
@@ -514,6 +543,8 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const sceneId = latest?.record.v10SceneEnded ? null : latest?.record.v10SceneId ?? latest?.record.time;
     const clock = [...history].reverse().find(x => Number.isInteger(x.record.v10Minutes))?.record.v10Minutes ?? chatState()?.v10ClockSeed;
     const records = recordMap(rows);
+    const policy = recallPolicy(chatWorld(),type);
+    const exposure = new Map(rows.map(entry=>[readRecord(entry)?.id,{entry,...policy(entry)}]).filter(([id])=>id));
     const baselines = modules.state ? portrayalSources(rows) : new Map();
     const recent = (ctx().chat || []).slice(0, ['swipe','regenerate'].includes(type) ? -1 : undefined).slice(-5).map(m => m.mes).join('\n');
     const context = normalize(`${scene?.where || ''} ${scene?.present || ''} ${recent}`);
@@ -526,7 +557,8 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     let offer;
     for (const saved of records.values()) {
         const row = saved.kind === 'profile' ? effectivePortrayal(saved,baselineFor(baselines,saved.subject,saved.aliases)) : saved;
-        if (!modules[KIND_MODULE[row.kind]] || (!recallFacts && row.kind==='fact')) continue;
+        const decision = exposure.get(row.id);
+        if (!modules[KIND_MODULE[row.kind]] || (!recallFacts && row.kind==='fact') || decision?.on===false) continue;
         const eligible = gate(row,records,clock,scene);
         if (PLOT_KINDS.includes(row.kind)) {
             if (row.status === 'retired' && !row.realized) continue;
@@ -538,7 +570,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
             relevant.push({record:row,text});
         } else if (row.kind === 'knowledge' && row.private && !mentions(cast,row.subject)) {
             continue;
-        } else if (!row.subject || [row.subject,row.other,...(row.aliases || [])].some(matches)) {
+        } else if (decision?.entry.activation || !row.subject || [row.subject,row.other,...(row.aliases || [])].some(matches)) {
             let suffix = '';
             if (row.kind === 'profile') suffix = `${row.voice ? ` Voice: ${row.voice}` : ''}${row.facet && row.facetScene!=null && row.facetScene===sceneId ? ` Current facet: ${row.facet}` : ''}`;
             if (row.kind==='fact' && row.baseEntry) {
@@ -568,7 +600,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         cost += item.text.length + 1;
     }
     if (schedule && modules.plots && modules.worldEvents) {
-        const candidates = [...records.values()].filter(row => PLOT_KINDS.includes(row.kind) && row.status === 'open' && row.schedule && gate(row,records,clock,scene) &&
+        const candidates = [...records.values()].filter(row => PLOT_KINDS.includes(row.kind) && row.status === 'open' && row.schedule && exposure.get(row.id)?.on!==false && gate(row,records,clock,scene) &&
             (!row.spacing || !history.slice(-row.spacing).some(item => item.record.v10Offer === row.id)));
         const total = candidates.reduce((sum,row) => sum + row.weight,0);
         let draw = total ? rollInt(total) : 0;
@@ -600,7 +632,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         repair && `If supported, recover a missing state change from accepted reply ${repair.id}, using exact evidence and placing it in repairChanges alongside "repair":${repair.id}. Keep new changes in changes. Respect newer facts. Prior prose: ${JSON.stringify(repair.text)}`,
         updateContract(modules),
     ].filter(Boolean).join('\n');
-    return { text, offer, repair, records, clock, check, modules, recalled, baselines, base:local?.base, plotAudit };
+    return { text, offer, repair, records, clock, check, modules, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base:local?.base, plotAudit };
 }
 
 export function loreReceipt(entries, notes, rows, book, recalled = []) {

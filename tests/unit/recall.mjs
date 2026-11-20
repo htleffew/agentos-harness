@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+const ctx = {chat:[{mes:'An opening.'}]};
+globalThis.SillyTavern={getContext:()=>ctx};
+const {readActivation,recallPolicy}=await import('../../src/recall.js');
+const test=(value,type)=>recallPolicy('Book',type)({uid:7,activation:readActivation(value)});
+assert.deepEqual(test({mode:'always',chance:0}),{on:false,fresh:false});
+assert.deepEqual(test({mode:'off',chance:100}),{on:false,fresh:false});
+assert.deepEqual(test({mode:'window',window:1}),{on:true,fresh:true});
+ctx.chat.push({is_user:true,mes:'Hello.'},{mes:'Good evening.'});
+assert.deepEqual(test({mode:'window',window:1}),{on:false,fresh:false});
+assert.equal(test({mode:'triggered',keys:['even']}).on,false);
+assert.equal(test({mode:'triggered',keys:['GOOD evening']}).on,true);
+ctx.chat.at(-1).extra={roleplay_instructions:{recall:{book:'Book',fresh:['7']}}};
+assert.deepEqual(test({mode:'triggered',keys:['ferry'],sticky:1}),{on:true,fresh:false});
+assert.equal(test({mode:'triggered',keys:['ferry'],sticky:1},'swipe').on,false);
+ctx.chat.push({is_user:true,mes:'Goodbye.'},{mes:'Until tomorrow.'});
+assert.equal(test({mode:'triggered',keys:['ferry'],sticky:1}).on,false);
+assert.equal(test({mode:'window',window:1,after:2}).on,true);

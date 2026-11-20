@@ -144,9 +144,9 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
         }, L.BASE);
         console.log('new chat:', JSON.stringify(after));
         assert(after.chat !== before.chat && /^The gulls woke first\. FIRSTMARK .* EDITMARK$/.test(after.first) && /FIRSTMARK/.test(after.shown), 'new chapter: a new chat opens with your edited first message in place of the greeting');
-        assert(after.sets.join() === before.set && after.world === before.world && after.she === 'she' && /wants/.test(after.goal) && after.steps.join() === 's1:true,s2:false' && after.burned >= 1 && after.of === before.chat, 'new chapter: the sets that were on, the world, the pronouns, the goal with its finished step and what has happened for good are carried over');
+        assert(after.sets.join() === before.set && after.world && after.world !== before.world && after.she === 'she' && /wants/.test(after.goal) && after.steps.join() === 's1:true,s2:false' && after.burned >= 1 && after.of === before.chat, 'new chapter: the active sets, an independent Story World, the pronouns, the goal with its finished step and what has happened for good are carried over');
         ch = await chapters(page);
-        const carried = ch.find(c => c.rollup);
+        const carried = ch.find(c => c.rollup && c.on);
         assert(carried && carried.name === 'The story before this chat' && /LONGSUMMARK/.test(carried.f.summary) && !carried.auto, 'new chapter: the summary is kept in the world as "The story before this chat"');
         L.mode({ reply: reply(1, 'continues') });
         const n1 = await send(page, 'Good morning.');
@@ -160,15 +160,15 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
         assert(back && back.id === before.chat && back.len === oldLen && !/FIRSTMARK/.test(back.first), 'new chapter: going back, the old chat has every message it had and its own first message');
         L.mode({ reply: reply(10, 'continues') });
         const ob = await send(page, 'Back in the old chat.');
-        assert(/The story so far:\n- Before the latest chapters: Hale asked you to sail\. You agreed at noon\. LONGSUMMARK\./.test(ob.text) && !/The story before this chat/.test(ob.text), 'new chapter: read in the old chat, the same account is titled "Before the latest chapters"');
+        assert(!/LONGSUMMARK/.test(ob.text) && /COMBINED/.test(ob.text), 'new chapter: the source book retains its original combined summary');
 
-        // with no story world, the summary travels in the new chat itself
+        // starting without a world creates a physical Story World for the continuation
         await L.openChat(page);
         L.mode({ reply: PROSE(1) });
         await send(page, 'No world here.');
-        const made = await page.evaluate(async (B) => { const C = await import(`${B}/src/chapters.js`); const E = await import(`${B}/src/engine.js`); await C.startNewChapter({ summary: 'A short story with no world NOWORLDMARK.', first: 'It was morning again.' }, E.burnedSoFar); await new Promise(r => setTimeout(r, 1200)); const c = globalThis.SillyTavern.getContext(); return { first: c.chat[0].mes, n: c.chat.length }; }, L.BASE);
+        const made = await page.evaluate(async (B) => { const C = await import(`${B}/src/chapters.js`); const E = await import(`${B}/src/engine.js`); await C.startNewChapter({ summary: 'A short story with no world NOWORLDMARK.', first: 'It was morning again.' }, E.burnedSoFar); await new Promise(r => setTimeout(r, 1200)); const c = globalThis.SillyTavern.getContext(); return { first:c.chat[0].mes, world:(await import(`${B}/src/world.js`)).chatWorld() }; }, L.BASE);
         const nw = await send(page, 'Hello again.');
-        assert(made.first === 'It was morning again.' && /\[The story before this chat\. These are facts already true in this story\. Write the reply so that they stay true\.\nA short story with no world NOWORLDMARK\.\]/.test(nw.text), 'new chapter: with no story world, the summary is kept in the new chat and sent with every reply');
+        assert(made.first === 'It was morning again.' && made.world && /NOWORLDMARK/.test(nw.text), 'new chapter: creates a native Story World for a formerly worldless chat and recalls the summary');
 
         // ----- F. a starter world from the character card
         await newWorld(page, 'Starter story', S);
