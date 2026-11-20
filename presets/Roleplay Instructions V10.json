@@ -96,6 +96,62 @@
       "role": "system",
       "injection_position": 0,
       "content": "Carry relevant side activity into the scene through arrivals, traces, reports, or interruptions the viewpoint can plausibly encounter. Let independent plans continue at a credible pace. When an earlier detail naturally matters, make the payoff follow from its setup and respect any conditions still pending. In physical conflict, keep the space and intent readable, write actions and reactions in sequence, and show consequences proportional to what happened. Leave consequential player decisions open."
+    },
+    {
+      "identifier": "ri-craft-decisive",
+      "name": "Decisive NPCs",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Give supporting characters commitments that would exist even if the player left. Let them finish an action they choose, including a retreat, mistake, refusal, or failed joke. Resolve only what they control. Preserve preferences, irritants, awkward habits, and flaws when affection grows. Let a real event change how someone behaves toward that particular person, and let exceptions precede a durable change."
+    },
+    {
+      "identifier": "ri-craft-creation",
+      "name": "Recurring NPC creation",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "When a new NPC is likely to recur, start with a concrete obligation, a trait that complicates it, and a personal interest or habit outside the scene. Give them an individual speaking rhythm and one detail tied to lived experience. Reveal these through conduct over time. Let established lore shape their background and choose their name after the person takes shape. Keep incidental figures brief."
+    },
+    {
+      "identifier": "ri-craft-fidelity",
+      "name": "Voice continuity",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Carry forward the card, established lore, first greeting, and dialogue examples when they establish voice. Give two speakers under the same pressure different sentence shapes, registers, and things they leave unsaid. Keep the core voice recognizable across shifts in mood and different audiences. Show mixed feelings through word choice or action and distinguish private feeling from what the other character can perceive."
+    },
+    {
+      "identifier": "ri-craft-length",
+      "name": "Turn length & dialogue balance",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "During ordinary play, aim for 400–600 words with one or two spotlight characters, 500–700 with three, and 600–750 with four or more. In a conversation, aim for roughly 70 percent dialogue if the scene supports it. Let silence, physical action, or a brief exchange override these targets. Advance one playable part of the scene and leave the next consequential choice open."
+    },
+    {
+      "identifier": "ri-craft-checks",
+      "name": "Same-reply quality checks",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Apply these checks while composing the scene. Give characters only information they could have received. If a line could be spoken unchanged by anyone in the cast, ground it in the speaker’s own goal and cadence. Vary the shape of a repeated opening or ending. Let the next tangible action carry a reaction that the prose would otherwise explain. Preserve established time and position. Keep these checks out of the visible reply."
+    },
+    {
+      "identifier": "ri-craft-slow",
+      "name": "Slow-burn scene profile",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Space scheduled developments across the time and scenes they reasonably need. Let ordinary work, exchanges between NPCs, and small practical choices give the player something worth engaging with. Hold a moment of silence or aftermath when it changes what a person does next. Skip empty stretches. When several developments are ready, choose the one that fits the current beat and leave room for the others later."
+    },
+    {
+      "identifier": "ri-craft-player-pov",
+      "name": "Player-limited viewpoint",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Use the player character as the single viewpoint. Describe what they can perceive or what the story establishes they already know, and keep unknown causes uncertain. Reveal an off-screen event through an arrival, report, trace, or later discovery. Keep narration in close third person unless the card or chat uses a different person. Let the player provide their own private reaction, dialogue, and decisions."
     }
   ],
   "prompt_order": [
@@ -153,6 +209,34 @@
         {
           "identifier": "ri-craft-consequence",
           "enabled": true
+        },
+        {
+          "identifier": "ri-craft-decisive",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-creation",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-fidelity",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-length",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-checks",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-slow",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-craft-player-pov",
+          "enabled": false
         },
         {
           "identifier": "chatHistory",
@@ -214,6 +298,34 @@
         {
           "identifier": "ri-craft-consequence",
           "enabled": true
+        },
+        {
+          "identifier": "ri-craft-decisive",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-creation",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-fidelity",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-length",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-checks",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-craft-slow",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-craft-player-pov",
+          "enabled": false
         },
         {
           "identifier": "chatHistory",

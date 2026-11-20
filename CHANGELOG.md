@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.8
+
+- Memory only lets the host preset control writing, mechanics, and rendering. Choose World Info recall, chapter summaries, and auto-hide independently for each chat. Turning off auto-hide or chapter summaries restores history hidden by the extension.
+- Structured modules are grouped by writing and reply display, story and character continuity, and plot and mechanics.
+- The companion preset adds editable prompts for decisive NPCs, recurring NPC creation, voice continuity, turn length and dialogue balance, and prose quality checks. Slow-burn pacing and player-limited viewpoint are optional host prompts.
+
 ## 10.0.7
 
 - Replies show a responsive HTML scene header with the accepted time, date, location and weather above the prose. The story console stays collapsed by default. Progress lights follow the context, prose, update and saved stages and respect reduced-motion settings.

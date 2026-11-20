@@ -76,6 +76,11 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(L.text(L.requests()[0]).split('REACTION-GUIDE').length-1,1);
         assert.doesNotMatch(L.text(L.requests()[0]),/DOCK-GUIDE/);
         assert.match(L.text(L.requests()[0]),/I run to the dock/);
+        for (const name of ['Decisive NPCs','Recurring NPC creation','Voice continuity','Turn length & dialogue balance','Same-reply quality checks']) {
+            const marker=preset.prompts.find(prompt=>prompt.name===name).content.split('. ')[0];
+            assert.equal(L.text(L.requests()[0]).split(marker).length-1,1,name);
+        }
+        assert.doesNotMatch(L.text(L.requests()[0]),/Use the player character as the single viewpoint|Space scheduled developments across the time/);
         const state=await story(page,async({B})=>{
             const V=await import(`${B}/src/v10.js`);
             const msg=SillyTavern.getContext().chat.at(-1);

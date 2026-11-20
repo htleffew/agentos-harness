@@ -1,3 +1,4 @@
+import { memoryOnly, memoryComponents } from './components.js';
 import { proseDialogue } from './dialogue.js';
 import { separateReply, hasReplyScaffolding } from './reply-format.js';
 import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview } from './reply-progress.js';
@@ -199,11 +200,27 @@ function keepsGoing(key) {
 
 // ---------- before the scan: add this chat's instruction sets ----------
 
+async function loadMemory(lore, arrays) {
+    // Keep native World Info entries. Suppress managed instructions even if their books are also indexed by the host.
+    for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (isManaged(list[i])) list.splice(i,1);
+    if (!Array.isArray(lore.chatLore) || gen?.skip) return;
+    const turn = gen;
+    const type = turn?.type || 'normal';
+    const components = memoryComponents();
+    if (turn && ['swipe','regenerate'].includes(type)) undoForSwipe();
+    await worldIdle();
+    if (components.world) await addConfiguredBooks(lore,arrays,{}, {}, {guidelines:false});
+    const flow = await prepareWorld(type,0,{memory:true,components});
+    if (flow?.notes) lore.chatLore.push(notesEntry(flow.notes.text));
+    if (turn) turn.memoryFlow = flow;
+}
+
 async function onEntriesLoaded(lore) {
     try {
         const st = settings();
         if (!st.enabled || !lore) return;
         const arrays = [lore.globalLore, lore.characterLore, lore.chatLore, lore.personaLore].filter(Array.isArray);
+        if (gen?.memory ?? memoryOnly()) { await loadMemory(lore,arrays); return; }
         const cs = chatState();
         if (cs) syncChat(cs);
         if (cs && Array.isArray(lore.chatLore)) {
@@ -246,7 +263,7 @@ async function onEntriesLoaded(lore) {
         const scale = phase?.chance ?? 100;
         const modules = native ? effectiveModules() : null;
         const activeScene = native ? readScene(kind) : null;
-        if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules);
+        if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules,{base:memoryComponents().world});
         const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
         if (gen && gen.v10Schedule === undefined && native && !gen.dryRun) gen.v10Schedule = !quiet && kind === 'normal' && modules.worldEvents && chance > 0 && rollInt(100) < chance;
         const schedule = gen?.v10Schedule === true;
@@ -266,7 +283,7 @@ async function onEntriesLoaded(lore) {
             v10Rows = await rowsForWorld().catch(() => []);
             const old = gen?.guided?.prior || (kind === 'swipe' || kind === 'continue' ? lastRecord() : null);
             const check = modules.dice ? (gen?.check ?? old?.v10Check ?? null) : null;
-            v10Turn = prepareTurn(v10Rows,{where:activeScene.location,present:activeScene.present},kind,modules,check,{schedule});
+            v10Turn = prepareTurn(v10Rows,{where:activeScene.location,present:activeScene.present},kind,modules,check,{schedule,recallFacts:memoryComponents().world});
             if (schedule && !v10Turn.offer && !flow?.order) {
                 v10Turn.offer = {id:'world-event',text:'If the scene has room, introduce one plausible outside development that follows from the current place and circumstances.'};
             }
@@ -504,6 +521,14 @@ function onScanDone(args) {
         if (args?.state?.next) return; // more passes follow; work on the final result only
         const map = args?.activated?.entries;
         if (!(map instanceof Map)) return;
+        if (gen.memory) {
+            for (const entry of map.values()) if (isManaged(entry) && !isNotes(entry)) map.delete(keyOf(entry));
+            if (!gen.skip) {
+                const flow = gen.memoryFlow;
+                pending = {memory:true,type:gen.type,notes:flow?.notes?.text || '',lore:loreReceipt(map.values(),flow?.notes,flow?.rows || [],flow?.id)};
+            }
+            return;
+        }
         // SillyTavern can scan twice while one reply is being written (once for real, once to count tokens).
         // The first scan decides what is sent. Any later scan gets exactly the same notes.
         if (gen.handled) { reapply(gen.result, args); return; }
@@ -769,6 +794,21 @@ function keepCards(rec, parsed, earlier, id) {
 
 function onMessageReceived(id, type) {
     try {
+        if (pending?.memory || (gen?.memory ?? memoryOnly())) {
+            const turn = pending;
+            if (!turn?.memory || type==='first_message') return;
+            const message = ctx().chat?.[id];
+            if (!message || message.is_user || message.is_system) return;
+            pending = null;
+            const previous = turn.type==='continue' ? message.extra?.[KEY] : null;
+            const time = previous?.time || Date.now();
+            const v10Lore = turn.lore.map(({text,...entry})=>entry);
+            attach(message,{...previous,v:1,memory:true,items:previous?.items || [],type:turn.type,time,v10Lore});
+            try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+            chapterAfterReply(time,history('normal').next-1,()=>changed('messages'));
+            changed('sent',id);
+            return;
+        }
         // The update block is taken out of the reply first, so it is never shown, checked or sent back.
         const parsed = settings().enabled ? liftBlock(id, type !== 'first_message' && pairedPreset()) : { found: false, ops: [], ended: false, block: '' };
         if (!pending || type === 'first_message') return;
@@ -1035,7 +1075,8 @@ function onPromptReady(data) {
         const record = !data.dryRun && !gen?.skip && !isOwnPrompt(data.chat);
         const paired = pairedPreset();
         const plainDialogue = paired || (enabledV10() && effectiveModules().colors);
-        for (const msg of data.chat) {
+        const memory = gen?.memory ?? memoryOnly();
+        if (!memory) for (const msg of data.chat) {
             // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
             if (msg.role === 'assistant') {
                 const cleanAssistant = value => {
@@ -1050,7 +1091,7 @@ function onPromptReady(data) {
         }
         if (record && pending?.lore) {
             const full = data.chat.flatMap(({content})=>Array.isArray(content) ? content.map(part=>part?.text || '') : typeof content === 'string' ? [content] : []).join('\n');
-            const instructions = plan.contextAsk && sub(plan.contextAsk).trim();
+            const instructions = !memory && plan.contextAsk && sub(plan.contextAsk).trim();
             if (prefs()?.keepTurnGuidance && instructions && full.includes(instructions)) pending.v10Request = instructions;
             for (const entry of pending.lore) {
                 const expanded = typeof entry.text === 'string' ? sub(entry.text).trim() : '';
@@ -1058,7 +1099,7 @@ function onPromptReady(data) {
             }
         }
         if (record && gen && replyProgress()?.phase === 'context') showReplyProgress(gen,'waiting');
-        if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: pending?.items || [], ask: plan.contextAsk || '' }); }
+        if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: memory && pending?.notes ? [{notes:true,text:pending.notes}] : pending?.items || [], ask: memory ? '' : plan.contextAsk || '' }); }
     } catch (e) { console.error(LOG, 'prompt-ready', e); }
 }
 
@@ -1187,6 +1228,7 @@ export async function guideSwipe(direction, { repeatOrders = false, keepManualEd
     const c = ctx(), chat = c.chat || [], id = chat.length - 1, m = chat[id];
     const value = String(direction || '').trim();
     if (!settings().enabled) throw new Error('Turn the extension on first.');
+    if (memoryOnly()) throw new Error('Guided swipes are available in the full extension workflow.');
     if (!value || value.length > 2000) throw new Error('Enter a direction of at most 2,000 characters.');
     if (guided || guidedPreparing || isGenerating()) throw new Error('Wait for the current generation to finish.');
     if (!m || m.is_user || m.is_system || !m.extra?.[KEY]) throw new Error('A recorded character reply must be the latest message.');
@@ -1236,7 +1278,7 @@ export function init() {
         if (dryRun) return;
         clearReplyProgress();
         if (guided && type === 'swipe' && guided.chatId === String(ctx().getCurrentChatId?.() || '')) guided.started = true;
-        gen = { guided: guided?.started ? guided : null, type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
+        gen = { memory:memoryOnly(), guided: guided?.started ? guided : null, type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
         if (!gen.skip) {
             pending = null;
             if (enabledV10()) gen.check = gen.guided?.check ?? (['swipe','regenerate','continue'].includes(gen.type) ? lastRecord()?.v10Check : prefs()?.check);
@@ -1245,7 +1287,8 @@ export function init() {
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
         if (dryRun || !settings().enabled) return;
         if (enabledV10() && !gen?.skip && !isOocTurn() && isChatOpen()) await ensureWorld().catch(e => console.warn(LOG,'v10 story world',e));
-        if (!checkPromise) return;
+        if (gen?.memory && !gen.skip && memoryComponents().chapters && isChatOpen()) await ensureWorld().catch(e=>console.warn(LOG,'chapter story world',e));
+        if (gen?.memory || !checkPromise) return;
         // Let a running check finish first, so an instruction that did not happen can be sent again with this reply.
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
@@ -1284,7 +1327,7 @@ export function init() {
         const attempt = guided; guided = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();
-        if (isChatOpen()) { applyPronouns(); if (settings().enabled) { reconcile(); syncWorld(); } }
+        if (isChatOpen()) { if (!memoryOnly()) applyPronouns(); if (settings().enabled) { reconcile(); syncWorld(); } }
         changed('chat');
         // Former keys of moved sets are read in the background, then this chat's state is brought in line.
         if (isChatOpen() && settings().enabled) refreshAliases().then(() => { const cs = chatState(); if (cs) { syncChat(cs); reconcile(); changed('messages'); } }).catch(e => console.warn(LOG, 'aliases', e));
@@ -1297,7 +1340,7 @@ export function init() {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);
         if (settings().enabled && ctx().chat?.[id] && !ctx().chat[id].is_user) invalidateAfterEdit(id, () => { toast('warning', 'The edited reply and later story state need review. Open Current State to review or rebuild them.'); changed('messages'); });
-        if (settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
+        if (!memoryOnly() && settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
         changed('messages');
     });
     return missing;

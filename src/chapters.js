@@ -1,3 +1,5 @@
+import { separateReply } from './reply-format.js';
+import { memoryComponents, memoryOnly } from './components.js';
 import { promptText } from './prompts.js';
 import { stateAt, sceneAt } from './state.js';
 import { creationFingerprint } from './worldflow.js';
@@ -39,7 +41,9 @@ function storyText(from, to, limit = 24000) {
     for (let i = Math.max(0, start); i <= end && i < chat.length; i++) {
         const m = chat[i];
         if (!isStory(m) || !m.mes) continue;
-        const text = tidy(m.mes);
+        const original = String(m.mes);
+        const extracted = memoryOnly() && !m.is_user ? separateReply(original).text : original;
+        const text = tidy(extracted || original);
         if (text) lines.push(`${m.name}: ${text.length > 2500 ? `${text.slice(0, 2500)} [...]` : text}`);
     }
     let text = lines.join('\n\n');
@@ -136,7 +140,7 @@ export async function writeChapter(from, to, why) {
             Object.assign(w.fields, { summary: clean(obj.summary), when: clean(obj.when), people: asList(obj.people), places: asList(obj.places), settled: clean(obj.settled) });
             // What is finished moves into the chapter: it is written into it in one line each and turned off, so the
             // world holds what is still open. Entries set to "keep it as I wrote it" are left alone.
-            const retired = settings().summary.retire === false ? [] : listWorld(data, wid).filter(x => x.on && !x.locked && (x.kind === 'secret' ? x.status === 'out' : DONE[x.kind] && x.status === DONE[x.kind]));
+            const retired = memoryOnly() || settings().summary.retire === false ? [] : listWorld(data, wid).filter(x => x.on && !x.locked && (x.kind === 'secret' ? x.status === 'out' : DONE[x.kind] && x.status === DONE[x.kind]));
             if (retired.length) w.fields.closed = retired.map(finishedLine).join(' ');
             writeWorldEntry(data, w, wid);
             for (const x of retired) { x.on = false; writeWorldEntry(data, x, wid); }
@@ -163,10 +167,10 @@ export async function writeChapter(from, to, why) {
 /** After a reply: is a chapter due? Runs by itself in the background. replyNo: the number of the reply just written. */
 export function chapterAfterReply(time, replyNo, onDone) {
     const o = settings().summary;
-    if (!o.on || busy) return;
+    if (!memoryComponents().chapters || busy) return;
     worldIdle().then(async () => {
         const wid = chatWorld();
-        if (!wid || busy) return;
+        if (!wid || !memoryComponents().chapters || busy) return;
         const rec = (ctx().chat || []).map(m => m?.extra?.[KEY]).find(r => r && String(r.time) === String(time));
         if (!rec) return;
         const data = await loadWorld(wid).catch(() => null);
@@ -175,7 +179,7 @@ export function chapterAfterReply(time, replyNo, onDone) {
         const min = Math.max(1, Math.round(Number(o.minReplies) || 1));
         const every = Math.max(0, Math.round(Number(o.every) || 0));
         let why = '';
-        if (o.onSceneEnd && rec.update?.ended && since >= min) why = 'the scene ended';
+        if (!memoryOnly() && o.onSceneEnd && rec.update?.ended && since >= min) why = 'the scene ended';
         else if (every && since >= every) why = `${every} replies went by`;
         if (!why) return;
         try { await writeChapter(replyNo - since + 1, replyNo, why); onDone?.(); }
@@ -185,6 +189,7 @@ export function chapterAfterReply(time, replyNo, onDone) {
 
 /** "Write a chapter now": everything since the last chapter. */
 export async function writeChapterNow() {
+    if (chatState()?.components?.chapters===false) throw new Error('Turn on Chapter summaries for this chat first.');
     const wid = chatWorld();
     if (!wid) throw new Error('This chat has no story world to keep chapters in.');
     const data = await loadWorld(wid);
@@ -311,7 +316,7 @@ export async function startNewChapter(draft, burnedSoFar) {
     const v10ClockSeed = [...(c.chat || [])].reverse().find(message=>!message.extra?.[KEY]?.stateStale &&
         Number.isInteger(message.extra?.[KEY]?.v10Minutes))?.extra[KEY].v10Minutes ?? cs.v10ClockSeed;
     const carry = {
-        v10, v10ClockSeed,
+        v10, v10ClockSeed, components:cs.components ? structuredClone(cs.components) : undefined,
         activeSets: [...cs.activeSets], world: wid, presets: structuredClone(cs.presets), locks: structuredClone(cs.locks),
         used: structuredClone(cs.used), picks: structuredClone(cs.picks), pronouns: cs.pronouns ? structuredClone(cs.pronouns) : undefined,
         goals: g ? { ...structuredClone(g), steps: g.steps.map(s => ({ ...s, doneManual: stepDone(s, p) || !!s.doneManual })) } : undefined,

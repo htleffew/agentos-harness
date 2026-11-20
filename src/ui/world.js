@@ -1,3 +1,5 @@
+import { memoryOnly, memoryComponents } from '../components.js';
+import { setMemoryComponent } from '../hide.js';
 import { promptGroup } from './prompts.js';
 import { recordManualWorldChange } from '../worldflow.js';
 // Story World tab: the people, places, groups, secrets, open threads, planted details and things going on
@@ -5,7 +7,7 @@ import { recordManualWorldChange } from '../worldflow.js';
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, chip, download } from './dom.js';
 import { settings, saveSettings, chatState } from '../store.js';
 import { createSet, setInfo, setName, exportSet } from '../books.js';
-import { WORLD_KINDS, KIND_ORDER, isStructuredWorldKind, MAX_ACTIVITIES, chatWorld, setChatWorld, knownWorlds, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, entryFlags, renderEntry, buildNotes, writeWorldEntryWithAI } from '../world.js';
+import { WORLD_KINDS, KIND_ORDER, isStructuredWorldKind, MAX_ACTIVITIES, chatWorld, setChatWorld, knownWorlds, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, entryFlags, renderEntry, storyRecall, writeWorldEntryWithAI } from '../world.js';
 import { toast, confirmBox, inputBox, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
 import { keptIn, deleteButton } from './sets.js';
@@ -53,26 +55,27 @@ function worldPicker(app) {
 
 function summarySection(app, id) {
     const o = settings().summary;
+    const memory = memoryOnly(), components = memoryComponents();
     const save = () => { saveSettings(); app.render(); };
     const yes = (v, set) => select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], v ? 'on' : 'off', (x) => { set(x === 'on'); save(); });
     const ui = app.wroute.sum || (app.wroute.sum = { busy: false, error: '' });
     return section('Keeping the story so far',
-        otherSummaryOn() && o.on ? h('div', { class: 'ri-note ri-note-warn' }, 'SillyTavern\'s own Summarize is also adding a summary to the prompt in this chat. Turn one of the two off, so the story so far is sent once.') : null,
+        otherSummaryOn() && components.chapters ? h('div', { class: 'ri-note ri-note-warn' }, 'SillyTavern\'s own Summarize is also adding a summary to the prompt in this chat. Turn one of the two off, so the story so far is sent once.') : null,
         id ? [
-            field('Keep the story so far in chapters', o.on ? 'A chapter is a short account of a stretch of the story, written with one AI request and kept in this world under "The story so far". The newest chapters are sent in full with the story notes; older ones when their people or places come up.' : 'Off: no chapters are written or sent.',
-                yes(o.on, v => { o.on = v; })),
-            o.on ? h('div', { class: 'ri-grid2' },
-                field('Write a chapter when a scene ends', 'The update block says when the story moved to a new time or place. Needs "Keep the world up to date" on.', yes(o.onSceneEnd, v => { o.onSceneEnd = v; })),
-                field('Move what is finished into the chapter', 'Threads that were settled, secrets that came out, planted details that paid off and things elsewhere that finished are written into the chapter in one line each and turned off, so the world holds what is still open. Entries set to "keep it as I wrote it" are left alone.', yes(o.retire !== false, v => { o.retire = v; })),
-                field('Replies a chapter must cover at least', 'A scene that ends sooner is joined to the next chapter.', numberInput(o.minReplies, { min: 1, max: 100, unit: 'replies' }, (n) => { o.minReplies = n; save(); })),
-                field('Write a chapter after this many replies in any case', '0 leaves it to scene ends and to you.', numberInput(o.every, { min: 0, max: 200, unit: 'replies' }, (n) => { o.every = n; save(); })),
+            field('Keep the story so far in chapters', components.chapters ? 'A chapter is a short account of a stretch of the story, written with one AI request and kept in this world under "The story so far". The newest chapters are sent in full with the story notes; older ones when their people or places come up.' : 'Off: no chapters are written or sent.',
+                yes(components.chapters, v => setMemoryComponent('chapters',v))),
+            components.chapters ? h('div', { class: 'ri-grid2' },
+                !memory && field('Write a chapter when a scene ends', 'The update block says when the story moved to a new time or place. Needs "Keep the world up to date" on.', yes(o.onSceneEnd, v => { o.onSceneEnd = v; })),
+                !memory && field('Move what is finished into the chapter', 'Threads that were settled, secrets that came out, planted details that paid off and things elsewhere that finished are written into the chapter in one line each and turned off, so the world holds what is still open. Entries set to "keep it as I wrote it" are left alone.', yes(o.retire !== false, v => { o.retire = v; })),
+                !memory && field('Replies a chapter must cover at least', 'A scene that ends sooner is joined to the next chapter.', numberInput(o.minReplies, { min: 1, max: 100, unit: 'replies' }, (n) => { o.minReplies = n; save(); })),
+                field('Write a chapter after this many replies in any case', memory ? '0 leaves chapter writing to you.' : '0 leaves it to scene ends and to you.', numberInput(o.every, { min: 0, max: 200, unit: 'replies' }, (n) => { o.every = n; save(); })),
                 field('Newest chapters always sent in full', '', numberInput(o.keep, { min: 1, max: 10, unit: 'chapters' }, (n) => { o.keep = n; save(); })),
                 field('Combine the older chapters when there are more than', 'One AI request turns the older chapters into a single account. The newest ones stay as they are.', numberInput(o.roll, { min: 2, max: 50, unit: 'chapters' }, (n) => { o.roll = n; save(); })),
-                field('Hide what a chapter covers', 'On: when a chapter is written, the messages it covers are hidden from the AI, the same as the /hide command. They stay in your chat, you can still read them, and deleting the reply a chapter belongs to shows them again. This keeps a long chat short for the AI with no extra AI request, so Message Limit, SillyTavern\'s Summarize and TunnelVision\'s autohide can be turned off.', yes(o.hide !== false, v => { o.hide = v; })),
-                o.hide !== false ? field('Messages never hidden this way', 'The newest messages always stay visible to the AI, whether a chapter covers them or not.', numberInput(o.keepShown ?? 30, { min: 4, max: 400, unit: 'messages' }, (n) => { o.keepShown = n; save(); })) : null,
+                field('Hide what a chapter covers', 'On: when a chapter is written, the messages it covers are hidden from the AI, the same as the /hide command. They stay in your chat, you can still read them, and deleting the reply a chapter belongs to shows them again. This keeps a long chat short for the AI with no extra AI request, so Message Limit, SillyTavern\'s Summarize and TunnelVision\'s autohide can be turned off.', yes(components.hide, v => setMemoryComponent('hide',v))),
+                components.hide ? field('Messages never hidden this way', 'The newest messages always stay visible to the AI, whether a chapter covers them or not.', numberInput(o.keepShown ?? 30, { min: 4, max: 400, unit: 'messages' }, (n) => { o.keepShown = n; save(); })) : null,
                 field('Room for the story so far (tokens)', 'Separate from the room for the rest of the story notes.', numberInput(o.budget, { min: 100, max: 6000, unit: 'tokens' }, (n) => { o.budget = n; save(); }))) : null,
             ui.error ? h('div', { class: 'ri-note ri-note-warn' }, ui.error) : null,
-            o.on ? h('div', { class: 'ri-row' }, button(ui.busy || chapterBusy() ? 'Writing the chapter...' : 'Write a chapter now', async () => {
+            components.chapters ? h('div', { class: 'ri-row' }, button(ui.busy || chapterBusy() ? 'Writing the chapter...' : 'Write a chapter now', async () => {
                 if (ui.busy) return;
                 ui.busy = true; ui.error = ''; app.render();
                 try { const name = await writeChapterNow(); toast('success', `Chapter "${name}" was written.`); }
@@ -215,7 +218,7 @@ function renderList(body, app) {
         listBox.replaceChildren(...out);
 
         // What the extension reads from the last reply, and what it would send now.
-        const notes = buildNotes(list);
+        const { notes } = storyRecall(list);
         preview.replaceChildren(section('What would be sent with the next reply',
             notes ? [
                 h('div', { class: 'ri-grid' },

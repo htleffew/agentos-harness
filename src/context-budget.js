@@ -61,7 +61,7 @@ export function captureContext(messages, { items = [], ask = '' } = {}) {
         const group = item.notes ? result.notes : item.event || item.worldOrder ? result.events : result.other;
         if (hit < 0) { group.unmatched++; continue; }
         if (item.notes) {
-            const chapter = value.match(/(?:^|\n)The story so far:\n[\s\S]*?(?=\n(?:Open threads|Going on elsewhere|In this scene|Where|Secrets|Planted earlier|Also relevant):|\]$)/)?.[0] || '';
+            const chapter = value.match(/(?:^|\n)The story so far:\n[\s\S]*?(?=\n(?:Open threads|Going on elsewhere|In this scene|Where|Secrets|Planted earlier|Also relevant|Relevant facts):|\]$)/)?.[0] || '';
             result.chapters.chars += chapter.length;
             group.chars += Math.max(0, hit - chapter.length);
         } else group.chars += hit;

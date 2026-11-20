@@ -1,3 +1,5 @@
+import { memoryOnly, memoryComponents } from '../components.js';
+import { setMemoryComponent } from '../hide.js';
 import { h, field, section, select } from './dom.js';
 import { settings, saveSettings } from '../store.js';
 import { isChatOpen, hasEvent } from '../st.js';
@@ -10,6 +12,7 @@ const row = (name, value, help = '') => h('div', { class: 'ri-context-metric' },
 
 export function renderContext(body, app) {
     const st = settings(), o = st.summary;
+    const memory = memoryOnly(), components = memoryComponents();
     const save = () => { saveSettings(); setTimeout(() => app.render(), 0); };
     const choose = (value, set) => select([{value:'on', label:'On'}, {value:'off', label:'Off'}], value ? 'on' : 'off', v => { set(v === 'on'); save(); });
     const numeric = (label, value, min, max, unit, changed, help) => {
@@ -36,13 +39,13 @@ export function renderContext(body, app) {
     const hasWorld = isChatOpen() && !!chatWorld();
     body.appendChild(section('Conversation and memory',
         h('div', { class:'ri-help' }, 'The preset’s Chat History includes the messages still visible to the AI. Chapters summarize older story, and the extension can hide the messages they cover. Keep Chat History enabled to include the recent conversation.'),
-        isChatOpen() && !hasWorld ? h('div', {class:'ri-note ri-note-warn'}, 'This chat has no Story World. Select or create one in Story World before automatic chapter summaries and hiding can work.') : null,
-        field('Keep the story so far in chapters', 'Each new chapter uses one AI request. A successful chapter is stored in the Story World.', choose(o.on !== false, v => {o.on=v;})),
+        isChatOpen() && !hasWorld && !memory ? h('div', {class:'ri-note ri-note-warn'}, 'This chat has no Story World. Select or create one in Story World before automatic chapter summaries and hiding can work.') : null,
+        field('Keep the story so far in chapters', 'Each new chapter uses one AI request. A successful chapter is stored in the Story World.', choose(components.chapters, v => setMemoryComponent('chapters',v))),
         h('div', {class:'ri-grid2'},
-            field('Write a chapter when the scene ends', 'Requires Story World updates and at least the minimum number of replies.', choose(o.onSceneEnd !== false, v => {o.onSceneEnd=v;})),
-            numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),
-            numeric('Write a chapter at least every', o.every, 0, 200, 'replies', n => {o.every=n;}, '0 disables this timer; scene-end and manual chapters still work.'),
-            field('Hide messages covered by a chapter', 'Hidden messages remain readable in the chat. Only successfully saved chapters can hide messages.', choose(o.hide !== false, v => {o.hide=v;}))),
+            !memory && field('Write a chapter when the scene ends', 'Requires Story World updates and at least the minimum number of replies.', choose(o.onSceneEnd !== false, v => {o.onSceneEnd=v;})),
+            !memory && numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),
+            numeric('Write a chapter at least every', o.every, 0, 200, 'replies', n => {o.every=n;}, memory ? '0 turns off automatic chapters in Memory only. You can still write one manually.' : '0 disables this timer. Scene-end and manual chapters still work.'),
+            field('Hide messages covered by a chapter', 'Hidden messages remain readable in the chat. Only successfully saved chapters can hide messages.', choose(components.hide, v => setMemoryComponent('hide',v)))),
         isChatOpen() && Number(o.every) > 0 ? (() => { const c = chapterPreview(Number(o.every)); return h('div', {class:'ri-help'}, `The latest ${c.replies} model replies and their surrounding messages contain about ${number(c.tokens)} tokens across ${c.messages} messages. This is a preview of recent text, not the exact next chapter.`); })() : null,
         field('Recent messages to protect', 'The newest messages and the opening message are not hidden by this feature. This is a minimum, not a hard cap: unsummarized messages and messages added between chapter writes remain visible. Changes take effect when a later chapter is written; increasing this number does not automatically unhide older messages.',
             h('div', {class:'ri-context-slider'}, range, amount, h('span', {class:'ri-unit'}, 'messages')), preview),

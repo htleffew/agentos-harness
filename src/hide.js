@@ -1,7 +1,8 @@
+import { memoryComponents } from './components.js';
 // Hiding older messages from the AI once a chapter covers them, and showing them again when that chapter is undone.
 // The messages stay in the chat; SillyTavern leaves hidden messages out of what it sends.
-import { ctx } from './st.js';
-import { settings } from './store.js';
+import { ctx, KEY } from './st.js';
+import { settings, chatState, saveChatState, saveSettings } from './store.js';
 
 /** A message's own mark, kept when other messages are deleted: its send date, or failing that its place. */
 export const messageMark = (m, i) => String(m?.send_date || `#${i}`);
@@ -12,7 +13,7 @@ export const messageMark = (m, i) => String(m?.send_date || `#${i}`);
  */
 export async function hideCovered(upTo) {
     const o = settings().summary;
-    if (o.hide === false) return [];
+    if (!memoryComponents().hide) return [];
     const chat = ctx().chat || [];
     const keep = Math.max(4, Math.round(Number(o.keepShown) || 30));
     const end = Math.min(upTo, chat.length - 1 - keep);
@@ -43,3 +44,36 @@ export function showAgain(marks) {
     return n;
 }
 
+
+/** Restore only messages previously hidden by this extension. */
+export function restoreChapterHistory() {
+    const updates = (ctx().chat || []).flatMap(message=>[
+        message.extra?.[KEY]?.update,
+        ...(message.swipe_info || []).map(swipe=>swipe.extra?.[KEY]?.update),
+    ]).filter(Boolean);
+    const logs = Object.values(chatState()?.worldLog?.items || {});
+    const marks = new Set();
+    for (const receipt of [...updates,...logs]) {
+        for (const change of receipt.changes || []) if (change.type==='hide') {
+            for (const mark of change.dates || []) marks.add(mark);
+        }
+        if (receipt.changes?.some(change=>change.type==='hide')) receipt.changes = receipt.changes.filter(change=>change.type!=='hide');
+    }
+    if (!marks.size) return 0;
+    const restored = showAgain(marks);
+    if (!restored) Promise.resolve(ctx().saveChat?.()).catch(()=>{});
+    saveChatState();
+    return restored;
+}
+
+export function setMemoryComponent(key, value) {
+    const state = chatState();
+    if (state) {
+        (state.components ||= {})[key] = value;
+        saveChatState();
+        if (key !== 'world' && !value) restoreChapterHistory();
+    } else if (key !== 'world') {
+        settings().summary[key==='chapters' ? 'on' : 'hide'] = value;
+        saveSettings();
+    }
+}

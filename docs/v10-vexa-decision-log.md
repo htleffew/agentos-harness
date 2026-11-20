@@ -402,3 +402,28 @@ Ten feature topics remain after Decision 14 at the current inventory granularity
 - Scene context appears above each reply as HTML showing time, date, location and weather. It reads accepted values from the selected reply's history and shows a dash for unspecified values. The under-reply console stays collapsed and tabbed. The extension's animated progress indicator tracks actual generation and filing stages.
 - Base World lore continues through host selection. Behavior & Guidelines can add chat-local eligibility rules before host selection. World Info reports selected entries and marks confirmed text when the assembled request is available. An explicit Chat Facts link identifies a related Base World entry and whether the new fact extends it, updates its present state, or records a player correction.
 - Source portrayal and protected edits outrank generated changes. Current facets expire at the scene boundary. Temporary physical states expire after two accepted replies or a scene change. Evidence validation uses exact excerpts and local matching. It can check references, recorded knowledge, locations, and time gates. Judgments about what a scene establishes still depend on the prose.
+
+## Companion preset parity audit
+
+See the [module-by-module Vexa audit](v10-vexa-module-audit.md) for all 78 prompt slots and the full 143-script rendering and cleanup inventory. Its Antithesis appendix traces the six depth-0 blocks, all 20 tail checks, their helpers, and how the separate realism choices feed the Router.
+
+The attached Roleplay Instructions V10 export matches the repository preset at commit `104fdc3` when parsed as JSON. Its nine enabled slots contain one instruction block and eight host markers. The current companion preset adds five writing blocks under the same preset name. The table counts enabled prompt blocks containing text in the global Chat Completion order. Character counts are raw preset text before host expansion, conditional logic, or extension injection.
+
+| Preset | Enabled blocks with text | Instruction characters | Bundled regex scripts |
+| --- | ---: | ---: | ---: |
+| Attached Roleplay Instructions V10 export | 1 | 373 | 0 |
+| Current companion preset at `fec7e58` | 6 | 2,792 | 0 |
+| Attached Vexa v1.0 | 48 | 117,114 | 143 |
+
+- **Character portrayal and voice.** The extension supplies source-backed portrayal, protected edits and current facets. The companion asks for distinct motives and speech. Vexa separately specifies source fidelity, concealment through subtext, voice under social pressure, restoration of faded quirks, earned changes in temperament, and fuller new-NPC creation. Some of those writing behaviors remain uncovered.
+- **Viewpoint and prose.** The companion asks for a clear viewpoint, anti-echo, natural speech attribution and selective sensory detail. Vexa fixes the player’s viewpoint and sensory access, uses concrete examples and banned constructions, and prompts a check for recent repetition, stock reactions and generic dialogue. The extension’s local diagnostics detect exact sentence repetition and malformed legacy speaker lines. Semantic voice, viewpoint and prose checks remain uncovered.
+- **Length and pacing.** The companion asks for scene beats to breathe and routine travel to compress. The extension tracks accepted story time and plot gates. Vexa adds cast-based word ranges, a 70/30 dialogue-to-narration target, and explicit slow-burn guidance against bundling planned events. These settings can yield materially different replies.
+- **State and presentation.** The extension implements selective branch-aware facts, knowledge, agendas, plot records, emotions, speaker colors, a scene header and a generation progress indicator. Vexa evaluates a broader supporting cast, runs pairwise emotion and expression mechanics, emits a larger state block each turn and reveals sections through regex styling. The project chose a selective state packet, lightweight relationship notes and ordinary prose for props. Full Atlas, tactical inventory, kinetic dialogue, freeform graphics and a visible preflight transcript are outside the agreed design.
+- **Connection settings.** The Vexa export includes sampling, context, output and streaming settings. The companion leaves these to the host connection or configuration. Compare both presets under the same settings when evaluating prose.
+- **Verification.** Mock SillyTavern tests confirm prompt delivery and persistence. A same-model comparison of actual prose remains open. Useful fixtures include a quiet exchange between contrasting voices, a character acting on limited knowledge, and a scene with several events ready but space for only one.
+
+The highest-value writing candidates are concrete source-fidelity rules, selectable viewpoint and pacing controls, and a brief same-reply preflight for generic dialogue, repetition and character knowledge. These can be editable companion prompt blocks without adding a model request or displaying a planning transcript.
+
+### Follow-up in extension 10.0.8
+
+Memory only runs the host preset alongside independently selected World Info recall, chapter summaries, and auto-hide. The extension leaves the host preset in charge of prose, mechanics, and rendering in that workflow. The companion preset now has editable prompts for decisive NPCs, richer recurring NPCs, voice continuity, ordinary-turn length, and same-reply quality checks. Slow-burn pacing and a player-limited viewpoint are optional blocks. Evaluate these prompts with the same model, card, and connection settings before treating their prose as equivalent to Vexa's.

@@ -1,3 +1,4 @@
+import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
 // V10's canonical update contract and chat-local configuration.
@@ -20,7 +21,7 @@ export const DEFAULT_MODULES = {
 };
 export const STYLE = 'Write direct, concrete fiction. Give the current cast distinct voices and independent motives. Show actions and speech, respect viewpoint knowledge, and leave the player’s speech, thoughts and choices to the player. End on a live beat without a meta question or choice menu. Most people are generally well, rested and capable; transient setbacks usually resolve quickly. Let significant moments breathe and skip uneventful intervals when appropriate.';
 const COMPANION_STYLE = 'Treat good health and rest as normal. Minor setbacks usually resolve quickly. Carry a lasting limitation only when the story establishes one.';
-const COMPANION_WRITING_BLOCKS = new Set(['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs']);
+const COMPANION_WRITING_BLOCKS = new Set(['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs', 'Decisive NPCs', 'Recurring NPC creation', 'Voice continuity', 'Same-reply quality checks', 'Slow-burn scene profile', 'Player-limited viewpoint']);
 export const defaultWritingGuidance = () => pairedPreset() ? COMPANION_STYLE : STYLE;
 export const OPENING = 'Write a rich opening of roughly 350–650 words. Establish the place, who is present and what is already in motion through concrete action and dialogue. Follow the selected point of view, tense and voice. Use normal paragraphs and quoted dialogue, with natural alternation between narration and speech. Default to close third-person past from the viewpoint NPC unless the shared profile specifies otherwise. Describe action in prose and identify speakers through ordinary narration or a speech verb. If using viewpoint NPC thoughts, mark them with asterisks. Leave player thoughts and decisions open. End at a natural opportunity to respond.';
 export const AXES = ['tenderness', 'fury', 'dread', 'yearning'];
@@ -50,7 +51,7 @@ export function activePreset() {
 export function prefs() { return chatState() && (chatState().v10 ||= {}); }
 export function enabledV10() {
     const local = chatState()?.v10?.enabled;
-    return settings().enabled && (local ?? (activePreset() === PRESET));
+    return settings().enabled && !memoryOnly() && (local ?? (activePreset() === PRESET));
 }
 const HOST_OVERLAPS = {
     style: ['Prose Rules'],
@@ -406,7 +407,7 @@ export function reusableBookNames() {
 
 export async function uploadBaseBook(file) {
     const local = prefs();
-    if (!local || !enabledV10()) throw new Error('Choose the Structured story workflow before importing a Base World book.');
+    if (!local || !(enabledV10() || memoryOnly() && memoryComponents().world)) throw new Error('Enable World Info before importing a Base World book.');
     let data;
     try { data = JSON.parse(await file.text()); }
     catch { throw new Error('Choose a valid World Info JSON export.'); }
@@ -507,7 +508,7 @@ export function updateContract(modules, opening = false) {
     return `After the visible prose, ${opening ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;
 }
 
-export function prepareTurn(rows, scene, type, modules, check, { schedule = false } = {}) {
+export function prepareTurn(rows, scene, type, modules, check, { schedule = false, recallFacts = true } = {}) {
     const history = previousV10(type);
     const latest = history.at(-1);
     const sceneId = latest?.record.v10SceneEnded ? null : latest?.record.v10SceneId ?? latest?.record.time;
@@ -525,7 +526,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     let offer;
     for (const saved of records.values()) {
         const row = saved.kind === 'profile' ? effectivePortrayal(saved,baselineFor(baselines,saved.subject,saved.aliases)) : saved;
-        if (!modules[KIND_MODULE[row.kind]]) continue;
+        if (!modules[KIND_MODULE[row.kind]] || (!recallFacts && row.kind==='fact')) continue;
         const eligible = gate(row,records,clock,scene);
         if (PLOT_KINDS.includes(row.kind)) {
             if (row.status === 'retired' && !row.realized) continue;
@@ -630,10 +631,10 @@ export function guidelineEligible(entry, local, scene, modules) {
         (!scope?.location || mentions(scene?.where,scope.location));
 }
 
-export async function addConfiguredBooks(lore, arrays, scene, modules) {
+export async function addConfiguredBooks(lore, arrays, scene, modules, { base = true, guidelines = true } = {}) {
     const local = chatState()?.v10;
     if (!local || !Array.isArray(lore.chatLore)) return;
-    if (local.base) {
+    if (base && local.base) {
         for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (list[i].world === local.base.name) list.splice(i,1);
         const opening = !(ctx().chat || []).some(message=>message.is_user && message !== ctx().chat.at(-1));
         lore.chatLore.push(...Object.values(local.base.entries || {}).map(entry => ({
@@ -641,7 +642,7 @@ export async function addConfiguredBooks(lore, arrays, scene, modules) {
             ...(opening && local.base.pins?.includes(String(entry.uid)) && !entry.disable ? {constant:true} : {}),
         })));
     }
-    if (local.guidelines && local.guidelines !== local.base?.name) {
+    if (guidelines && local.guidelines && local.guidelines !== local.base?.name) {
         const byId = new Map();
         for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (list[i].world === local.guidelines) {
             const [entry] = list.splice(i,1);

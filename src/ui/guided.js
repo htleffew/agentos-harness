@@ -1,3 +1,4 @@
+import { memoryOnly } from '../components.js';
 import { promptGroup } from './prompts.js';
 import { h, button } from './dom.js';
 import { guideSwipe, guidedSwipeActive } from '../engine.js';
@@ -9,8 +10,8 @@ export function refreshGuidedControl() {
     const chat = ctx().chat || [], id = chat.length - 1, m = chat[id];
     const mes = document.querySelector(`#chat .mes[mesid="${id}"]`);
     const block = mes?.querySelector('.mes_block');
-    for (const old of document.querySelectorAll('#chat .ri-guided')) if (!block || old.parentElement !== block || !settings().enabled || m?.is_user || !m?.extra?.[KEY]) old.remove();
-    if (!settings().enabled || !block || !m || m.is_user || m.is_system || !m.extra?.[KEY] || block.querySelector(':scope > .ri-guided')) return;
+    for (const old of document.querySelectorAll('#chat .ri-guided')) if (!block || old.parentElement !== block || !settings().enabled || memoryOnly() || m?.is_user || !m?.extra?.[KEY]) old.remove();
+    if (!settings().enabled || memoryOnly() || !block || !m || m.is_user || m.is_system || !m.extra?.[KEY] || block.querySelector(':scope > .ri-guided')) return;
     const input = h('textarea', { class: 'ri-input ri-textarea', rows: 3, maxLength: 2000, placeholder: 'For example: Keep the conversation calm and let her decline the invitation.' });
     const choice = h('select', { class: 'ri-input', 'aria-label': 'Previous instructions' },
         h('option', { value: 'omit' }, 'Leave the previous turn’s orders out'),

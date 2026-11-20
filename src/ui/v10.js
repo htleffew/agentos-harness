@@ -1,7 +1,9 @@
+import { memoryOnly, memoryComponents } from '../components.js';
+import { setMemoryComponent } from '../hide.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
 import { ctx, KEY, isChatOpen, toast, isGenerating, loadBook } from '../st.js';
-import { saveSettings, saveChatState } from '../store.js';
+import { settings, chatState, saveSettings, saveChatState } from '../store.js';
 import { acceptV10Opening, guideSwipe } from '../engine.js';
 import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
@@ -118,7 +120,7 @@ function guidelineScopes(local) {
         h('p',{class:'ri-help'},'Apply extra conditions for this chat. Eligible entries still use their World Info triggers.'),entries);
 }
 
-function renderBooks(local, redraw, app) {
+function renderBooks(local, redraw, app, baseOnly = false) {
     const books = [{value:'',label:'None'},...options(reusableBookNames())];
     const base = select(books,local.base?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
     const file = h('input',{type:'file',accept:'.json,application/json','aria-label':'Base World JSON file'});
@@ -148,14 +150,14 @@ function renderBooks(local, redraw, app) {
             local.base ? button('Refresh pinned copy',()=>pinBase(local.base.name).then(redraw).catch(problem)) : null,
             h('div',{class:'ri-row'},file,upload)),
         pins,
-        field('Behavior & Guidelines','Select a reusable book. Set its entry triggers in World Info.',guidelines,
+        !baseOnly && field('Behavior & Guidelines','Select a reusable book. Set its entry triggers in World Info.',guidelines,
             local.guidelines ? select([{value:'on',label:'Enabled'}, {value:'off',label:'Disabled'}], local.guidelinesOn === false ? 'off':'on', value=>{local.guidelinesOn=value==='on';saveChatState();redraw();}) : null),
-        guidelineScopes(local),
-        h('details',{class:'ri-card'},h('summary',{},'Create a guidelines book'),name,content,
+        !baseOnly && guidelineScopes(local),
+        !baseOnly && h('details',{class:'ri-card'},h('summary',{},'Create a guidelines book'),name,content,
             button('Create and select',async()=>{try{await createGuidelines(name.value.trim(),content.value.trim());if(prefs()!==local)return;local.guidelines=name.value.trim();local.guidelinesOn=true;saveChatState();redraw();}catch(error){problem(error);}})),
         h('div',{class:'ri-row'},
             button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
-            button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
+            !baseOnly && button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
 }
 
 function editRecord(original, save, cancel, kinds) {
@@ -435,7 +437,30 @@ function moduleSettings(local, app, preset, modules, redraw) {
             : 'Changes here apply only to this chat. Reset a changed setting to follow the extension again.'),
         !editingPreset && Object.keys(ownership).length ? h('div',{class:'ri-note'},'Instruction source is saved for this chat and preset. Related blocks are managed in the host preset editor. The extension yields while those blocks are on or their status is unavailable.',
             h('div',{class:'ri-row'},button('Refresh source status',redraw,{kind:'ghost'}))) : null,
-        h('div',{class:'ri-module-list'},rows));
+        ...[
+            ['Writing & reply display',['style','colors','roast','roastFeedback']],
+            ['Story state & character continuity',['state','knowledge','emotions','relationships']],
+            ['Plot & mechanics',['plots','worldEvents','dice']],
+        ].map(([label,keys])=>h('div',{class:'ri-module-list'},
+            h('h3',{class:'ri-label'},label),keys.map(key=>rows.find(row=>row.dataset.module===key)))));
+}
+
+function memorySettings(app, redraw) {
+    const active = memoryComponents();
+    const defaults = settings().summary;
+    const control = (key,label,hint,value) => field(label,hint,
+        select(choices.slice(1),value ? 'on' : 'off',next=>{setMemoryComponent(key,next==='on');redraw();},
+            {'aria-label':label,disabled:key==='hide' && !active.chapters}));
+    return section('Memory components',
+        control('world','World Info recall','Include the pinned Base World and relevant entries from the extension’s Story World. Host World Info remains under host control.',active.world),
+        control('chapters','Chapter summaries',`Write chapter summaries and recall them. The interval in Context & Memory is ${Number(defaults.every) || 0} replies.`,active.chapters),
+        control('hide','Auto-hide summarized messages',active.chapters
+            ? 'Hide covered messages from the model after a summary is saved. Turning this off restores messages hidden by the extension.'
+            : 'Enable Chapter summaries first.',active.hide),
+        h('div',{class:'ri-row'},
+            button('Context & Memory',()=>app.openPage('context'),{kind:'ghost'}),
+            button('Reusable Lorebooks',()=>app.openPage('books'),{kind:'ghost'}),
+            button('Story World',()=>app.openPage('world'),{kind:'ghost'})));
 }
 
 export function renderV10(body, app, page) {
@@ -450,15 +475,28 @@ export function renderV10(body, app, page) {
     const chatFlag = (key, label, hint, defaultOn = false) => field(label,hint,
         select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
             {'aria-label':label}));
+    if (page === 'books' && memoryOnly()) {
+        if (memoryComponents().world) body.append(renderBooks(local,redraw,app,true));
+        else body.append(h('p',{class:'ri-note'},'Turn on World Info recall in Setup → Preset & Extension.'));
+        return;
+    }
     if (page === 'v10') {
         body.append(presetDetails(preset,app));
         body.append(section('Roleplay Instructions extension',field('Story workflow for this chat',
-            'The structured story workflow enables the extension modules below. The legacy workflow uses the earlier story features. Change or edit the host preset separately in the host interface.',
+            'Memory only leaves writing, planning, checks, and reply rendering to the host preset. The structured and legacy workflows also run their enabled story features.',
             select([{value:'inherit',label:`Automatic (${preset===PRESET ? 'structured' : 'legacy'})`},
-                {value:'on',label:'Structured story workflow'}, {value:'off',label:'Legacy story workflow'}],mode(local.enabled),value=>{
-                if(value==='inherit')delete local.enabled;else local.enabled=value==='on';
+                {value:'memory',label:'Memory only'}, {value:'on',label:'Structured story workflow'},
+                {value:'off',label:'Legacy story workflow'}],memoryOnly() ? 'memory' : mode(local.enabled),value=>{
+                const cs = chatState();
+                if (value==='memory') (cs.components ||= {}).mode='memory';
+                else {
+                    if (cs.components) delete cs.components.mode;
+                    if (value==='inherit') delete local.enabled;
+                    else local.enabled=value==='on';
+                }
                 saveChatState();redraw();
             },{'aria-label':'Story workflow for this chat'}))));
+        body.append(memorySettings(app,redraw));
         if (!enabledV10()) return;
         body.append(moduleSettings(local,app,preset,modules,redraw),
             chatFlag('generatePlan','Request a reply plan','The extension adds an instruction for a brief optional outline before the prose when the companion preset is active.'));

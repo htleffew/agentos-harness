@@ -1,3 +1,4 @@
+import { memoryComponents, memoryOnly } from './components.js';
 import { promptText } from './prompts.js';
 import { sceneAt, sceneProtected } from './state.js';
 // The story world: characters, places, factions, secrets, threads, planted details and things going on elsewhere.
@@ -345,7 +346,8 @@ function sentLately(type, turns = 3) {
  * Choose what to send and write the block. list: the world's entries as readWorldEntry gives them.
  * Returns null when there is nothing to send, else { text, tokens, ids, extra, present, missing, place, how }.
  */
-export function buildNotes(list, type = 'normal', opts = settings().world) {
+export function buildNotes(list, type = 'normal', opts = settings().world,
+    { chapters = memoryComponents().chapters, memory = false } = {}) {
     const on = list.filter(w => w.on);
     if (!on.length) return null;
     const budget = Math.max(100, Math.round(Number(opts.budget) || 600)) * 4; // in characters
@@ -384,7 +386,7 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
     // 0. The story so far has room of its own: what came before the newer chapters, older chapters whose people or
     //    places are in play (in short), and the newest chapters of this chat in full.
     const sum = settings().summary;
-    if (sum.on !== false) {
+    if (chapters) {
         const chatId = String(ctx().getCurrentChatId?.() || '');
         const story = section('The story so far');
         const sRoom = Math.max(100, Math.round(Number(sum.budget) || 800)) * 4;
@@ -455,10 +457,29 @@ export function buildNotes(list, type = 'normal', opts = settings().world) {
         take(w.kind === 'seed' ? planted : also, w, text, true);
     }
 
+    if (memory) {
+        const facts = section('Relevant facts');
+        const evidence = `${scene.present} ${scene.location} ${recent}`;
+        for (const entry of by('fact')) {
+            const fact = parseJson(entry.fields.data);
+            if (fact?.kind !== 'fact' || typeof fact.text !== 'string') continue;
+            const names = [fact.subject,...(Array.isArray(fact.aliases) ? fact.aliases : [])].filter(x=>typeof x==='string' && x.trim());
+            const title = String(entry.name || '').replace(/[-_]/g,' ');
+            if (!names.length && title.length>=5) names.push(title);
+            if (!fact.protected && !names.some(name=>namedIn(evidence,{name,aliases:[]}))) continue;
+            if (room(fact.text)) take(facts,entry,fact.text);
+        }
+    }
     const body = sections.filter(s => s.lines.length).map(s => `${s.title}:\n${s.lines.join('\n')}`).join('\n');
     if (!body) return null;
-    const text = `[Story notes. ${promptText('storyNotes')}\n${body}]`;
+    const text = memory ? `[Story memory\n${body}]` : `[Story notes. ${promptText('storyNotes')}\n${body}]`;
     return { text, tokens: Math.round(text.length / 4), ids, extra, present: present.map(w => w.name), missing, place: place?.name || '', location: clean(scene.location), how };
+}
+
+export function storyRecall(list, type = 'normal', { memory = memoryOnly(), components = memoryComponents() } = {}) {
+    const rows = list.filter(row=>row.kind==='chapter' ||
+        components.world && (!memory || ['character','place','faction','fact'].includes(row.kind)));
+    return { rows, notes:buildNotes(rows,type,settings().world,{ chapters:components.chapters, memory }) };
 }
 
 /** Load this chat's world and build the notes for the reply that is about to be written. */
@@ -467,7 +488,7 @@ export async function notesForChat(type = 'normal') {
     if (!id) return null;
     const data = await loadSet(id).catch(() => null);
     if (!data) return null;
-    return buildNotes(listWorld(data, id), type);
+    return storyRecall(listWorld(data,id),type).notes;
 }
 
 /** The lorebook entry that carries the story notes. It is made for each scan and is in no lorebook. */

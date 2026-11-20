@@ -1,3 +1,4 @@
+import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
 import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, prefs } from './v10.js';
 import { promptText, promptStatus } from './prompts.js';
@@ -14,7 +15,7 @@ import { addLog } from './log.js';
 import { rollInt, pickWeighted, setInfo, entriesOf, createSet, knownSets } from './books.js';
 import { worldOffers, rememberStory } from './pacing.js';
 import { showAgain } from './hide.js';
-import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, buildNotes } from './world.js';
+import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
 export const ORDER_WORLD = 'Story world';
@@ -553,14 +554,14 @@ export function rollOrder(list, present, meta, opts = settings().world, more = {
  * Everything the story world adds to the reply that is about to be written.
  * Returns null when this chat has no world, else { notes, ask, order, id }.
  */
-export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, native = false, opportunities = false } = {}) {
+export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, native = false, opportunities = false, memory = false, components = memoryComponents() } = {}) {
     const id = chatWorld();
     if (quiet) return null;
     if (!id) {
         // A chat that was started with "New chapter" and has no story world carries its summary in the chat itself.
         const carried = clean(chatState()?.carried);
-        if (!carried || settings().summary.on === false) return null;
-        const text = `[The story before this chat. These are facts already true in this story. Write the reply so that they stay true.\n${carried}]`;
+        if (!carried || !components.chapters) return null;
+        const text = memory ? `[Story memory\n${carried}]` : `[The story before this chat. These are facts already true in this story. Write the reply so that they stay true.\n${carried}]`;
         rememberStory(carried);
         return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, ask: '', order: null };
     }
@@ -568,7 +569,8 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, 
     if (!data) return null;
     const o = settings().world;
     const list = listWorld(data, id);
-    const notes = buildNotes(list, type);
+    const { rows, notes } = storyRecall(list,type,{memory,components});
+    if (memory) return {id,notes,rows,ask:'',order:null};
     const ooc = isOocTurn();
     const ask = !native && o.update !== 'off' && !ooc ? buildAsk(list, type) : '';
     const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };

@@ -1,3 +1,4 @@
+import { memoryOnly } from '../components.js';
 import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
@@ -200,7 +201,7 @@ function sceneCard(sc) {
 function refreshStoryState(chat) {
     const st = settings();
     const v10 = enabledV10();
-    const mode = st.enabled ? (st.scene?.card || 'auto') : 'off';
+    const mode = st.enabled && !memoryOnly() ? (st.scene?.card || 'auto') : 'off';
     const seen = new Set();
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const id = Number(mes.getAttribute('mesid'));
@@ -311,7 +312,7 @@ function refreshV10Replies(chat) {
         const block=mes.querySelector('.mes_block');
         if (!block) continue;
         const old=block.querySelector(':scope > .ri-v10-reply');
-        const showHeader = enabled && !!msg && (native || rec?.v10) && !msg.is_user && !msg.is_system;
+        const showHeader = enabled && !memoryOnly() && !!msg && (native || rec?.v10) && !msg.is_user && !msg.is_system;
         const show = showHeader && !!rec;
         updateSceneHeader(mes,id,showHeader);
         if (!show) {old?.remove();continue;}
@@ -393,7 +394,7 @@ export function refreshUnderReplies() {
     try { refreshStoryState(ctx().chat || []); refreshV10Replies(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
     try {
         const st = settings();
-        const show = st.enabled && st.showUnder === 'display';
+        const show = st.enabled && !memoryOnly() && st.showUnder === 'display';
         const chat = ctx().chat || [];
         const seen = new Set();
         if (show) {
