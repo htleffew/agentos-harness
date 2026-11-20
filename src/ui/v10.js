@@ -9,7 +9,7 @@ import { acceptV10Opening, guideSwipe } from '../engine.js';
 import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
-    MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING,
+    MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES,
     PRESET, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, selectGuidelines, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
     readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor,
 } from '../v10.js';
@@ -220,6 +220,7 @@ function editRecord(original, save, cancel, kinds) {
             }
         }
         if (k === 'emotion') {
+            root.append(string('target','Feeling toward'),string('counterweight','Coexisting feeling'));
             const scores = h('div',{class:'ri-grid2'});
             for (const axis of AXES) {
                 axes[axis] = h('input',{type:'number',min:0,max:10,value:original?.axes?.[axis] ?? '', 'aria-label':axis});
@@ -321,6 +322,7 @@ function renderSpeakers(local) {
 }
 
 const MODULE_HELP = {
+    preflight: 'Adds scene, knowledge, cast, pacing and continuity checks to the same reply request.',
     style: 'Sends your Writing Guidance with the reply to steer prose, voice, and pacing.',
     state: 'Tracks the scene, story clock, character snapshots, and durable story facts.',
     knowledge: 'Tracks what each character has observed, heard, or believes.',
@@ -439,7 +441,7 @@ function moduleSettings(local, app, preset, modules, redraw) {
         !editingPreset && Object.keys(ownership).length ? h('div',{class:'ri-note'},'Instruction source is saved for this chat and preset. Related blocks are managed in the host preset editor. The extension yields while those blocks are on or their status is unavailable.',
             h('div',{class:'ri-row'},button('Refresh source status',redraw,{kind:'ghost'}))) : null,
         ...[
-            ['Writing & reply display',['style','colors','roast','roastFeedback']],
+            ['Writing & reply display',['style','preflight','colors','roast','roastFeedback']],
             ['Story state & character continuity',['state','knowledge','emotions','relationships']],
             ['Plot & mechanics',['plots','worldEvents','dice']],
         ].map(([label,keys])=>h('div',{class:'ri-module-list'},
@@ -510,6 +512,7 @@ export function renderV10(body, app, page) {
     switch (page) {
         case 'display':
             body.append(section('Reply Display',
+                chatFlag('showStreamSections','Show arriving story sections','Light up each available story section while the reply streams.',true),
                 chatFlag('showPlanning','Show Reply planning','Show any emitted outline in a collapsed disclosure.',true),
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
@@ -533,7 +536,18 @@ export function renderV10(body, app, page) {
             break;
         }
         case 'speakers': body.append(renderSpeakers(local)); break;
-        case 'writing': body.append(profileEditor(local,'style','Live writing guidance',defaultWritingGuidance(),redraw)); break;
+        case 'writing':
+            body.append(section('Writing profile',
+                field('Portrayal intensity','Choose the shared guidance used in this chat. Existing character material still has priority.',
+                    select([{value:'default',label:'Follow live writing guidance'},...Object.keys(WRITING_PROFILES).map(key=>
+                        ({value:key,label:key==='grounded' ? 'Grounded realism' : 'Heightened drama'}))],local.writingProfile || 'default',
+                    value=>{local.writingProfile=value;saveChatState();redraw();},{'aria-label':'Portrayal intensity'})),
+                local.writingProfile && WRITING_PROFILES[local.writingProfile] ? h('p',{class:'ri-help'},WRITING_PROFILES[local.writingProfile]) : null),
+                profileEditor(local,'style','Live writing guidance',defaultWritingGuidance(),redraw),
+                profileEditor(local,'preflight','Scene and character checks',PREFLIGHT,redraw),
+                profileEditor(local,'avoidPhrases','Stock phrases to avoid','',redraw),
+                chatFlag('proseMetrics','Show turn length and dialogue share','Add word count and the approximate percentage in quotation marks to the reply’s Notes tab.'));
+            break;
         case 'checks': body.append(modules.dice ? renderDice(local,redraw) : h('p',{class:'ri-note'},'Turn on the Explicit action checks module in Setup → Preset & Extension.')); break;
     }
 }

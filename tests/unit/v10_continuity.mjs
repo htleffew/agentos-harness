@@ -9,7 +9,7 @@ const context = {
 globalThis.SillyTavern = {getContext:()=>context};
 
 const {
-    activePreset, extractUpdate, normalizeRecord, DEFAULT_MODULES:modules, gate, prepareTurn, prefs,
+    activePreset, sceneCheckPrompt, replyDiagnostics, extractUpdate, normalizeRecord, DEFAULT_MODULES:modules, gate, prepareTurn, prefs,
     portrayalSources, baselineFor, effectivePortrayal, guidelineEligible,
 } = await import('../../src/v10.js');
 const {stateAt, changesFromProfiles} = await import('../../src/state.js');
@@ -92,3 +92,18 @@ assert.deepEqual(normalizeScene({time:'Wednesday, Month 7, Day 14, 3:45 AM, Clea
 });
 assert.deepEqual(normalizeScene({time:'Late morning'}),{time:'Late morning'});
 assert.equal(normalizeScene({time:'Day 4, 9:15 PM, Snow',weather:'Rain'}).weather,'Rain');
+
+assert.match(sceneCheckPrompt({present:'Mira and Player'},{modules}),/Solo spotlight.*Known cast: Mira/);
+assert.match(sceneCheckPrompt({present:'Mira; Cass; Player'},{modules}),/Ensemble scene.*Known cast: Mira, Cass/);
+assert.match(sceneCheckPrompt({present:''},{modules}),/cast is uncertain/);
+assert.equal(sceneCheckPrompt({present:'Mira'},{modules:{...modules,preflight:false}}),'');
+const mood = {kind:'emotion',id:'mira-cass',subject:'Mira',target:'Cass',text:'Torn about the news',
+    counterweight:'Proud of Cass',outward:'Careful speech',evidence:'Mira says'};
+const savedMood = normalizeRecord(mood,{modules,rows:new Map(),evidence:'Mira says she is proud of Cass.'});
+assert.equal(savedMood.target,'Cass');
+assert.equal(savedMood.counterweight,'Proud of Cass');
+assert.deepEqual(replyDiagnostics('“Are we there yet?”',{recent:['Did it start?','“Again?”'],avoid:'there yet',metrics:true}),[
+    'Phrases on this chat’s avoid list: there yet.',
+    'This and at least two recent replies end in a question.',
+    '4 words · about 100% in quotation marks.',
+]);

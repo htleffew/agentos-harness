@@ -1,7 +1,7 @@
 import { onReplyProgress, replyProgress } from '../reply-progress.js';
 import { ctx, LOG } from '../st.js';
 import { settings } from '../store.js';
-import { enabledV10 } from '../v10.js';
+import { enabledV10, prefs } from '../v10.js';
 import { h } from './dom.js';
 
 const stages = [['Context','◇'],['Prose','▱'],['Update','▤'],['Saved','✓']];
@@ -15,7 +15,7 @@ const phases = {
 };
 
 let card;
-let nodes, caption;
+let nodes, caption, sections;
 let lastPhase;
 let preview;
 
@@ -58,6 +58,7 @@ export function refreshReplyProgress() {
             h('span',{class:'ri-progress-light','aria-hidden':'true'},icon),
             h('span',{class:'ri-progress-stage-label'},label),
             h('span',{class:'ri-progress-stage-status','aria-hidden':'true'})));
+        sections = h('ul',{class:'ri-progress-sections','aria-label':'Story sections received',hidden:true});
         caption = h('span',{class:'ri-progress-caption',role:'status'});
         card = h('div',{class:'ri-root ri-reply-stack ri-v10-progress','data-accent':'sky'},
             h('div',{class:'ri-reply-card'},
@@ -65,7 +66,7 @@ export function refreshReplyProgress() {
                     h('span',{class:'ri-reply-symbol','aria-hidden':'true'},'◇'),
                     h('div',{},h('strong',{},'Story state'),caption),
                     h('span',{class:'ri-progress-signal','aria-hidden':'true'},h('i'),h('i'),h('i'))),
-                h('ol',{class:'ri-progress-stages','aria-label':'Reply progress'},nodes)));
+                h('ol',{class:'ri-progress-stages','aria-label':'Reply progress'},nodes),sections));
     }
     if (lastPhase !== progress.phase) {
         const [active,label] = phases[progress.phase];
@@ -81,6 +82,20 @@ export function refreshReplyProgress() {
         card.style.setProperty('--ri-track-fill',`${Math.min(active,stages.length-1)/(stages.length-1)*100}%`);
         card.dataset.phase = progress.phase;
         lastPhase = progress.phase;
+    }
+    const arrivals = prefs()?.showStreamSections===false ? [] : progress.sections || [];
+    const sectionStamp = arrivals.length ? progress.sectionStamp : '';
+    if (sections.dataset.stamp !== sectionStamp) {
+        sections.dataset.stamp = sectionStamp;
+        const known = new Set(Array.from(sections.children,node=>node.dataset.section));
+        for (const section of arrivals) if (!known.has(section.id)) {
+            sections.append(h('li',{'data-section':section.id},
+                h('span',{class:'ri-progress-section-light','aria-hidden':'true'}),
+                h('span',{},h('strong',{},section.title),h('span',{class:'ri-progress-section-detail'},section.detail))));
+        }
+        const active = new Set(arrivals.map(section=>section.id));
+        for (const node of [...sections.children]) if (!active.has(node.dataset.section)) node.remove();
+        sections.hidden = !sections.childElementCount;
     }
     const target = block || chat;
     if (card.parentElement !== target) {

@@ -1,6 +1,7 @@
 // Separate model-emitted planning from editable prose and the versioned story update.
 const planTag = /^\s*(?:⇥\s*)?<\/?(?:page:[\w-]+|reply_plan)(?:\s[^>]*)?\s*>/i;
 const stateTag = /^\s*<\/?(?:internal_states|state:[\w-]+)(?:\s[^>]*)?\s*>/i;
+const thoughtWrapper = /^\s*<(\/)?(?:think|thinking|analysis)\s*>\s*$/i;
 const identity = /^\s*(?:1[.)]\s+)?IDENTITY\s*:/i;
 const list = /^\s*(?:[-*•][ \t]+|\w{1,3}[.)]\s|[A-Z][A-Z -]{2,}:\s*$|➤|<\/?fn:)/;
 export const hasReplyScaffolding = text => /(^|\n)[\t ]*(?:⇥\s*)?(?:<\/?(?:page:[\w-]+|reply_plan|internal_states|state:[\w-]+)\b|<!--\s*GFX_START\b|(?:1[.)]\s+)?IDENTITY\s*:)/i.test(text);
@@ -15,8 +16,22 @@ export function separateReply(raw) {
     let update = false;
     let proseSeen = false;
     let wrapper;
-    for (const line of text.split(/\r?\n/)) {
-        if (update || (section !== 'plan' || proseSeen) && /^\s*<story_update\b/i.test(line)) {
+    let bounded = false;
+    let thinkEnd = false;
+    let sawList = false;
+    let bare = false;
+    const lines = text.split(/\r?\n/);
+    for (const [index,line] of lines.entries()) {
+        const thought = thoughtWrapper.exec(line);
+        if (thought && (!proseSeen || section==='plan')) {
+            if (thought[1]) { section=''; thinkEnd=false; }
+            else {
+                section='plan';
+                thinkEnd=lines.slice(index+1).some(next=>thoughtWrapper.exec(next)?.[1]);
+            }
+            continue;
+        }
+        if (update || !thinkEnd && /^\s*<story_update\b/i.test(line)) {
             section = '';
             prose.push(line);
             update = !/<\/story_update\s*>/i.test(line);
@@ -37,6 +52,10 @@ export function separateReply(raw) {
             if (name && !closing && !page[0].includes('⇥')) plan.push(`\n${name.replaceAll('-',' ')}`);
             if (value && !closing) plan.push(value.replace(/<\/(?:page:[\w-]+|reply_plan)\s*>\s*$/i,''));
             section = closing || /<\/(?:page:[\w-]+|reply_plan)\s*>/i.test(value) ? '' : 'plan';
+            const tag = /<([\w:-]+)/i.exec(page[0])?.[1]?.toLowerCase();
+            bounded = section==='plan' && !!tag && lines.slice(index+1).some(next=>next.toLowerCase().includes(`</${tag}>`));
+            sawList = list.test(value);
+            bare = false;
             blank = false;
             continue;
         }
@@ -46,12 +65,16 @@ export function separateReply(raw) {
             continue;
         }
         if (section === 'state') continue;
-        if (!section && identity.test(line) && !proseSeen) { section='plan'; wrapper=undefined; }
+        if (!section && identity.test(line) && !proseSeen) { section='plan'; wrapper=undefined; sawList=true; bounded=false; bare=true; }
         if (section === 'plan') {
-            if (/^\s*\[(?:🕰|🗓|📍)/u.test(line) || (blank && line.trim() && !list.test(line) && !/^\s+</.test(line))) {
+            const numbered = list.test(line);
+            const unmarked = line.trim() && !numbered && !/^\s*</.test(line);
+            const possibleProse = !bare && sawList && /^\S/.test(line) && /[.!?…”"’']\s*$/.test(line);
+            if (!thinkEnd && !bounded && (/^\s*\[(?:🕰|🗓|📍)/u.test(line) || unmarked && (blank || possibleProse))) {
                 section = '';
             } else {
                 plan.push(line.replace(/\s*⇥\s*<page:[\w-]+>\s*$/i,''));
+                sawList ||= numbered;
                 blank = !line.trim();
                 continue;
             }

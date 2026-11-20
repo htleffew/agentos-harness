@@ -25,6 +25,12 @@ Import [Roleplay Instructions V10](presets/Roleplay%20Instructions%20V10.json) a
 
 In **Setup → Preset & Extension**, inspect the active **Host preset** and its ordered prompt blocks. Select the **Structured story workflow** to use the newer extension modules with another preset. **This chat** changes individual extension modules for the current chat. **Module defaults by preset** sets their default behavior for any chat using the named preset. Reset a changed setting to resume following its default. If the host preset supplies a recognized set of overlapping instructions, the module’s **Instruction source** shows the exact host blocks and their settings. Select the extension as the source and turn the named blocks off in the host preset editor to use the extension’s version.
 
+### Scene checks and live reply sections
+
+The Structured workflow's **Scene and character checks** module adds a short checklist to the ordinary reply request. It uses the known cast to guide solo or ensemble scenes and can check viewpoint access, NPC independence, specific relationships, off-screen agendas and continuity before writing. Open **Direction → Writing Guidance** to edit the checks, select grounded or heightened portrayal, add stock phrases to avoid, or enable word and dialogue metrics. Known Antithesis blocks in the active host preset take ownership of the checklist.
+
+With streaming enabled, the loading card lights up Scene, Characters, Story changes, earlier-state repairs, and Roast as complete sections arrive. They remain previews until the ordinary state validator accepts the reply. Turn the section display off in **Setup → Reply Display**. The animations respect the host browser's reduced-motion preference.
+
 ### World Info books and chapter continuations
 
 Open **Story → Reusable Lorebooks → World Info books for this chat** to see the managed Story World, assigned Base World and guidelines, active set books, exposed host attachments, and earlier books tied to the chat. Each row can open the physical book in World Info or export JSON. **Edit or delete entries** edits that book. Shared-book edits apply wherever the book is used, and bulk deletion asks for confirmation. Actual entry selection for a specific turn remains available under **What Was Sent**.

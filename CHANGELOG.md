@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.10
+
+- Streamed replies preview complete scene, character, change, repair, and commentary sections as they arrive. Validation and saving still occur after the reply completes.
+- The planning reader recovers the cases where an emitted wrapper leaked tags or an unfinished page absorbed adjacent prose. It still preserves well-formed plans as a separate disclosure.
+- Structured play adds editable scene and character checks, grounded and heightened writing profiles, optional phrase and prose diagnostics, and targeted emotion notes. Known Vexa writing and Antithesis blocks yield to host ownership.
+
 ## 10.0.9
 
 - Reusable Lorebooks lists physical books associated with the current chat, their roles, and earlier Story Worlds. Open a book in the host or edit, export and delete selected entries inside the extension.

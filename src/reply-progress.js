@@ -26,3 +26,11 @@ export function setReplyPreview(turn, preview) {
     current = { ...current, preview };
     for (const fn of listeners) fn();
 }
+
+export function setReplySections(turn, sections) {
+    if (current?.turn !== turn) return;
+    const stamp = JSON.stringify(sections);
+    if (current.sectionStamp === stamp) return;
+    current = {...current,sections,sectionStamp:stamp};
+    for (const fn of listeners) fn();
+}

@@ -39,3 +39,10 @@ assert.equal(separateReply(`${prose}\n<state:world>\n<time>dawn</time>\n${state}
 assert.equal(separateReply('A sign read:\n\n1. IDENTITY: Clerk\n2. ROOM: 4').text,'A sign read:\n\n1. IDENTITY: Clerk\n2. ROOM: 4');
 assert.equal(separateReply(`<reply_plan>\n- Pending\n\n${prose}`).text,prose);
 console.log('Reply format separates prelude, prose and versioned state with partial or complete wrappers.');
+
+assert.deepEqual(separateReply(`<think>\n<page:boot>\n1. IDENTITY: Planner\n</page:boot>\n</think>\n${prose}`),{
+    text:prose,plan:'boot\n1. IDENTITY: Planner',
+});
+assert.equal(separateReply(`<page:aux>\n- Pending\n${prose}`).text,prose);
+assert.equal(separateReply(`<reply_plan>\n- Pending\nA full sentence belongs in the closed outline.\n</reply_plan>\n${prose}`).text,prose);
+assert.equal(separateReply(`<reply_plan>\n- Pending\n${state}`).text,state);

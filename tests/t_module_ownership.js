@@ -11,8 +11,10 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
     const imported = structuredClone(companion);
     imported.name = 'Imported ownership fixture';
     const prompt = {identifier:'vexa-internal-fixture',name:'Internal States Template',system_prompt:false,injection_position:0,role:'system',content:'HOST-INTERNAL-STATES-PROMPT'};
-    imported.prompts.push(prompt);
-    for (const group of imported.prompt_order) group.order.splice(1,0,{identifier:prompt.identifier,enabled:true});
+    const route = {...prompt,identifier:'vexa-routing-fixture',name:'Antithesis - Boot',content:'HOST-ANTITHESIS-FIXTURE'};
+    imported.prompts.push(prompt,route);
+    for (const group of imported.prompt_order) group.order.splice(1,0,
+        ...[prompt,route].map(block=>({identifier:block.identifier,enabled:true})));
     const savePreset = preset=>page.evaluate(preset=>SillyTavern.getContext().getPresetManager('openai').savePreset(preset.name,preset),preset);
     const switchTo = async preset=>{
         await L.usePreset(page,preset.name);
@@ -63,6 +65,8 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.equal(await row.locator('#ri-module-relationships').isDisabled(),true);
         assert.equal(await row.locator('#ri-owner-relationships').inputValue(),'preset');
         let text = await send('I knock.');
+        assert.match(text,/HOST-ANTITHESIS-FIXTURE/);
+        assert.doesNotMatch(text,/Scene and character checks:/);
         assert.equal(n(text,hostRule),1);
         assert.equal(n(text,extensionRule),0);
         await row.locator('#ri-owner-relationships').evaluate(input=>{
@@ -73,14 +77,16 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.equal(n(text,hostRule),1);
         assert.equal(n(text,extensionRule),0);
         // Simulate toggling the host's own prompt in its editor.
-        await page.evaluate(id=>{
+        await page.evaluate(ids=>{
             const order=SillyTavern.getContext().chatCompletionSettings.prompt_order.find(row=>row.character_id===100001);
-            order.order.find(row=>row.identifier===id).enabled=false;
-        },prompt.identifier);
+            for (const id of ids) order.order.find(row=>row.identifier===id).enabled=false;
+        },[prompt.identifier,route.identifier]);
         await page.locator('#ri_root button').filter({hasText:'Refresh source status'}).evaluate(button=>button.click());
         assert.match(await row.textContent(),/Internal States Template · Off in host preset/);
         assert.equal(await row.locator('#ri-module-relationships').isDisabled(),false);
         text = await send('I take one step inside.');
+        assert.doesNotMatch(text,/HOST-ANTITHESIS-FIXTURE/);
+        assert.match(text,/Scene and character checks:/);
         assert.equal(n(text,hostRule),0);
         assert.equal(n(text,extensionRule),1);
         await switchTo(companion);

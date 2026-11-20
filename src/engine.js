@@ -1,8 +1,9 @@
+import { streamUpdate } from './stream-update.js';
 import { observeHostBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { proseDialogue } from './dialogue.js';
 import { separateReply, hasReplyScaffolding } from './reply-format.js';
-import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview } from './reply-progress.js';
+import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview, setReplySections } from './reply-progress.js';
 import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
@@ -850,7 +851,11 @@ function onMessageReceived(id, type) {
             if (parsed.issues?.length) rec.v10Issues = parsed.issues;
             rec.v10RepairAttempt = !!turn.repair;
             rec.v10Changes = [...(earlier?.v10Changes || [])];
-            rec.v10Diagnostics = replyDiagnostics(parsed.clean || m.mes);
+            const recent = (ctx().chat || []).slice(Math.max(0,id-10),id).filter(isReply)
+                .slice(-4).map(reply=>String(reply.mes || ''));
+            rec.v10Diagnostics = replyDiagnostics(parsed.clean || m.mes,{
+                recent,avoid:turn.modules.style ? prefs()?.avoidPhrases : '',metrics:prefs()?.proseMetrics===true,
+            });
             if (turn.modules.colors) registerSpeakers(parsed.clean || m.mes,turn.records);
             if (!turn.modules.roast) parsed.roast = '';
             if (!turn.modules.state) { parsed.scene = null; parsed.elapsed = undefined; parsed.minutes = undefined; parsed.ops = []; parsed.profiles = []; }
@@ -1304,6 +1309,10 @@ export function init() {
         const paired = gen.paired ??= pairedPreset();
         if (paired && (progress.preview !== undefined || hasReplyScaffolding(text) || /<story_update\b/i.test(text))) {
             setReplyPreview(gen,stripUpdateBlock(separateReply(text).text));
+        }
+        if (['context','waiting','writing','receiving'].includes(progress.phase)) {
+            const sections = streamUpdate(text);
+            if (sections) setReplySections(gen,sections);
         }
         if (!['context','waiting','writing'].includes(progress.phase)) return;
         // SillyTavern reports the accumulated reply. Scan the new segment and
