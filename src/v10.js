@@ -1,3 +1,4 @@
+import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
 // V10's canonical update contract and chat-local configuration.
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating } from './st.js';
@@ -18,7 +19,7 @@ export const DEFAULT_MODULES = {
     dice: true, colors: true, roast: false, roastFeedback: false,
 };
 export const STYLE = 'Write direct, concrete fiction. Give the current cast distinct voices and independent motives. Show actions and speech, respect viewpoint knowledge, and leave the player’s speech, thoughts and choices to the player. End on a live beat without a meta question or choice menu. Most people are generally well, rested and capable; transient setbacks usually resolve quickly. Let significant moments breathe and skip uneventful intervals when appropriate.';
-export const OPENING = 'Write a rich opening of roughly 350–650 words. Establish the place, who is present and what is already in motion through concrete action and dialogue. Follow the selected point of view, tense and voice. Use normal paragraphs and quoted dialogue, with natural alternation between narration and speech. Default to close third-person past from the viewpoint NPC unless the shared profile specifies otherwise. Describe action in prose and use ordinary dialogue tags when speaker labels are disabled. If using viewpoint NPC thoughts, mark them with asterisks. Leave player thoughts and decisions open. End at a natural opportunity to respond.';
+export const OPENING = 'Write a rich opening of roughly 350–650 words. Establish the place, who is present and what is already in motion through concrete action and dialogue. Follow the selected point of view, tense and voice. Use normal paragraphs and quoted dialogue, with natural alternation between narration and speech. Default to close third-person past from the viewpoint NPC unless the shared profile specifies otherwise. Describe action in prose and identify speakers through ordinary narration or a speech verb. If using viewpoint NPC thoughts, mark them with asterisks. Leave player thoughts and decisions open. End at a natural opportunity to respond.';
 export const AXES = ['tenderness', 'fury', 'dread', 'yearning'];
 export const KIND_MODULE = { fact:'state', profile:'state', knowledge:'knowledge', emotion:'emotions', relationship:'relationships', arc:'plots', seed:'plots', agenda:'plots', event:'worldEvents' };
 export const RECORD_KINDS = Object.keys(KIND_MODULE);
@@ -117,7 +118,7 @@ export function savePresetDefault(name,key,value) {
     if (value === undefined) delete next[key]; else next[key] = value;
     Object.defineProperty(presets,name,{value:next,enumerable:true,writable:true,configurable:true});
 }
-export const formatSpeaker = modules => modules.colors ? 'For colored spoken dialogue only, put each speaker’s established name in square brackets on its own dialogue line, e.g. [Mira] “Wait.” Keep other prose unmarked.' : '';
+export const formatSpeaker = modules => modules.colors ? 'Use ordinary quoted dialogue and natural speech attribution when a speaker would otherwise be unclear, such as “Wait,” Mira said. Use prose paragraphs for narration and speaker changes. If a character’s thoughts appear, italicize them with single asterisks and identify the thinker naturally where needed. Keep speaker labels and color markup out of the prose.' : '';
 
 export function extractUpdate(raw) {
     const text = String(raw || '');
@@ -505,29 +506,35 @@ export async function addConfiguredBooks(lore, arrays) {
 }
 
 const PALETTE = ['#7DA8FF','#95FFCA','#FF85E8','#40E8FF','#D7AAFF','#99FF75','#A8B4FF','#FF66F5','#68FFEC','#F58CFF','#C49BFF','#35F6E7','#F5A0EB','#55D8FF','#BB99FF','#7AFF98','#8FEAFF','#DE8CFF','#40FFD8','#80C4FF','#60FFBA'];
-export const SPEECH = /^(?:\[([^\]\n<>"“]{1,64})\]|([^:\n“"<>]{1,64}):)[ \t]*(?=["“])/gm;
-
 export function registerSpeakers(prose, records) {
     const local = prefs();
-    if (!local) return;
+    const spoken = [...new Set([...dialogueAttributions(prose),...thoughtAttributions(prose)].map(match=>match.name).filter(Boolean))];
+    if (!local || !spoken.length) return;
     const speakers = local.speakers ||= {};
-    for (const match of prose.matchAll(SPEECH)) {
-        const display = clean(match[1] || match[2]);
+    const profiles = [...(records?.values() || [])].filter(row=>row.kind==='profile');
+    const used = new Set(Object.values(speakers).map(value=>value.color));
+    const player = normalize(names().user);
+    let changed = false;
+    for (const display of spoken) {
         const normalized = normalize(display);
-        if (!display || normalized === normalize(names().user)) continue;
-        const known = [...(records?.values() || [])].find(row => row.kind === 'profile' && [row.subject,...(row.aliases || [])].some(alias => normalize(alias) === normalized));
+        if (normalized === player) continue;
+        const known = profiles.find(row=>[row.subject,...(row.aliases || [])].some(alias=>normalize(alias)===normalized));
         const key = known ? `profile:${known.id}` : `speaker:${normalized}`;
         const aliases = [...new Set([normalized,...(known?.aliases || []).map(normalize),normalize(known?.subject || display)])];
-        const prior = speakers[key] || Object.values(speakers).find(value => value.aliases.some(alias=>aliases.includes(alias)));
+        const prior = speakers[key] || Object.values(speakers).find(value=>value.aliases.some(alias=>aliases.includes(alias)));
         if (prior) {
-            prior.aliases = [...new Set([...prior.aliases,...aliases])];
+            if (aliases.some(alias=>!prior.aliases.includes(alias))) {
+                prior.aliases = [...new Set([...prior.aliases,...aliases])];
+                changed = true;
+            }
             continue;
         }
-        const used = new Set(Object.values(speakers).map(value=>value.color));
-        const speaker = speakers[key] ||= { name:known?.subject || display, aliases:[], color:PALETTE.find(color=>!used.has(color)) || PALETTE[Object.keys(speakers).length % PALETTE.length] };
-        speaker.aliases = [...new Set([...speaker.aliases,normalized, ...(known?.aliases || []).map(normalize),normalize(speaker.name)])];
+        const color = PALETTE.find(value=>!used.has(value)) || PALETTE[Object.keys(speakers).length % PALETTE.length];
+        speakers[key] = {name:known?.subject || display,aliases,color};
+        used.add(color);
+        changed = true;
     }
-    saveChatState();
+    if (changed) saveChatState();
 }
 
 export function setSpeakerColor(key, value) {

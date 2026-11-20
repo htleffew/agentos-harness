@@ -38,10 +38,10 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         });
         L.resetLog();
         const prelude = '<page:boot>\n1. IDENTITY: PRIVATE-PRELUDE-MARKER\n2. GROUNDING: Harbor\n\n';
-        L.mode({chunkMs:320,reply:prelude+block('[Seraphina] “I saw the ferry depart.” The ferry is gone.',{
+        L.mode({chunkMs:320,reply:prelude+block('“I saw the ferry depart,” Seraphina said. “We just missed it,” added Mira. The ferry is gone.\n\nSeraphina thought, *We can still try the bridge.* Mira thought, *The bridge might be closed.*\n\n*No one can be sure.*',{
             scene:{where:'Dock',present:'Seraphina',minutes:120},
             changes:[{kind:'fact',id:'ferry-gone',text:'The ferry left the dock.',evidence:'The ferry is gone.'},
-                {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart.'}],
+                {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart,'}],
             roast:'The dock has excellent timing, which is to say none.'
         })});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
@@ -65,6 +65,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await page.waitForFunction(async B=>(await import(`${B}/src/v10.js`)).rowsForWorld().then(rows=>rows.some(x=>x.name==='ferry-gone')),L.BASE);
         assert.equal(L.requests().length,1);
         assert.match(L.text(L.requests()[0]),/Resolved action check/);
+        assert.match(L.text(L.requests()[0]),/ordinary quoted dialogue/);
+        assert.doesNotMatch(L.text(L.requests()[0]),/in square brackets on its own/);
         assert.equal(L.text(L.requests()[0]).split('THE-HARBOR-MARKER').length-1,1);
         assert.equal(L.text(L.requests()[0]).split('REACTION-GUIDE').length-1,1);
         assert.match(L.text(L.requests()[0]),/I run to the dock/);
@@ -89,8 +91,30 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(await planning.evaluate(el=>el.open),false);
         await planning.locator('summary').click();
         assert.match(await planning.innerText(),/PRIVATE-PRELUDE-MARKER/);
-        assert((await latest.locator('.ri-speaker-text').count()) > 0);
-        assert(await latest.locator('.ri-speaker-text').evaluate(span=>span.style.color));
+        const colored = await latest.locator('.ri-speaker-text').evaluateAll(spans=>spans.map(span=>({
+            speaker:span.dataset.speaker,color:getComputedStyle(span).color,italic:!!span.closest('em, i'),text:span.textContent
+        })));
+        assert.equal(colored.length,4);
+        assert.equal(colored[0].speaker,'seraphina');
+        assert.equal(colored[1].speaker,'mira');
+        assert.notEqual(colored[0].color,colored[1].color);
+        assert.deepEqual(colored.slice(2).map((item,index)=>[item.italic,item.speaker,item.color]),colored.slice(0,2).map(item=>[true,item.speaker,item.color]));
+        assert(!colored.some(item=>item.text.includes('No one can be sure')));
+        assert.doesNotMatch(state.mes,/\[(Seraphina|Mira)\]/);
+        const historical = '[Seraphina] “First line.” She laughed. [Seraphina] “Second line.”';
+        const redrawMessage = value => story(page,async({B,value})=>{
+            const c=SillyTavern.getContext();
+            const id=c.chat.length-1, message=c.chat[id];
+            message.mes=value;
+            c.updateMessageBlock(id,message);
+            (await import(`${B}/src/ui/v10.js`)).refreshDialogue();
+            return message.mes;
+        },value);
+        assert.equal(await redrawMessage(historical),historical);
+        assert.equal(await latest.locator('.mes_text .ri-speaker-label[hidden]').count(),2);
+        assert.equal(await latest.locator('.mes_text .ri-speaker-text[data-speaker="seraphina"]').count(),2);
+        assert.doesNotMatch(await latest.locator('.mes_text').innerText(),/\[Seraphina\]/);
+        await redrawMessage(state.mes);
         assert.equal(await latest.locator('.ri-v10-console').evaluate(x=>x.open),false);
         assert.match(await latest.locator('.ri-v10-console .ri-reply-chip-rail').textContent(),/Dock.*2 changes/);
         assert.match(await latest.locator('.ri-v10-lore .ri-reply-chip-rail').first().textContent(),/2 confirmed/);
@@ -98,8 +122,11 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await latest.locator('.ri-v10-console > summary').click();
         await latest.getByRole('tab',{name:'Changes'}).click();
         assert.match(await latest.getByRole('tabpanel',{name:'Changes'}).innerText(),/ferry/);
-        L.mode({reply:'The lamp lights up.\n<story_update v="2">{invalid</story_update>'});
+        L.mode({reply:'[Seraphina] “The lamp lights up.”\n<story_update v="2">{invalid</story_update>'});
         await L.send(page,'Wait by the lamp.');
+        const lamp = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).mes);
+        assert.match(lamp,/Seraphina said, “The lamp lights up.”/);
+        assert.doesNotMatch(lamp,/\[Seraphina\]/);
         assert.match(L.text(L.requests().at(-1)),/Out-of-story voice feedback/);
         assert.doesNotMatch(L.text(L.requests().at(-1)),/PRIVATE-PRELUDE-MARKER/);
         assert.doesNotMatch(L.text(L.requests().at(-1)),/Resolved action check/);

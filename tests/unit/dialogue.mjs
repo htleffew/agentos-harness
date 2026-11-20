@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { dialogueAttributions, thoughtAttributions, proseDialogue } from '../../src/dialogue.js';
+
+const speakers = text => dialogueAttributions(text).map(match=>match.name);
+assert.deepEqual(speakers('“Wait,” Mira said. “Why?” asked Thom.'),['Mira','Thom']);
+assert.deepEqual(speakers('“Wait,” Mira said. “Please.”'),['Mira','Mira']);
+assert.deepEqual(speakers('“Wait,” Mira said. The door shut. “Please.”'),['Mira','']);
+assert.deepEqual(speakers('Mira took a breath. “Keep going.”'),['Mira']);
+assert.deepEqual(speakers('“Keep going,” he said.'),['']);
+assert.deepEqual(speakers('“Wait.” Anders said, “We should go.”'),['','Anders']);
+assert.deepEqual(speakers('“I saw Thom.”'),['']);
+assert.deepEqual(speakers('Mira asked, “Wait,” Anders replied.'),['']);
+assert.deepEqual(speakers('“No,” Hale of Verath muttered.'),['Hale of Verath']);
+assert.deepEqual(speakers('[Thom] “Hi.” A laugh. [Thom] “Again.”'),['Thom','Thom']);
+assert.equal(proseDialogue('[Thom] “Hi,” Thom said.'),'“Hi,” Thom said.');
+assert.equal(proseDialogue('[Thom] “Hi.” A laugh. [Mira] “Again.”'),'Thom said, “Hi.” A laugh. Mira said, “Again.”');
+assert.deepEqual(thoughtAttributions('Thom thought, *Too late.* *Maybe next time,* Mira wondered.\n*Who knows?*').map(match=>match.name),['Thom','Mira','']);
+assert.equal(thoughtAttributions('It was **emphatic**.').length,0);
+assert.deepEqual(thoughtAttributions('Mira thought, *Let it go.* Thom thought, *Let it be.*').map(match=>match.name),['Mira','Thom']);
+assert.deepEqual(thoughtAttributions('Thom thought, *Maybe,* Mira wondered.').map(match=>match.name),['']);
+console.log('Dialogue and thought attribution, ambiguity, multiple speakers and legacy label compatibility passed.');

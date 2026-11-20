@@ -1,3 +1,4 @@
+import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
 import { ctx, KEY, isChatOpen, toast, isGenerating } from '../st.js';
 import { saveSettings, saveChatState } from '../store.js';
@@ -7,7 +8,7 @@ import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, STYLE, OPENING,
     activePreset, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableBookNames, uploadBaseBook, createGuidelines, queueCheck, checkText, rowsForWorld,
-    readRecord, greetings, draftOpening, setSpeakerColor, displayColor, SPEECH,
+    readRecord, greetings, draftOpening, setSpeakerColor, displayColor,
 } from '../v10.js';
 
 const options = names => names.map(name => ({ value:name, label:name }));
@@ -261,7 +262,7 @@ function renderSpeakers(local) {
             update();
             picker.addEventListener('input',()=>{try {setSpeakerColor(key,picker.value);update();refreshDialogue();}catch(error){problem(error);}});
             return h('label',{class:'ri-row'},picker,speaker.name,status);
-        }), !Object.keys(local.speakers || {}).length ? h('p',{class:'ri-help'},'Assigned speakers appear here after a reply uses speaker labels.') : null);
+        }), !Object.keys(local.speakers || {}).length ? h('p',{class:'ri-help'},'Characters appear here as dialogue or thoughts identify them.') : null);
 }
 
 const MODULE_HELP = {
@@ -273,7 +274,7 @@ const MODULE_HELP = {
     plots: 'Tracks unresolved threads, planted details, payoffs, and off-screen agendas.',
     worldEvents: 'Uses an automatic chance check to offer an optional development. Random Instructions are controlled separately.',
     dice: 'Rolls once when you queue an action in Direction → Action Checks. Regular replies proceed without a roll.',
-    colors: 'Assigns editable colors to attributed dialogue and renders them in the chat.',
+    colors: 'Colors dialogue and italic thoughts when the prose identifies the character.',
     roast: 'Asks the model for optional commentary in the same reply.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
@@ -426,49 +427,71 @@ export function renderV10(body, app, page) {
 }
 
 export function refreshDialogue() {
-    const on = enabledV10() && effectiveModules().colors;
-    const speakers = Object.values(ctx().chatMetadata?.[KEY]?.v10?.speakers || {});
+    const active = enabledV10();
+    const on = active && effectiveModules().colors;
+    const local = ctx().chatMetadata?.[KEY]?.v10;
+    const speakers = new Map(Object.values(local?.speakers || {}).flatMap(person=>person.aliases.map(alias=>[alias,person])));
+    const owner = active ? moduleOwnership().colors : null;
+    const hideLegacy = active && (!owner || owner.usesExtension);
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const area = mes.querySelector('.mes_text');
-        if (!area || ctx().chat?.[Number(mes.getAttribute('mesid'))]?.is_user) continue;
+        const message = ctx().chat?.[Number(mes.getAttribute('mesid'))];
+        if (!area || message?.is_user || message?.is_system) continue;
+        for (const span of area.querySelectorAll('.ri-speaker-label')) if (!hideLegacy) span.replaceWith(...span.childNodes);
         for (const span of area.querySelectorAll('.ri-speaker-text')) {
-            const speaker = speakers.find(person=>person.aliases.includes(span.dataset.speaker));
+            const speaker = speakers.get(span.dataset.speaker);
             if (on && speaker) colorDialogue(span,speaker.color,area);
             else span.replaceWith(...span.childNodes);
         }
-        if (!on || !speakers.length) continue;
-        for (const paragraph of area.querySelectorAll('p')) {
-            if (paragraph.querySelector('.ri-speaker-text')) continue;
+        if (!hideLegacy && (!on || !speakers.size)) continue;
+        for (const paragraph of area.querySelectorAll('p, li')) {
+            if (paragraph.querySelector('.ri-speaker-text') || paragraph.closest('blockquote, pre')) continue;
+            const labels = paragraph.querySelectorAll('.ri-speaker-label');
+            if (!on && labels.length) continue;
+            for (const label of labels) label.replaceWith(...label.childNodes);
             const nodes = [];
+            const emphasis = new Map();
             let source = '';
             const walker = document.createTreeWalker(paragraph,NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
             while (walker.nextNode()) {
                 const node = walker.currentNode;
                 if (node.nodeName === 'BR') source += '\n';
                 if (node.nodeType !== Node.TEXT_NODE) continue;
-                nodes.push({node,start:source.length,end:source.length+node.length});
+                const start = source.length;
                 source += node.textContent;
+                const end = source.length;
+                nodes.push({node,start,end});
+                const italic = node.parentElement?.closest('em, i');
+                if (italic) emphasis.set(italic,{start:emphasis.get(italic)?.start ?? start,end,thought:true});
             }
-            for (const match of [...source.matchAll(SPEECH)].reverse()) {
-                const key = (match[1] || match[2]).trim().toLowerCase().replace(/\s+/g,' ');
-                const speaker = speakers.find(person=>person.aliases.includes(key));
-                if (!speaker) continue;
-                const start = match.index + match[0].length;
-                const end = source.indexOf(source[start] === '“' ? '”' : '"',start+1);
-                const lineEnd = source.indexOf('\n',start);
-                if (end < 0 || (lineEnd >= 0 && end > lineEnd)) continue;
-                const first = nodes.find(item=>item.start <= start && start < item.end);
-                const last = nodes.find(item=>item.start <= end && end < item.end);
-                if (!first || !last) continue;
-                const range = document.createRange();
-                range.setStart(first.node,start-first.start);
-                range.setEnd(last.node,end+1-last.start);
-                const span = h('span',{class:'ri-speaker-text','data-speaker':key,title:speaker.name},range.extractContents());
-                colorDialogue(span,speaker.color,area);
-                range.insertNode(span);
+            const thoughts = thoughtAttributions(source,[...emphasis.values()]);
+            const matches = [...dialogueAttributions(source),...thoughts].sort((a,b)=>b.start-a.start || Number(b.thought)-Number(a.thought));
+            for (const match of matches) {
+                const key = match.name.toLowerCase().replace(/\s+/g,' ');
+                const speaker = speakers.get(key);
+                if (on && speaker) {
+                    const span = h('span',{class:`ri-speaker-text${match.thought ? ' ri-speaker-thought' : ''}`,'data-speaker':key,title:speaker.name});
+                    if (wrapTextRange(nodes,match.start,match.end,span,match.thought)) colorDialogue(span,speaker.color,area);
+                }
+                if (hideLegacy && match.labelStart !== undefined) {
+                    wrapTextRange(nodes,match.labelStart,match.start,h('span',{class:'ri-speaker-label',hidden:true}));
+                }
             }
         }
     }
+}
+
+function wrapTextRange(nodes, start, end, span, thought = false) {
+    const first = nodes.find(item=>item.start <= start && start < item.end);
+    const last = nodes.find(item=>item.start < end && end <= item.end);
+    const excluded = thought ? 'code, a, q' : 'code, a, em, i';
+    if (!first || !last || first.node.parentElement?.closest(excluded) || last.node.parentElement?.closest(excluded)) return false;
+    const range = document.createRange();
+    range.setStart(first.node,start-first.start);
+    range.setEnd(last.node,end-last.start);
+    span.append(range.extractContents());
+    range.insertNode(span);
+    return true;
 }
 
 function colorDialogue(span,saved,area) {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 10.0.6
+
+- Replies use natural dialogue attribution. The extension colors identified quotations and asterisk-wrapped character thoughts, including multiple speakers in one paragraph. Earlier bracket labels are hidden in the chat display.
+
 ## 10.0.5
 
 - Module rows show the preset default alongside the chat override. Known overlapping Chat Completion blocks have an instruction source selector with on/off status. V10 yields while related host blocks are enabled or their status is unavailable.

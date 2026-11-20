@@ -1,3 +1,4 @@
+import { proseDialogue } from './dialogue.js';
 import { separateReply, hasReplyScaffolding } from './reply-format.js';
 import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview } from './reply-progress.js';
 import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap } from './v10.js';
@@ -783,6 +784,12 @@ function onMessageReceived(id, type) {
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const previousScene = [...(ctx().chat || []).slice(0, id)].reverse().find(x => x?.extra?.[KEY]?.scene && !x.extra[KEY].stateStale)?.extra?.[KEY]?.scene || {};
         const turn = pending.v10;
+        const plainDialogue = turn && (turn.modules.colors || pairedPreset()) ? proseDialogue(m.mes) : m.mes;
+        const rewrittenDialogue = plainDialogue !== m.mes;
+        if (rewrittenDialogue) {
+            m.mes = plainDialogue;
+            if (m.swipes?.[m.swipe_id] !== undefined) m.swipes[m.swipe_id] = plainDialogue;
+        }
         const progressTurn = turn && pending.progressTurn;
         if (turn) {
             rec.v10 = true;
@@ -811,6 +818,9 @@ function onMessageReceived(id, type) {
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
+        if (rewrittenDialogue) {
+            try { ctx().updateMessageBlock?.(id,m); } catch { /* drawn on the next redraw */ }
+        }
         // File what the reply established in the story world. With checking off, a world order counts as done when sent.
         if (earlier) rec.update = earlier.update;
         if (progressTurn) showReplyProgress(progressTurn,'filing',id);
@@ -1005,10 +1015,14 @@ function onPromptReady(data) {
         if (!Array.isArray(data?.chat)) return;
         const record = !data.dryRun && !gen?.skip && !isOwnPrompt(data.chat);
         const paired = pairedPreset();
+        const plainDialogue = paired || (enabledV10() && effectiveModules().colors);
         for (const msg of data.chat) {
             // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
             if (msg.role === 'assistant') {
-                const cleanAssistant = value => stripUpdateBlock(paired ? separateReply(value).text : value);
+                const cleanAssistant = value => {
+                    const prose = stripUpdateBlock(paired ? separateReply(value).text : value);
+                    return plainDialogue ? proseDialogue(prose) : prose;
+                };
                 if (typeof msg.content === 'string') msg.content = cleanAssistant(msg.content);
                 if (Array.isArray(msg.content)) for (const part of msg.content) if (typeof part?.text === 'string') part.text = cleanAssistant(part.text);
             }
@@ -1292,7 +1306,7 @@ export async function acceptV10Opening(draft, prose) {
             : { ...embedded, modern:true, changes:draft.parsed.changes };
     }
     parsed.clean = embedded.clean;
-    prose = embedded.clean;
+    prose = modules.colors || pairedPreset() ? proseDialogue(embedded.clean) : embedded.clean;
     const m = chat[0] || { name:names().char, is_user:false, is_system:false, send_date:new Date().toISOString(), extra:{} };
     m.mes = prose;
     if (m.extra) delete m.extra.display_text;

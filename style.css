@@ -342,6 +342,8 @@
 .ri-v10-panels [hidden] { display:none !important; }
 .ri-v10-reply [role=tabpanel] .ri-state-body { min-width:0; }
 .ri-speaker-text { overflow-wrap:anywhere; }
+.mes_text .ri-speaker-text q { color: inherit !important; }
+.mes_text .ri-speaker-label[hidden] { display: none !important; }
 
 .ri-speaker-panel { background-color: #100e1c; border-radius: .18em; }
 
