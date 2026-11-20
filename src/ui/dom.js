@@ -46,6 +46,29 @@ export function toggle(checked, onChange, label = '') {
     return btn;
 }
 
+/** A compact multi-select for allowed choices. At least one choice stays selected. */
+export function choiceList(label, options, selected, onChange, exclusive = null) {
+    const group = h('details', { class: 'ri-choice-list' });
+    const summary = h('summary', {}, selected.map(value => options[value].label).join(' · '));
+    const list = h('div', { class: 'ri-choice-options', role: 'group', 'aria-label': label });
+    for (const [value, option] of Object.entries(options)) {
+        const input = h('input', { type: 'checkbox', class: 'ri-check', value, checked: selected.includes(value) });
+        input.addEventListener('change', () => {
+            const next = input.checked && value === exclusive ? [value]
+                : input.checked ? [...selected.filter(v => v !== exclusive), value]
+                    : selected.filter(v => v !== value);
+            if (!next.length) { input.checked = true; return; }
+            selected = next;
+            summary.textContent = next.map(key => options[key].label).join(' · ');
+            for (const box of list.querySelectorAll('input')) box.checked = next.includes(box.value);
+            onChange(next, value);
+        });
+        list.appendChild(h('label', { class: 'ri-vpick' }, input, h('span', {}, option.label)));
+    }
+    group.append(summary, list);
+    return group;
+}
+
 export function select(options, value, onChange, attrs = {}) {
     const el = h('select', { class: 'ri-input', ...attrs, onchange: () => onChange(el.value) },
         options.map(o => h('option', { value: o.value, selected: String(o.value) === String(value) }, o.label)));

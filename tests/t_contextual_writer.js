@@ -38,9 +38,16 @@ async function openPrompt(page, groupLabel, promptLabel) {
             return id;
         }, L.BASE);
 
-        await field(page, 'Actor').selectOption('unspecified');
-        await field(page, 'Actor').selectOption('model');
-        await field(page, 'Target or subject').selectOption('unspecified');
+        const actor = root.locator('[data-choice="actors"]');
+        const target = root.locator('[data-choice="targets"]');
+        await actor.locator('summary').click();
+        await actor.locator('input[value="unspecified"]').check();
+        assert.equal(await actor.locator('input:checked').count(), 2);
+        await actor.locator('input[value="model"]').check();
+        assert.equal(await actor.locator('input:checked').count(), 1);
+        await target.locator('summary').click();
+        await target.locator('input[value="unspecified"]').check();
+        await target.locator('input[value="user"]').uncheck();
         const framing = await openPrompt(page, 'Customize in-chat instruction wording', 'Instruction framing');
         await framing.box.fill('FRAMING_MARKER {instruction}');
         await framing.prompt.getByRole('button', { name: 'Save prompt' }).click();
@@ -102,6 +109,29 @@ async function openPrompt(page, groupLabel, promptLabel) {
         assert.equal(item.noCheck, true);
         assert.equal(item.modelDirection, true);
 
+        L.resetLog();
+        L.mode({});
+        const pools = await page.evaluate(async base => {
+            const B = await import(`${base}/src/books.js`);
+            const W = await import(`${base}/src/writer.js`);
+            const data = { entries: {} };
+            const ins = B.newInstruction(data);
+            ins.actors = ['char', 'world'];
+            ins.targets = ['user', 'unspecified'];
+            B.writeInstruction(data, ins);
+            const saved = B.readInstruction(data.entries[ins.uid]);
+            const versions = await W.writeVersions({ ins: saved, seed: 'Interrupt the quiet.', count: 4, context: {} });
+            return { actors: saved.actors, targets: saved.targets, versions };
+        }, L.BASE);
+        assert.deepEqual(pools.actors, ['char', 'world']);
+        assert.deepEqual(pools.targets, ['user', 'unspecified']);
+        assert.deepEqual(pools.versions.map(v => `${v.actor}/${v.target}`).sort(), ['char/unspecified', 'char/user', 'world/unspecified', 'world/user']);
+        const batches = L.requests();
+        assert.equal(batches.length, 1);
+        for (const [index, version] of pools.versions.entries()) {
+            assert.ok(L.text(batches[0]).includes(`${index + 1}. Actor: ${version.actor}. Target: ${version.target}.`));
+        }
+
         for (const [tab, route, label] of [
             ['events', 'eroute', 'Complication item guidance'],
             ['style', 'sroute', 'Writing style items'],
@@ -120,6 +150,29 @@ async function openPrompt(page, groupLabel, promptLabel) {
             assert.equal(await group.getByText(label, { exact: true }).count(), 1);
             await root.getByRole('button', { name: 'Write items with AI' }).click();
             assert.equal(await root.locator('.ri-sheet-box').getByText(label, { exact: true }).count(), 1);
+            if (tab === 'events') {
+                const origins = root.locator('.ri-sheet-box .ri-choice-list');
+                await origins.locator('summary').click();
+                await origins.locator('input[value="other"]').check();
+                await origins.locator('input[value="world"]').check();
+                await origins.locator('input[value=""]').uncheck();
+                await field(page, 'Kind of story').fill('Interruptions');
+                await field(page, 'How many items to write').fill('2');
+                L.resetLog();
+                await root.getByRole('button', { name: 'Write the items' }).click();
+                const addItems = root.getByRole('button', { name: 'Add the ticked items' });
+                await addItems.waitFor();
+                for (const pick of await root.locator('.ri-sheet-box .ri-version input[type="checkbox"]').all()) await pick.check();
+                await addItems.click();
+                const rows = await page.evaluate(async base => {
+                    const { app } = await import(`${base}/src/ui/panel.js`);
+                    return app.eroute.draft.categories[0].items;
+                }, L.BASE);
+                assert.deepEqual(rows.map(row => row.from).sort(), ['other', 'world']);
+                const requests = L.requests();
+                assert.equal(requests.length, 1);
+                assert.match(L.text(requests[0]), /Origins by item number: 1: (world|other), 2: (world|other)/);
+            }
         }
         console.log('PASS contextual writer prompts, independent restore, and model guidance on a normal reply');
     } finally {

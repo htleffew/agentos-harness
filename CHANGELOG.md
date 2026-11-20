@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.12
+
+- Pick several allowed actors or targets when writing random instruction versions with AI. The extension draws from the selected pairs and shows each assignment in the writer review.
+- The story event writer can also draw from several allowed origins and save each item's origin for later event rolls.
+
 ## 10.0.11
 
 - Edit shared writer prompts from inside individual instruction and category editors and in the corresponding AI writing dialogs. Each prompt shows its Default or Customized status and has its own restore control.

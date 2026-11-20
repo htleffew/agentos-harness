@@ -37,6 +37,24 @@ export const TARGETS = {
     ...NPC,
 };
 
+/** Read current pools and legacy single selections. */
+export function choicesOf(values, options, fallback) {
+    const allowed = Array.isArray(values) ? [...new Set(values.filter(value => typeof value === 'string' && Object.hasOwn(options, value)))]
+        : typeof values === 'string' && Object.hasOwn(options, values) ? [values] : [];
+    return allowed.length ? allowed : [fallback];
+}
+
+export function instructionActors(instruction) {
+    const [legacy] = choicesOf(instruction.actor, ACTORS, 'char');
+    const pool = choicesOf(instruction.actors, ACTORS, legacy);
+    return pool.includes('model') ? ['model'] : pool;
+}
+
+export function instructionTargets(instruction) {
+    const [legacy] = choicesOf(instruction.target, TARGETS, 'user');
+    return choicesOf(instruction.targets, TARGETS, legacy);
+}
+
 export const LIMITS = {
     none: { label: 'No limit', help: 'Every instruction that passes its own chance and timing is sent. Only-one groups still apply.' },
     one: { label: 'One per reply', help: 'At most one new instruction from this set is sent with each reply.' },
@@ -174,6 +192,8 @@ export function readInstruction(entry) {
     }
     const keys = Array.isArray(entry.key) ? entry.key : [];
     const isPattern = keys.length === 1 && /^\/.+\/[a-z]*$/i.test(keys[0]);
+    const actors = instructionActors(saved || {});
+    const targets = instructionTargets(saved || {});
     return {
         uid: entry.uid,
         name: String(entry.comment || `Instruction ${entry.uid}`),
@@ -192,8 +212,7 @@ export function readInstruction(entry) {
         sentAs,
         position: Number(entry.position ?? 0),
         depth: Number(entry.depth ?? 1),
-        actor: ACTORS[saved?.actor] ? saved.actor : 'char',
-        target: TARGETS[saved?.target] ? saved.target : 'user',
+        actor: actors[0], target: targets[0], actors, targets,
         versions,
         notes: String(saved?.notes || ''),
         order: Number(entry.order ?? 100),
@@ -258,11 +277,12 @@ export function writeInstruction(data, ins, id = '') {
     entry.excludeRecursion = true;
     entry.preventRecursion = true;
     entry.order = Number(ins.order) || 100;
+    const actors = instructionActors(ins);
+    const targets = instructionTargets(ins);
     const ri = {
         v: 1,
         sentAs: ins.sentAs,
-        actor: ins.actor,
-        target: ins.target,
+        actor: actors[0], target: targets[0], actors, targets,
         sendTogether: ins.sendTogether.trim(),
         once: !!ins.once,
         notes: ins.notes,

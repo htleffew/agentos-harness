@@ -1,7 +1,7 @@
 import { promptGroup } from './prompts.js';
 // Random Story Events tab and Random Writing Style tab. Both are a list of sets and an editor for one set:
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
-import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
+import { h, button, toggle, select, choiceList, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
 import { knownSets, loadSet, saveSet, createSet, forgetSet, exportSet, setName, setInfo, freeUid, wrapText, SENT_AS } from '../books.js';
 import { keptIn, removeText, deleteButton } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
@@ -296,7 +296,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                 field('How many items to write', '', numberInput(ai.count, { min: 1, max: 40, unit: 'items' }, (n) => { ai.count = n; })),
                 contextField()),
             cfg.kind === 'events' ? field('Let the AI read where the story is now', settings().writer.eventScene ? 'On: the recent messages and the story so far are shown too, when ticked above. Items can then lean toward the scene you are in.' : 'Off: the AI only reads the card, the scenario and your persona (when ticked above), so items fit your kind of story and work wherever the scene is when they fire.', select([{ value: 'off', label: 'Off (recommended)' }, { value: 'on', label: 'On' }], settings().writer.eventScene ? 'on' : 'off', (v) => { settings().writer.eventScene = v === 'on'; saveSettings(); redraw(); })) : null,
-            cfg.kind === 'events' && !cat.driver ? field('Where these events come from', 'Each item is written to start with this, and is marked with it. When an event rolls, the dice pick who drives it first and then only pick items that fit.', select(Object.entries(ORIGINS).map(([value, o]) => ({ value, label: o.label })), ai.origin || '', (v) => { ai.origin = v; })) : null);
+            cfg.kind === 'events' ? field('Where these events come from', 'Tick the allowed origins. The writer draws one for each item. Event rolls use the saved origin to match items to the driver.', choiceList('Event origins', ORIGINS, ai.origins || [''], values => { ai.origins = values; })) : null);
         if (ai.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, ai.error));
         box.appendChild(h('div', { class: 'ri-row' },
             button(ai.busy ? 'Writing...' : 'Write the items', async () => {
@@ -305,8 +305,8 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                 ai.busy = true; ai.error = ''; redraw();
                 app[cfg.route].lastTheme = ai.theme;
                 try {
-                    const list = await writeItems({ style: cfg.kind === 'style', origin: ai.origin || '', category: cat, theme: ai.theme.trim(), count: ai.count, context: settings().writer.context, existing: cat.items.map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
-                    ai.results = list.map(x => ({ text: x.text, anywhere: x.anywhere, keep: x.anywhere !== false && (f => f.blocks.length === 0 && f.checks.length === 0)(itemFlags(cat, x.text)) }));
+                    const list = await writeItems({ style: cfg.kind === 'style', origins: ai.origins || [''], category: cat, theme: ai.theme.trim(), count: ai.count, context: settings().writer.context, existing: cat.items.map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
+                    ai.results = list.map(x => ({ ...x, keep: x.anywhere !== false && (f => f.blocks.length === 0 && f.checks.length === 0)(itemFlags(cat, x.text)) }));
                 } catch (e) { ai.error = e.message; }
                 ai.busy = false; redraw();
             }, { kind: 'primary', disabled: ai.busy }),
@@ -321,13 +321,13 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
         if (flags.blocks.length) x.keep = false;
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: x.keep, disabled: flags.blocks.length > 0, onchange: () => { x.keep = tick.checked; } });
         const placeBound = x.anywhere === false ? h('div', { class: 'ri-flags' }, h('div', { class: 'ri-flag ri-flag-check' }, 'Check: the AI says this item needs a particular place, object or group, so it may not fit wherever the scene is when it fires. It starts unticked. Tick it if it reads right to you.')) : null;
-        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : (flags.checks.length || placeBound) ? 'ri-version-flagged' : ''}` }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(x.text))), flags.node, placeBound));
+        list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : (flags.checks.length || placeBound) ? 'ri-version-flagged' : ''}` }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(x.text))), cfg.kind === 'events' ? chip(ORIGINS[x.from].label, 'ri-chip-group') : null, flags.node, placeBound));
     });
     box.append(list, h('div', { class: 'ri-row' },
         button('Add the ticked items', () => {
             const picked = ai.results.filter(x => x.keep);
             if (!picked.length) { toast('info', 'Tick at least one item to add.'); return; }
-            cat.items.push(...picked.map(x => ({ id: newId(), text: x.text, on: true, weight: 1, tags: '', always: false, ...(ai.origin ? { from: ai.origin } : {}) })));
+            cat.items.push(...picked.map(x => ({ id: newId(), text: x.text, on: true, weight: 1, tags: '', always: false, ...(x.from ? { from: x.from } : {}) })));
             ui.ai = null; dirty(); redraw();
         }, { kind: 'primary' }),
         button('Write more', () => { ai.results = null; redraw(); }, { kind: 'ghost' }),

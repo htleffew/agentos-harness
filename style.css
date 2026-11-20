@@ -256,6 +256,9 @@
 .ri-guided-body { display: grid; gap: 7px; margin-top: 7px; padding: 10px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }
 
 /* Feature-local AI instruction editors */
+.ri-choice-list { padding: 0.65rem 0.75rem; border: 1px solid var(--ri-line); border-radius: 8px; background: var(--ri-bg); }
+.ri-choice-list > summary { cursor: pointer; overflow-wrap: anywhere; }
+.ri-choice-options { display: grid; gap: 0.45rem; padding-top: 0.55rem; }
 .ri-prompt-group { margin: 10px 0; padding: 9px 12px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }
 .ri-prompt-group > summary, .ri-prompt-editor > summary, .ri-prompt-default > summary { cursor: pointer; color: var(--ri-accent); font-weight: 600; }
 .ri-prompt-editor { margin-top: 8px; padding: 8px; border: 1px solid var(--ri-line); border-radius: 8px; }

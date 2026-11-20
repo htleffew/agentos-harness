@@ -3,7 +3,7 @@ import { promptText } from './prompts.js';
 import { parseJson, ctx, names } from './st.js';
 import { request } from './ai.js';
 import { settings, pronounForms, FORMS } from './store.js';
-import { ACTORS, TARGETS, SENT_AS } from './books.js';
+import { ACTORS, TARGETS, SENT_AS, choicesOf, instructionActors, instructionTargets, rollInt } from './books.js';
 import { swapNames } from './validate.js';
 import { writerRules, storySoFar } from './pacing.js';
 import { ORIGINS, listRole } from './events.js';
@@ -62,23 +62,46 @@ export const STORY_LEAD = 'What is known about the story. Use it so that what yo
 
 export const versionPromptId = actor => actor === 'model' ? 'modelVersionRules' : 'versionRules';
 
-export function buildWriterPrompt({ ins, seed, count, context, existing }) {
-    const actor = ACTORS[ins.actor] || ACTORS.char;
-    const target = TARGETS[ins.target] || TARGETS.user;
-    const model = ins.actor === 'model';
+/** Draw without replacement until every choice has had a turn. */
+function drawChoices(choices, count) {
+    let remaining = [];
+    return Array.from({ length: count }, () => {
+        if (!remaining.length) remaining = [...choices];
+        return remaining.splice(rollInt(remaining.length), 1)[0];
+    });
+}
+
+function drawParticipants(actors, targets, count) {
+    if (actors.length === 1 && targets.length === 1) return [];
+    return drawChoices(actors.flatMap(actor => targets.map(target => ({ actor, target }))), count);
+}
+
+export function buildWriterPrompt({ ins, seed, count, context, existing, draws }) {
+    const actors = instructionActors(ins);
+    const targets = instructionTargets(ins);
+    const assignments = draws ?? drawParticipants(actors, targets, count);
+    const model = actors[0] === 'model';
+    const targetLabel = model ? 'Target or subject' : 'Who it happens to';
+    const describe = (label, values, options) => values.length === 1
+        ? [`${label}: ${options[values[0]].text}`]
+        : [`${label} (use the assigned option below):`, ...values.map(value => `- ${value}: ${options[value].text}`)];
     const lines = [
         `Write ${count} different versions of one instruction for a roleplay.`,
         '',
         `${model ? 'What the model should do' : 'What should happen'}: ${seed}`,
-        `Who does it: ${actor.text}`,
-        `${model ? 'Target or subject' : 'Who it happens to'}: ${target.text}`,
+        ...describe('Who does it', actors, ACTORS),
+        ...describe(targetLabel, targets, TARGETS),
+        ...(assignments.length ? [
+            'Follow these numbered assignments. Write exactly one version per number, in the listed order. Keep the selected roles and leave open only what the assigned option leaves open.',
+            ...assignments.map(({ actor, target }, i) => `${i + 1}. Actor: ${actor}. Target: ${target}.`),
+        ] : []),
         `Instruction name: ${ins.name}`,
         ins.notes ? `Notes: ${ins.notes}` : '',
         `How it is sent: ${(SENT_AS[ins.sentAs] || SENT_AS.system).label}`,
         '',
         'Rules for every version:',
-        promptText(versionPromptId(ins.actor)),
-        ins.actor === 'unspecified' ? '- If the direction calls for no actor, describe what changes without introducing one.' : '',
+        promptText(versionPromptId(actors[0])),
+        actors.includes('unspecified') ? '- If the direction calls for no actor, describe what changes without introducing one.' : '',
         model
             ? '- These are writing instructions. Leave [[user]] in control of their own actions, speech, decisions, thoughts and feelings in the scene.'
             : '- [[user]] is only ever the one it happens to. Every action, spoken line, decision, thought and feeling in the version belongs to someone other than [[user]].',
@@ -121,10 +144,20 @@ const began = (answer) => { const t = String(answer ?? '').replace(/\s+/g, ' ').
 function readList(answer, minLength) {
     let list = parseJson(answer);
     if (list && !Array.isArray(list)) list = Object.values(list).find(Array.isArray) || null;
-    if (Array.isArray(list)) return { list, how: 'Read as a JSON list.' };
+    if (Array.isArray(list)) return { list, json: true, how: 'Read as a JSON list.' };
     // Fall back to one per line.
     list = String(answer).split('\n').map(l => l.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, '').replace(/^"|"[,]?$/g, '').trim()).filter(l => l.length > minLength);
     return { list, how: 'The answer was not a JSON list, so it was read one line at a time.' };
+}
+
+function readDrawnList(res, minLength, count, kind) {
+    const read = readList(res.text, minLength);
+    if (count && (!read.json || read.list.length !== count)) {
+        const why = `The AI must return exactly ${count} ${kind} in order to match the selected choices. Try again or request fewer.`;
+        res.note(why, false, [read.how]);
+        throw new Error(why);
+    }
+    return read;
 }
 
 /** Why nothing usable came out of an answer that was not empty. */
@@ -138,21 +171,22 @@ function whyNone(kind, answer, read, dropped) {
 export async function writeVersions({ ins, seed, count, context }) {
     const st = settings();
     const existing = ins.versions.map(v => v.text);
-    const prompt = buildWriterPrompt({ ins, seed, count, context, existing });
+    const draws = drawParticipants(instructionActors(ins), instructionTargets(ins), count);
+    const prompt = buildWriterPrompt({ ins, seed, count, context, existing, draws });
     const res = await request({ what: `Write ${count} ${count === 1 ? 'version' : 'versions'} for "${ins.name || 'an instruction'}"`, system: 'You write short instructions that are sent to a roleplay AI model during a chat. You answer with JSON only.', user: prompt, tokens: Math.min(4000, 300 + count * 150), profileId: st.profileId });
     const answer = res.text;
-    const read = readList(answer, 15);
+    const read = readDrawnList(res, 15, draws.length, 'versions');
     const seen = new Set(existing.map(v => v.toLowerCase()));
     const dropped = { same: 0, notText: 0 };
     const out = [];
-    for (const raw of read.list) {
+    for (const [index, raw] of read.list.entries()) {
         if (typeof raw !== 'string') { dropped.notText++; continue; }
         const swapped = swapNames(tidy(raw));
         const text = swapped.text;
         if (!text) continue;
         if (seen.has(text.toLowerCase())) { dropped.same++; continue; }
         seen.add(text.toLowerCase());
-        out.push({ text, swaps: swapped.swaps });
+        out.push({ text, swaps: swapped.swaps, ...draws[index] });
     }
     if (!out.length) {
         const why = whyNone('versions', answer, read, dropped);
@@ -187,8 +221,10 @@ function itemOf(raw) {
  * Ask the model for items for one category of a story event set. Returns [{ text, swaps }].
  * category: { name, driver }, theme: what the story is like, existing: item texts already in the list.
  */
-export async function writeItems({ category, theme, count, context, existing, others, style = false, origin = '' }) {
-    const from = !style && origin && ORIGINS[origin]?.write ? ORIGINS[origin].write : '';
+export async function writeItems({ category, theme, count, context, existing, others, style = false, origin = '', origins = origin }) {
+    const pool = style ? [''] : choicesOf(origins, ORIGINS, '');
+    const draws = pool.length > 1 ? drawChoices(pool, count) : [];
+    const from = ORIGINS[pool[0]].write;
     const st = settings();
     const lines = style ? [
         `Write ${count} items for one list of writing style choices. A roleplay AI is later told to write its reply using one item from the list.`,
@@ -211,7 +247,11 @@ export async function writeItems({ category, theme, count, context, existing, ot
         '',
         'Rules for every item:',
         promptText('eventWriterRules'),
-        ...(from ? [`- Every item is an event that ${from}.`] : []),
+        ...(draws.length ? [
+            'Use exactly one item for each numbered origin below, in order.',
+            ...pool.map(key => key ? `- ${key}: an event that ${ORIGINS[key].write}.` : '- any: leave the origin open.'),
+            `Origins by item number: ${draws.map((key, i) => `${i + 1}: ${key || 'any'}`).join(', ')}.`,
+        ] : from ? [`- Every item is an event that ${from}.`] : []),
         ...anywhereRules(category),
         '- [[user]] is only ever someone things happen to. Every action, spoken line, decision, thought and feeling belongs to someone other than [[user]].',
         '- Where a name is needed use [[char]] for the main character and [[user]] for the other person, with the double square brackets, and write real names nowhere.',
@@ -225,18 +265,18 @@ export async function writeItems({ category, theme, count, context, existing, ot
     lines.push('', style ? 'Return only a JSON list of strings, for example ["first item", "second item"].' : ANYWHERE_FORM);
     const res = await request({ promptSystemId: style ? 'systemStyleItems' : 'systemItems', what: `Write ${count} items for the list "${category.name}"`, system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 300 + count * 80), profileId: st.profileId });
     const answer = res.text;
-    const read = readList(answer, 3);
+    const read = readDrawnList(res, 3, draws.length, 'items');
     const seen = new Set(existing.map(v => v.toLowerCase()));
     const dropped = { same: 0, notText: 0 };
     const out = [];
-    for (const raw of read.list) {
+    for (const [index, raw] of read.list.entries()) {
         const one = itemOf(raw);
         if (!one) { dropped.notText++; continue; }
         const swapped = swapNames(tidy(one.text).replace(/[.]+$/, ''));
         if (!swapped.text) continue;
         if (seen.has(swapped.text.toLowerCase())) { dropped.same++; continue; }
         seen.add(swapped.text.toLowerCase());
-        out.push({ text: swapped.text, swaps: swapped.swaps, anywhere: one.anywhere });
+        out.push({ text: swapped.text, swaps: swapped.swaps, anywhere: one.anywhere, from: draws[index] ?? pool[0] });
     }
     if (!out.length) {
         const why = whyNone('items', answer, read, dropped);
@@ -333,8 +373,11 @@ export async function writeGoal({ about, context }) {
 
 /** Rewrite one version, keeping its meaning. Returns the new text. */
 export async function rewriteVersion({ ins, text }) {
-    const direction = ins.actor === 'model' ? 'Rewrite this direction without changing what it asks for' : 'The same thing as this version, worded and staged in a new way';
-    const res = await writeVersions({ ins, seed: `${direction}: ${text}`, count: 1, context: settings().writer.context });
+    const actors = instructionActors(ins);
+    const targets = instructionTargets(ins);
+    const direction = actors[0] === 'model' ? 'Rewrite this direction without changing what it asks for' : 'Reword this version and keep the same participants and action';
+    const fixed = { ...ins, actors: actors.length === 1 ? actors : ['unspecified'], targets: targets.length === 1 ? targets : ['unspecified'] };
+    const res = await writeVersions({ ins: fixed, seed: `${direction}: ${text}`, count: 1, context: settings().writer.context });
     return res[0];
 }
 

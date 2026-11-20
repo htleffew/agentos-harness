@@ -125,9 +125,9 @@ instruction is sent with the chance and timing you set, one version at a time.
 | Only-one group | Instructions with the same group name compete, and one of them is sent per reply. |
 | Only once per chat | A story action is retired once it happens. A model direction is retired when it is sent. |
 | Sent as | A system note, an out-of-character note, a line spoken by the character, or exactly as written. |
-| Actor, Target or subject | Guide **Write with AI**. Either can be left unspecified. |
+| Actor, Target or subject | Check one or more options to limit the draws for **Write with AI**. The model is its own actor mode. |
 
-- **Versions do not repeat** until every version of that instruction has been used once.
+- **Versions do not repeat** until every version of that instruction has been used once. When writing new versions with AI, the extension assigns one checked actor and target pair to each version before sending the batch. Edits to the checklists apply to future writing batches. For story events, **Where these events come from** works the same way and saves the assigned origin on each item.
 - **In-scene actors.** Besides the character, someone who is present, someone new, or the surroundings, you can pick
   "any character", "any female character" or "any male character", each "already in the story or new". The AI
   then uses someone who is there, or brings someone in, so the order can always be carried out.
