@@ -9,7 +9,7 @@ const context = {
 globalThis.SillyTavern = {getContext:()=>context};
 
 const {
-    extractUpdate, normalizeRecord, DEFAULT_MODULES:modules, gate, prepareTurn, prefs,
+    activePreset, extractUpdate, normalizeRecord, DEFAULT_MODULES:modules, gate, prepareTurn, prefs,
     portrayalSources, baselineFor, effectivePortrayal, guidelineEligible,
 } = await import('../../src/v10.js');
 const {stateAt, changesFromProfiles} = await import('../../src/state.js');
@@ -79,3 +79,9 @@ assert(guidelineEligible({uid:0},local,{where:'Dock',present:'Mira, Cass'},modul
 assert(!guidelineEligible({uid:0},local,{where:'Dock',present:'Cass'},modules));
 assert(!guidelineEligible({uid:0},local,{where:'Dock',present:'Mira'},{...modules,plots:false}));
 assert(guidelineEligible({uid:1},local,{},modules));
+
+context.getPresetManager=()=>({getSelectedPresetName:()=> 'Roleplay Instructions V10'});
+context.mainApi='openai';
+assert.equal(activePreset(),'Roleplay Instructions V10');
+context.mainApi='textgenerationwebui';
+assert.equal(activePreset(),'');

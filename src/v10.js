@@ -43,6 +43,7 @@ const fields = ['where','when','present','time','date','weather','environment'];
 
 export function activePreset() {
     const c = ctx();
+    if (c.mainApi && c.mainApi !== 'openai') return '';
     try { return c.getPresetManager?.('openai')?.getSelectedPresetName?.() || ''; } catch { return ''; }
 }
 
