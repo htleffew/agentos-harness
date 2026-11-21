@@ -159,6 +159,24 @@ Count accepted character replies in the surviving story timeline, including thei
 
 **Implementation dependencies.** First centralize the correction operation now coordinated in the UI. Then put all automatic world-change producers behind one staged write path and make extension consumers read the effective state. Add promotion, invalidation, branch and chapter handoff before enabling the setting. Attach the same correction operation to both entry points and feed it the effective view. Delaying a save with a timer would not satisfy this design.
 
+## How it ran and which connection it used
+
+Every extension output uses the same **How it ran** component, vocabulary and field order. Show a compact line on cards, results, receipts and status messages, with expandable details. Use the same component in preview mode on controls before they run. List stages individually when an operation mixes code and model work. For example, source matching can run in code, a model can audit the selected excerpts, and a guided swipe can use the ordinary reply request.
+
+| Label | Count | Example |
+| --- | --- | --- |
+| **Runs in code** | 0 model calls | Roll dice, select a saved nudge, detect repetition, validate evidence, render or restore a card. |
+| **Uses the reply request** | 0 additional model calls | Send a nudge, produce structured story state or generate a Roast as part of the NPC reply. A user-requested swipe or continuation starts one ordinary generation. |
+| **Additional model request** | Expected count or bounded range before execution, actual attempts afterward | Generate a CYOA batch, trace a correction, write a chapter summary or compare preset prompts. |
+
+Keep call type, call count and connection in the same order everywhere. Before the action show the operation, expected count, trigger and selected connection. Afterward show what ran, actual request attempts, connection used and result, including skipped, failed and cancelled stages. The prior turn's receipt identifies the source of deferred nudges. The next turn's receipt shows whether they were included. Use text alongside any color or icon. Keep token or price information separate and qualify estimates.
+
+**Authorization.** An additional request requires a clearly labeled user action by default. A compound action can authorize its disclosed steps with one tap. An automatic feature starts disabled for extra requests until explicitly enabled with its trigger, frequency, request budget and connection visible in that same control. Show what happens at reply-count, scene-end or token thresholds for chapter summaries, and what eligible missed instructions or player-agency findings can trigger checks or regeneration. Surface pending and completed automatic work in the same status and receipt components. Explain any existing automatic settings during upgrade and obtain explicit enablement for those whose request behavior was never disclosed. Users can switch automatic requests off independently of code-only tracking and same-reply guidance. Summarizing a chapter manually remains available. Automatic retries count as additional attempts and must fit the disclosed budget. A one-call action with an empty response offers an explicit retry.
+
+**Connection.** Every extra-call operation offers **Main API** or a named SillyTavern connection profile. Default to Main API, with an optional extension-wide default and a per-feature or per-run override. For automatic features, set the connection beside the opt-in. Resolve the profile and show the actual API/model when available. Keep the user's selected chat preset active. If a selected profile is missing or unavailable, wait for a connection choice and preserve the work. Switching to Main API requires an explicit selection. Record the resolved connection in the same receipt as the count.
+
+Route each additional request through a shared dispatch policy that identifies its operation, authorization, connection and remaining attempt budget. Include paths that start a host generation, such as optional automatic swipes. Log each model attempt. Audit local actions and inline generation independently so their labels reflect actual execution. Cover current call sites as well as new features.
+
 ## Implementation sequence
 
 | Milestone | Proposed implementation and boundary | Exit evidence |
@@ -284,3 +302,12 @@ These are proposed release checks for the corresponding capability if selected. 
 | A45 | Receive a reply, open the menu, tick and untick cues, type, close and reopen the sheet, then invoke CYOA. Edit and select a choice and dismiss it. Repeat and explicitly expand a choice. | No automatic generation. Choices are distinct player actions. Using wording takes zero additional calls; expanding takes one. No choice is auto-sent or recorded as a story event. The prior composer draft is recoverable. |
 | A46 | Draft, generate CYOA and expand a choice where another NPC has a private intention and an off-screen event is outside ordinary sensory range. | Player text uses first person. Inspect the actual output for mind-reading, remote knowledge or implausible perception. Evidence-based guesses stay guesses. |
 | A47 | Append a guided passage to a selected swipe, undo it, then try with a target edited while the request is in flight. | The prefix and other swipes survive verbatim. Undo reconciles only appended state and facts. A stale result cannot overwrite the manual edit. |
+
+## Acceptance checks for request visibility and control
+
+| ID | Exercise | Required observation |
+| --- | --- | --- |
+| A48 | Compare a local roll, a repetition nudge in the next reply, Roast output, a CYOA batch and a correction plus guided swipe. | Every surface shows the same execution labels and field order. Captured requests and receipts distinguish code, ordinary reply generation and additional requests. |
+| A49 | Reach each automatic chapter threshold and miss a required instruction with automatic model work off. Then explicitly enable each feature and repeat. | Zero background model requests while off. Settings disclose the actual triggers, budget and connection. Only a qualifying trigger makes a request under that opt-in. |
+| A50 | Run one helper on Main API and one with a named override. Remove the selected profile before another manual or automatic run. | Captured requests match the selected connection. The missing profile is visible in the status. The operation waits for an explicit connection choice. |
+| A51 | Exercise a blank reply, a provider error, a manual retry and a multi-batch catch-up. | Preview shows the expected count or range. Receipts show each actual attempt and outcome. A one-call action requires another user invocation to retry. |
