@@ -1,0 +1,158 @@
+[
+  {
+    "group": "Story",
+    "name": "Opening",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Story",
+    "name": "Current State",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Story",
+    "name": "Corrections",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Story",
+    "name": "Reusable Lorebooks",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Story",
+    "name": "Chat Facts",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Story",
+    "name": "Plot Records",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Story",
+    "name": "Story World",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Characters",
+    "name": "Portrayal & Knowledge",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Characters",
+    "name": "Emotions & Relationships",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Characters",
+    "name": "Character Goals",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Characters",
+    "name": "Dialogue Colors",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Random Instructions",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Random Story Events",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Random Writing Style",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Writing Guidance",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Action Checks",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Review",
+    "name": "What Was Sent",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Review",
+    "name": "Context & Memory",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Review",
+    "name": "Log",
+    "issues": [],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Setup",
+    "name": "Preset & Extension",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Setup",
+    "name": "Reply Display",
+    "issues": [],
+    "manual": []
+  },
+  {
+    "group": "Setup",
+    "name": "Settings",
+    "issues": [],
+    "manual": []
+  }
+]

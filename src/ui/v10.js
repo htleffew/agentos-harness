@@ -442,7 +442,7 @@ function hostPrompt(block) {
 function presetDetails(preset, app) {
     const prompts = activeHostPrompts();
     return section('Host preset',
-        h('p',{},preset ? `Active preset: ${preset}` : 'The host has no active Chat Completion preset.'),
+        h('p',{},preset ? `Active preset: ${preset}` : 'To select the companion, open API Connections and choose Chat Completion. Then open AI Response Configuration and select Roleplay Instructions V10. If it is missing, import the companion preset JSON there.'),
         isCompanionPreset(preset) ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
         prompts?.length ? h('details',{class:'ri-card'},h('summary',{},'View host preset prompt blocks'),
             h('p',{class:'ri-help'},'On means the block is enabled in the host preset. The host may fill or omit individual blocks when it assembles a reply. Edit these blocks in the host preset editor.'),

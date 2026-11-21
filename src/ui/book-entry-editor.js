@@ -1,5 +1,5 @@
 import { BOOK_TRIGGER_SOURCES, bookTriggerSource } from '../book-triggers.js';
-import { h, field, button, select, textInput, textArea } from './dom.js';
+import { add, h, field, button, select, textInput, textArea } from './dom.js';
 import { ctx, isReply, loadBook, saveBook, confirmBox, toast, worldNames, parseJson } from '../st.js';
 import { sharedId, setInfo, blankEntry, freeUid, removeEntries } from '../books.js';
 import { chatWorld, readWorldEntry, writeWorldEntry, WORLD_KINDS, isWorldEntry } from '../world.js';
@@ -130,7 +130,7 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
         const recordData = structured && input('Structured fields',JSON.stringify({...structured,text:undefined},null,2),textArea);
         const states = WORLD_KINDS[row.kind].steps;
         const status = states ? select(states.map(([value,label])=>option(value,label)),row.status,()=>{},{'aria-label':'Story status'}) : null;
-        panel.append(recordText && field('Record text','',recordText),
+        add(panel, [recordText && field('Record text','',recordText),
             field('Aliases','One per line.',aliases),checkbox('Protect from automated updates',keep),
             field('Activation','Uses the extension’s recall budget and applicable knowledge and plot rules.',mode),
             field('Trigger phrases','One word, phrase or /pattern/i per line.',keys),
@@ -144,7 +144,7 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
             status && field('Story status','',status),
             ...inputs.map(([,control,label])=>field(label,'',control)),
             recordData && h('details',{},h('summary',{},'Advanced record fields'),
-                field('Structured fields','Preserve the record’s ID and kind. Use Record text above to edit the narrative content.',recordData)));
+                field('Structured fields','Preserve the record’s ID and kind. Use Record text above to edit the narrative content.',recordData))]);
         apply = data => {
             row.name=title.value;
             row.on=enabled.checked;

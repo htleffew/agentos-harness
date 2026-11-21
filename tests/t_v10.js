@@ -63,16 +63,17 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             await route.continue();
         },{times:1});
         const sending=L.send(page,'I run to the dock.');
-        try { await progress.getByRole('status').getByText('Waiting for the reply').waitFor(); }
+        sending.catch(() => {}); // Awaited below. Preserve the original UI assertion if it fails first.
+        try { await progress.getByRole('status').filter({hasText:'Waiting for the reply'}).waitFor(); }
         finally { releaseRequest(); }
-        await progress.getByRole('status').getByText('Writing the reply').waitFor();
+        await progress.getByRole('status').filter({hasText:'Writing the reply'}).waitFor();
         assert.equal(await progress.locator('li[data-status="done"]').count(),1);
         assert.equal(await progress.locator('li[data-status="done"] .ri-progress-light').textContent(),'✓');
         await page.locator('#chat .last_mes .ri-stream-preview').waitFor({state:'attached'});
         assert.equal(await page.locator('#chat .last_mes .mes_text').isVisible(),false);
         await page.emulateMedia({reducedMotion:'reduce'});
         assert.equal(await progress.locator('[data-status="active"] .ri-progress-light').evaluate(node=>getComputedStyle(node).animationName),'none');
-        await progress.getByRole('status').getByText('Receiving the story update').waitFor();
+        await progress.getByRole('status').filter({hasText:'Receiving the story update'}).waitFor();
         assert.equal(await progress.locator('li[data-status="done"]').count(),2);
         const received=progress.locator('.ri-progress-sections');
         await received.locator('[data-section="scene"]').waitFor();

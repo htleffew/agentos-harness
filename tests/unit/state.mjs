@@ -22,5 +22,13 @@ assert.equal(stateAt().hale.fields.body, undefined);
 chat.pop(); chat.pop();
 assert.equal(stateAt().hale.fields.body, 'Broken arm');
 assert.deepEqual(changesFromProfiles([{ name: 'Hale', now: { mind: 'Wait', willnot: 'obsolete' } }]), [{ name: 'Hale', fields: { mind: 'Wait' } }]);
+assert.deepEqual(changesFromProfiles([{name:'Mira',now:{feels:'Curious',thinks:'He knows',private:'The letter',mind:null}}]),
+    [{name:'Mira',fields:{heart:'Curious',mind:null,psyche:'The letter'}}]);
+chat.push(msg({stateChanges:[],profiles:[{name:'Mira',now:{feels:'Curious'}}]}));
+assert.equal(stateAt().mira.fields.heart,'Curious');
+chat.push(msg({stateChanges:[{name:'Hale',fields:{heart:null}}], profiles:[
+    {name:'Hale',now:{feels:'Superseded'}}, {name:'Nia',now:{feels:'Excited'}}]}));
+assert.equal(stateAt().nia.fields.heart, 'Excited');
+assert.equal(stateAt().hale.fields.heart, undefined);
 assert(saves >= 2);
 console.log('state replay, protection, swipe, continue, deletion and prompt: passed');

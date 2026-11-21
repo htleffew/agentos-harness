@@ -1056,7 +1056,7 @@ async function ownWorld() {
         delete c.extensions.ri.set; // the branch is a standalone lorebook
         copy.entries[i++] = c;
     }
-    const taken = new Set([...knownSets('world').map(id => setInfo(id).name), ...(ctx().getWorldInfoNames?.() || [])]);
+    const taken = new Set([...Object.keys(settings().sets), ...knownSets('world').map(id => setInfo(id).name), ...(ctx().getWorldInfoNames?.() || [])]);
     let name = `${info.name} (branch)`;
     for (let n = 2; taken.has(name); n++) name = `${info.name} (branch ${n})`;
     const to = await createSet(name, 'world', copy, '');

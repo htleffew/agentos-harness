@@ -22,8 +22,8 @@ const last = (page) => page.evaluate(() => { const c = globalThis.SillyTavern.ge
         const l1 = await last(page);
         console.log('scene:', JSON.stringify(l1));
         assert(/\[Scene\. After the story text of this reply, add one block/.test(r1.text) && /present: everyone in the scene at the end of this reply other than \{\{user\}\}|present: everyone in the scene at the end of this reply other than /.test(r1.text) && r1.n === 1, 'ask: with no story world and a preset with no tracker, every reply is still asked for who is present, where and when, with no extra AI request');
-        assert(l1.scene && l1.scene.present === 'Hale, Mira' && l1.scene.where === 'The camp by the river' && l1.scene.when === 'Day 3, evening, clear and cold' && !/story_update|present:/.test(l1.mes), 'keep: the three lines are kept on the reply and taken out of its text');
-        assert(/WhenDay 3, evening, clear and cold/.test(l1.card || '') && /WhereThe camp by the river/.test(l1.card || '') && /PresentHale, Mira/.test(l1.card || ''), 'card: a scene card under the reply shows when, where and who is present');
+        assert(l1.scene && l1.scene.present === 'Hale, Mira' && l1.scene.where === 'The camp by the river' && l1.scene.when === 'evening' && l1.scene.date === 'Day 3' && l1.scene.weather === 'clear and cold' && !/story_update|present:/.test(l1.mes), 'keep: the three lines are kept on the reply and taken out of its text');
+        assert(/Timeevening/.test(l1.card || '') && /LocationThe camp by the river/.test(l1.card || '') && /PresentHale, Mira/.test(l1.card || ''), 'card: a scene card under the reply shows when, where and who is present');
         await page.screenshot({ path: '/tmp/s510_card.png' });
         // story events can count who is present from the lines
         await page.evaluate(async ([B, name]) => { const E = await import(`${B}/src/events.js`); const K = await import(`${B}/src/books.js`); const S = await import(`${B}/src/store.js`); const ev = E.newEvent(name); Object.assign(ev, { chance: 100, wait: 0, keep: 0 }); const c = E.newCategory('Situation', ['everyone talks at once CROWDMARK']); c.items[0].min = 2; ev.categories = [c]; const d = { entries: {} }; E.writeEvent(d, ev); const id = await K.createSet(name, 'events', d, ''); S.chatState().activeSets = [id]; S.saveChatState(); }, [L.BASE, 'Scene events ' + t]);
@@ -43,16 +43,16 @@ const last = (page) => page.evaluate(() => { const c = globalThis.SillyTavern.ge
         const w2 = await send(page, 'I look at the river.');
         const notes = await page.evaluate(() => { const c = globalThis.SillyTavern.getContext().chat; const it = (c[c.length - 1].extra.roleplay_instructions.items || []).find(i => i.notes); return it?.notes || null; });
         console.log('notes:', JSON.stringify(notes && { present: notes.present, how: notes.how }));
-        assert(/QUIETMIRA/.test(w2.text) && !/QUIETOTTO/.test(w2.text) && notes && /scene lines/.test(notes.how), 'notes: Mira is unnamed in the story text but present by the scene lines, so her entry is sent, and someone not present is left out');
+        assert(/QUIETMIRA/.test(w2.text) && !/QUIETOTTO/.test(w2.text) && notes && /scene state/.test(notes.how), 'notes: Mira is unnamed in the story text but present by the scene lines, so her entry is sent, and someone not present is left out');
 
         // ----- a reply with its own tracker: no second card
         L.mode({ reply: `${PROSE}\n\n<scene_cast>\nLocation: The camp\nActive Speakers: Hale\n</scene_cast>\n\n<story_update>\npresent: Hale\nwhere: The camp\nwhen: Day 4, noon\n</story_update>` });
         await send(page, 'Lunch.');
         const l4 = await last(page);
-        assert(l4.scene && l4.scene.when === 'Day 4, noon' && l4.card === null, 'card: under a reply that draws its own tracker, the scene card stays hidden, and the lines are still kept');
+        assert(l4.scene && l4.scene.when === 'noon' && l4.scene.date === 'Day 4' && l4.card === null, 'card: under a reply that draws its own tracker, the scene card stays hidden, and the lines are still kept');
         await L.setSettings(page, { scene: { card: 'always' } });
         await page.evaluate(async (B) => { (await import(`${B}/src/ui/sent.js`)).refreshUnderReplies(); }, L.BASE);
-        assert(/WhenDay 4, noon/.test((await last(page)).card || ''), 'card: set to "Always", the card is shown under every reply');
+        assert(/Timenoon/.test((await last(page)).card || ''), 'card: set to "Always", the card is shown under every reply');
 
         // ----- out of character, and off
         L.mode({ reply: 'Fine, thanks.' });

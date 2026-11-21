@@ -264,18 +264,18 @@ function refreshStoryState(chat) {
         const id = Number(mes.getAttribute('mesid'));
         const m = chat[id], rec = m?.extra?.[KEY], block = mes.querySelector('.mes_block');
         if (!block || !rec || m.is_user || mode === 'off' || (mode === 'auto' && OWN_HUD.test(String(m.mes || '')))) continue;
-        const sc = snapshotScene(id);
-        const all = snapshotState(id);
+        const sc = st.scene?.track !== false ? snapshotScene(id) : {};
+        const all = st.cards?.on ? snapshotState(id) : {};
         const names = String(sc.present || '').toLocaleLowerCase();
         const people = Object.values(all).filter(p => !names || names.includes(p.name.toLocaleLowerCase()));
-        for (const profile of rec.profiles || []) {
+        for (const profile of st.cards?.on ? rec.profiles || [] : []) {
             if (names && !names.includes(String(profile.name || '').toLocaleLowerCase())) continue;
             let person = people.find(p => p.name.toLocaleLowerCase() === String(profile.name || '').toLocaleLowerCase());
             if (!person && Object.keys(profile.stable || {}).length) { person = { name: profile.name, fields: {}, protected: {} }; people.push(person); }
             if (person) person.foundation = profile.stable || {};
         }
         if (v10 || rec.v10) continue;
-        const roast = st.cards?.roast !== false ? rec.roast : '';
+        const roast = st.cards?.on && st.cards.roast !== false ? rec.roast : '';
         if (!Object.keys(sc).length && !people.length && !roast) continue;
         const stamp = JSON.stringify([sc, people, roast, rec.stateOutdated, rec.snapshotEdits]);
         const old = block.querySelector(':scope > .ri-story-state');

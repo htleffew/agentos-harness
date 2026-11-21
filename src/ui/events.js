@@ -154,6 +154,27 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     const summary = [h('span', { class: 'ri-sent-title' }, versionText(cat.name || 'Category')),
         h('span', { class: 'ri-sent-sub' }, cat.locked ? 'Locked' : cat.on ? `${usable.length} ${usable.length === 1 ? 'item' : 'items'} · ${modeLabel[cat.mode]}` : 'Turned off')];
     const body = [];
+    const durationFields = [];
+    if (cat.mode === 'keepRandom') {
+        const maximum = numberInput(cat.keepMax, { min:1, max:200, unit:tick }, n => {
+            cat.keepMax = Math.max(cat.keepMin, n);
+            dirty();
+        });
+        const maxInput = maximum.querySelector('input');
+        maxInput.min = cat.keepMin;
+        maxInput.addEventListener('blur', () => { maxInput.value = cat.keepMax; });
+        const minimum = numberInput(cat.keepMin, { min:1, max:200, unit:tick }, n => {
+            cat.keepMin = n;
+            cat.keepMax = Math.max(cat.keepMax, n);
+            maxInput.min = n;
+            maxInput.value = cat.keepMax;
+            dirty();
+        });
+        const minInput = minimum.querySelector('input');
+        minInput.addEventListener('blur', () => { minInput.value = cat.keepMin; });
+        durationFields.push(field(`Keep the pick for at least (${tick})`, '', minimum),
+            field(`Keep the pick for at most (${tick})`, 'A number between the two is rolled each time.', maximum));
+    }
 
     if (cat.locked) body.push(h('div', { class: 'ri-note ri-note-warn' }, 'This category is locked, so the point of view your preset sets is never changed by accident.',
         h('div', { class: 'ri-row ri-row-tight' }, button('Unlock this category', () => { cat.locked = false; dirty(); redraw(); }))));
@@ -163,8 +184,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         cat.locked ? null : field('Use this category', tick === 'events' ? 'Off leaves it out of every event.' : 'Off leaves it out of the style order.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.on ? 'on' : 'off', (v) => { cat.on = v === 'on'; dirty(); redraw(); }))));
     body.push(h('div', { class: 'ri-grid2' },
         field('How it changes', modeHelp[cat.mode], select(Object.keys(MODES).map(value => ({ value, label: modeLabel[value] })), cat.mode, (v) => { cat.mode = v; dirty(); redraw(); })),
-        cat.mode === 'keepRandom' ? field(`Keep the pick for at least (${tick})`, '', numberInput(cat.keepMin, { min: 1, max: 200, unit: tick }, (n) => { cat.keepMin = n; if (cat.keepMax < n) cat.keepMax = n; dirty(); })) : null,
-        cat.mode === 'keepRandom' ? field(`Keep the pick for at most (${tick})`, 'A number between the two is rolled each time.', numberInput(cat.keepMax, { min: 1, max: 200, unit: tick }, (n) => { cat.keepMax = Math.max(n, cat.keepMin); dirty(); })) : null,
+        ...durationFields,
         cat.mode === 'keepRandom' ? field('Chance to change once that time is over (%)', `100 changes the pick as soon as the time is up. 30 lets it stay on a little longer: each of the following ${tick} it has a 30% chance to change.`, numberInput(cat.changeChance, { min: 1, max: 100, unit: '%' }, (n) => { cat.changeChance = n; dirty(); })) : null,
         cat.mode === 'keepFixed' ? field('Item to keep', tick === 'events' ? 'Every event uses this item.' : 'Every reply uses this item.', select([{ value: '', label: usable.length ? 'Choose an item' : 'Add an item first' }, ...usable.map(i => ({ value: i.id, label: i.text.slice(0, 70) }))], cat.fixed || '', (v) => { cat.fixed = v; dirty(); })) : null,
         cat.mode === 'keepFixed' ? null : field('Items per pick', tick === 'events' ? 'How many items from this category go into one event.' : 'How many items from this category are used at the same time.', numberInput(cat.count, { min: 1, max: 5, unit: 'items' }, (n) => { cat.count = n; dirty(); })),
@@ -183,7 +203,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         if (ui.editing === it.id) {
             // The edit works on a copy, so Cancel leaves the item as it was.
             const e = ui.edit && ui.edit.id === it.id ? ui.edit : (ui.edit = { id: it.id, text: it.text, from: originOf(it, cat), need: it.need || '', min: it.min || 0, dEvent: it.dEvent || '', dCheck: it.dCheck || '', dNext: it.dNext || '' });
-            const box = textInput(e.text, (v) => { e.text = v; });
+            const box = textInput(e.text, (v) => { e.text = v; }, { 'aria-label': `Item text for ${cat.name}, item ${i + 1}` });
             const more = cfg.kind === 'style' ? [
                 h('div', { class: 'ri-label' }, 'While this item is the pick (all three are optional)'),
                 field('Added to every story event', 'One sentence that says how events are to go while this style is in use. Example for a tense style: "The event starts with no warning."', textInput(e.dEvent, (v) => { e.dEvent = v; }, { placeholder: 'Nothing is added' })),
@@ -221,8 +241,8 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
                 it.dCheck ? chip(`Question about the reply: ${it.dCheck}`) : null,
                 it.dNext ? chip(`Note for the reply after: ${it.dNext}`) : null) : null,
             h('div', { class: 'ri-row ri-row-tight' },
-                h('span', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Weight'), numberInput(it.weight, { min: 1, max: 20 }, (n) => { it.weight = n; dirty(); })),
-                h('span', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Tags'), textInput(it.tags, (v) => { it.tags = v; dirty(); }, { placeholder: 'none', style: { width: '120px' } })),
+                h('label', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Weight'), numberInput(it.weight, { min: 1, max: 20, label:`Weight for ${it.text}` }, (n) => { it.weight = n; dirty(); })),
+                h('label', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Tags'), textInput(it.tags, (v) => { it.tags = v; dirty(); }, { 'aria-label':`Tags for ${it.text}`, placeholder: 'none', style: { width: '120px' } })),
                 button(it.always ? 'Always included' : 'Always include', () => { it.always = !it.always; dirty(); redraw(); }, { kind: 'ghost', title: 'An always-included item is in every fresh pick; the dice fill the rest' }),
                 button('Edit', () => { ui.editing = it.id; ui.edit = null; redraw(); }, { kind: 'ghost', title: cfg.kind === 'style' ? 'Change the text, and what this item adds while it is the pick' : 'Change the text, and when the dice may use this item' }),
                 button('Delete', () => { cat.items.splice(i, 1); if (cat.fixed === it.id) cat.fixed = ''; dirty(); redraw(); }, { kind: 'danger' }))));

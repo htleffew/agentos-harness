@@ -1,0 +1,156 @@
+[
+  {
+    "group": "Story",
+    "name": "Opening",
+    "controls": 4,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Story",
+    "name": "Current State",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Story",
+    "name": "Corrections",
+    "controls": 2,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Story",
+    "name": "Reusable Lorebooks",
+    "controls": 3,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Story",
+    "name": "Chat Facts",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Story",
+    "name": "Plot Records",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Story",
+    "name": "Story World",
+    "controls": 1,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Characters",
+    "name": "Portrayal & Knowledge",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Characters",
+    "name": "Emotions & Relationships",
+    "controls": 4,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Characters",
+    "name": "Character Goals",
+    "controls": 9,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Characters",
+    "name": "Dialogue Colors",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Direction",
+    "name": "Random Instructions",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Direction",
+    "name": "Random Story Events",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Direction",
+    "name": "Random Writing Style",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Direction",
+    "name": "Writing Guidance",
+    "controls": 6,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Direction",
+    "name": "Action Checks",
+    "controls": 4,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Review",
+    "name": "What Was Sent",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Review",
+    "name": "Context & Memory",
+    "controls": 11,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Review",
+    "name": "Log",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Setup",
+    "name": "Preset & Extension",
+    "controls": 17,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Setup",
+    "name": "Reply Display",
+    "controls": 6,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Setup",
+    "name": "Settings",
+    "controls": 21,
+    "noName": [],
+    "tiny": 0
+  }
+]

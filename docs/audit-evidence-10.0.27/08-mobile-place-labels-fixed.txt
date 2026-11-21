@@ -1,0 +1,41 @@
+- dialog "Roleplay Instructions":
+  - text: Roleplay Instructions On
+  - switch "Turn the whole extension on or off" [checked]
+  - button "Close full screen"
+  - navigation "Roleplay sections":
+    - button "Story"
+    - button "Characters"
+    - button "Direction"
+    - button "Review"
+    - button "Setup"
+  - navigation "Story pages":
+    - button "Opening"
+    - button "Current State"
+    - button "Corrections"
+    - button "Reusable Lorebooks"
+    - button "Chat Facts"
+    - button "Plot Records"
+    - button "Story World"
+  - button "‹ Back to Lantern Court"
+  - text: New place
+  - button "Write this entry with AI"
+  - text: Name Name
+  - textbox "Name"
+  - text: The name the story uses for this place. Other names
+  - textbox "Other names":
+    - /placeholder: None
+  - text: Other names the story uses for it, separated by commas. The extension uses them to tell when it is in the scene or being talked about. Details Plain statements of fact work best, such as "Tom has a secret" or "Hale feels responsible for his crew". Leave a line empty when there is nothing to say. What it is
+  - textbox "What it is"
+  - text: How it is laid out
+  - textbox "How it is laid out"
+  - text: Who is usually there
+  - textbox "Who is usually there"
+  - text: What goes on there
+  - textbox "What goes on there"
+  - text: Automatic updates Let the extension keep this entry up to date
+  - combobox "Let the extension keep this entry up to date":
+    - option "On" [selected]
+    - 'option "Off: keep it as I wrote it"'
+  - text: "On: lines that change with the story (what a person wants, plans and knows; where a thread stands) are kept current from each reply. What the AI would receive for this entry - Place. Must fix: Give this place a name. Every line is empty, so nothing would be sent for this entry."
+  - button "Save place"
+  - button "Cancel"

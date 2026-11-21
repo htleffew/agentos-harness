@@ -122,7 +122,7 @@ export function chatBooks() {
         if (available.has(name)) add(name,'Host global selection');
     }
     if (observed?.chat===c.getCurrentChatId?.()) for (const {name,role} of observed.entries) {
-        if (available.has(name)) add(name,`${role} · last scan`);
+        if (available.has(name) && !books.get(name)?.roles.has(role)) add(name,`${role} · last scan`);
     }
     for (const message of c.chat || []) {
         const rec = message.extra?.[KEY];

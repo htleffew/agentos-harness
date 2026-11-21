@@ -27,7 +27,7 @@ function taskList(g, key, ui, redraw, rowExtras) {
     g[key].forEach((t, i) => {
         if (ui.editing === t.id) {
             let value = t.text;
-            const box = textInput(value, v => { value = v; });
+            const box = textInput(value, v => { value = v; }, { 'aria-label': key === 'steps' ? 'Edit one-time step' : 'Edit repeatable action' });
             list.appendChild(h('div', { class: 'ri-version ri-version-editing' }, box, h('div', { class: 'ri-row ri-row-tight' },
                 button('Done', () => { if (value.trim()) { t.text = swapNames(value.trim()).text; saveGoals(); } ui.editing = ''; redraw(); }, { kind: 'primary' }),
                 button('Cancel', () => { ui.editing = ''; redraw(); }, { kind: 'ghost' }))));
@@ -43,7 +43,7 @@ function taskList(g, key, ui, redraw, rowExtras) {
                 button('Delete', () => { g[key].splice(i, 1); saveGoals(); redraw(); }, { kind: 'danger' }))));
     });
     if (!g[key].length) list.appendChild(h('div', { class: 'ri-empty' }, key === 'steps' ? 'No one-time steps yet. Type one below, for example: tell {{user}} a secret' : 'No repeatable actions yet. Type one below, for example: compliment {{user}}'));
-    const addBox = textInput(ui[`add_${key}`] || '', v => { ui[`add_${key}`] = v; }, { placeholder: key === 'steps' ? 'Type a one-time step, for example: tell {{user}} a secret' : 'Type a repeatable action, for example: compliment {{user}}' });
+    const addBox = textInput(ui[`add_${key}`] || '', v => { ui[`add_${key}`] = v; }, { 'aria-label': key === 'steps' ? 'New one-time step' : 'New repeatable action', placeholder: key === 'steps' ? 'Type a one-time step, for example: tell {{user}} a secret' : 'Type a repeatable action, for example: compliment {{user}}' });
     const add = () => {
         const text = swapNames(String(ui[`add_${key}`] || '').trim().replace(/[.]+$/, '')).text;
         if (!text) { toast('info', 'Type it first.'); return; }

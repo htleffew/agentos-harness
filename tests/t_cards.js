@@ -10,7 +10,13 @@ const ROAST = ['<roast>', 'LMAOOO Hale really said "you look wonderful" with his
 const block = (lines) => `${PROSE}\n\n<story_update>\n${lines.join('\n')}\n</story_update>`;
 const idle = async (page) => { await page.evaluate(async (B) => { await (await import(`${B}/src/worldflow.js`)).worldIdle(); }, L.BASE); await page.waitForTimeout(400); };
 const send = async (page, text) => { L.resetLog(); await L.send(page, text); await L.waitChecks(page); await idle(page); await page.evaluate(async (B) => { (await import(`${B}/src/ui/sent.js`)).refreshUnderReplies(); }, L.BASE); const all = L.requests(); const chat = all.filter(r => r.messages.length > 2); return { n: all.length, text: L.text(chat[chat.length - 1] || all[0]) }; };
-const last = (page) => page.evaluate(() => { const c = globalThis.SillyTavern.getContext().chat; const m = c[c.length - 1]; const el = document.querySelector(`#chat .mes[mesid="${c.length - 1}"]`); const r = m.extra?.roleplay_instructions || {}; const block = el?.querySelector('.mes_block'); return { mes: m.mes, profiles: r.profiles || null, roast: r.roast || '', cards: el?.querySelector('.ri-cards')?.textContent || null, names: [...(el?.querySelectorAll('.ri-profile > summary') || [])].map(x => x.textContent), order: block ? [...block.children].map(x => x.className.split(' ').find(c => /^ri-(scene|cards|under)$/.test(c))).filter(Boolean) : [] }; });
+const last = page => page.evaluate(() => {
+    const chat = SillyTavern.getContext().chat;
+    const msg = chat.at(-1), rec = msg.extra?.roleplay_instructions || {};
+    const stack = document.querySelector(`#chat .mes[mesid="${chat.length-1}"] .ri-story-state`);
+    return {mes:msg.mes, profiles:rec.profiles, roast:rec.roast || '', cards:stack?.textContent ?? null,
+        order:Array.from(stack?.querySelectorAll(':scope > [data-card-key]') || [], card => card.dataset.cardKey)};
+});
 const world = (page) => page.evaluate(async (B) => { const W = await import(`${B}/src/world.js`); const id = W.chatWorld(); const d = await W.loadWorld(id); return W.listWorld(d, id).map(w => ({ kind: w.kind, name: w.name, f: w.fields, auto: w.auto })); }, L.BASE);
 
 (async () => {
@@ -18,7 +24,7 @@ const world = (page) => page.evaluate(async (B) => { const W = await import(`${B
     const { browser, page, errors } = await L.open({ width: 1100, height: 1400 });
     try {
         await L.setupApi(page);
-        await L.setSettings(page, { check: { mode: 'off' }, perReply: 0, scene: { track: true, card: 'always' }, cards: { on: true, most: 2, roast: true }, world: { update: 'all', head: 0, build: 0 } });
+        await L.setSettings(page, { check: { mode: 'off' }, perReply: 0, scene: { track: true, card: 'always' }, cards: { on: true, most: 2, roast: true, previousRoast:true }, world: { update: 'all', head: 0, build: 0 } });
         const t = Date.now();
 
         // ----- with no story world
@@ -27,15 +33,15 @@ const world = (page) => page.evaluate(async (B) => { const W = await import(`${B
         const r1 = await send(page, 'I sit by the fire.');
         const l1 = await last(page);
         console.log('ask:', r1.text.slice(r1.text.indexOf('[Scene.'), r1.text.indexOf('[Scene.') + 1800));
-        assert(r1.n === 1 && /<profile name="[^"]+">/.test(r1.text) && /Keeps private: what they think or feel and do not say/.test(r1.text) && /Profiles on file: none yet/.test(r1.text), 'ask: the profile form is part of the one block, with no extra AI request, and nobody is on file yet');
-        assert(/Roast: The commentator is Gremlin, a viewer who just watched this reply/.test(r1.text) && /<roast>/.test(r1.text) && !/reaction to the previous reply was/.test(r1.text), "ask: the roast form and the commentator's voice are sent; with no earlier roast, none is quoted");
+        assert(r1.n === 1 && /<profile name="[^"]+">/.test(r1.text) && /Mind: current goal, attention or plan/.test(r1.text) && /Profiles on file: none yet/.test(r1.text), 'ask: the profile form is part of the one block, with no extra AI request, and nobody is on file yet');
+        assert(/Roast: Write as Gremlin/.test(r1.text) && /<roast>/.test(r1.text) && !/reaction to the previous reply was/.test(r1.text), "ask: the roast form and the commentator's voice are sent; with no earlier roast, none is quoted");
         assert(/2 profiles at most/.test(r1.text) && /never gets one/.test(r1.text), 'ask: the most profiles in one reply and the rule for {{user}} are sent');
         assert(!/<profile|<roast|story_update|Wants:/.test(l1.mes) && l1.mes.includes('You look wonderful tonight'), 'lift: the profiles and the roast are taken out of the reply text');
         const hale = (l1.profiles || []).find(p => p.name === 'Hale'), mira = (l1.profiles || []).find(p => p.name === 'Mira');
         assert(hale && hale.stable.flaw === 'He will not ask for help' && hale.stable.orientation === 'Bisexual' && hale.now.feels === 'Hale feels hopeful' && hale.now.why && mira && mira.now.willnot === 'Push him tonight' && !Object.keys(mira.stable).length, 'keep: each profile is kept on the reply, split into who they are and what is going on now');
         assert(/LMAOOO Hale/.test(l1.roast), 'keep: the roast is kept on the reply');
-        assert(JSON.stringify(l1.names) === '["Hale","Mira"]' && /Keeps privateHe is afraid she will leave/.test(l1.cards || '') && /RoastLMAOOO/.test(l1.cards || '') && /Who they areWhoA ship captain/.test(l1.cards || ''), 'card: a card for each person and the roast at the bottom are drawn under the reply');
-        assert(JSON.stringify(l1.order) === '["ri-scene","ri-cards"]', 'card: the scene card comes first, then the character cards');
+        assert(l1.cards?.includes('Hale') && l1.cards.includes('Mira') && l1.cards.includes(l1.roast) && l1.cards.includes('A ship captain who lost his crew'), 'card: a card for each person and the roast at the bottom are drawn under the reply');
+        assert(l1.order[0] === 'scene' && l1.order.at(-1) === 'roast' && l1.order.slice(1,-1).sort().join() === 'character:hale,character:mira', `card: Scene first, then characters, then Roast (found ${l1.order.join(', ')})`);
         await page.screenshot({ path: '/tmp/s511_cards.png' });
 
         L.mode({ reply: block(['present: Hale', 'where: The camp', 'when: Day 3, night', ...HALE_NOW, '<roast>', 'bro is HUMMING now?? the character development is real 😭', '</roast>']) });
@@ -104,7 +110,7 @@ const world = (page) => page.evaluate(async (B) => { const W = await import(`${B
         await page.waitForTimeout(400);
         const titles = await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-section-title')].map(x => x.textContent.trim()));
         const help = await page.evaluate(() => document.querySelector('#ri_root')?.textContent || '');
-        assert(titles.includes('Character cards') && /The commentator's voice/.test(help) && !/\{\{char\}\} always/.test(help), 'panel: Settings has a Character cards section with the commentator\'s voice, using the character\'s name');
+        assert(titles.includes('Character cards') && /Customize commentator voice/.test(help) && !/\{\{char\}\} always/.test(help), 'panel: Settings has a Character cards section with the commentator\'s voice, using the character\'s name');
         await L.setSettings(page, { cards: { on: false } });
         console.log('page errors:', JSON.stringify(errors));
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 400));

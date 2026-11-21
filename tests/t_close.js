@@ -31,12 +31,12 @@ const send = async (page, text) => { L.resetLog(); await L.send(page, text); awa
         assert(before.last === before.open - 1 && before.cut === 0, 'reach: the messages in the finished prompt of the last reply are counted, and nothing was left out');
 
         // what the AI is sent, in Settings
-        await page.evaluate(async (B) => { (await import(`${B}/src/st.js`)).notePromptSent([{ role: 'system', content: 'only the preset' }]); }, L.BASE);
-        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'settings'; P.app.render(); }, L.BASE);
+        await page.evaluate(async (B) => { (await import(`${B}/src/context-budget.js`)).captureContext([{ role: 'system', content: 'only the preset' }]); }, L.BASE);
+        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); await P.app.openPage('context'); }, L.BASE);
         await page.evaluate(() => { const b = [...document.querySelectorAll('#ri_root button')].find(x => x.textContent.trim() === 'Expand'); if (b) b.click(); });
         await page.waitForTimeout(500);
         const st = await page.evaluate(() => document.querySelector('#ri_root').textContent);
-        assert(/What the AI is sent from this chat/.test(st) && /Hidden from the AI7 \(the AI is sent the other \d+\)/.test(st) && /messages that are not hidden were left out of the prompt/.test(st), 'reach: Settings shows how many messages are hidden, and says when another extension left messages out');
+        assert(/Last observed request/.test(st) && /Hidden from AI7/.test(st) && /visible chat messages were not matched/.test(st), 'reach: Context & Memory reports hidden messages and unmatched visible messages');
         await L.setSettings(page, { pace: { phasesOn: false } });
 
         // ----- B. who does it, who it happens to, and versions
@@ -52,7 +52,7 @@ const send = async (page, text) => { L.resetLog(); await L.send(page, text); awa
         assert(/does this to themself/.test(notes.same) && notes.fine === '' && /two people arrive at once/.test(notes.bothNew) && /may choose the same person for both/.test(notes.bothAny) && /nobody fits/i.test(notes.other) && notes.ok2 === '', 'pairing: a pairing that gives the AI writer little to work with gets a note, and an ordinary pairing gets none');
         assert(/does not name \{\{char\}\}/.test(notes.noChar) && notes.hasChar === '' && /"the surroundings do it"/.test(notes.world) && notes.worldOk === '' && /"someone new does it"/.test(notes.fresh) && notes.any === '', 'versions: a version that disagrees with who does it gets one line of advice, and one that agrees gets none');
         // in the editor
-        await page.evaluate(async ([B, name]) => { const P = await import(`${B}/src/ui/panel.js`); const K = await import(`${B}/src/books.js`); const data = await K.loadSet(name); const ins = K.listInstructions(data, name)[0]; ins.actor = 'world'; ins.target = 'new'; P.app.tab = 'instructions'; P.app.route = { view: 'edit', set: name, name, draft: ins, data }; P.app.render(); }, [L.BASE, 'Close ins ' + t]);
+        await page.evaluate(async ([B, name]) => { const P = await import(`${B}/src/ui/panel.js`); const K = await import(`${B}/src/books.js`); const data = await K.loadSet(name); const ins = K.listInstructions(data, name)[0]; ins.actors = ['world']; ins.targets = ['new']; P.app.tab = 'instructions'; P.app.route = { view: 'edit', set: name, name, draft: ins, data }; P.app.render(); }, [L.BASE, 'Close ins ' + t]);
         await page.waitForTimeout(600);
         const ed = await page.evaluate(() => ({ text: document.querySelector('#ri_root').textContent, flags: [...document.querySelectorAll('#ri_root .ri-flag-warn')].map(x => x.textContent) }));
         console.log('editor flags:', JSON.stringify(ed.flags).slice(0, 300));

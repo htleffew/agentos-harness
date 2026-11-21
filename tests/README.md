@@ -15,6 +15,7 @@ Use `RI_HOST_URL` to point Playwright at an isolated SillyTavern instance. Run b
 
 | Script | Covers |
 | --- | --- |
+| `t_companion_controls.js` | Import the companion JSON in the host file chooser, inspect all 16 writing and check blocks, toggle each and compare the assembled provider requests |
 | `t_extension_ui_audit.js` | All 22 navigation pages, reachable disclosures on phone and desktop, both extension module settings scopes, mode and memory selections, keyboard focus and unsaved record navigation |
 | `t_correction_ui.js` | Phone-width source search and manual edits, optional one-click AI source repairs, default guided generation, existing swipes, failed generation and retry |
 | `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |

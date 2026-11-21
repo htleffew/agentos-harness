@@ -62,7 +62,7 @@ function renderSets(body, app, sets) {
             try { const made = await createSet(name); app.cache = {}; app.go({ view: 'set', name: made }); }
             catch (e) { toast('error', e.message); }
         }, { kind: 'primary' }),
-        button('Open a lorebook', async () => {
+        button('Use a lorebook as an instruction set', async () => {
             const options = openable();
             if (!options.length) { toast('info', 'Every lorebook you have is already in this list.'); return; }
             app.route = { view: 'sets', picking: true };

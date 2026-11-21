@@ -34,7 +34,7 @@ const clearLog = (page) => page.evaluate(async (B) => (await import(`${B}/src/lo
         L.mode({ writerNeedsRoom: 999999 });
         let r = await write(page);
         console.log('empty:', r.message);
-        assert(!r.ok && /empty answer/.test(r.message) && /second try with more room was also empty/.test(r.message) && /Log tab/.test(r.message), 'reason: an empty answer says so, and says a second try was made');
+        assert(!r.ok && /empty answer/.test(r.message) && /retry with more room could not produce an answer/.test(r.message) && /Log tab/.test(r.message), 'reason: an empty answer says so, and says a second try was made');
         let e = await log(page);
         assert(e.length === 2 && e.every(x => x.ok === false) && /second try/.test(e[0].what) && e[1].details.some(d => /Room for the answer: \d+ tokens/.test(d)) && /compliments the user/.test(e[1].sent), 'log: both tries are logged with room, connection and what was sent');
         const rooms = L.requests().filter(q => /Return only a JSON list of strings/.test(L.text(q))).map(q => q.max_tokens);

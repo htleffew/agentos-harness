@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.0.28
+
+- Added mobile section navigation to Story World and directions for selecting the companion in a fresh host. Clarified the instruction-set chooser, actor/target choices and book origins.
+- Fixed accessible field names, mobile disclosure sizes, caption contrast, stray null text in the entry editor and stale minimum/maximum duration values in event and style editors.
+- Fixed branch book creation with a previously reserved book name. Restored character cards from legacy profile fields and honored the separate scene and character tracking settings in the legacy display.
+- [Interactive verification and evidence](docs/ui-audit-10.0.27.md).
+
 ## 10.0.27
 
 - Advance weekdays and numbered month and day fields together, including at month and year boundaries. Recover the full date from saved rollover offsets so older replies and new requests use the same calendar date.

@@ -1,0 +1,1278 @@
+[
+  {
+    "group": "Story",
+    "name": "Opening",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"state\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"state\" aria-controls=\"ri_panel_page\">Current State</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"corrections\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"corrections\" aria-controls=\"ri_panel_page\">Corrections</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"books\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"books\" aria-controls=\"ri_panel_page\">Reusable Lorebooks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"facts\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"facts\" aria-controls=\"ri_panel_page\">Chat Facts</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"plots\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"plots\" aria-controls=\"ri_panel_page\">Plot Records</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"world\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"world\" aria-controls=\"ri_panel_page\">Story World</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(4) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Greeting source</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(8) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Review or edit opening</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Story",
+    "name": "Current State",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"opening\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"opening\" aria-controls=\"ri_panel_page\">Opening</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"corrections\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"corrections\" aria-controls=\"ri_panel_page\">Corrections</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"books\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"books\" aria-controls=\"ri_panel_page\">Reusable Lorebooks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"facts\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"facts\" aria-controls=\"ri_panel_page\">Chat Facts</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"plots\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"plots\" aria-controls=\"ri_panel_page\">Plot Records</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"world\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"world\" aria-controls=\"ri_panel_page\">Story World</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Story",
+    "name": "Corrections",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"opening\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"opening\" aria-controls=\"ri_panel_page\">Opening</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"state\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"state\" aria-controls=\"ri_panel_page\">Current State</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"books\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"books\" aria-controls=\"ri_panel_page\">Reusable Lorebooks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"facts\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"facts\" aria-controls=\"ri_panel_page\">Chat Facts</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"plots\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"plots\" aria-controls=\"ri_panel_page\">Plot Records</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"world\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"world\" aria-controls=\"ri_panel_page\">Story World</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Story",
+    "name": "Reusable Lorebooks",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"opening\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"opening\" aria-controls=\"ri_panel_page\">Opening</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"state\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"state\" aria-controls=\"ri_panel_page\">Current State</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"corrections\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"corrections\" aria-controls=\"ri_panel_page\">Corrections</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"facts\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"facts\" aria-controls=\"ri_panel_page\">Chat Facts</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"plots\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"plots\" aria-controls=\"ri_panel_page\">Plot Records</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"world\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"world\" aria-controls=\"ri_panel_page\">Story World</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-1\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-1\">Base World</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-2\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-2\">Role for books you add</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Story",
+    "name": "Chat Facts",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"opening\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"opening\" aria-controls=\"ri_panel_page\">Opening</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"state\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"state\" aria-controls=\"ri_panel_page\">Current State</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"corrections\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"corrections\" aria-controls=\"ri_panel_page\">Corrections</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"books\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"books\" aria-controls=\"ri_panel_page\">Reusable Lorebooks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"plots\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"plots\" aria-controls=\"ri_panel_page\">Plot Records</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"world\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"world\" aria-controls=\"ri_panel_page\">Story World</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Story",
+    "name": "Plot Records",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"opening\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"opening\" aria-controls=\"ri_panel_page\">Opening</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"state\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"state\" aria-controls=\"ri_panel_page\">Current State</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"corrections\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"corrections\" aria-controls=\"ri_panel_page\">Corrections</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"books\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"books\" aria-controls=\"ri_panel_page\">Reusable Lorebooks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"facts\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"facts\" aria-controls=\"ri_panel_page\">Chat Facts</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"world\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"world\" aria-controls=\"ri_panel_page\">Story World</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Story",
+    "name": "Story World",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"opening\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"opening\" aria-controls=\"ri_panel_page\">Opening</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"state\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"state\" aria-controls=\"ri_panel_page\">Current State</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"corrections\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"corrections\" aria-controls=\"ri_panel_page\">Corrections</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"books\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"books\" aria-controls=\"ri_panel_page\">Reusable Lorebooks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"facts\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"facts\" aria-controls=\"ri_panel_page\">Chat Facts</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"plots\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"plots\" aria-controls=\"ri_panel_page\">Plot Records</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-4\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-4\">World used by this chat</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Characters",
+    "name": "Portrayal & Knowledge",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"emotion\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"emotion\" aria-controls=\"ri_panel_page\">Emotions &amp; Relationships</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"goals\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"goals\" aria-controls=\"ri_panel_page\">Character Goals</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"speakers\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"speakers\" aria-controls=\"ri_panel_page\">Dialogue Colors</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Characters",
+    "name": "Emotions & Relationships",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"portrayal\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"portrayal\" aria-controls=\"ri_panel_page\">Portrayal &amp; Knowledge</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"goals\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"goals\" aria-controls=\"ri_panel_page\">Character Goals</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"speakers\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"speakers\" aria-controls=\"ri_panel_page\">Dialogue Colors</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(1) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Baseline</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(2) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Persistence in replies</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(3) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Recovery per reply</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(4) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Sensitivity</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Characters",
+    "name": "Character Goals",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"portrayal\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"portrayal\" aria-controls=\"ri_panel_page\">Portrayal &amp; Knowledge</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"emotion\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"emotion\" aria-controls=\"ri_panel_page\">Emotions &amp; Relationships</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"speakers\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"speakers\" aria-controls=\"ri_panel_page\">Dialogue Colors</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-5\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-5\">What the character is working toward</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Characters",
+    "name": "Dialogue Colors",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"portrayal\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"portrayal\" aria-controls=\"ri_panel_page\">Portrayal &amp; Knowledge</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"emotion\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"emotion\" aria-controls=\"ri_panel_page\">Emotions &amp; Relationships</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"goals\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"goals\" aria-controls=\"ri_panel_page\">Character Goals</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Random Instructions",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"events\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"events\" aria-controls=\"ri_panel_page\">Random Story Events</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"style\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"style\" aria-controls=\"ri_panel_page\">Random Writing Style</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"writing\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"writing\" aria-controls=\"ri_panel_page\">Writing Guidance</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"checks\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"checks\" aria-controls=\"ri_panel_page\">Action Checks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Random Story Events",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"instructions\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"instructions\" aria-controls=\"ri_panel_page\">Random Instructions</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"style\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"style\" aria-controls=\"ri_panel_page\">Random Writing Style</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"writing\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"writing\" aria-controls=\"ri_panel_page\">Writing Guidance</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"checks\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"checks\" aria-controls=\"ri_panel_page\">Action Checks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Random Writing Style",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"instructions\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"instructions\" aria-controls=\"ri_panel_page\">Random Instructions</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"events\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"events\" aria-controls=\"ri_panel_page\">Random Story Events</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"writing\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"writing\" aria-controls=\"ri_panel_page\">Writing Guidance</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"checks\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"checks\" aria-controls=\"ri_panel_page\">Action Checks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Writing Guidance",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"instructions\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"instructions\" aria-controls=\"ri_panel_page\">Random Instructions</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"events\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"events\" aria-controls=\"ri_panel_page\">Random Story Events</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"style\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"style\" aria-controls=\"ri_panel_page\">Random Writing Style</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"checks\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"checks\" aria-controls=\"ri_panel_page\">Action Checks</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-12\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-12\">Portrayal intensity</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Direction",
+    "name": "Action Checks",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"instructions\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"instructions\" aria-controls=\"ri_panel_page\">Random Instructions</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"events\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"events\" aria-controls=\"ri_panel_page\">Random Story Events</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"style\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"style\" aria-controls=\"ri_panel_page\">Random Writing Style</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"writing\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"writing\" aria-controls=\"ri_panel_page\">Writing Guidance</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(1) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Actor</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(2) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Action</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(3) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Stat</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              ".ri-field:nth-child(4) > .ri-label"
+            ],
+            "html": "<span class=\"ri-label\">Difficulty</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Review",
+    "name": "What Was Sent",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"context\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"context\" aria-controls=\"ri_panel_page\">Context &amp; Memory</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"log\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"log\" aria-controls=\"ri_panel_page\">Log</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Review",
+    "name": "Context & Memory",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"sent\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"sent\" aria-controls=\"ri_panel_page\">What Was Sent</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"log\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"log\" aria-controls=\"ri_panel_page\">Log</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-14\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-14\">Keep the story so far in chapters</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-15\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-15\">Write a chapter when the scene ends</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-16\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-16\">Minimum replies for a scene-end chapter</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Review",
+    "name": "Log",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"sent\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"sent\" aria-controls=\"ri_panel_page\">What Was Sent</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"context\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"context\" aria-controls=\"ri_panel_page\">Context &amp; Memory</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": [
+      "color-contrast"
+    ]
+  },
+  {
+    "group": "Setup",
+    "name": "Preset & Extension",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"display\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"display\" aria-controls=\"ri_panel_page\">Reply Display</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"settings\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"settings\" aria-controls=\"ri_panel_page\">Settings</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-story-workflow\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-story-workflow\">Story workflow for this chat</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-25\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-25\">World Info recall</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-26\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-26\">Chapter summaries</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Setup",
+    "name": "Reply Display",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"v10\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"v10\" aria-controls=\"ri_panel_page\">Preset &amp; Extension</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"settings\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"settings\" aria-controls=\"ri_panel_page\">Settings</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-showStreamSections\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-showStreamSections\">Show arriving story sections</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-showPlanning\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-showPlanning\">Show Reply planning</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-showLore\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-showLore\">World Info under replies</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-showRoast\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-showRoast\">Show Roast cards</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-33\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-33\">Story state under replies</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  },
+  {
+    "group": "Setup",
+    "name": "Settings",
+    "issues": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ri-onoff"
+            ],
+            "html": "<span class=\"ri-onoff\">On</span>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"v10\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"v10\" aria-controls=\"ri_panel_page\">Preset &amp; Extension</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "button[data-ri-page=\"display\"]"
+            ],
+            "html": "<button type=\"button\" class=\"ri-tab \" data-ri-page=\"display\" aria-controls=\"ri_panel_page\">Reply Display</button>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #766ca7, background color: #0d0914, font size: 8.8pt (11.7px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-35\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-35\">Pronouns for Seraphina (the character)</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-36\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-36\">Pronouns for User (you)</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-37\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-37\">Which AI connection to use</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": [
+              "label[for=\"ri-field-38\"]"
+            ],
+            "html": "<label class=\"ri-label\" for=\"ri-field-38\">Give the AI more room to answer</label>",
+            "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.07 (foreground color: #766ca7, background color: #130c1e, font size: 7.9pt (10.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    ],
+    "manual": []
+  }
+]

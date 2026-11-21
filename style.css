@@ -7,7 +7,7 @@
     --ri-line: rgba(140, 130, 171, 0.22);
     --ri-text: #F7F7FC;
     --ri-text-2: #D4D1E8;
-    --ri-label: #766CA7;
+    --ri-label: #AA9DCB;
     --ri-chevron: #8C82AB;
     --ri-magenta: #FF007F;
     --ri-cyan: #00F5D4;
@@ -703,3 +703,7 @@
 .ri-progress-section-detail { display: block; color: #b5cede; font-size: .83em; overflow-wrap: anywhere; }
 @keyframes ri-section-arrive { from { opacity: .45; transform: translateY(4px); border-color: #9be9e2; } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ri-progress-sections li[data-section] { animation: none; } }
+
+@media (max-width: 700px) {
+    #ri_root summary { min-height: 32px; }
+}

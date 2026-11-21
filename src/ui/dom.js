@@ -49,7 +49,8 @@ export function toggle(checked, onChange, label = '') {
 /** A compact multi-select for allowed choices. At least one choice stays selected. */
 export function choiceList(label, options, selected, onChange, exclusive = null) {
     const group = h('details', { class: 'ri-choice-list' });
-    const summary = h('summary', {}, selected.map(value => options[value].label).join(' · '));
+    const selection = values => values.map(value => options[value].label).join(' · ');
+    const summary = h('summary', { 'aria-label': label + ': ' + selection(selected) }, selection(selected));
     const list = h('div', { class: 'ri-choice-options', role: 'group', 'aria-label': label });
     for (const [value, option] of Object.entries(options)) {
         const input = h('input', { type: 'checkbox', class: 'ri-check', value, checked: selected.includes(value) });
@@ -59,7 +60,8 @@ export function choiceList(label, options, selected, onChange, exclusive = null)
                     : selected.filter(v => v !== value);
             if (!next.length) { input.checked = true; return; }
             selected = next;
-            summary.textContent = next.map(key => options[key].label).join(' · ');
+            summary.textContent = selection(next);
+            summary.setAttribute('aria-label', label + ': ' + summary.textContent);
             for (const box of list.querySelectorAll('input')) box.checked = next.includes(box.value);
             onChange(next, value);
         });
@@ -76,8 +78,8 @@ export function select(options, value, onChange, attrs = {}) {
     return el;
 }
 
-export function numberInput(value, { min = 0, max = 9999, unit = '' } = {}, onChange) {
-    const input = h('input', { type: 'number', class: 'ri-input ri-input-num', inputMode: 'numeric', min, max, value: String(value), oninput: () => {
+export function numberInput(value, { min = 0, max = 9999, unit = '', label } = {}, onChange) {
+    const input = h('input', { type: 'number', class: 'ri-input ri-input-num', inputMode: 'numeric', min, max, 'aria-label':label, value: String(value), oninput: () => {
         let n = Math.round(Number(input.value));
         if (!Number.isFinite(n)) n = min;
         onChange(Math.max(min, Math.min(max, n)));
@@ -96,12 +98,26 @@ export function textArea(value, onChange, attrs = {}) {
     return el;
 }
 
-/** A labelled setting: plain label on top, the control, one line of help under it. */
+let fieldSequence = 0;
+
+/** Associate the visible caption and help with the main control of a setting. */
 export function field(label, help, ...control) {
-    return h('div', { class: 'ri-field' },
-        h('div', { class: 'ri-label' }, label),
-        h('div', { class: 'ri-control' }, control),
-        help ? h('div', { class: 'ri-help' }, help) : null);
+    const controls = h('div', { class: 'ri-control' }, control);
+    const primary = controls.querySelector('input:not([type="hidden"]), select, textarea');
+    const canLabel = primary && !primary.closest('label, .ri-field');
+    const caption = h(canLabel ? 'label' : 'div', { class: 'ri-label' }, label);
+    const description = help ? h('div', { class: 'ri-help' }, help) : null;
+    if (canLabel) {
+        const id = 'ri-field-' + (++fieldSequence);
+        primary.id ||= id;
+        caption.htmlFor = primary.id;
+        if (description) {
+            description.id = id + '-help';
+            const previous = primary.getAttribute('aria-describedby');
+            primary.setAttribute('aria-describedby', [previous, description.id].filter(Boolean).join(' '));
+        }
+    }
+    return h('div', { class: 'ri-field' }, caption, controls, description);
 }
 
 export function section(title, ...kids) {

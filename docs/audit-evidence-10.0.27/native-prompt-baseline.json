@@ -1,0 +1,103 @@
+{
+  "t": 1795270907900,
+  "url": "/v1/chat/completions",
+  "stream": false,
+  "max_tokens": 300,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Continue the fictional scene as Orla and any relevant supporting characters. Use the established character and world material. Preserve Neri’s choices and follow the active story guidance supplied with the turn. Return the scene as editable prose. Use the extension’s reply plan and story update formats only when requested. Leave display wrappers to the extension."
+    },
+    {
+      "role": "system",
+      "content": "LORE_BEFORE_EYE_28"
+    },
+    {
+      "role": "system",
+      "content": "PERSONA_FERN_17"
+    },
+    {
+      "role": "system",
+      "content": "DESC_BELL_41"
+    },
+    {
+      "role": "system",
+      "content": "PERSONALITY_STONE_52"
+    },
+    {
+      "role": "system",
+      "content": "SCENARIO_DOCK_63"
+    },
+    {
+      "role": "system",
+      "content": "LORE_AFTER_SEA_39"
+    },
+    {
+      "role": "system",
+      "content": "[Example Chat]"
+    },
+    {
+      "role": "system",
+      "content": "EXAMPLE_ASK_85",
+      "name": "example_user"
+    },
+    {
+      "role": "system",
+      "content": "EXAMPLE_REPLY_96",
+      "name": "example_assistant"
+    },
+    {
+      "role": "system",
+      "content": "Hold a clear narrative viewpoint. Through it, distinguish what a character saw, was told, assumes, or cannot know. Show private motives through what the viewpoint can observe unless the scene is already inside that character’s head. Carry forward the player’s contribution by showing its consequences in the world. Leave their next consequential choice, unspoken feelings, and unwritten dialogue open."
+    },
+    {
+      "role": "system",
+      "content": "Write each character from their established voice, motives, social position, and current audience. Give them recognizable habits of speech, choices, and blind spots. If a reaction could belong to anyone in the cast, make it specific to this person. Let loyalty, doubt, affection, and embarrassment coexist. Give supporting characters work and plans of their own. Introduce a new NPC with a purpose in this scene, a concrete identifying detail, and a way of speaking that could carry into later scenes."
+    },
+    {
+      "role": "system",
+      "content": "Open on the next consequential action, reaction, or sensory change. Give each exchange room to land. Linger when a close conversation, uncertain decision, or moment of danger changes something. Compress waiting and routine travel when their details add little. Clarity about who can see, hear, move, or intervene matters more than a running clock. End at a live beat where the player has room to act. Let an in-world question stand when a character genuinely needs an answer."
+    },
+    {
+      "role": "system",
+      "content": "Use direct, concrete language, selective sensory detail, and varied sentence rhythm. Answer the meaning behind the player’s words without echoing them. Let dialogue interrupt, trail off, or change direction when the speaker would. Carry tension through action, word choice, and silence. Cut stock body-language cues, repetitive paragraph openings, overexplained motives, and ornate comparisons that add no information. Use ordinary quotations and natural speech attribution. If a viewpoint character’s thoughts appear, use single asterisks."
+    },
+    {
+      "role": "system",
+      "content": "Carry relevant side activity into the scene through arrivals, traces, reports, or interruptions the viewpoint can plausibly encounter. Let independent plans continue at a credible pace. When an earlier detail naturally matters, make the payoff follow from its setup and respect any conditions still pending. In physical conflict, keep the space and intent readable, write actions and reactions in sequence, and show consequences proportional to what happened. Leave consequential player decisions open."
+    },
+    {
+      "role": "system",
+      "content": "Give supporting characters commitments that would exist even if the player left. Let them finish an action they choose, including a retreat, mistake, refusal, or failed joke. Resolve only what they control. Preserve preferences, irritants, awkward habits, and flaws when affection grows. Let a real event change how someone behaves toward that particular person, and let exceptions precede a durable change."
+    },
+    {
+      "role": "system",
+      "content": "When a new NPC is likely to recur, start with a concrete obligation, a trait that complicates it, and a personal interest or habit outside the scene. Give them an individual speaking rhythm and one detail tied to lived experience. Reveal these through conduct over time. Let established lore shape their background and choose their name after the person takes shape. Keep incidental figures brief."
+    },
+    {
+      "role": "system",
+      "content": "Carry forward the card, established lore, first greeting, and dialogue examples when they establish voice. Give two speakers under the same pressure different sentence shapes, registers, and things they leave unsaid. Keep the core voice recognizable across shifts in mood and different audiences. Show mixed feelings through word choice or action and distinguish private feeling from what the other character can perceive."
+    },
+    {
+      "role": "system",
+      "content": "During ordinary play, aim for 400–600 words with one or two spotlight characters, 500–700 with three, and 600–750 with four or more. In a conversation, aim for roughly 70 percent dialogue if the scene supports it. Let silence, physical action, or a brief exchange override these targets. Advance one playable part of the scene and leave the next consequential choice open."
+    },
+    {
+      "role": "system",
+      "content": "Apply these checks while composing the scene. Give characters only information they could have received. If a line could be spoken unchanged by anyone in the cast, ground it in the speaker’s own goal and cadence. Vary the shape of a repeated opening or ending. Let the next tangible action carry a reaction that the prose would otherwise explain. Preserve established time and position. Keep these checks out of the visible reply."
+    },
+    {
+      "role": "system",
+      "content": "[Start a new Chat]"
+    },
+    {
+      "role": "assistant",
+      "content": "GREETING_TIDE_74"
+    },
+    {
+      "role": "user",
+      "content": "HISTORY_HARBOR_20"
+    }
+  ],
+  "answer": "Reply 3. She leans in. \"You look wonderful tonight,\" she says, and she means it."
+}

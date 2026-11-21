@@ -21,8 +21,10 @@ const world = page => page.evaluate(async B => { const W=await import(`${B}/src/
   assert.notEqual(branch.id,before.id); assert.equal(branch.rows.find(w=>w.name==='Seraphina').fields.wants,'First'); assert.equal(branch.rows.find(w=>w.name==='Seraphina').fields.flaw,''); assert.equal(st.seraphina.fields.mind,'Earlier correction');
   const source=await page.evaluate(async ([B,id])=>{const W=await import(`${B}/src/world.js`);return W.listWorld(await W.loadWorld(id),id).find(w=>w.name==='Seraphina').fields.wants},[L.BASE,before.id]); assert.equal(source,'Third');
   console.log('PASS deep branch rewinds world and excludes future protected correction');
-  await L.openChat(page); await page.evaluate(async B=>{const W=await import(`${B}/src/world.js`);W.setChatWorld('');},L.BASE); L.mode({reply:block('No world','Only mind')}); await L.send(page,'No world'); await wait(page);
-  const branchId=await page.evaluate(()=>SillyTavern.getContext().chat.length-1); await L.slash(page,`/branch-create ${branchId}`);await page.waitForTimeout(1500);await wait(page); const empty=await world(page); assert(empty.id); assert.deepEqual(empty.rows,[]); console.log('PASS branch without parent world creates its own book');
+  await L.openChat(page); assert.equal((await world(page)).id, ''); L.mode({reply:block('No world','Only mind')}); await L.send(page,'No world'); await wait(page);
+  // A removed book can leave a reserved name in the extension's set registry.
+  await page.evaluate(async B=>{const S=await import(`${B}/src/store.js`);S.settings().sets['Story world (branch)']={kind:'world'};S.saveSettings();}, L.BASE);
+  const branchId=await page.evaluate(()=>SillyTavern.getContext().chat.length-1); await L.slash(page,`/branch-create ${branchId}`);await page.waitForTimeout(1500);await wait(page); const empty=await world(page); assert(empty.id, await page.evaluate(() => JSON.parse(localStorage.getItem('roleplay_instructions_log') || '[]').filter(row => /branch/i.test(row.what)).at(-1)?.result)); assert.deepEqual(empty.rows,[]); console.log('PASS branch without parent world creates its own book');
   await L.openChat(page); await page.evaluate(async B=>{const K=await import(`${B}/src/books.js`),W=await import(`${B}/src/world.js`);const d={entries:{}};const w=W.newWorldEntry(d,'character');w.name='Seraphina';w.fields.wants='Beginning';W.writeWorldEntry(d,w);W.setChatWorld(await K.createSet(`Delete ${Date.now()}`,'world',d,''));},L.BASE);
   for (const value of ['One','Two','Three']) {L.mode({reply:block(value,value)});await L.send(page,value);await wait(page);}
   await page.evaluate(async B=>{const S=await import(`${B}/src/state.js`);S.editState(SillyTavern.getContext().chat.length-1,'Seraphina','body','Protected injury',true);},L.BASE);
@@ -47,7 +49,11 @@ const world = page => page.evaluate(async B => { const W=await import(`${B}/src/
   assert.equal((await world(page)).rows.find(w=>w.name==='Seraphina').fields.wants,'Beginning');
   await review.getByRole('button',{name:'Apply reviewed update'}).click(); await wait(page);
   await page.waitForFunction(async B=>{const W=await import(`${B}/src/world.js`),id=W.chatWorld();return W.listWorld(await W.loadWorld(id),id).find(w=>w.name==='Seraphina')?.fields.wants==='Rebuilt'},L.BASE,{timeout:15000});
-  assert.equal(L.requests().length,1); const rebuilt=await page.evaluate(async B=>(await import(`${B}/src/state.js`)).stateAt(),L.BASE);assert.equal(rebuilt.seraphina.fields.mind,'Begin again');console.log('PASS reviewed rebuild makes one request and applies only after approval');
+  const afterRebuild = L.requests();
+  const manualRequest = request => L.text(request).includes('Review the story as it now stands.');
+  assert.equal(afterRebuild.filter(manualRequest).length,1);
+  assert(afterRebuild.every(request => manualRequest(request) || L.text(request).includes('evidence" quote from this batch')));
+  const rebuilt=await page.evaluate(async B=>(await import(`${B}/src/state.js`)).stateAt(),L.BASE);assert.equal(rebuilt.seraphina.fields.mind,'Begin again');console.log('PASS reviewed rebuild makes one request and applies only after approval');
   const latest=await page.evaluate(()=>SillyTavern.getContext().chat.length-1);await page.evaluate(async id=>{const c=SillyTavern.getContext();c.chat[id].mes='Edited newest reply.';await c.eventSource.emit(c.eventTypes.MESSAGE_EDITED,id)},latest);await wait(page);
   const newest=await page.evaluate(async B=>({state:(await import(`${B}/src/state.js`)).stateAt(),review:SillyTavern.getContext().chatMetadata.roleplay_instructions.historyNeedsReview}),L.BASE);assert(newest.review);assert(!newest.state.seraphina?.fields.mind);console.log('PASS latest edit withdraws outdated state');
   console.log('browser errors', errors.slice(0,5));

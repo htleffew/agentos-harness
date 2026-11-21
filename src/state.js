@@ -33,14 +33,14 @@ function save() {
     try { Promise.resolve(c.saveChat?.()).catch(e => console.warn('[Roleplay Instructions] saving state', e)); } catch (e) { console.warn('[Roleplay Instructions] saving state', e); }
 }
 function changes(rec) {
-    if (Array.isArray(rec.stateChanges)) return rec.stateChanges;
-    // Read old cards without rewriting them. Only fields with a clear correspondence
-    // are migrated; in particular old post-hoc "will not" is not made a boundary.
-    return (rec.profiles || []).map(p => ({ name: p.name, fields: {
-        ...(p.now?.thinks ? { mind: p.now.thinks } : {}),
-        ...(p.now?.feels ? { heart: p.now.feels } : {}),
-        ...(p.now?.private ? { psyche: p.now.private } : {}),
-    } }));
+    const saved = Array.isArray(rec.stateChanges) ? rec.stateChanges : [];
+    if (rec.v10 || !rec.profiles?.length) return saved;
+    const fromProfiles = changesFromProfiles(rec.profiles);
+    if (!saved.length) return fromProfiles;
+    // Previously saved turns can contain changes for only the new-format characters.
+    // The saved deltas run last so explicit edits and clears retain precedence.
+    const recorded = new Set(saved.map(change => norm(change.name)));
+    return [...fromProfiles.filter(change => !recorded.has(norm(change.name))), ...saved];
 }
 function applyEdit(state, edit) {
     const key = norm(edit.name);
@@ -282,7 +282,19 @@ export function statePrompt(type = 'normal', limit = 1400, { includeCharacters =
     return rows.length ? `[Current story state. ${promptText('stateContext')}\n${rows.join('\n')}]` : '';
 }
 export function changesFromProfiles(profiles) {
-    return (profiles || []).map(p => ({ name: p.name, ...(p.temporaryBody ? {temporaryBody:true} : {}), fields: Object.fromEntries(STATE_FIELDS.filter(([k]) => Object.hasOwn(p.now || {}, k)).map(([k]) => [k, p.now[k]])) })).filter(p => Object.keys(p.fields).length);
+    const changes = [];
+    for (const {name, now, temporaryBody} of profiles || []) {
+        if (!now) continue;
+        // Some presets still emit the older profile vocabulary. Explicit current fields,
+        // including a clear, take precedence. A scene refusal is not an enduring boundary.
+        const fields = {};
+        if (now.thinks) fields.mind = now.thinks;
+        if (now.feels) fields.heart = now.feels;
+        if (now.private) fields.psyche = now.private;
+        for (const [key] of STATE_FIELDS) if (Object.hasOwn(now,key)) fields[key] = now[key];
+        if (Object.keys(fields).length) changes.push({name, ...(temporaryBody ? {temporaryBody:true} : {}), fields});
+    }
+    return changes;
 }
 /** Identify the newest story message at the moment a user makes a correction. */
 export function correctionAnchor() {

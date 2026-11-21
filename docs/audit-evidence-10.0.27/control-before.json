@@ -1,0 +1,312 @@
+[
+  {
+    "group": "Story",
+    "name": "Opening",
+    "controls": 4,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Story",
+    "name": "Current State",
+    "controls": 0,
+    "noName": [],
+    "tiny": 2
+  },
+  {
+    "group": "Story",
+    "name": "Corrections",
+    "controls": 2,
+    "noName": [],
+    "tiny": 2
+  },
+  {
+    "group": "Story",
+    "name": "Reusable Lorebooks",
+    "controls": 3,
+    "noName": [
+      {
+        "tag": "SELECT",
+        "label": "Base World"
+      }
+    ],
+    "tiny": 2
+  },
+  {
+    "group": "Story",
+    "name": "Chat Facts",
+    "controls": 0,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Story",
+    "name": "Plot Records",
+    "controls": 0,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Story",
+    "name": "Story World",
+    "controls": 1,
+    "noName": [
+      {
+        "tag": "SELECT",
+        "label": "World used by this chat"
+      }
+    ],
+    "tiny": 3
+  },
+  {
+    "group": "Characters",
+    "name": "Portrayal & Knowledge",
+    "controls": 0,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Characters",
+    "name": "Emotions & Relationships",
+    "controls": 4,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Characters",
+    "name": "Character Goals",
+    "controls": 9,
+    "noName": [
+      {
+        "tag": "TEXTAREA",
+        "label": "What the character is working toward",
+        "placeholder": "Example: {{char}} wants {{user}} to trust {{char.them}}."
+      },
+      {
+        "tag": "INPUT",
+        "placeholder": "Type a one-time step, for example: tell {{user}} a secret"
+      },
+      {
+        "tag": "INPUT",
+        "placeholder": "Type a repeatable action, for example: compliment {{user}}"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Send the goal with every reply"
+      },
+      {
+        "tag": "INPUT",
+        "label": "Chance to add a task each reply (%)",
+        "placeholder": ""
+      },
+      {
+        "tag": "INPUT",
+        "label": "A repeatable action waits at least (replies)",
+        "placeholder": ""
+      },
+      {
+        "tag": "INPUT",
+        "label": "A repeatable action waits at most (replies)",
+        "placeholder": ""
+      },
+      {
+        "tag": "SELECT",
+        "label": "The goal is done when every one-time step is done"
+      },
+      {
+        "tag": "SELECT",
+        "label": "When the goal is done"
+      }
+    ],
+    "tiny": 1
+  },
+  {
+    "group": "Characters",
+    "name": "Dialogue Colors",
+    "controls": 0,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Direction",
+    "name": "Random Instructions",
+    "controls": 0,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Direction",
+    "name": "Random Story Events",
+    "controls": 0,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Direction",
+    "name": "Random Writing Style",
+    "controls": 0,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Direction",
+    "name": "Writing Guidance",
+    "controls": 6,
+    "noName": [],
+    "tiny": 5
+  },
+  {
+    "group": "Direction",
+    "name": "Action Checks",
+    "controls": 4,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Review",
+    "name": "What Was Sent",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Review",
+    "name": "Context & Memory",
+    "controls": 11,
+    "noName": [
+      {
+        "tag": "SELECT",
+        "label": "Keep the story so far in chapters"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Write a chapter when the scene ends"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Hide messages covered by a chapter"
+      }
+    ],
+    "tiny": 1
+  },
+  {
+    "group": "Review",
+    "name": "Log",
+    "controls": 0,
+    "noName": [],
+    "tiny": 0
+  },
+  {
+    "group": "Setup",
+    "name": "Preset & Extension",
+    "controls": 17,
+    "noName": [],
+    "tiny": 1
+  },
+  {
+    "group": "Setup",
+    "name": "Reply Display",
+    "controls": 6,
+    "noName": [],
+    "tiny": 2
+  },
+  {
+    "group": "Setup",
+    "name": "Settings",
+    "controls": 21,
+    "noName": [
+      {
+        "tag": "SELECT",
+        "label": "Pronouns for Seraphina (the character)"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Pronouns for User (you)"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Which AI connection to use"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Give the AI more room to answer"
+      },
+      {
+        "tag": "SELECT",
+        "label": "New sets are kept in"
+      },
+      {
+        "tag": "INPUT",
+        "label": "How many new things can start in one reply",
+        "placeholder": ""
+      },
+      {
+        "tag": "INPUT",
+        "label": "Current state prompt budget",
+        "placeholder": ""
+      },
+      {
+        "tag": "INPUT",
+        "label": "Quiet after a big event (replies)",
+        "placeholder": ""
+      },
+      {
+        "tag": "INPUT",
+        "label": "Order a character who has gone quiet (replies)",
+        "placeholder": ""
+      },
+      {
+        "tag": "SELECT",
+        "label": "Story phases"
+      },
+      {
+        "tag": "TEXTAREA",
+        "label": "Rules given to the AI writer",
+        "placeholder": ""
+      },
+      {
+        "tag": "SELECT",
+        "label": "Flag words from your list"
+      },
+      {
+        "tag": "TEXTAREA",
+        "label": "Your word list",
+        "placeholder": ""
+      },
+      {
+        "tag": "SELECT",
+        "label": "Also ask the AI writer to leave these words out"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Check each reply that was sent an instruction"
+      },
+      {
+        "tag": "INPUT",
+        "label": "Send again if it did not happen",
+        "placeholder": ""
+      },
+      {
+        "tag": "SELECT",
+        "label": "While one is waiting to be sent again, hold back new instructions"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Write a new reply right away when an instruction did not happen"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Check that the reply did not write for you"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Under each reply"
+      },
+      {
+        "tag": "SELECT",
+        "label": "Accent colour"
+      }
+    ],
+    "tiny": 4
+  }
+]

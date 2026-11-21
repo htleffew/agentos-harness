@@ -2,7 +2,7 @@
 
 Roleplay Instructions is an extension for running a continuing story in character chat. It can schedule writing directions and story events, keep a chat’s world facts and character state, summarize older messages into chapters, and help carry the story across swipes, branches, and new chats. The optional **Roleplay Instructions V10 companion preset** supplies writing and formatting prompts through the host’s Prompt Manager. The extension and preset can be installed, configured, and updated independently.
 
-This guide describes the `roleplay-instructions-v10` branch and extension manifest version **10.0.27**. Control names follow the extension’s interface. **Host** means SillyTavern or TauriTavern. **Preset** means the host’s active AI response preset. **Module** means a functional part of the extension controlled in **Setup → Preset & Extension**. **Story World** with capitals means the extension-managed World Info book for the current chat. [Version history](CHANGELOG.md) · [Manifest](manifest.json)
+This guide describes the `roleplay-instructions-v10` branch and extension manifest version **10.0.28**. Control names follow the extension’s interface. **Host** means SillyTavern or TauriTavern. **Preset** means the host’s active AI response preset. **Module** means a functional part of the extension controlled in **Setup → Preset & Extension**. **Story World** with capitals means the extension-managed World Info book for the current chat. [Version history](CHANGELOG.md) · [Manifest](manifest.json) · [Interactive preset and extension audit](docs/ui-audit-10.0.27.md)
 
 ## Contents
 
@@ -187,6 +187,8 @@ A timestamp header or collapsed card can use the last known scene field. A card 
 
 ## World Info books and recall
 
+With a Story World selected, use **Story → Story World → Jump to section** to focus a record category, the next-reply preview, or the chapter, recall, and update settings. **See this chat’s World Info books** opens the book inventory for removal, deletion and export. **Direction → Random Instructions → Use a lorebook as an instruction set** opens the separate instruction-set chooser.
+
 ### Book roles
 
 | Role | Purpose and scope |
@@ -217,7 +219,7 @@ Direct entry edits operate on the physical book and apply in other chats that re
 
 For a style nudge against a repeated phrase, use **Direction → Random Instructions** with a phrase or pattern trigger, set **Where to look** to **Previous model reply**, and set chance to 100% if it should always fire when eligible. Example trigger `landed like`. Write a version that asks for plain, direct phrasing in the next turn. Use a cooldown if the same phrase could otherwise prompt repeated nudges. This workflow needs no auxiliary request. [Instruction timing](src/engine.js) · [Direction editor](src/ui/editor.js)
 
-A book can use literal terms, regex, and activation scopes without a separate vector service. **Suggest activation keywords with AI** can draft terms from the entry’s title and text as an optional auxiliary request. Review and save the terms yourself. This feature generates candidate keywords for later deterministic matching. It does not send each lookup to an embedding model. Vector retrieval, if enabled through another host extension, is configured separately in the host. [Keyword assistance](src/book-keywords.js) · [Trigger sources](src/book-triggers.js)
+A book can use literal terms, regex, and activation scopes without a separate vector service. **Help choosing triggers → Suggest trigger phrases with AI** can draft terms from the entry’s title and text as an optional auxiliary request. Review and save the terms yourself. This feature generates candidate keywords for later deterministic matching. It does not send each lookup to an embedding model. Vector retrieval, if enabled through another host extension, is configured separately in the host. [Keyword assistance](src/book-keywords.js) · [Trigger sources](src/book-triggers.js)
 
 ### What is selected, observed, and sent
 
@@ -294,7 +296,7 @@ Before generation, the extension reverses the outgoing reply’s tracked world c
 | Delete the last few messages | Drops records tied to deleted messages, reconciles the world and timing, and repairs the surviving tail if its state needs reconstruction. |
 | Delete a range in the middle | Coalesces host deletion events and finds the earliest changed point. Subsequent derived state can be invalidated and rebuilt from the replies that remain. |
 | Ordinary swipe or regenerate | Uses the previous turn’s planned instruction, style, or dice choices where applicable. Changing the accepted swipe reconciles stored snapshots and supported world side effects. **Pick again** explicitly asks for new random choices. |
-| Branch at an earlier point | Carries settings and available records up to that point. With copy-on-branch enabled, the extension makes a separate Story World and rewinds recorded post-branch changes on the copy. An untracked branch can get a new empty book where the managed workflow needs one. |
+| Branch at an earlier point | Carries settings and available records up to that point. Structured mode isolates its branch book. In Legacy mode, with copy-on-branch enabled, the extension also makes a separate Story World and rewinds recorded post-branch changes on the copy. A branch whose parent had no managed book can receive an empty one. Explicitly removing the book from its parent carries that choice into the branch. |
 | Branch creation or rollback fails | The extension reports an error. If the branch cannot safely attach a copied world, it can detach the unsafe parent reference so the branch cannot file into the parent accidentally. Unsupported historical or manual changes can require review. |
 | Start a new chapter chat | Creates a new continuation book and seeds the new timeline from the approved handoff, as described above. |
 

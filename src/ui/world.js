@@ -52,7 +52,7 @@ function worldPicker(app) {
             if (!data || !download(`${setName(id)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export the lorebook from the World Info screen.');
         }, { kind: 'ghost', title: 'Download this world as a lorebook file' }) : null,
         id ? deleteButton(app, id, 'Delete this world') : null),
-        id && !setInfo(id).shared ? h('div', { class: 'ri-help' }, 'This world has a lorebook of its own. To delete the world, delete that lorebook in World Info.') : null,
+        id && !setInfo(id).shared ? h('div', { class: 'ri-help' }, 'To remove or delete this book, choose “See this chat’s World Info books” above.') : null,
         id ? h('div', { class: 'ri-row' }, button('Fill this world from the character card', () => { app.wroute.sheet = { kind: 'starter', busy: false, error: '', result: null }; app.render(); },
             { title: 'One AI request reads the character card, its own lorebook and the opening message, and proposes entries. Nothing is added until you say so.' })) : null);
 }
@@ -188,19 +188,41 @@ function oneLine(w) {
 function renderList(body, app) {
     // A sheet (the starter world, or a new chapter) takes the whole tab while it is open.
     if (app.wroute.sheet) { body.appendChild(app.wroute.sheet.kind === 'starter' ? starterSheet(app) : chapterSheet(app)); return; }
+    const id = chatWorld();
+    if (id) {
+        const choices = [
+            { value: '', label: 'Choose a section' },
+            ...KIND_ORDER.filter(kind => !isStructuredWorldKind(kind)).map(kind => ({value: kind, label: WORLD_KINDS[kind].plural})),
+            {value: 'preview', label: 'Next reply preview'},
+            {value: 'summaries', label: 'Chapter and summary settings'},
+            {value: 'recall', label: 'Story note settings'},
+            {value: 'updates', label: 'Automatic world updates'},
+        ];
+        const jump = select(choices, '', key => {
+            const target = body.querySelector(`[data-world-section="${key}"]`);
+            if (target) {
+                target.tabIndex = -1;
+                target.focus({ preventScroll:true });
+                target.scrollIntoView({ block:'start' });
+            }
+            jump.value = '';
+        });
+        body.appendChild(field('Jump to section', '', jump));
+    }
     body.appendChild(worldPicker(app));
     body.appendChild(promptGroup(['entryWriterRules', 'systemWorldEntry', 'starterWorld', 'systemStarter'], 'Customize world-writing instructions'));
     body.appendChild(promptGroup(['chapterSummary', 'systemChapter', 'chapterCombine', 'systemCombine', 'newChapterSummary', 'newChapterFirst', 'systemNewChapter','chapterOpeningScene'], 'Customize chapter instructions'));
     body.appendChild(promptGroup(['worldUpdate', 'storyNotes', 'worldOrder', 'silentCharacter', 'threadOrder', 'seedOrder', 'activityOrder', 'secretOrder'], 'Customize world-update instructions'));
-    const id = chatWorld();
     if (!id) { body.appendChild(summarySection(app, '')); return; }
     const listBox = h('div', {}, h('div', { class: 'ri-muted' }, 'Loading...'));
     body.appendChild(listBox);
     const preview = h('div', {});
     body.appendChild(preview);
-    body.appendChild(summarySection(app, id));
-    body.appendChild(sendSettings(app));
-    body.appendChild(flowSettings(app));
+    preview.dataset.worldSection = 'preview';
+    for (const [key, element] of [['summaries',summarySection(app,id)], ['recall',sendSettings(app)], ['updates',flowSettings(app)]]) {
+        element.dataset.worldSection = key;
+        body.appendChild(element);
+    }
 
     loadWorld(id).then((data) => {
         if (!data) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'The lorebook of this world could not be read. It may have been renamed or deleted.')); return; }
@@ -224,9 +246,11 @@ function renderList(body, app) {
                     w.auto ? chip('Added automatically', 'ri-chip-wait') : null,
                     w.locked ? chip('Kept as you wrote it', 'ri-chip-keep') : null,
                     w.aliases.length ? chip(`Also called: ${w.aliases.join(', ')}`) : null)));
-            out.push(section(`${def.plural} (${mine.length})`,
+            const group = section(`${def.plural} (${mine.length})`,
                 rows.length ? h('div', { class: 'ri-list' }, rows) : h('div', { class: 'ri-muted' }, EMPTY[kind]),
-                h('div', { class: 'ri-row' }, button(def.add, () => go(app, { view: 'edit', draft: newWorldEntry(data, kind) }), { kind: mine.length || kind === 'chapter' ? '' : 'primary' }))));
+                h('div', { class: 'ri-row' }, button(def.add, () => go(app, { view: 'edit', draft: newWorldEntry(data, kind) }), { kind: mine.length || kind === 'chapter' ? '' : 'primary' })));
+            group.dataset.worldSection = kind;
+            out.push(group);
         }
         listBox.replaceChildren(...out);
 
