@@ -64,6 +64,8 @@ These switches are saved per chat. Choose the **Structured story workflow** to r
 
 The companion preset can put an emitted planning outline in the collapsed **Reply planning** disclosure. **Setup → Reply Display** controls its visibility. **Setup → Preset & Extension → Request a reply plan** optionally asks for a brief outline before the prose. The outline stays out of later prompts and does not update the world book.
 
+Open **Story state** below a structured reply to inspect saved **Portrayal**, **Emotions**, **Relationships**, **Knowledge**, **Facts**, and **Plot**, alongside the scene, character snapshots, and changes for that reply. Emotion meters show the last recorded scores. Plot cards include saved status, prerequisites, travel, and outcomes where available. The extension reads these records on demand without a model request. Earlier replies use the saved world changes to recover the state at that point. If historical data is incomplete, the view flags that and shows the records it can verify. **Roast**, **Reply planning**, and **World Info** each retain their own disclosure.
+
 State extraction and eligible repair use the ordinary reply request. Drafting or reading an opener can use one setup request. The optional instruction checker and chapter summarizer have their own settings. See the [v10 decision log](docs/v10-vexa-decision-log.md) for the design and verification cases.
 
 ## Context and memory

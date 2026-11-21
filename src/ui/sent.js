@@ -3,6 +3,8 @@ import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
 import { replyCardHeader, replyChip } from './reply-cards.js';
+import { replyWorldTabs } from './reply-world.js';
+import { chatWorld } from '../world.js';
 import { refreshGuidedControl } from './guided.js';
 import { snapshotState, snapshotScene } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
@@ -14,7 +16,7 @@ import { shownChanges, describeChange, undoReplyChanges } from '../worldflow.js'
 import { writeEvent, readEvent } from '../events.js';
 import { toast } from '../st.js';
 import { settings } from '../store.js';
-import { ctx, KEY, isChatOpen } from '../st.js';
+import { ctx, KEY, isChatOpen, isReply } from '../st.js';
 
 const KIND = { new: 'New', continuing: 'Kept sending', resend: 'Sent again', repeat: 'New' };
 
@@ -259,7 +261,16 @@ function replyTabs(parts, active, id) {
     const ids=parts.map(([name])=>name);
     const initial=Math.max(0,ids.indexOf(active));
     const tabs=[];
+    const loaded = new Set();
+    let selected = initial;
+    function loadSelected() {
+        const load = parts[selected]?.[2];
+        if (!load || loaded.has(selected) || !list.closest('details')?.open) return;
+        loaded.add(selected);
+        load(panels.children[selected]);
+    }
     function activate(index,focus=false) {
+        selected = index;
         tabs.forEach((tab,i)=>{
             tab.setAttribute('aria-selected',String(i===index));
             tab.tabIndex=i===index ? 0 : -1;
@@ -267,6 +278,7 @@ function replyTabs(parts, active, id) {
             panels.children[i].hidden=i!==index;
         });
         if (focus) tabs[index]?.focus();
+        loadSelected();
     }
     parts.forEach(([label,content],i)=>{
         const tab=h('button',{class:'ri-tab',type:'button',role:'tab',id:`ri-reply-${id}-tab-${i}`,'aria-controls':`ri-reply-${id}-panel-${i}`,'data-tab':label,onclick:()=>activate(i)},label);
@@ -278,7 +290,7 @@ function replyTabs(parts, active, id) {
         panels.append(h('div',{role:'tabpanel',id:`ri-reply-${id}-panel-${i}`,'aria-labelledby':tab.id},content));
     });
     activate(initial);
-    return [list,panels];
+    return {list,panels,loadSelected,reset:()=>loaded.clear()};
 }
 
 function replyLoreRows(lore) {
@@ -312,19 +324,23 @@ function refreshV10Replies(chat) {
     const enabled=settings().enabled;
     const native=enabledV10();
     const modules=effectiveModules();
-    const local=ctx().chatMetadata?.[KEY]?.v10 || {};
+    const root=ctx().chatMetadata?.[KEY];
+    const local=root?.v10 || {};
+    const world=chatWorld();
+    const manualVersion=root?.manualWorldChanges?.at(-1)?.time;
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const id=Number(mes.getAttribute('mesid'));
         const msg=chat[id];
-        const rec=msg?.extra?.[KEY];
+        const rec=msg?.extra?.[KEY] || (native && id===0 && root?.chapterOf && world ? {time:'chapter-opening'} : null);
         const block=mes.querySelector('.mes_block');
         if (!block) continue;
         const old=block.querySelector(':scope > .ri-v10-reply');
-        const showHeader = enabled && !memoryOnly() && !!msg && (native || rec?.v10) && !msg.is_user && !msg.is_system;
+        const showHeader = enabled && !memoryOnly() && (native || rec?.v10) && isReply(msg);
         const show = showHeader && !!rec;
         updateSceneHeader(mes,id,showHeader);
         if (!show) {old?.remove();continue;}
-        const showState=settings().scene?.card !== 'off' && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
+        const showConsole=settings().scene?.card !== 'off';
+        const showState=showConsole && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
         const sc=showState && modules.state ? snapshotScene(id) : {};
         const people=showState && modules.state ? Object.values(snapshotState(id)).filter(p=>!sc.present || sc.present.toLowerCase().includes(p.name.toLowerCase())) : [];
         const records=(rec.v10Changes || []).filter(record=>modules[KIND_MODULE[record.kind]]);
@@ -333,7 +349,8 @@ function refreshV10Replies(chat) {
         const roast=local.showRoast!==false ? rec.roast : '';
         const lore=local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
-        const stamp=JSON.stringify([responseKey,sc,people,profiles,records,planning,roast,lore,rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.stateOutdated]);
+        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,sc,people,profiles,records,planning,roast,lore,
+            rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
         const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});
         out.dataset.stamp=stamp;
@@ -353,29 +370,34 @@ function refreshV10Replies(chat) {
             parts.push([person.name,[card.children[1],showProfile(profiles.find(profile=>profile.subject===person.name))]]);
         }
         for (const profile of profiles.filter(profile=>!people.some(person=>person.name===profile.subject))) parts.push([profile.subject,showProfile(profile)]);
+        const saved = showConsole && native ? replyWorldTabs(id,modules,rec) : null;
+        if (saved) parts.push(...saved.parts);
         if (records.length) parts.push(['Changes',h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
             h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
             replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))]);
-        if (rec.v10Plot?.length) parts.push(['Plot',h('ul',{class:'ri-lore-receipt'},rec.v10Plot.map(row=>h('li',{},
-            h('strong',{},row.id),
-            h('div',{class:'ri-reply-chip-rail'},row.recalled && replyChip('Recalled','sky'),
-                replyChip(row.eligible ? 'Eligible' : 'Prerequisites pending',row.eligible ? 'mint' : 'slate'),
-                row.id===rec.v10Offer && replyChip('Offered','indigo'),row.realized && replyChip('Established in reply','mint')))))]);
-        if (rec.v10Check || (!rec.v10Plot?.length && rec.v10Offer) || rec.v10Invalid || rec.stateOutdated || rec.v10Diagnostics?.length) parts.push(['Notes',[
+        if (rec.v10Check || rec.v10Offer || rec.v10Invalid || rec.stateOutdated || rec.v10Diagnostics?.length || rec.cardIssues?.length) parts.push(['Notes',[
             rec.v10Check && h('p',{},checkText(rec.v10Check)),
-            !rec.v10Plot?.length && rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
+            rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
             rec.v10Invalid && h('p',{},'Some structured changes could not be applied.'),
             rec.stateOutdated && h('p',{},'This reply was edited. Its previous state is out of date.'),
             (rec.v10Issues || []).map(note=>h('p',{},note)),
             (rec.v10Diagnostics || []).map(note=>h('p',{},note)),
+            (rec.cardIssues || []).map(note=>h('p',{},note)),
         ]]);
-        if(parts.length) out.append(h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
-            replyCardHeader({icon:'◇',title:'Story state',chips:[
+        if (showConsole && parts.length) {
+            const tabs = replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id);
+            const consoleCard = h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
+                replyCardHeader({icon:'◇',title:'Story state',chips:[
                 sc.where && {text:sc.where,tone:'sky'},
                 sc.when && {text:sc.when,tone:'indigo'},
                 records.length && {text:`${records.length} ${records.length===1 ? 'change' : 'changes'}`,tone:'mint'},
-            ].filter(Boolean)}),
-            ...replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id)));
+                ].filter(Boolean)}),tabs.list,tabs.panels);
+            consoleCard.addEventListener('toggle',()=>{
+                if (consoleCard.open) tabs.loadSelected();
+                else {tabs.reset();saved?.reset();}
+            });
+            out.append(consoleCard);
+        }
         if (planning) out.append(h('details',{class:'ri-reply-card ri-v10-plan','data-reply-fold':'planning'},
             replyCardHeader({icon:'≋',title:'Reply planning'}),
             h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)));

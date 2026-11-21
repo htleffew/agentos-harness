@@ -569,7 +569,7 @@ export function renderV10(body, app, page) {
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
                 chatFlag('showRoast','Show Roast cards','Control Roast display independently of generation and feedback.',true),
-                field('Story state under replies','The collapsed console holds the scene, character tabs, and recorded changes.',
+                field('Story state under replies','The collapsed console shows saved scene, character and world records available at that reply.',
                     select([{value:'auto',label:'Auto'},{value:'always',label:'Always'},{value:'off',label:'Off'}],settings().scene.card,value=>{
                         settings().scene.card=value;saveSettings();redraw();
                     },{'aria-label':'Story state under replies'})),

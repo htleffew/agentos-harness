@@ -30,6 +30,7 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
             const p = V.prefs();
             p.generatePlan = true;
             p.modules = {roast:true};
+            await SillyTavern.getContext().saveMetadata();
             function assertPaired(enabled,name) { if (!enabled) throw new Error(`Companion matching failed for ${name}`); }
         },L.BASE);
         const block = data => `<story_update v="2">${JSON.stringify({v:2,...data})}</story_update>`;
@@ -64,6 +65,9 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         const issues = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.cardIssues);
         assert.ok(issues.some(issue=>issue.includes('no readable Roast')));
         assert.ok(issues.some(issue=>issue.includes('no readable outline')));
+        await latest.locator('.ri-v10-console > summary').click();
+        await latest.getByRole('tab',{name:'Notes',exact:true}).click();
+        assert.match(await latest.getByRole('tabpanel',{name:'Notes',exact:true}).innerText(),/no readable Roast/);
         L.mode({reply:'Mira stepped off the path.\n\n<state:world>\n<time>4:15 PM</time>\n<loc>Path</loc>\n<weather>Heavy rain</weather>\n</state:world>'});
         await L.send(page,'I step aside.');
         assert.deepEqual(await header.locator('dd').allTextContents(),['4:15 PM','Wednesday, Day 2','Path','Heavy rain']);

@@ -17,7 +17,7 @@ import { addLog } from './log.js';
 import { rollInt, pickWeighted, setInfo, entriesOf, createSet, knownSets } from './books.js';
 import { worldOffers, rememberStory } from './pacing.js';
 import { showAgain } from './hide.js';
-import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall } from './world.js';
+import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, isWorldEntry, readWorldEntry, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
 export const ORDER_WORLD = 'Story world';
@@ -455,19 +455,26 @@ export function creationFingerprint(w) {
 }
 
 /** Undo a list of changes, newest first. A line that was changed again since is left as it is. */
-export function revertChanges(data, id, changes) {
+export function revertChanges(data, id, changes, { conflicts } = {}) {
+    const info = setInfo(id);
     let done = 0;
     for (const c of [...changes].reverse()) {
+        if (conflicts?.has(c.uid)) continue;
         if (c.type === 'hide') { if (showAgain(c.dates)) done++; continue; }
         const entry = data.entries?.[c.uid];
-        if (!entry) continue;
-        const w = listWorld(data, id).find(x => x.uid === c.uid);
-        if (!w) continue;
-        if (c.type === 'create') { if (w.auto && (!c.createdState || c.createdState === creationFingerprint(w))) { delete data.entries[c.uid]; done++; } continue; }
-        if (c.type === 'set' && (c.field === 'data' ? w.fields.data : clean(w.fields[c.field])) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
-        if (c.type === 'status' && w.status === c.after && (!Object.hasOwn(c, 'afterAt') || JSON.stringify(w.at) === JSON.stringify(c.afterAt))) { w.status = c.before; if (Object.hasOwn(c, 'beforeAt')) w.at = c.beforeAt; writeWorldEntry(data, w, id); done++; }
-        if (c.type === 'clock' && Object.hasOwn(c, 'afterAt') && JSON.stringify(w.at) === JSON.stringify(c.afterAt)) { w.at = c.beforeAt || null; writeWorldEntry(data, w, id); done++; }
-        if (c.type === 'off' && !w.on) { w.on = true; writeWorldEntry(data, w, id); done++; }
+        if (!isWorldEntry(entry) || (info.shared && entry.extensions.ri.set !== info.group)) { conflicts?.add(c.uid); continue; }
+        const w = readWorldEntry(entry);
+        if (c.type === 'create' && w.auto && (!c.createdState || c.createdState === creationFingerprint(w))) { delete data.entries[c.uid]; done++; continue; }
+        if (c.type === 'set' && (c.field === 'data' ? w.fields.data : clean(w.fields[c.field])) === c.after) w.fields[c.field] = c.before;
+        else if (c.type === 'status' && w.status === c.after && (!Object.hasOwn(c, 'afterAt') || JSON.stringify(w.at) === JSON.stringify(c.afterAt))) {
+            w.status = c.before;
+            if (Object.hasOwn(c, 'beforeAt')) w.at = c.beforeAt;
+        }
+        else if (c.type === 'clock' && Object.hasOwn(c, 'afterAt') && JSON.stringify(w.at) === JSON.stringify(c.afterAt)) w.at = c.beforeAt || null;
+        else if (c.type === 'off' && !w.on) w.on = true;
+        else { conflicts?.add(c.uid); continue; }
+        writeWorldEntry(data, w, id);
+        done++;
     }
     return done;
 }

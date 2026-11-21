@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.0.19
+
+- Open Story State under a reply to inspect saved portrayals, emotion scores, relationships, character knowledge, facts and plot records. The viewer reads the book on demand and uses the saved history for earlier replies. Disabled modules stay out of the tab list.
+- Report unavailable Roast or planning output in the reply console’s Notes tab as well as What Was Sent.
+
 ## 10.0.18
 
 - Trace story corrections from the transcript and saved records through chapter summaries, character cards, and lorebooks. Review exact source edits, apply them, and save the accepted fact for future turns.
