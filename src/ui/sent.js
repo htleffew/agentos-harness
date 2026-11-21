@@ -386,7 +386,8 @@ function updateSceneHeader(mes,id,scene) {
     const header = h('div',{class:'ri-scene-header','aria-label':'Scene details','data-scene':stamp},
         h('dl',{},fields.map(([label,value])=>h('div',{class:`ri-scene-header-${label.toLowerCase()}`},
             h('dt',{},label==='Date' ? (!scene.date && scene.lastKnownDate && !days ? 'Last known date' : 'Story date') : label),
-            h('dd',{title:label==='Weather' && inherited ? 'Last established weather' : undefined},
+            h('dd',{title:label==='Weather' && inherited ? 'Last established weather' :
+                label==='Date' && !scene.date && days && scene.lastKnownDate ? `Last full date: ${scene.lastKnownDate}` : undefined},
                 value || h('span',{class:'ri-scene-header-empty'},label==='Date' ? 'Awaiting story date' : '—'))))));
     if (existing) existing.replaceWith(header);
     else area.before(header);

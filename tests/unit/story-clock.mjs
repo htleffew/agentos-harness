@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { advanceStoryClock } from '../../src/story-clock.js';
+import { advanceStoryClock, weekdayAtOffset } from '../../src/story-clock.js';
 import { gate } from '../../src/v10.js';
 
 const base = {date:'2024-02-28',time:'11:58 PM',where:'Dock',weather:'Rain'};
@@ -26,6 +26,9 @@ const fictional = {date:'Wednesday, Month 7, Day 14',time:'11:58 PM'};
 const unknown = advanceStoryClock(fictional,{}, {clock:10,elapsed:4});
 assert.deepEqual(unknown.scene,{date:'',time:'12:02 AM',lastKnownDate:fictional.date,daysAfterKnownDate:1});
 assert.equal(advanceStoryClock(unknown.scene,{}, {elapsed:2880}).scene.daysAfterKnownDate,3);
+assert.equal(weekdayAtOffset(fictional.date,1),'Thursday');
+assert.equal(weekdayAtOffset('Saturday',2),'Monday');
+assert.equal(weekdayAtOffset('Last Autumn',1),'');
 assert.deepEqual(advanceStoryClock(unknown.scene,{date:'Thursday, Month 7, Day 15'}, {clock:unknown.minutes}).scene,
     {date:'Thursday, Month 7, Day 15',time:'12:02 AM'});
 const approximate = {date:'Day 4',when:'Near dawn'};

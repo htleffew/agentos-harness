@@ -3,6 +3,7 @@ import { promptText } from './prompts.js';
 // they survive swiping or deleting the reply that happened to be newest when edited.
 import { ctx, KEY, isReply } from './st.js';
 import { separateReply } from './reply-format.js';
+import { weekdayAtOffset } from './story-clock.js';
 
 export const STATE_FIELDS = [['mind', 'Mind'], ['heart', 'Heart'], ['body', 'Body'], ['psyche', 'Psyche']];
 export const SCENE_FIELDS = [['present', 'Present'], ['where', 'Where'], ['when', 'When'], ['time', 'Time'], ['date', 'Date'], ['weather', 'Weather'], ['environment', 'Environment']];
@@ -225,7 +226,7 @@ export function storyMinuteAt(before = Infinity) {
 export function sceneDateLabel({date,lastKnownDate,daysAfterKnownDate:days}) {
     if (date || !lastKnownDate) return date;
     if (!days) return lastKnownDate;
-    return `${days===1 ? 'Day after' : `${days} calendar days after`} ${lastKnownDate}`;
+    return weekdayAtOffset(lastKnownDate,days) || `${days===1 ? 'Day after' : `${days} calendar days after`} ${lastKnownDate}`;
 }
 export function currentState(type = 'normal') {
     const chat = ctx().chat || [];
@@ -263,7 +264,9 @@ export function statePrompt(type = 'normal', limit = 1400, { includeCharacters =
     if (!scene.date && scene.lastKnownDate) {
         const days=scene.daysAfterKnownDate;
         const date=String(scene.lastKnownDate).slice(0,100);
-        add(days ? `Date: ${sceneDateLabel(scene).slice(0,150)}. Supply the in-world date if established.` :
+        const weekday = days && weekdayAtOffset(scene.lastKnownDate,days);
+        add(weekday ? `Date: ${weekday}. Last full date: ${date}. ${days} calendar ${days===1 ? 'day' : 'days'} later. Supply the full date if established.` :
+            days ? `Date: ${sceneDateLabel(scene).slice(0,150)}. Supply the in-world date if established.` :
             `Last established date: ${date}. Supply the new date if the calendar establishes it.`);
     }
     if (sceneLine) add(`Scene: ${sceneLine}`);

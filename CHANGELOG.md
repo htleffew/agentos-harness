@@ -1,5 +1,9 @@
 # Changelog
 
+## 10.0.26
+
+- Show the known weekday after a fictional midnight rollover and keep the last full date in the header tooltip and the next request.
+
 ## 10.0.25
 
 - Recover established dates and weather through partial scene updates and placeholders. Read Sola chronology, Vexa headers, and Deus trackers. Carry supported dates through midnight and retain a last known date with the established day offset when a fictional calendar is unresolved.

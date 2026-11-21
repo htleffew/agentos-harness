@@ -169,11 +169,12 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
 
         L.mode({reply:'Mira opened the quay door.\n'+block({scene:{elapsed:4,date:'—',weather:'Unknown'},roast:'Mira brought her own light and STILL waited for him to find the door.'})});
         await L.send(page,'Four minutes later, I follow her through the door.');
-        assert.deepEqual(await header.locator('dd').allTextContents(),['12:02 AM',`Day after ${anchor}`,'Northern Walk','Light rain']);
+        assert.deepEqual(await header.locator('dd').allTextContents(),['12:02 AM','Thursday','Northern Walk','Light rain']);
+        assert.equal(await header.locator('.ri-scene-header-date dd').getAttribute('title'),`Last full date: ${anchor}`);
         if (process.env.RI_CHRONOLOGY_SCREENSHOT) await latest.locator('.mes_block').screenshot({path:process.env.RI_CHRONOLOGY_SCREENSHOT});
         L.mode({reply:'Mira turned to the quay.\n'+block({scene:{date:'Thursday, Month 7, Day 15'}})});
         await L.send(page,'I turn and look out over the water.');
-        assert.match(L.text(L.requests().at(-1)),/Date: Day after Wednesday, Month 7, Day 14/);
+        assert.match(L.text(L.requests().at(-1)),/Date: Thursday\. Last full date: Wednesday, Month 7, Day 14/);
         assert.equal(await header.locator('.ri-scene-header-date dd').textContent(),'Thursday, Month 7, Day 15');
         assert.deepEqual(errors,[]);
         console.log('PASS reply previews, direct tab jumps, formatted collapsed Roast, editable commentator voice, and chapter continuity');

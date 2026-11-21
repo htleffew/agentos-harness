@@ -1,6 +1,7 @@
 const DAY = 1440;
 const DAY_MS = 86400000;
 const WEEK = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const weekdayPrefix = new RegExp(`^(${WEEK.join('|')})(?:,?\\s+|,?$)`,'i');
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export const validStoryMinute = value => Number.isSafeInteger(value) && value >= 0;
@@ -20,11 +21,20 @@ function formatTime(minutes, twelve) {
     return twelve ? `${hour%12 || 12}:${minute} ${hour<12 ? 'AM' : 'PM'}` : `${String(hour).padStart(2,'0')}:${minute}`;
 }
 
+function weekdayIndex(value) {
+    const name = value.match(weekdayPrefix)?.[1].toLowerCase();
+    return WEEK.findIndex(day=>day.toLowerCase()===name);
+}
+
+export function weekdayAtOffset(date, days) {
+    const weekday = weekdayIndex(String(date || '').trim());
+    return weekday>=0 && Number.isSafeInteger(days) && days>=0 ? WEEK[(weekday+(days%7))%7] : '';
+}
+
 function dayNumber(value) {
-    const prefix = new RegExp(`^(${WEEK.join('|')}),?\\s+`,'i');
     const original = String(value || '').trim();
-    const weekday = WEEK.findIndex(day=>day.toLowerCase()===original.match(prefix)?.[1].toLowerCase());
-    const date = original.replace(prefix,'');
+    const weekday = weekdayIndex(original);
+    const date = original.replace(weekdayPrefix,'');
     const ordinal = /^Day\s+(\d{1,9})$/i.exec(date);
     if (ordinal) return { format:'ordinal', day:Number(ordinal[1]),weekday };
     const written = /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/.exec(date);
