@@ -176,7 +176,7 @@ export function render() {
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));
     if (!isChatOpen() && app.tab !== 'settings' && app.tab !== 'log') app.body.appendChild(h('div', { class: 'ri-note' },
-        'Open a character chat to use the '+(group.tabs.find(([id])=>id===app.tab)?.[1] || 'story')+' controls.'));
+        ['v10','display'].includes(app.tab) ? 'Open a chat to change its workflow, module activation and display settings.' : 'Open a character chat to use the '+(group.tabs.find(([id])=>id===app.tab)?.[1] || 'story')+' controls.'));
 
     if (app.tab === 'instructions') renderInstructions(app.body, app);
     else if (app.tab === 'events') renderEvents(app.body, app);

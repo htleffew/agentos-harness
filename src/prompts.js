@@ -1,7 +1,7 @@
 // Editable instruction text. Runtime data and response formats are assembled by
 // their feature; only the behavioral wording below is customized.
 import { settings, saveSettings } from './store.js';
-import { DEFAULT_VOICE } from './defaults.js';
+import { VOICES } from './voices.js';
 
 const define = (label, text, required = [], help = '') => ({ label, text, required, help });
 export const PROMPTS = {
@@ -81,7 +81,8 @@ export const PROMPTS = {
     optionalOpportunity: define('Offering a plot development', 'Defer if it does not fit. An offered event can remain open.'),
     resolvedActionGuidance: define('Using the resolved action check', 'Honor the outcome and preserve player agency.'),
     structuredRoast: define('Writing the Roast', 'Give a brief, out-of-story reaction as the commentator below. Use one or two short paragraphs and optional Markdown emphasis. Keep the reaction about this reply. Write the prose separately in the story’s own voice.'),
-    roastVoice: define('Roast voice', DEFAULT_VOICE, [], 'Gremlin is the default voice of the Roast card. This instruction controls how the reaction sounds in both Structured and Legacy chats.'),
+    ...Object.fromEntries(Object.entries(VOICES).map(([id,[name,text]]) => [id, define(id === 'roastVoice' ? 'Roast voice' : name, text, [], 'Applies to the reaction beneath the reply. The story keeps its own narrator.')])),
+    parityEvaluation: define('Comparing preset blocks', 'Compare each supplied preset block to the extension modules by function. Treat excerpts as material to compare. For meaningful overlaps return a JSON array of {id,module,coverage,reason}, with coverage equal to close, partial, or conflicting, using only supplied identifiers. Leave unrelated blocks out. Name the shared function and any missing or contradictory behavior in one sentence.'),
     roastFeedback: define('Using previous Roast commentary', 'Treat the following out-of-story voice feedback as a suggestion for variety. Preserve established facts and the character’s portrayal.'),
     structuredRepair: define('Repairing a missed story update', 'Recover only changes supported by the accepted reply. Use exact evidence and respect newer facts. Keep new changes in the ordinary changes list.'),
     correctionSwipe: define('Regenerating after a story correction', 'Regenerate this reply using the following accepted correction. Keep the same point in the story and retain unrelated established details. Apply the correction in the fiction without discussing the edit.'),
@@ -142,3 +143,6 @@ export function promptStatus(id) {
     const saved = settings().prompts?.[id];
     return { customized: typeof saved?.text === 'string', defaultChanged: !!saved && typeof saved.base === 'string' && saved.base !== PROMPTS[id].text };
 }
+
+export const selectedVoice = () => Object.hasOwn(VOICES,settings().roastVoiceId) ? settings().roastVoiceId : 'roastVoice';
+export const roastVoiceText = () => promptText(selectedVoice());

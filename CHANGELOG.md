@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.32
+
+- Added nine individually editable commentator voices, including the original v9 Gremlin. Each keeps its own default and saved wording.
+- Added native preset block editing, placement, ordering, per-block restoration and a four-way source selector beside matched extension modules.
+- Added optional single-request comparison, manual pairings and configurable structured module instruction order. [Interactive audit](docs/ui-audit-10.0.32.md)
+
 ## 10.0.31
 
 - Restored the complete v9 Gremlin voice and both original samples as the shared default for Structured and Legacy Roasts. The editor is labeled **Roast voice**. Existing custom voices keep their wording, including older edits that retained the original first line.

@@ -649,3 +649,6 @@ button.ri-glance-card:hover { border-color: var(--card-ink); }
 @media (max-width: 700px) {
     #ri_root summary { min-height: 32px; }
 }
+
+#ri_root .ri-preset-workbench .ri-block-pairs { display:block; font-size:.85em; font-weight:normal; opacity:.85; overflow-wrap:anywhere; }
+#ri_root .ri-preset-workbench summary { overflow-wrap:anywhere; }

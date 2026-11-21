@@ -1,4 +1,4 @@
-import { promptGroup } from './prompts.js';
+import { promptGroup, roastVoiceEditor } from './prompts.js';
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
@@ -120,7 +120,7 @@ function cardsSection(app) {
                 onOff(o.roast !== false, (v) => { o.roast = v; save(); app.render(); })),
             o.roast !== false ? [
                 field('Include the previous roast in the next request', 'Optional continuity for the commentator; this uses prompt tokens.', onOff(o.previousRoast === true, (v) => { o.previousRoast = v; save(); })),
-                promptGroup(['roastVoice'], 'Customize Roast voice'),
+                roastVoiceEditor(),
             ] : null,
         ] : null);
 }
@@ -284,6 +284,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.31: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.32: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

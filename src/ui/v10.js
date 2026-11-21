@@ -1,6 +1,7 @@
+import { presetWorkbench } from './preset-workbench.js';
 import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
-import { promptGroup } from './prompts.js';
+import { promptGroup, roastVoiceEditor } from './prompts.js';
 import { renderChatBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
@@ -24,8 +25,8 @@ const problem = error => toast('error', error.message || String(error));
 const entryLabel = kind => ({fact:'Fact',profile:'Portrayal',knowledge:'Knowledge',emotion:'Emotion',relationship:'Relationship',arc:'Arc milestone',seed:'Seed',agenda:'Agenda',event:'Event'})[kind];
 const scoped = (label, control) => h('label',{class:'ri-field'},h('span',{class:'ri-label'},label),control);
 
-function profileEditor(local, key, label, fallback) {
-    const box = textArea(local[key] ?? fallback, () => {}, {rows:5,id:`ri-profile-${key}`,'aria-label':label});
+function profileEditor(local, key, label, fallback, standalone=true) {
+    const box = textArea(local[key] ?? fallback, () => {}, {rows:5,id:standalone ? `ri-profile-${key}` : undefined,'aria-label':label});
     const badge = h('span',{class:'ri-prompt-badge'});
     const status = h('p',{class:'ri-help',role:'status'});
     const discard = button('Discard draft',()=>{
@@ -431,22 +432,13 @@ const MODULE_HELP = {
     roast: 'Asks for one reader reaction in the same reply. Edit its voice under Setup → Reply Display.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
-function hostPrompt(block) {
-    return h('details',{class:'ri-card ri-tight'},
-        h('summary',{},`${block.name} · ${onOff(block.enabled)}`),
-        block.content ? h('pre',{class:'ri-v10-prompt-text'},block.content)
-            : h('p',{class:'ri-help'},block.marker ? 'SillyTavern or TauriTavern fills this section from the current chat, card, or World Info.'
-                : 'This preset block contains no prompt text.'));
-}
-
 function presetDetails(preset, app) {
     const prompts = activeHostPrompts();
     return section('Host preset',
         h('p',{},preset ? `Active preset: ${preset}` : 'To select the companion, open API Connections and choose Chat Completion. Then open AI Response Configuration and select Roleplay Instructions V10. If it is missing, import the companion preset JSON there.'),
         isCompanionPreset(preset) ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
-        prompts?.length ? h('details',{class:'ri-card'},h('summary',{},'View host preset prompt blocks'),
-            h('p',{class:'ri-help'},'On means the block is enabled in the host preset. The host may fill or omit individual blocks when it assembles a reply. Edit these blocks in the host preset editor.'),
-            prompts.map(hostPrompt)) : h('p',{class:'ri-help'},'This host connection does not expose an ordered list of preset prompt blocks.'),
+        prompts ? presetWorkbench(preset,app,key=>key==='style' ? profileEditor(prefs(),'style','Live writing guidance',defaultWritingGuidance(),false)
+            : key==='preflight' ? profileEditor(prefs(),'preflight','Scene check guidance',PREFLIGHT,false) : null) : h('p',{class:'ri-help'},'This host connection does not expose an ordered list of preset prompt blocks.'),
         button('Review What Was Sent',()=>app.openPage('sent'),{kind:'ghost'}));
 }
 
@@ -467,7 +459,7 @@ function hostOverlap(key, owner, preset, enabled, redraw) {
     }
     return h('div',{class:'ri-module-overlap'},
         h('label',{htmlFor:id},'Preferred instruction source'),
-        select([{value:'preset',label:'Host preset'}, {value:'extension',label:'Roleplay Instructions extension'}],owner.choice,value=>{
+        select([{value:'preset',label:'Host preset'}, {value:'extension',label:'Roleplay Instructions extension'}, ...(owner.choice==='both' ? [{value:'both',label:'Extension enabled alongside independent preset blocks'}] : [])],owner.choice,value=>{
             setModuleOwner(preset,key,value);
             redraw();
             document.getElementById(id)?.focus({preventScroll:true});
@@ -575,7 +567,11 @@ function memorySettings(app, redraw) {
 }
 
 export function renderV10(body, app, page) {
-    if (!isChatOpen()) return;
+    if (!isChatOpen()) {
+        if (page==='v10') body.append(presetDetails(activePreset(),app));
+        if (page==='display') body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
+        return;
+    }
     const local = prefs();
     const redraw = () => {
         app.render();
@@ -616,8 +612,8 @@ export function renderV10(body, app, page) {
                 }
                 saveChatState();redraw();
             },{id:'ri-story-workflow','aria-label':'Story workflow for this chat'}))));
-        body.append(memorySettings(app,redraw));
         body.append(presetDetails(preset,app));
+        body.append(memorySettings(app,redraw));
         if (!enabledV10()) return;
         body.append(moduleSettings(local,app,preset,modules,redraw),
             isCompanionPreset(preset)
@@ -626,6 +622,7 @@ export function renderV10(body, app, page) {
         return;
     }
     if (!enabledV10()) {
+        if (page==='display') body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
         body.append(h('div',{class:'ri-note'},
             h('p',{},'Choose the Structured story workflow to use this page.'),
             button('Open workflow settings',()=>app.openPage('v10'),{kind:'ghost'})));
@@ -638,14 +635,14 @@ export function renderV10(body, app, page) {
                 chatFlag('showPlanning','Show Reply planning','Show any emitted outline in a collapsed disclosure.',true),
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
-                chatFlag('showRoast','Show Roast cards','Show the saved reaction beneath the reply. Gremlin is its default voice.',true),
+                chatFlag('showRoast','Show Roast cards','Show the saved reader reaction beneath its reply. Choose the commentator voice below.',true),
                 field('Story state under replies','The collapsed console shows saved scene, character and world records available at that reply.',
                     select([{value:'auto',label:'Auto'},{value:'always',label:'Always'},{value:'off',label:'Off'}],settings().scene.card,value=>{
                         settings().scene.card=value;saveSettings();redraw();
                     },{'aria-label':'Story state under replies'})),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.'),
                 promptGroup(['planGuidance','proseFirst'],'Customize planning and prose prompts'),
-                promptGroup(['roastVoice','structuredRoast','roastFeedback'],'Customize Roast and feedback prompts')));
+                roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback')));
             break;
         case 'opening': body.append(renderOpening(local,redraw)); break;
         case 'facts': body.append(promptGroup(['structuredFacts','structuredRepair'],'Customize fact and repair prompts'),

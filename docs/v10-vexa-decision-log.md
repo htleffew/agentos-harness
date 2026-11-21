@@ -443,3 +443,13 @@ The current-chat book inventory distinguishes physical books, book roles, and ea
 ### Follow-up in extension 10.0.10
 
 Structured play now previews completed streamed sections and keeps unvalidated data separate from saved state. Planning cleanup covers the audited literal wrapper and unclosed auxiliary-page reproductions. The Scene and character checks module adapts to the known cast and covers selected Antithesis writing goals in the normal reply request. It has editable guidance and yields to recognized host Antithesis blocks. Target-specific emotions, grounded and heightened writing guides, editable stock phrases, and local prose diagnostics cover more of the earlier audit. The full Vexa export still has additional behavior and provider-specific configuration. The agreed exclusions in Decisions 13, 16–18, and 21–22 continue to define the scope of the companion. Live TauriTavern and live model fidelity remain separate verification tasks.
+
+### Preset blocks and alternate reader voices (extension 10.0.32)
+
+- Keep one independent Roast card. Its commentator is selectable across chats. Retain the original v9 Gremlin as the default and give each alternate profile its own editable wording and restore.
+- Show native Chat Completion blocks in host order, including disabled blocks. Make unlisted definitions available. Save native edits back to the loaded preset and retain a per-block original for restoration.
+- Put manual and suggested extension counterparts beside each block. The four explicit source choices can deliberately combine both instructions. Keep native activation shared with users of the preset and extension activation scoped to the chat.
+- Let a user initiate one comparison call, inspect the reason and accept individual pairings. Choosing a match leaves activation to the user. Organizing the list, editing voices and changing source choices requires no model request.
+- Keep extension instructions editable at the pairing and their feature pages. Order the structured request guidance and update instructions in the generation path.
+
+[Verification and reference counts](ui-audit-10.0.32.md)

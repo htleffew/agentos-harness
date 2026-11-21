@@ -3,7 +3,7 @@ import { recallPolicy } from './recall.js';
 import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
 import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, baseWorld, prefs } from './v10.js';
-import { promptText, promptStatus } from './prompts.js';
+import { promptText, promptStatus, roastVoiceText } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor, sceneFromReplyHeader, stripSceneTracker } from './state.js';
 // Keeping the story world up to date by itself.
 //  1. With each reply the extension asks the model to add one short block that records what the reply made true.
@@ -195,7 +195,7 @@ function cardRules(onFile, type) {
         `For a person whose profile is not on file yet, add five lines at the top of their profile: ${PROFILE_STABLE.map(([, label, help]) => `${label}: ${help}`).join('. ')}. Profiles on file: ${onFile.join(', ') || 'none yet'}.`,
     ];
     if (roastOn()) {
-        lines.push(`Roast: ${clean(promptText('roastVoice'))}`);
+        lines.push(`Roast: ${clean(roastVoiceText())}`);
         const prev = settings().cards.previousRoast === false ? '' : lastRoast(type);
         if (prev) lines.push(`The commentator's reaction to the previous reply was: ${prev}`);
     }

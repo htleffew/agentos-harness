@@ -787,7 +787,13 @@ function onScanDone(args) {
         const offer = !isRepeat && !gen.quiet && askE && map.has(keyOf(askE)) && !items.some(it => !it.noCheck || it.worldOrder) ? plan.v10Turn?.offer : null;
         if (offer) {
             const completion = offer.id === 'world-event' ? 'Record a new event only if it occurs in the prose.' : 'Mark done only if it occurs in the prose.';
-            askE.content += `\nOptional plot opportunity (${offer.id}): ${offer.payoff || offer.text} ${promptText('optionalOpportunity')} ${completion}`;
+            const instruction = `Optional plot opportunity (${offer.id}): ${offer.payoff || offer.text} ${promptText('optionalOpportunity')} ${completion}`;
+            const turn=plan.v10Turn;
+            const start=askE.content.lastIndexOf(turn.text);
+            if (turn.offerOffset!==undefined && start>=0) {
+                const insertAt=start+turn.offerOffset;
+                askE.content=[askE.content.slice(0,insertAt).trimEnd(),instruction,askE.content.slice(insertAt).trimStart()].filter(Boolean).join('\n');
+            } else askE.content += '\n'+instruction;
             plan.contextAsk = askE.content;
         }
         sayUserLineOnce(items);

@@ -1,3 +1,5 @@
+import { VOICES } from '../voices.js';
+import { selectedVoice } from '../prompts.js';
 // Inline prompt editors. No model calls are made by this UI.
 import { h, button } from './dom.js';
 import { PROMPTS, promptText, promptStatus, validatePrompt, savePrompt, restorePrompt } from '../prompts.js';
@@ -73,5 +75,33 @@ export function promptGroup(ids, label = 'Customize AI instructions', { contextu
         h('div', { class: 'ri-help' }, 'Edits apply to this feature across chats. Live chat data and required output formats are assembled separately.'),
         ids.map(id => promptEditor(id, options)));
     if (contextual) refresh();
+    return group;
+}
+
+export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice') {
+    const group = h('details',{class:'ri-prompt-group'},h('summary',{},title));
+    const content = h('div');
+    const picker = h('select',{class:'ri-input','aria-label':'Commentator voice'});
+    const refreshLabels = () => {
+        for (const option of picker.options) {
+            option.textContent = VOICES[option.value][0] + (promptStatus(option.value).customized ? ' · Customized' : '');
+        }
+    };
+    for (const id of Object.keys(VOICES)) picker.append(h('option',{value:id}));
+    picker.value = selectedVoice();
+    const editors = new Map();
+    function showVoice() {
+        refreshLabels();
+        if (!editors.has(picker.value)) editors.set(picker.value,promptEditor(picker.value,{onChange:refreshLabels}));
+        content.replaceChildren(editors.get(picker.value));
+    }
+    picker.onchange = () => {
+        settings().roastVoiceId = picker.value;
+        saveSettings();
+        showVoice();
+    };
+    group.append(h('label',{class:'ri-field'},'Commentator voice',picker),
+        h('p',{class:'ri-help'},'Used for future Roast cards across chats. Each voice keeps its own edits.'),content,...otherIds.map(id=>promptEditor(id)));
+    showVoice();
     return group;
 }

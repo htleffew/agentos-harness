@@ -1,3 +1,4 @@
+import { orderedSections } from './module-layout.js';
 import { correctedLoreEntry, characterCorrectionFields, isRejectedStoryClaim } from './correction-rules.js';
 import { BOOK_TRIGGER_SOURCES, bookTriggerSource, reusableKeywordMatch } from './book-triggers.js';
 import { recallPolicy, recallTiming } from './recall.js';
@@ -5,7 +6,7 @@ import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
 import { validStoryMinute, validElapsed } from './story-clock.js';
-import { promptText } from './prompts.js';
+import { promptText, roastVoiceText } from './prompts.js';
 // V10's canonical update contract and chat-local configuration.
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating, isReply } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
@@ -72,7 +73,7 @@ export function enabledV10() {
     const local = chatState()?.v10?.enabled;
     return settings().enabled && !memoryOnly() && (local ?? isCompanionPreset(activePreset()));
 }
-const HOST_OVERLAPS = {
+export const HOST_OVERLAPS = {
     style: ['Prose Rules','Realistic Bold NPCs','HQ NPC Creation','NPC Voice','Prose Lint Functions','Output Length','Card Fidelity','🎭 Card Fidelity 🃏','Gemini Pacing Nerf','Realism Mode/Jailbreak','[Gemini] Realism NSFW/Jailbreak'],
     preflight: ['Antithesis - Boot','Antithesis - Mechanics','Antithesis - Router','Antithesis - Helper Functions','Antithesis - Pages','Antithesis - Tail/Output'],
     dice: ['D&D Sim','Dice Rolls'],
@@ -99,9 +100,34 @@ export function activeHostPrompts() {
 }
 
 export function hostSceneChecks() {
-    if (!pairedPreset()) return {};
+    if (!pairedPreset() || explicitOwner(activePreset(),'preflight') === 'both') return {};
     const enabled = new Map(activeHostPrompts()?.filter(block=>block.enabled).map(block=>[block.id,block.name]) || []);
     return Object.fromEntries(Object.entries(HOST_SCENE_CHECKS).flatMap(([key,id])=>enabled.has(id) ? [[key,enabled.get(id)]] : []));
+}
+
+function explicitOwner(preset, key) {
+    const owners = chatState()?.v10?.moduleOwners;
+    return owners && Object.hasOwn(owners,preset) ? owners[preset]?.[key] : undefined;
+}
+// Suggestions for third-party blocks. The rest of a preset can contain unrelated behavior.
+const REFERENCE_PAIRS = {
+    'sola chatterbox':['roast'], "sola's story review":['preflight'], 'lightning story review':['preflight'],
+    'thought engine':['state'], 'carried inventory':['state'], 'status':['state'],
+    'psychological states':['emotions'], 'hidden truths':['knowledge'], 'anti-omniscience':['knowledge'],
+    'meanwhile':['plots'], 'plotlines':['plots'], 'story threads':['plots'], 'dialogue color':['colors'],
+    'character realism':['preflight','style'], 'new faces':['state'], "phi's scratchpad":['roastFeedback'],
+    'chi, the best friend':['roast'], 'lou, the detective':['roast'], 'sam, the gamer':['roast'],
+    'grace, the screenwriter':['roast'], 'layla, the weeb':['roast'], 'phi, the story master':['roast'], 'sola, the enthusiast':['roast'],
+};
+export function blockCompanions(block,preset=activePreset()) {
+    const pairs = settings().promptPairs;
+    const manual = pairs && Object.hasOwn(pairs,preset) ? pairs[preset] : null;
+    if (manual && Object.hasOwn(manual,block.id)) return manual[block.id].filter(key=>Object.hasOwn(MODULES,key));
+    if (block.id.startsWith('ri-check-') || block.id==='ri-craft-checks') return ['preflight'];
+    if (block.id.startsWith('ri-craft-')) return ['style'];
+    const normalized=block.name.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,'');
+    if (Object.hasOwn(REFERENCE_PAIRS,normalized)) return REFERENCE_PAIRS[normalized];
+    return Object.keys(HOST_OVERLAPS).filter(key=>HOST_OVERLAPS[key].some(name=>name.toLowerCase()===block.name.trim().toLowerCase()));
 }
 
 export function moduleOwnership(preset = activePreset()) {
@@ -132,18 +158,26 @@ export function moduleOwnership(preset = activePreset()) {
         if (!blocks.length) continue;
         const blocked = blocks.some(block=>block.enabled!==false);
         const choice = choices?.[module] ?? (blocked ? 'preset' : 'extension');
-        ownership[module] = {blocks,choice,usesExtension:choice==='extension' && !blocked,blocked};
+        ownership[module] = {blocks,choice,usesExtension:choice==='both' || choice==='extension' && !blocked,blocked};
+    }
+    for (const key of Object.keys(MODULES)) {
+        if (!ownership[key] && ['both','preset'].includes(choices?.[key])) {
+            const blocks = (hostBlocks || []).filter(row=>blockCompanions(row,preset).includes(key)).map(row=>({name:row.name,enabled:row.enabled,blocks:[row]}));
+            ownership[key] = {choice:choices[key],blocks,usesExtension:choices[key]==='both',blocked:blocks.some(row=>row.enabled)};
+        }
     }
     return ownership;
 }
 
 export function setModuleOwner(preset, key, value) {
-    if (!Object.hasOwn(HOST_OVERLAPS,key) || !['preset','extension'].includes(value) || !preset) return;
+    if (!Object.hasOwn(MODULES,key) || !['preset','extension','both',undefined].includes(value) || !preset) return;
     const local = prefs();
     if (!local) return;
     const owners = local.moduleOwners ||= {};
     const selection = Object.hasOwn(owners,preset) ? owners[preset] : {};
-    Object.defineProperty(owners,preset,{value:{...selection,[key]:value},enumerable:true,writable:true,configurable:true});
+    const next={...selection};
+    if (value===undefined) delete next[key]; else next[key]=value;
+    Object.defineProperty(owners,preset,{value:next,enumerable:true,writable:true,configurable:true});
     saveChatState();
 }
 
@@ -622,19 +656,19 @@ export function emotionReplyAge(record, chat, type = 'normal') {
 
 export function updateContract(modules, opening = false, { fieldsOnly = false } = {}) {
     const kinds = RECORD_KINDS.filter(kind => modules[KIND_MODULE[kind]]);
-    const sections = [
-        modules.state && `scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","elapsed":0,"minutes":0,"ended":false}. ${promptText('timingUpdate')}`,
-        kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). ${promptText('structuredFacts')}`,
-        modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Use bodyLasting:true for a durable condition.',
-        modules.state && `${promptText('structuredPortrayal')} Use development:true for lasting growth. A fact may link to a plot record and reference a known baseEntry and baseRelation (extends or updates-present).`,
-        modules.relationships && `For a relationship use subject and other, with optional perspective. ${promptText('structuredRelationships')}`,
-        modules.knowledge && `For knowledge include basis: observed, reported, rumor or belief; private defaults to true. ${promptText('structuredKnowledge')}`,
-        modules.emotions && `For emotion include axes (tenderness, fury, dread, yearning, each 0–10 or omitted), optional outward behavior, target and counterweight. ${promptText('structuredEmotions')}`,
-        (modules.plots || modules.worldEvents) && `For plot and event records use status open or done. ${promptText('structuredOutcomes')}`,
-        modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts and a travel object with from, to, departed (exact story minute), and minutes (minimum duration), when timing and travel are established.',
-        modules.plots && modules.worldEvents && `Use schedule:true with optional weight and spacing in replies. ${promptText('structuredSchedule')}`,
-        modules.roast && !opening && `roast: ${promptText('structuredRoast')} Include this string even when no story facts changed.\nCommentator voice (for roast only): ${promptText('roastVoice')}`,
-    ].filter(Boolean);
+    const sections = orderedSections([
+        ['state', modules.state && `scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","elapsed":0,"minutes":0,"ended":false}. ${promptText('timingUpdate')}`],
+        ['state', kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). ${promptText('structuredFacts')}`],
+        ['state', modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Use bodyLasting:true for a durable condition.'],
+        ['state', modules.state && `${promptText('structuredPortrayal')} Use development:true for lasting growth. A fact may link to a plot record and reference a known baseEntry and baseRelation (extends or updates-present).`],
+        ['relationships', modules.relationships && `For a relationship use subject and other, with optional perspective. ${promptText('structuredRelationships')}`],
+        ['knowledge', modules.knowledge && `For knowledge include basis: observed, reported, rumor or belief; private defaults to true. ${promptText('structuredKnowledge')}`],
+        ['emotions', modules.emotions && `For emotion include axes (tenderness, fury, dread, yearning, each 0–10 or omitted), optional outward behavior, target and counterweight. ${promptText('structuredEmotions')}`],
+        ['plots', (modules.plots || modules.worldEvents) && `For plot and event records use status open or done. ${promptText('structuredOutcomes')}`],
+        ['plots', modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts and a travel object with from, to, departed (exact story minute), and minutes (minimum duration), when timing and travel are established.'],
+        ['worldEvents', modules.plots && modules.worldEvents && `Use schedule:true with optional weight and spacing in replies. ${promptText('structuredSchedule')}`],
+        ['roast', modules.roast && !opening && `roast: ${promptText('structuredRoast')} Include this string even when no story facts changed.\nCommentator voice (for roast only): ${roastVoiceText()}`],
+    ], prefs()?.moduleOrder);
     if (fieldsOnly || !sections.length) return sections.join('\n');
     return `After the visible prose, ${opening || modules.roast ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;
 }
@@ -742,20 +776,29 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const format = !paired ? '' : local.generatePlan
         ? `${promptText('planGuidance')} Place the outline inside one <reply_plan>…</reply_plan> block before the prose.`
         : promptText('proseFirst');
-    const text = [
-        format, modules.style && style, modules.style && writingProfileText(local.writingProfile),
-        avoid.length && `Avoid these stock phrases when composing the scene: ${JSON.stringify(avoid)}.`,
-        sceneCheckPrompt(scene,{modules,type,preflight:local.preflight}),formatSpeaker(modules),
-        modules.emotions && promptText('emotionSensitivity',{sensitivity:local.emotion?.sensitivity || 'flexible'}),
-        baseline.length && `Established portrayal takes precedence over general style:\n${baseline.slice(0,8).join('\n')}`,
-        plotAudit.some(row=>!row.eligible && row.recalled) && promptText('lockedPayoff'),
-        recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`,
-        modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`,
-        check && `${checkText(check)} ${promptText('resolvedActionGuidance')}`, feedback.length && `Out-of-story voice feedback, not canon:\n${promptText('roastFeedback')}\n${feedback.join('\n')}`,
+    const opportunitySlot = Symbol();
+    const guidance = orderedSections([
+        ['style', modules.style && style], ['style', modules.style && writingProfileText(local.writingProfile)],
+        ['style', avoid.length && `Avoid these stock phrases when composing the scene: ${JSON.stringify(avoid)}.`],
+        ['preflight', sceneCheckPrompt(scene,{modules,type,preflight:local.preflight})],
+        ['colors', formatSpeaker(modules)],
+        ['emotions', modules.emotions && promptText('emotionSensitivity',{sensitivity:local.emotion?.sensitivity || 'flexible'})],
+        ['state', baseline.length && `Established portrayal takes precedence over general style:\n${baseline.join('\n')}`],
+        ['plots', plotAudit.some(row=>!row.eligible && row.recalled) && promptText('lockedPayoff')],
+        ['state', recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`],
+        ['state', modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`],
+        ['worldEvents', local.moduleOrder?.length && opportunitySlot],
+        ['dice', check && `${checkText(check)} ${promptText('resolvedActionGuidance')}`],
+        ['roastFeedback', feedback.length && `Out-of-story voice feedback, not canon:\n${promptText('roastFeedback')}\n${feedback.join('\n')}`],
+    ],local.moduleOrder);
+    const slot=guidance.indexOf(opportunitySlot);
+    const beforeOffer=slot<0 ? null : [format,...guidance.slice(0,slot)].filter(Boolean).join('\n');
+    if (slot>=0) guidance.splice(slot,1);
+    const text = [format,...guidance,
         repair && `If applicable, recover a missing state change from accepted reply ${repair.id}. Put it in repairChanges alongside "repair":${repair.id}. ${promptText('structuredRepair')} Prior prose: ${JSON.stringify(repair.text)}`,
         updateContract(modules),
     ].filter(Boolean).join('\n');
-    return { text, offer, repair, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
+    return { text, offerOffset:beforeOffer?.length, offer, repair, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
 }
 
 export function loreReceipt(entries, notes, rows, book, recalled = []) {
