@@ -1,6 +1,6 @@
 # Quick replies and guided turns — discussion draft
 
-**Status:** proposed for discussion, 2026-11-21. Existing behavior and six input files are described in the [source audit](quick-replies-audit.md). The user has requested the capabilities below. The suggested defaults, data structures and milestones are open decisions. Implementation begins after review.
+**Status:** proposed for discussion, 2026-11-21. The [source audit](quick-replies-audit.md) inventories the six input files. The [four-repository review](quick-replies-reference-review.md) documents additional workflows and observed behavior in SillyTavern. The user has requested the capabilities below. The suggested defaults, data structures and milestones are open decisions. Implementation begins after review.
 
 ## User experience
 
@@ -47,7 +47,7 @@ Pair editable quick-action prompts with known preset blocks in the existing work
 | 2. Pure resolution | Extract a side-effect-free version draw from the current mutating picker. Evaluate recipes through existing category, lock, burn, weight, pacing and no-repeat logic on a copy. Resolve typed arguments and optional physical dice in code. Return selected source IDs, exact text, draw and proposed state changes. | Preview/cancel causes zero writes. Selected and rolled results reproduce the displayed instruction. |
 | 3. Chat UI and one-shot delivery | Add launcher, catalog, inspector, pending chips and manager. Attach a one-shot directive to an eligible generation identified by chat, target message, swipe and attempt. Reserve a stable selection, deduplicate the same automatic/manual source, then commit once on accepted completion. Release on failure or cancellation. Keep quiet, impersonation and dry-run requests ineligible. | Request captures, receipt, abort/retry and double-tap checks |
 | 4. Guided drafting and replacement | Reuse logged AI request transport with explicit profile, bounded context and one-call mode. Preserve persona, speaking perspective, draft selection and prior candidates. For recorded replies call the existing guided transaction. Add a host-only path for an unrecorded reply that first inventories any extension-owned state requiring reconciliation. Make a new swipe or revision only after an explicit action. | Output stays in the intended chat; selected swipe, world facts, dice and chapters reconcile |
-| 5. Interoperability and restoration | Capability-detect native QR enumeration and named execution. Add the import report, ownership inspection, per-item comparison and restore. Delayed surprises and multi-pass revisions are optional candidates with separate enabling and budgets. | Keel import with native QR enabled/disabled; opaque-host and concurrent-extension tests |
+| 5. Interoperability and restoration | Capability-detect native QR enumeration and named execution. Add the import report, ownership inspection, per-item comparison and restore. If selected, the delayed direction, persistent guide and prose-revision capabilities below each get an independent implementation milestone and call budget. | Keel import with native QR enabled/disabled; opaque-host and concurrent-extension tests |
 | 6. Validation | Use an isolated SillyTavern user, a request-recording endpoint and synthetic books with the uploaded shapes. Run a cold usability review on phone width and desktop. A live provider comparison can separately assess writing quality. | Durable audit listing actual clicks, requests, side effects, failures and fixes |
 
 **Turn lifecycle.** Draft → queued → reserved by one eligible generation → accepted or released. Anchor records to the originating chat and selected swipe, including a content fingerprint so stale drafts can be recognized. A failed or empty generation returns the same reserved choice to pending. A retry should show whether the original request may already have reached a provider. A branch inherits accepted history through its fork point; pending parent directions require explicit copying. Batch deletion or editing invalidates stale receipts/effects through existing history reconciliation. An in-flight draft that finishes after a chat switch goes back to its originating draft store. It must never populate another chat’s composer.
@@ -74,7 +74,7 @@ Pair editable quick-action prompts with known preset blocks in the existing work
 
 ## Decision log for discussion
 
-These defaults remain proposals until chosen. Record each answer here before the build. Start with D1 because it determines what a tap in the chat can do.
+These defaults remain proposals until chosen. Record each answer here before the build. The candidate inventory is open for discussion. Establish which workflows the user wants before deciding the default tap behavior or release sequence.
 
 | Decision | Proposed starting point | Other choices to compare |
 | --- | --- | --- |
@@ -86,4 +86,26 @@ These defaults remain proposals until chosen. Record each answer here before the
 | D6. Source management and restore | Live links by default, standalone copies on demand; show baseline and history scope. | Snapshot on pin; user chooses link or copy for each import |
 | D7. Interoperability | Translate recognized actions, inventory all others, offer explicit native delegation when supported. | Extension-native library only; broad native script execution as a separate advanced mode |
 | D8. Visibility and layout | One launcher plus user pins; show the pending count and destination. | Persistent category bar; message-level actions only |
-| D9. Later features | Discuss delayed surprises, persistent guides and optional prose-revision passes independently. | Include each at first release, defer, or leave it to its existing tool |
+| D9. Idea generation and directing | Keep “offer alternatives,” “combine directions into one scene” and “develop these ordered beats” individually selectable. | Local book draw only; generate on demand; generate a batch automatically after chosen replies |
+| D10. Delayed directions | Track when a direction becomes due, is reserved, reaches the request and is accepted. Allow local book draws and optional generated surprises. | Fixed or random delay; concealed or visible content; optional recurring preparation with its own call budget |
+| D11. Standing guides and trackers | Use a named, editable chat guide with visible lifetime. Reuse our existing world records when they own the same fact. | Static guide; scoped guide with expiry; optional model-refreshed guide; link to an external tracker |
+| D12. Revision and continuation | Expose full-reply swipe, append-only continuation and reviewable prose revision as separate operations. | One pass; a user-defined sequence of passes; delegate to a compatible installed postprocessor |
+| D13. Historical context | Resolve historical suggestions and revisions against the chosen swipe and its prior timeline. Show included lore and what the player character can know. | Deliberate retrospective mode; selected extra sources; user-specified context window |
+| D14. Composition and group targeting | Allow insert, append, replace, visible send and private direction. Bind a group reply to a named member or a user-selected rule. | Composer only; allow explicit send without generating a reply; group-wide direction; delegate speaker selection to host |
+| D15. Editing and restore scope | Show what changed on the shortcut, source prompt, generated option, player draft, or accepted reply. Restore the selected object from its recorded baseline. | Keep one baseline per object; retain revision history; follow a user's live source |
+| D16. Exposing the tools | Give phone-visible names to the source and the result of tapping. Independently enable or pin each chosen operation. | Composer launcher; message-local picker; native Quick Reply linkage; all three as user-selectable entry points |
+
+## Additional acceptance cases from the reference review
+
+These are proposed release checks for the corresponding capability if selected. They extend A1–A15.
+
+| ID | Exercise | Required observation |
+| --- | --- | --- |
+| A16 | Generate at an older message with a unique future fact placed later in the chat and an untriggered secret present in a book. | A captured historical request omits the future fact and the unused secret. An explicitly broadened request identifies its extra sources. |
+| A17 | Feed mixed bullets, title-only suggestions, separators, an unfinished stream and an empty response. | No placeholder, markup delimiter or partial candidate enters the composer without deliberate editing. Usable candidates survive. Show raw output and a manual recovery path. |
+| A18 | Mark a surprise due, run a helper generation, reload, cancel a normal generation and retry. | A helper or generation-end event alone never spends the surprise. A retry retains the same prepared text. A recorded accepted delivery consumes it once. |
+| A19 | Attach multiple named guides with different owners and expiries. Remove one and switch chats. | The prompt loses only the removed guide. The list shows source, role, duration and remaining cost. Clearing our guides preserves external tools' injections. |
+| A20 | Generate an alternative, extend only its ending, undo that addition, then return to a previous swipe. | Original text, per-swipe metadata and accepted story state match the chosen revision. Player drafts and candidate history are recoverable. |
+| A21 | Run two revisions, inspect intermediate prose, alter the draft, reject it, then edit the original and reopen the old comparison. | No provisional change becomes canon. Accepting a stale comparison requires resolving the changed target. Failed or unchanged passes are distinguished, and failure of every pass never reports a successful rewrite. |
+| A22 | Give separate directions to two group members and switch the selected member or chat mid-draft. | Each request identifies its intended speaker, target, persona and ownership. Cancellation preserves the draft. No direction silently moves to a different group member. |
+| A23 | Invoke a one-call action using a backend that fails partway through streaming. | Display actual attempts. Require an explicit retry if the call limit is one, preserve received text and show which profile would run the retry. |

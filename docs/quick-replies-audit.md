@@ -1,6 +1,6 @@
 # Quick replies and guided turns — investigation
 
-Working evidence for the design discussion, 2026-11-21. The baseline is Roleplay Instructions 10.0.32, commit ccd863a. The review covered the six supplied JSON files, the current extension, the native Quick Reply API in the available SillyTavern checkout, and source from four external extensions. Findings below come from reading data and code. Runtime coexistence and phone interaction belong to the acceptance plan. The uploaded books and scripts were treated as examples and inspected without executing them.
+Working evidence for the design discussion, 2026-11-21. The baseline is Roleplay Instructions 10.0.32, commit ccd863a. The review covered the six supplied JSON files, the current extension, the native Quick Reply API in the available SillyTavern checkout, and source from four external extensions. This initial inventory comes from reading data and code. The [four-repository follow-up](quick-replies-reference-review.md) traces implementation paths and records isolated SillyTavern exercises and an independent phone-width first-use review. Its verification section identifies the remaining integration work. The uploaded books and scripts were treated as examples and inspected without executing them.
 
 ## What the uploaded books actually contain
 
@@ -35,6 +35,8 @@ The file identifies itself as native quick-reply **format version 2**. There are
 Several commands address the same ephemeral injection ID, `keel_oneshot`. Treating each button as an independent queued event would change that behavior. The dossier and opening use global handoff variables. An extension-native chapter transfer can bind the transfer to a particular source and destination. Keel's status buttons read state that its other components expect to populate. Importing a label and its text alone cannot recreate that functionality. A native QR interoperability layer and a standalone shortcut builder are distinct features.
 
 ## Four upstream designs
+
+The table is an index. For prompt construction, saved state, delivery, retries, UI behavior, and independent feature choices, see the [repository-by-repository review](quick-replies-reference-review.md).
 
 | Source and pinned implementation | What the code actually does | Candidate and interaction to resolve |
 | --- | --- | --- |
