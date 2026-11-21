@@ -23,8 +23,19 @@ assert.equal(advanceStoryClock(ordinal,{time:'00:15'}, {clock:30}).scene.time,'2
 assert.equal(advanceStoryClock(ordinal,{time:'00:15',date:'Day 3'}, {clock:30,minutes:15}).minutes,30);
 
 const fictional = {date:'Wednesday, Month 7, Day 14',time:'11:58 PM'};
-const unknown = advanceStoryClock(fictional,{}, {clock:10,elapsed:4});
-assert.deepEqual(unknown.scene,{date:'',time:'12:02 AM',lastKnownDate:fictional.date,daysAfterKnownDate:1});
+const fictionalRollover = advanceStoryClock(fictional,{}, {clock:10,elapsed:4});
+assert.deepEqual(fictionalRollover,{scene:{date:'Thursday, Month 7, Day 15',time:'12:02 AM'},minutes:14,issues:[]});
+assert.deepEqual(advanceStoryClock(fictional,{date:'Friday, Month 7, Day 15',time:'12:02 AM'}, {clock:10}),fictionalRollover);
+assert.deepEqual(advanceStoryClock(fictional,{date:'Thursday'}, {clock:10,elapsed:4}),fictionalRollover);
+assert.equal(advanceStoryClock(fictionalRollover.scene,{date:'Friday, Month 7, Day 15'}).scene.time,'12:02 AM');
+assert.deepEqual(advanceStoryClock({date:'Saturday, Month 12, Day 31',time:'11:58 PM'},{date:'Month 1, Day 1',time:'12:02 AM'}, {clock:10}),
+    {scene:{date:'Sunday, Month 1, Day 1',time:'12:02 AM'},minutes:14,issues:[]});
+assert.equal(advanceStoryClock({date:'Saturday, Month 2, Day 28',time:'11:58 PM'},{},{elapsed:4}).scene.date,'Sunday, Month 3, Day 1');
+assert.deepEqual(advanceStoryClock({date:'',time:'12:02 AM',lastKnownDate:fictional.date,daysAfterKnownDate:1},{},{elapsed:1440}).scene,
+    {date:'Friday, Month 7, Day 16',time:'12:02 AM'});
+const custom={date:'Wednesday, Rainsong 14',time:'11:58 PM'};
+const unknown = advanceStoryClock(custom,{}, {clock:10,elapsed:4});
+assert.deepEqual(unknown.scene,{date:'',time:'12:02 AM',lastKnownDate:custom.date,daysAfterKnownDate:1});
 assert.equal(advanceStoryClock(unknown.scene,{}, {elapsed:2880}).scene.daysAfterKnownDate,3);
 assert.equal(weekdayAtOffset(fictional.date,1),'Thursday');
 assert.equal(weekdayAtOffset('Saturday',2),'Monday');

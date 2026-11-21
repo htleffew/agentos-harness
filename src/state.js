@@ -3,7 +3,7 @@ import { promptText } from './prompts.js';
 // they survive swiping or deleting the reply that happened to be newest when edited.
 import { ctx, KEY, isReply } from './st.js';
 import { separateReply } from './reply-format.js';
-import { weekdayAtOffset } from './story-clock.js';
+import { recoverSceneDate, weekdayAtOffset } from './story-clock.js';
 
 export const STATE_FIELDS = [['mind', 'Mind'], ['heart', 'Heart'], ['body', 'Body'], ['psyche', 'Psyche']];
 export const SCENE_FIELDS = [['present', 'Present'], ['where', 'Where'], ['when', 'When'], ['time', 'Time'], ['date', 'Date'], ['weather', 'Weather'], ['environment', 'Environment']];
@@ -209,10 +209,11 @@ export function sceneAt(before = Infinity, { overrides = before === Infinity } =
         if (savedSnapshot && (scene.date || scene.lastKnownDate) && scene.weather && scene.where) break;
     }
     collect(sceneUpdate(root?.sceneSeed),savedSnapshot);
+    const dated=recoverSceneDate(scene);
     if (overrides) for (const [key, entry] of Object.entries(root?.sceneOverrides || {})) {
-        if (SCENE_FIELDS.some(([field]) => field === key)) scene[key] = entry.value;
+        if (SCENE_FIELDS.some(([field]) => field === key)) dated[key] = entry.value;
     }
-    return normalizeScene(scene);
+    return normalizeScene(dated);
 }
 export function storyMinuteAt(before = Infinity) {
     const chat = ctx().chat || [];

@@ -39,3 +39,7 @@ assert.match(statePrompt(),/Date: Tuesday, May 12, 2026/);
 context.chat.push({mes:'Mira returned the next evening.',extra:{roleplay_instructions:{scene:{date:'',lastKnownDate:'Last Autumn',daysAfterKnownDate:1,time:'7:00 PM'}}}});
 assert.equal(sceneAt().date,undefined);
 assert.match(statePrompt(),/Date: Day after Last Autumn/);
+context.chat.push({mes:'Mira lit the lantern.',extra:{roleplay_instructions:{scene:{date:'',lastKnownDate:'Wednesday, Month 7, Day 14',daysAfterKnownDate:1,time:'12:02 AM'}}}});
+assert.equal(snapshotScene(3).date,'Thursday, Month 7, Day 15');
+assert.match(statePrompt(),/Date: Thursday, Month 7, Day 15/);
+assert.equal(context.chat[3].extra.roleplay_instructions.scene.date,'');

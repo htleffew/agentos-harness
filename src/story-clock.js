@@ -1,5 +1,8 @@
 const DAY = 1440;
 const DAY_MS = 86400000;
+const NUMBERED_YEAR = 2001; // Yearless numbered calendars use a conventional non-leap year.
+const DAYS_IN_NUMBERED_YEAR = 365;
+const NUMBERED_FIRST_DAY = Date.UTC(NUMBERED_YEAR,0,1)/DAY_MS;
 const WEEK = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const weekdayPrefix = new RegExp(`^(${WEEK.join('|')})(?:,?\\s+|,?$)`,'i');
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -37,6 +40,14 @@ function dayNumber(value) {
     const date = original.replace(weekdayPrefix,'');
     const ordinal = /^Day\s+(\d{1,9})$/i.exec(date);
     if (ordinal) return { format:'ordinal', day:Number(ordinal[1]),weekday };
+    const numbered = /^Month\s+(\d{1,2})\s*,\s*Day\s+(\d{1,2})$/i.exec(date);
+    if (numbered) {
+        const month=Number(numbered[1]), day=Number(numbered[2]);
+        const stamp=Date.UTC(NUMBERED_YEAR,month-1,day);
+        const checked=new Date(stamp);
+        return month===checked.getUTCMonth()+1 && day===checked.getUTCDate()
+            ? {format:'numbered',day:stamp/DAY_MS,month,weekday} : null;
+    }
     const written = /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/.exec(date);
     const month = written ? MONTHS.findIndex(name=>name.toLowerCase()===written[1].toLowerCase()) : -1;
     const iso = month>=0 ? `${written[3]}-${String(month+1).padStart(2,'0')}-${written[2].padStart(2,'0')}` : date;
@@ -55,6 +66,12 @@ function nextDate(date, days) {
         const prefix = current.weekday>=0 ? `${WEEK[(current.weekday+days)%7]}, ` : '';
         return day < 1e9 ? `${prefix}Day ${day}` : '';
     }
+    if (current.format==='numbered') {
+        const offset=(current.day-NUMBERED_FIRST_DAY+(days%DAYS_IN_NUMBERED_YEAR))%DAYS_IN_NUMBERED_YEAR;
+        const numbered=new Date((NUMBERED_FIRST_DAY+offset)*DAY_MS);
+        const weekday=weekdayAtOffset(date,days);
+        return `${weekday ? `${weekday}, ` : ''}Month ${numbered.getUTCMonth()+1}, Day ${numbered.getUTCDate()}`;
+    }
     const shifted = new Date(day*DAY_MS);
     if (!Number.isFinite(shifted.valueOf()) || shifted.getUTCFullYear()>9999) return '';
     const prefix = current.weekday>=0 ? `${WEEK[shifted.getUTCDay()]}, ` : '';
@@ -63,12 +80,23 @@ function nextDate(date, days) {
         : shifted.toISOString().slice(0,10));
 }
 
-function datedInterval(before, next, start, end) {
-    if (!start || !end || !before.date || !next.date) return undefined;
-    if (before.date===next.date) return end.minutes-start.minutes;
-    const from = dayNumber(before.date), to = dayNumber(next.date);
-    if (from && to?.format===from.format) return (to.day-from.day)*DAY+end.minutes-start.minutes;
-    return undefined;
+function dateDistance(before, next) {
+    if (!before || !next) return null;
+    if (before===next) return {days:0};
+    const from=dayNumber(before), to=dayNumber(next);
+    if (!from || to?.format!==from.format) return null;
+    const turnOfYear=from.format==='numbered' && from.month===12 && to.month===1;
+    return {days:to.day-from.day+(turnOfYear ? DAYS_IN_NUMBERED_YEAR : 0),from};
+}
+
+/** Fill dates in older saved scenes when the original rollover only kept an offset. */
+export function recoverSceneDate(scene) {
+    const days=scene.daysAfterKnownDate;
+    if (scene.date || !scene.lastKnownDate || !Number.isSafeInteger(days) || days<=0) return scene;
+    const date=nextDate(scene.lastKnownDate,days);
+    if (!date) return scene;
+    const {lastKnownDate,daysAfterKnownDate,...rest}=scene;
+    return {...rest,date};
 }
 
 function rollDate(scene,previous,days) {
@@ -83,11 +111,20 @@ function rollDate(scene,previous,days) {
 
 /** Advance the relative story clock and the displayed scene from one accepted update. */
 export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, elapsed } = {}) {
+    previous=recoverSceneDate(previous);
+    const anchor=dayNumber(previous.date);
+    if (anchor?.format==='numbered' && anchor.weekday>=0 &&
+        WEEK.some(day=>day.toLowerCase()===String(update.date || '').trim().toLowerCase())) {
+        // A weekday alone adds no calendar information when the full date is already known.
+        const {date,...rest}=update;
+        update=rest;
+    }
     const scene = { ...previous,...update };
     const issue = [];
     const start = clockTime(previous.time || previous.when);
     const end = clockTime(update.time);
-    const measured = datedInterval(previous,update,start,end);
+    const distance=dateDistance(previous.date,update.date);
+    const measured=start && end && distance ? distance.days*DAY+end.minutes-start.minutes : undefined;
     const known = validStoryMinute(clock);
     let duration = validElapsed(elapsed) ? elapsed : undefined;
     if (known && validStoryMinute(minutes)) {
@@ -104,10 +141,13 @@ export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, 
         }
         duration=measured;
     }
+    if (distance?.from?.format==='numbered' && distance.from.weekday>=0 && distance.days>=0 && !(measured<0)) {
+        scene.date=nextDate(previous.date,distance.days);
+    }
     if (duration===undefined && start && end && !update.date && end.minutes>=start.minutes) {
         duration=end.minutes-start.minutes;
     }
-    if (duration===undefined && previous.date && update.date && update.date!==previous.date && !update.time) {
+    if (duration===undefined && previous.date && update.date && scene.date!==previous.date && !update.time) {
         delete scene.time;
         if (!update.when) delete scene.when;
     }

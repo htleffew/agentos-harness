@@ -1,5 +1,9 @@
 # Changelog
 
+## 10.0.27
+
+- Advance weekdays and numbered month and day fields together, including at month and year boundaries. Recover the full date from saved rollover offsets so older replies and new requests use the same calendar date.
+
 ## 10.0.26
 
 - Show the known weekday after a fictional midnight rollover and keep the last full date in the header tooltip and the next request.
