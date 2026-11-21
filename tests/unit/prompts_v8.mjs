@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const extensionSettings = {}; let saves = 0;
 globalThis.SillyTavern = { getContext: () => ({ extensionSettings, saveSettingsDebounced: () => saves++, name1:'User',name2:'Hale',chat:[] }) };
@@ -30,11 +31,11 @@ extensionSettings.roleplay_instructions.cards.voice='Dry theater critic with a w
 assert.match(P.promptText('roastVoice'),/Dry theater critic/);
 assert(P.promptStatus('roastVoice').customized);
 P.restorePrompt('roastVoice');
-const { DEFAULT_VOICE, ORIGINAL_VIEWER_VOICE } = await import('../../src/defaults.js');
+const { DEFAULT_VOICE, PREVIOUS_GREMLIN_VOICE, ORIGINAL_VIEWER_VOICE } = await import('../../src/defaults.js');
 assert.equal(P.promptText('roastVoice'),DEFAULT_VOICE);
 assert.match(DEFAULT_VOICE,/i keysmash when words fail hfksjdks/);
 const st=extensionSettings.roleplay_instructions;
-for (const stock of [DEFAULT_VOICE, ORIGINAL_VIEWER_VOICE]) {
+for (const stock of [DEFAULT_VOICE, PREVIOUS_GREMLIN_VOICE, ORIGINAL_VIEWER_VOICE]) {
     st.cards.voice=stock;
     assert.equal(P.promptText('roastVoice'),DEFAULT_VOICE);
     assert.equal(P.promptStatus('roastVoice').customized,false);
@@ -45,3 +46,30 @@ assert.equal(P.promptText('roastVoice'),edited);
 P.savePrompt('roastVoice','Use my saved rewrite.');
 st.cards.voice=edited;
 assert.equal(P.promptText('roastVoice'),'Use my saved rewrite.');
+
+const {DEFAULT_STORY_AVOID, DEFAULT_WRITER_RULES, ORIGINAL_WRITER_RULES} = await import('../../src/defaults.js');
+const {settings} = await import('../../src/store.js');
+const {writerRules, wordHits} = await import('../../src/pacing.js');
+const {updateContract, DEFAULT_MODULES} = await import('../../src/v10.js');
+const preset = JSON.parse(readFileSync(new URL('../../presets/Roleplay Instructions V10.json', import.meta.url), 'utf8'));
+const normalized = text => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+const flagged = DEFAULT_STORY_AVOID.split('\n').map(normalized);
+const ownedText = [
+    ...Object.entries(P.PROMPTS).map(([id, prompt]) => [id, prompt.text]),
+    ...preset.prompts.map(prompt => [prompt.name, prompt.content || '']),
+    ['writer rules', DEFAULT_WRITER_RULES],
+    ['structured scene', updateContract(DEFAULT_MODULES)],
+    ['legacy scene', WF.buildAsk([])],
+];
+for (const [label, value] of ownedText) {
+    assert.doesNotMatch(value,/\b(?:beat|beats|cost|costs|ledger|invoice|archive|filed|filing)\b/i,label);
+    assert.deepEqual(flagged.filter(phrase => ` ${normalized(value)} `.includes(` ${phrase} `)),[],label);
+}
+const config = settings();
+config.words.list = 'customscreenmarker';
+config.words.tell = true; // Previously this preference injected the full list.
+config.writer.rules = ORIGINAL_WRITER_RULES;
+assert.deepEqual(wordHits('A customscreenmarker appeared.'),['customscreenmarker']);
+assert.doesNotMatch(writerRules().join(' '),/customscreenmarker|paperwork/);
+config.writer.rules = 'Keep the user’s own guidance.';
+assert.match(writerRules().join(' '),/Keep the user’s own guidance/);

@@ -192,11 +192,9 @@ function writerSection(app) {
         field('Flag words from your list', st.words.on ? `On: ${count} ${count === 1 ? 'word is' : 'words are'} on the list. Text that uses one gets the line "On your word list" where you review it. It is a flag: you can always keep the text.` : 'Off: no words are flagged.',
             onOff(st.words.on, (v) => { st.words.on = v; save(); app.render(); })),
         st.words.on ? [
-            field('Your word list', 'Separate words with commas. A star at the end stands for any ending: "ledger*" also finds "ledgers". Capital letters make no difference.',
+            field('Your word list', 'This list runs locally. Separate words with commas. A star at the end matches any ending. Capital letters make no difference.',
                 textArea(st.words.list, (v) => { st.words.list = v; save(); }, { rows: 5 })),
             h('div', { class: 'ri-row ri-row-tight' }, button('Put the starting list back', () => { st.words.list = DEFAULT_WORDS; save(); app.render(); }, { kind: 'ghost' })),
-            field('Also ask the AI writer to leave these words out', 'On: the list is added to every writing request, so fewer flagged words come back.',
-                onOff(st.words.tell !== false, (v) => { st.words.tell = v; save(); })),
         ] : null);
 }
 

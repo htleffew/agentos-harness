@@ -147,7 +147,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.deepEqual(await header.locator('dt').allTextContents(),['Time','Story date','Location','Weather']);
         assert.deepEqual(await header.locator('dd').allTextContents(),['11:55 PM','Day 1','Dock','Light rain']);
         assert.equal(await header.evaluate(node=>node.nextElementSibling?.classList.contains('mes_text')),true);
-        for (const name of ['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs']) {
+        for (const name of ['Viewpoint & player agency','Cast, motives & voice','Scene progression & pacing','Prose & dialogue craft','Consequences, combat & payoffs']) {
             const marker=preset.prompts.find(prompt=>prompt.name===name).content.split('. ')[0];
             assert.equal(L.text(L.requests()[0]).split(marker).length-1,1,name);
         }

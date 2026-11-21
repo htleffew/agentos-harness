@@ -27,9 +27,9 @@ export const DEFAULT_MODULES = {
     style: true, preflight: true, state: true, knowledge: true, emotions: true, relationships: true, plots: true, worldEvents: true,
     dice: true, colors: true, roast: false, roastFeedback: false,
 };
-export const STYLE = 'Write direct, concrete fiction. Give the current cast distinct voices and independent motives. Show actions and speech, respect viewpoint knowledge, and leave the player’s speech, thoughts and choices to the player. End on a live beat without a meta question or choice menu. Most people are generally well, rested and capable; transient setbacks usually resolve quickly. Let significant moments breathe and skip uneventful intervals when appropriate.';
+export const STYLE = 'Write direct, concrete fiction. Give the current cast distinct voices and independent motives. Show actions and speech, respect viewpoint knowledge, and leave the player’s speech, thoughts and choices to the player. End with an in-world action or development that gives the player room to respond. Most people are generally well, rested and capable; transient setbacks usually resolve quickly. Let significant moments breathe and skip uneventful intervals when appropriate.';
 const COMPANION_STYLE = 'Treat good health and rest as normal. Minor setbacks usually resolve quickly. Carry a lasting limitation only when the story establishes one.';
-const COMPANION_WRITING_BLOCKS = new Set(['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs', 'Decisive NPCs', 'Recurring NPC creation', 'Voice continuity', 'Same-reply quality checks', 'Slow-burn scene profile', 'Player-limited viewpoint']);
+const COMPANION_WRITING_BLOCKS = new Set(['Viewpoint & player agency','Cast, motives & voice','Scene progression & pacing','Prose & dialogue craft','Consequences, combat & payoffs', 'Decisive NPCs', 'Recurring NPC creation', 'Voice continuity', 'Same-reply quality checks', 'Slow-burn scene profile', 'Player-limited viewpoint']);
 export const defaultWritingGuidance = () => pairedPreset() ? COMPANION_STYLE : STYLE;
 export const PREFLIGHT = 'Apply the enabled checks to the prose itself. Use the established scene and cast to decide which checks matter on this turn.';
 export const SCENE_CHECKS = {physical:'Physical realism',social:'Social realism and character fidelity',craft:'Pacing and prose',continuity:'Information and continuity'};
@@ -760,13 +760,13 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
             relevant.push({record:row,text:`${row.id} [${row.kind}${row.subject ? ` / ${row.subject}` : ''}${row.basis ? ` / ${row.basis}` : ''}${row.protected ? ' / protected' : ''}]: ${row.text} ${suffix}`.trim()});
         }
     }
-    let cost = 0;
+    let recallLength = 0;
     relevant.sort((a,b) => Number(PLOT_KINDS.includes(a.record.kind)) - Number(PLOT_KINDS.includes(b.record.kind)));
-    for (const item of relevant) if (cost + item.text.length <= 6800) {
+    for (const item of relevant) if (recallLength + item.text.length <= 6800) {
         recalled.push(item);
         const status = plotAudit.find(row=>row.id===item.record.id);
         if (status) status.recalled = true;
-        cost += item.text.length + 1;
+        recallLength += item.text.length + 1;
     }
     if (schedule && modules.plots && modules.worldEvents) {
         const candidates = [...records.values()].filter(row => PLOT_KINDS.includes(row.kind) && row.status === 'open' && row.schedule && exposure.get(row.id)?.on!==false && gate(row,records,clock,scene) &&
@@ -1006,7 +1006,7 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
     const writing = modules.style ? local.style ?? defaultWritingGuidance() : '';
     const companionChecks = new Set(Object.values(HOST_SCENE_CHECKS));
     const companionWriting = pairedPreset() && !text ? (activeHostPrompts() || [])
-        .filter(block=>block.enabled && (COMPANION_WRITING_BLOCKS.has(block.name) || companionChecks.has(block.id))).map(block=>block.content).join('\n') : '';
+        .filter(block=>block.enabled && (block.id === 'ri-craft-scene' || COMPANION_WRITING_BLOCKS.has(block.name) || companionChecks.has(block.id))).map(block=>block.content).join('\n') : '';
     const openingPermission = local.openingPlayerThoughts === true
         ? promptText('openingPlayerThoughts')
         : 'The player supplies their own thoughts, dialogue, and choices.';

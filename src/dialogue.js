@@ -37,12 +37,12 @@ export function dialogueAttributions(text) {
         const legacyName = !labelPrefix.trim() || /[.!?;]\s*$/.test(labelPrefix) ? validName(legacy?.[1]) : '';
         const leading = validName(colon.exec(before)?.[1] || beforeSpeech.exec(before)?.[1]);
         const trailing = afterName(after);
-        const beat = validName(beforeAction.exec(before)?.[1]);
+        const actor = validName(beforeAction.exec(before)?.[1]);
         const sameParagraph = previous && previousEnd>=lineStart;
         const continuing = sameParagraph && /[.!?][ \t]*$/.test(before) && !/[.!?].+\S/.test(before.trimEnd()) ? afterName(before) : '';
         const agrees = !leading || !trailing || compare(leading) === compare(trailing);
         return {
-            start, end, name:legacyName || (agrees ? trailing || leading || continuing || beat : ''),
+            start, end, name:legacyName || (agrees ? trailing || leading || continuing || actor : ''),
             labelStart:legacyName ? start-legacy[0].length : undefined,
             explicit:!!(leading || trailing),
         };
@@ -60,8 +60,8 @@ export function thoughtAttributions(text, spans = [...text.matchAll(italic)].map
         const after = text.slice(span.end,lineEnd<0 ? text.length : lineEnd);
         const leading = validName(thoughtBefore.exec(before)?.[1]);
         const trailing = validName(thoughtAfter.exec(after)?.[1]);
-        const beat = validName(beforeAction.exec(before)?.[1]);
-        return {...span,name:leading && trailing && compare(leading)!==compare(trailing) ? '' : leading || trailing || beat};
+        const actor = validName(beforeAction.exec(before)?.[1]);
+        return {...span,name:leading && trailing && compare(leading)!==compare(trailing) ? '' : leading || trailing || actor};
     });
 }
 

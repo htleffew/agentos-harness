@@ -123,7 +123,7 @@ export const PROFILE_NOW = [
     ['thinks', 'Thinks', 'what they think about what just happened'],
     ['feels', 'Feels', 'what they feel, named plainly, such as "Hale feels angry"'],
     ['shows', 'Shows', 'what they let the others see'],
-    ['private', 'Keeps private', 'what they think or feel and do not say'],
+    ['private', 'Keeps private', 'their private thought or feeling'],
     ['willnot', 'Will not', 'what they refuse to do in this scene'],
     ['why', 'Why', 'how who they are led to what they just did, felt or chose in this reply'],
     ['mind', 'Mind', 'current goal, attention or plan'],
@@ -191,8 +191,8 @@ function cardRules(onFile, type) {
     if (!cardsOn()) return [];
     const most = cardMost();
     const lines = [
-        `Profiles: {{char}} gets a profile in every reply.${most > 1 ? ` Another character gets one only when they are present and what they did in this reply changed what happens next: they spoke to {{user}}, made a choice, or acted on a goal of their own. ${most} profiles at most.` : ' Nobody else gets one.'} {{user}} never gets one. ${promptText('profile')}${promptStatus('profile').customized ? ' Omit unchanged fields and use CLEAR to resolve a field.' : ''}`,
-        `For a person whose profile is not on file yet, add five lines at the top of their profile: ${PROFILE_STABLE.map(([, label, help]) => `${label}: ${help}`).join('. ')}. Profiles on file: ${onFile.join(', ') || 'none yet'}.`,
+        `Profiles: {{char}} gets a profile in every reply.${most > 1 ? ` Another character gets one only when they are present and what they did in this reply changed what happens next: they spoke to {{user}}, made a choice, or acted on a goal of their own. ${most} profiles at most.` : ''} Give profiles to NPCs only. The player supplies {{user}}’s own perspective. ${promptText('profile')}${promptStatus('profile').customized ? ' Omit unchanged fields and use CLEAR to resolve a field.' : ''}`,
+        `For a person with a new profile, add five lines at the top of their profile: ${PROFILE_STABLE.map(([, label, help]) => `${label}: ${help}`).join('. ')}. Established profiles: ${onFile.join(', ') || 'none yet'}.`,
     ];
     if (roastOn()) {
         lines.push(`Roast: ${clean(roastVoiceText())}`);
@@ -252,8 +252,8 @@ export function buildAsk(list, type = 'normal') {
         ...cardForm(),
         '</story_update>',
         ...cardRules(onFileNames(list, type), type),
-        '"person", "place" and "group" are for ones that have a name and are not on file yet. Use the names and titles on file exactly as they are written here.',
-        `On file. People: ${names('character')}. Places: ${names('place')}. Groups: ${names('faction')}. Open threads: ${names('thread', w => w.status !== DONE.thread)}. Kept secrets: ${names('secret', w => w.status === 'kept')}. Planted details: ${names('seed', w => w.status !== DONE.seed)}. Going on elsewhere: ${names('activity', w => w.status !== DONE.activity)}.]`,
+        '"person", "place" and "group" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.',
+        `Established people: ${names('character')}. Places: ${names('place')}. Groups: ${names('faction')}. Open threads: ${names('thread', w => w.status !== DONE.thread)}. Kept secrets: ${names('secret', w => w.status === 'kept')}. Planted details: ${names('seed', w => w.status !== DONE.seed)}. Going on elsewhere: ${names('activity', w => w.status !== DONE.activity)}.]`,
     ].join('\n');
 }
 

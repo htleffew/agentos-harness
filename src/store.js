@@ -1,6 +1,6 @@
 // Saved settings (per app) and per-chat state.
 import { ctx, KEY, names, characterKey, setChatVariable, isChatOpen } from './st.js';
-import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, DEFAULT_VOICE, ORIGINAL_VIEWER_VOICE } from './defaults.js';
+import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, ORIGINAL_WRITER_RULES, DEFAULT_VOICE, PREVIOUS_GREMLIN_VOICE, ORIGINAL_VIEWER_VOICE } from './defaults.js';
 
 export const FORMS = ['they', 'them', 'their', 'theirs', 'themself'];
 export const PRONOUN_SETS = {
@@ -56,7 +56,7 @@ const DEFAULTS = {
     scene: { track: true, card: 'auto' },   // ask every reply for who is present, where and when; draw the scene card ('auto': only under replies with no HUD of their own)
     cards: { on: true, most: 2, roast: true, previousRoast: false, stateBudget: 350 },   // character profile cards and the roast, asked for in the same block as the scene lines
     dice: { on: true, user: true, char: true, others: true, stats: ['Strength', 'Agility', 'Wits', 'Charm', 'Will', 'Senses'], sheets: {} },   // rolled in code; sheets: stat modifiers per character card and persona
-    words: { on: true, tell: true, list: DEFAULT_WORDS },   // words to flag in AI-written text; "tell" also asks the AI writer to leave them out
+    words: { on: true, list: DEFAULT_WORDS },   // words to flag locally in AI-written text
     writer: { count: 10, moreRoom: false, eventScene: false, rules: DEFAULT_WRITER_RULES, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },
     expanded: false,
@@ -80,9 +80,10 @@ export function settings() {
     const root = ctx().extensionSettings;
     if (!root[KEY] || typeof root[KEY] !== 'object') root[KEY] = {};
     const st = fill(root[KEY], DEFAULTS);
+    if (st.writer.rules === ORIGINAL_WRITER_RULES) st.writer.rules = DEFAULT_WRITER_RULES;
     if (Object.hasOwn(st.cards,'voice')) {
         const voice = typeof st.cards.voice==='string' ? st.cards.voice.trim() : '';
-        if (voice && voice!==DEFAULT_VOICE && voice!==ORIGINAL_VIEWER_VOICE) {
+        if (voice && ![DEFAULT_VOICE, PREVIOUS_GREMLIN_VOICE, ORIGINAL_VIEWER_VOICE].includes(voice)) {
             st.prompts ||= {};
             st.prompts.roastVoice ??= {text:voice,base:DEFAULT_VOICE};
         }

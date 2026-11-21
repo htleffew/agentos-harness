@@ -52,7 +52,7 @@ async function sourceInventory(target) {
     };
     const worldData = target.world && await loadWorld(target.world);
     const rows = worldData ? listWorld(worldData,target.world) : [];
-    const ledger = origins(chat,target.world);
+    const originsByEntry = origins(chat,target.world);
     const worldName = target.world && setInfo(target.world).book;
     for (const row of rows) {
         const record = readRecord(row);
@@ -62,7 +62,7 @@ async function sourceInventory(target) {
         const fields = record ? structuredFields.map(key=>[key,key[0].toUpperCase()+key.slice(1),record[key]]) :
             WORLD_KINDS[row.kind].fields.map(spec=>[spec.key,spec.label,row.fields[spec.key]]);
         for (const [field,label,value] of fields) {
-            const copies = fieldOrigins(ledger.get(row.uid) || [],field,!!record);
+            const copies = fieldOrigins(originsByEntry.get(row.uid) || [],field,!!record);
             const evidenceAt = sourceIndex>=0 && field==='text' ? sourceIndex : (copies.at(-1) ?? -1);
             add(['world',row.uid,field].join(':'),[worldName,row.name,label].join(' / '),value,
                 {...extra,field,evidenceAt,copies,quote:field==='text' ? record?.quote : ''});

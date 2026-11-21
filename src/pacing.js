@@ -43,8 +43,6 @@ export function writerRules() {
     const rules = String(st.writer?.rules ?? DEFAULT_WRITER_RULES).split('\n').map(clean).filter(Boolean);
     const out = [];
     if (rules.length) out.push('Rules about content, which come before everything else:', ...rules.map(r => `- ${r}`));
-    const words = st.words?.tell === false ? [] : wordList();
-    if (words.length) out.push(`${rules.length ? '- ' : ''}These words stay out of what you write${words.some(w => w.endsWith('*')) ? ' (a star stands for any ending)' : ''}: ${words.join(', ')}.`);
     return out;
 }
 
