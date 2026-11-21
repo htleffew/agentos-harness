@@ -95,11 +95,11 @@ const boundSnapshot = (state, message) => {
 const activeRows = (state, snapshot) => snapshot.entries.filter(entry => state.pending.some(row => row.id === entry.id));
 
 export function startQuickReply(generation, options) {
-    if (!settings().enabled || generation.skip || generation.memory || generation.type !== 'normal' || options?.automatic_trigger) return;
+    if (!settings().enabled || generation.skip || generation.memory || generation.type !== 'normal') return;
     const state = quickChat();
     if (!state) return;
     generation.quickChat = state.owner;
-    generation.quickDelivery = !queueCapability();
+    generation.quickDelivery = !options?.automatic_trigger && !queueCapability();
     if (!generation.quickDelivery) return;
     const message = ctx().chat?.at(-1);
     const snapshot = boundSnapshot(state, message);

@@ -2,6 +2,8 @@
 
 The fresh checkout of `roleplay-instructions-v10` resolved to `ccd863a870609b667f3cf88a3cfadeb8a25171e0`. Git verified the handoff bundle against that prerequisite. The imported ref resolved to `3daacf917647be0d87e07bb3e26ec12d9f179167` before work started on `feature/quick-replies-guided-turns`.
 
+The implementation is recorded at `07a55628495a9a1d368042fffea31cf183363d07`. The source refresh and exact-version regression are at `ebf686c5ff6b0e7e9f8312e016070c084f758fcf`. The containing revision also verifies that automatic forward replies receive an armed Fresh start without attaching a queued player direction. The acceptance rows refer to the combined implementation.
+
 ## Evidence environments
 
 | Environment | Evidence |
@@ -22,6 +24,7 @@ The fresh checkout of `roleplay-instructions-v10` resolved to `ccd863a870609b667
 | Integrated unit command | 55 passed, including the origin-draft, one-attempt dispatcher, staged filing interruption and prose evidence fixtures. |
 | Integrated host request tests | Quick actions, guided turns and prose diagnostics passed on Default and companion. The two-card group swipe, catalog touch, staged memory, preset variations and native preset workspace passed on isolated host fixtures. |
 | Existing host regressions | Guided swipes, historical edit/branch, corrections, reply cards, prompt editors, native preset controls, chapter, branch, context and memory passed. The native preset test passed on a clean dedicated fixture. A previously reused host timed out in the parity UI. |
+| Panel navigation | All 22 pages and 891 reachable disclosures were visited at 390 px. The follow-up run passed draft, focus, both settings scopes, memory components and receipt navigation. The separate 1280 px traversal exceeded its run budget. |
 
 Run `node --test tests/unit/*.mjs tests/unit/*.cjs` and the suites in the host setup instructions. Browser fixtures use their own loopback provider. [Host test setup](../tests/README.md)
 
@@ -42,7 +45,7 @@ Run `node --test tests/unit/*.mjs tests/unit/*.cjs` and the suites in the host s
 | --- | --- | --- |
 | A1 | Pass | Quick actions opened on Default and companion. C5 captured the Text Completion retained-history route. The Steer screen names its Chat Completion delivery requirement. |
 | A2 | Pass, synthetic | Catalog unit fixture exposed eight instructions, a disabled desire, one event recipe and one enabled style category with shared and separate books. |
-| A3 | Partial | Catalog tests exercise a particular Reanchor version and repeated local draws with the saved used-version list unchanged. Integrated send captures enforce one accepted delivery. The complete named Reanchor send trace is open. |
+| A3 | Pass, mixed | Catalog fixtures covered repeated local draws without spending versions. The integrated suite opened Browse after an external book change, selected and previewed Reanchor version 3, then queued it. QACT-SOURCE contained that version once even though the same source was eligible automatically, and acceptance recorded version index 2 once. |
 | A4 | Pass, synthetic | Recipe fixture held the chosen ingredient and rolled within the remaining eligible categories under story locks, with zero writes at preview. |
 | A5 | Pass | Under Pending directions, edited the first item and cancelled a third. A host dry run made zero model requests and kept both remaining items. QACT-02 sent the edited private wording and the visible OOC once. |
 | A6 | Pass | Rolled in Steer before sending. QACT-08/09 retained the draw through a 503 and explicit retry. QACT-ROLL verified Keep original roll kept its ID and Reroll d20 saved a new ID, with one roll instruction per captured request. |
@@ -89,12 +92,12 @@ Run `node --test tests/unit/*.mjs tests/unit/*.cjs` and the suites in the host s
 | A47 | Pass, mixed | C4 on host and guided unit tests for stale-target rejection and exact prefix preservation. |
 | A48 | Partial | Phone and fixture evidence covers the three execution stages and their costs across drafts, code and ordinary replies. A complete combined Roast and repair receipt comparison is open. |
 | A49 | Partial | H1 host test plus chapter and dispatch tests cover off-by-default behavior and opted-in interactions. Full count/scene/token and missed-required-instruction matrix is open. |
-| A50 | Partial | Function scope, Main API resolution and unavailable profile recovery tested in fixtures, with native Main API requests on both routes. End-to-end saved named profile routing on a real mobile host is open. |
+| A50 | Partial | Function scope, Main API resolution and unavailable profile recovery tested in fixtures, with native Main API requests on both routes. The pinned SillyTavern service rejects named-profile dispatch when its bundled Connection Manager is disabled, so single-extension host runs used Main API. Real named-profile provider traffic remains open. |
 | A51 | Partial | Provider error and explicit retry recorded. Blank responses and multi-batch catch-up exercised in focused fixtures. Real-host partial streaming recovery is open. |
 | A52 | Partial | Reduced viewport tests cover the fixed header/footer, editor scrolling, reorder, and execution disclosure. Native software keyboard and screen reader verification are open. |
 | A53 | Partial | Cold emulated mobile review exercised code-only, shared reply and extra-call actions. Real accessibility device and color-independent comparison are open. |
 | A54 | Partial | QACT-03 and C3–C5 demonstrate ordinary, swipe and continuation reset assembly. Player context fixture excludes stale prose. Full four-family capture after a preset change is open. |
-| A55 | Pass, mixed | QACT-03, QACT-08/09 and QACT-FRESH capture arming, failure, retry, exclusions for swipe/continuation/helpers, and expiry after the fifth acceptance. The ledger fixture exercises rollback, isolated branches and Stop. |
+| A55 | Pass, mixed | QACT-03, QACT-08/09 and QACT-FRESH capture arming, failure, retry, exclusions for swipe/continuation/helpers, and expiry after the fifth acceptance. The ledger fixture exercises rollback, isolated branches, automatic forward replies and Stop. |
 | H1 | Pass | D-ST-H1-26, real host recorder and physical book inspection. |
 | H2 | Pass | C3 substituted and C5 retained, with actual routed requests and history receipts on both presets. |
 | H3 | Pass | D-ST-H3 on the real host showed one dependent card before the historical replacement. The single bounded request removed the key state and kept later prose verbatim. The dependent card became uncertain. Repair facts only updated and locked the filed gate fact with zero further requests. [Capture](audit-evidence-quick-actions/historical-memory.json) |
@@ -114,4 +117,4 @@ Recorded separately from automated tests. The reviewer started with task goals a
 
 ## Release gate
 
-The audit distinguishes transport and state evidence from live model evaluation and native phone acceptance. The physical-phone touch gate and the Partial acceptance exercises above remain open. The mock 503 intentionally surfaced the host's Service Unavailable error during the ordinary send. The same bound message retried successfully with its visible OOC present once. The branch has no release or publication change.
+The audit distinguishes transport and state evidence from live model evaluation and native phone acceptance. The physical-phone touch gate and the Partial acceptance exercises above remain open. The mock 503 intentionally surfaced the host's Service Unavailable error during the ordinary send. The same bound message retried successfully with its visible OOC present once. The final source retest refreshed the catalog after adding an external World Info entry and observed a single exact-version inclusion and one version-state update on each preset. The branch has no release or publication change.

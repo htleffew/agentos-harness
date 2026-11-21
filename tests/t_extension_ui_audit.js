@@ -124,7 +124,8 @@ async function auditDisclosures(body) {
         assert.equal(await page.evaluate(()=>document.activeElement.id),'ri-module-worldEvents');
         assert.equal(await root.locator('[data-module-scope="chat"]').getAttribute('aria-pressed'),'true');
         const visited = [];
-        const widths=process.env.RI_PANEL_WIDTHS ? process.env.RI_PANEL_WIDTHS.split(',').map(Number) : [390,1280];
+        const widths=Object.hasOwn(process.env,'RI_PANEL_WIDTHS')
+            ? process.env.RI_PANEL_WIDTHS.split(',').filter(Boolean).map(Number) : [390,1280];
         for (const width of widths) {
             await page.setViewportSize({width,height:850});
             let opened=0;
@@ -156,7 +157,7 @@ async function auditDisclosures(body) {
         await group('Direction').click();
         await click('Writing Guidance');
         const writing=body.locator('details').filter({has:page.getByLabel('Live writing guidance',{exact:true})});
-        await writing.locator('summary').click();
+        await writing.locator(':scope > summary').click();
         const guidance=menu('Live writing guidance');
         const previous=await guidance.inputValue();
         await guidance.fill('Keep dialogue concise and unmistakably individual.');
@@ -171,7 +172,7 @@ async function auditDisclosures(body) {
         await guidance.fill('Keep dialogue concise and unmistakably individual.');
         await writing.getByRole('button',{name:'Save guidance',exact:true}).click();
         await writing.getByRole('status').filter({hasText:'Saved for this chat.'}).waitFor();
-        assert.match(await writing.locator('summary').textContent(),/Customized/);
+        assert.match(await writing.locator(':scope > summary').textContent(),/Customized/);
         await writing.getByRole('button',{name:'Restore default',exact:true}).click();
         assert.equal(await guidance.inputValue(),previous);
         await root.getByRole('button',{name:'Close full screen',exact:true}).focus();
@@ -214,6 +215,6 @@ async function auditDisclosures(body) {
         await click('Edit this instruction');
         assert.equal(await name.inputValue(),'Receipt example');
         assert.deepEqual(errors,[]);
-        console.log('PASS extension navigation, nested disclosures, both settings scopes, all extension modules, memory components and both display sizes');
+        console.log('PASS extension navigation, nested disclosures, both settings scopes, all extension modules, memory components, draft recovery and receipt navigation');
     } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

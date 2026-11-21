@@ -7,7 +7,7 @@
       "label": "QACT-01: blank choices",
       "requests": [
         {
-          "at": 1795291477543,
+          "at": 1795292097527,
           "stream": false,
           "roles": [
             "system",
@@ -21,7 +21,7 @@
       "label": "QACT-CYOA: cues only",
       "requests": [
         {
-          "at": 1795291479231,
+          "at": 1795292099649,
           "stream": false,
           "roles": [
             "system",
@@ -35,7 +35,7 @@
       "label": "QACT-CYOA: free text only",
       "requests": [
         {
-          "at": 1795291480253,
+          "at": 1795292100413,
           "stream": false,
           "roles": [
             "system",
@@ -49,7 +49,7 @@
       "label": "QACT-CYOA: cues and free text",
       "requests": [
         {
-          "at": 1795291482184,
+          "at": 1795292102030,
           "stream": false,
           "roles": [
             "system",
@@ -63,7 +63,7 @@
       "label": "QACT-CYOA: explicit choice expansion",
       "requests": [
         {
-          "at": 1795291482400,
+          "at": 1795292102334,
           "stream": false,
           "roles": [
             "system",
@@ -77,7 +77,7 @@
       "label": "QACT-02: bound ordinary reply",
       "requests": [
         {
-          "at": 1795291487158,
+          "at": 1795292105457,
           "stream": false,
           "roles": [
             "system",
@@ -116,7 +116,7 @@
       "label": "QACT-03: Fresh start on ordinary reply",
       "requests": [
         {
-          "at": 1795291489706,
+          "at": 1795292107837,
           "stream": false,
           "roles": [
             "system",
@@ -151,7 +151,7 @@
       "label": "QACT-04: reply-level guided swipe",
       "requests": [
         {
-          "at": 1795291491880,
+          "at": 1795292109717,
           "stream": false,
           "roles": [
             "system",
@@ -185,7 +185,7 @@
       "label": "QACT-05: guided continuation",
       "requests": [
         {
-          "at": 1795291494741,
+          "at": 1795292110949,
           "stream": false,
           "roles": [
             "system",
@@ -221,7 +221,7 @@
       "label": "QACT-06: provider failure",
       "requests": [
         {
-          "at": 1795291496211,
+          "at": 1795292112403,
           "stream": false,
           "roles": [
             "system",
@@ -238,7 +238,7 @@
       "label": "QACT-07: explicit retry and valid partial result",
       "requests": [
         {
-          "at": 1795291496211,
+          "at": 1795292112403,
           "stream": false,
           "roles": [
             "system",
@@ -250,7 +250,7 @@
           ]
         },
         {
-          "at": 1795291496619,
+          "at": 1795292112756,
           "stream": false,
           "roles": [
             "system",
@@ -267,7 +267,7 @@
       "label": "QACT-08: failed ordinary reply",
       "requests": [
         {
-          "at": 1795291498396,
+          "at": 1795292114317,
           "stream": false,
           "roles": [
             "system",
@@ -296,7 +296,7 @@
       "label": "QACT-09: retry of bound outgoing message",
       "requests": [
         {
-          "at": 1795291498396,
+          "at": 1795292114317,
           "stream": false,
           "roles": [
             "system",
@@ -320,7 +320,7 @@
           "markers": []
         },
         {
-          "at": 1795291499834,
+          "at": 1795292115527,
           "stream": false,
           "roles": [
             "system",
@@ -355,7 +355,7 @@
       "label": "QACT-ROLL: Keep original roll",
       "requests": [
         {
-          "at": 1795291504047,
+          "at": 1795292117765,
           "stream": false,
           "roles": [
             "system",
@@ -386,23 +386,23 @@
         }
       ],
       "roll": {
-        "id": "draw:mwqu7d590n5",
+        "id": "draw:mwqukkgp012",
         "kind": "d20",
-        "natural": 8,
+        "natural": 19,
         "modifier": 0,
-        "total": 8,
+        "total": 19,
         "target": null,
-        "result": "partly succeeds",
+        "result": "succeeds well",
         "stat": "",
         "who": "user",
-        "text": "The d20 rolled 8 with modifier 0, for a total of 8. The attempt partly succeeds."
+        "text": "The d20 rolled 19 with modifier 0, for a total of 19. The attempt succeeds well."
       }
     },
     {
       "label": "QACT-ROLL: Reroll d20",
       "requests": [
         {
-          "at": 1795291507454,
+          "at": 1795292120357,
           "stream": false,
           "roles": [
             "system",
@@ -433,23 +433,23 @@
         }
       ],
       "roll": {
-        "id": "draw:mwqu7k0v11z",
+        "id": "draw:mwqukp4d1c3",
         "kind": "d20",
-        "natural": 5,
+        "natural": 16,
         "modifier": 0,
-        "total": 5,
+        "total": 16,
         "target": null,
-        "result": "fails",
+        "result": "succeeds",
         "stat": "",
         "who": "user",
-        "text": "The d20 rolled 5 with modifier 0, for a total of 5. The attempt fails."
+        "text": "The d20 rolled 16 with modifier 0, for a total of 16. The attempt succeeds."
       }
     },
     {
       "label": "QACT-FRESH: 2 slots remain",
       "requests": [
         {
-          "at": 1795291511247,
+          "at": 1795292121839,
           "stream": false,
           "roles": [
             "system",
@@ -477,7 +477,7 @@
       "label": "QACT-FRESH: 1 slots remain",
       "requests": [
         {
-          "at": 1795291513098,
+          "at": 1795292123323,
           "stream": false,
           "roles": [
             "system",
@@ -505,7 +505,7 @@
       "label": "QACT-FRESH: 0 slots remain",
       "requests": [
         {
-          "at": 1795291515417,
+          "at": 1795292124671,
           "stream": false,
           "roles": [
             "system",
@@ -533,7 +533,7 @@
       "label": "QACT-FRESH: expired on next normal reply",
       "requests": [
         {
-          "at": 1795291517567,
+          "at": 1795292126087,
           "stream": false,
           "roles": [
             "system",
@@ -570,6 +570,54 @@
             "I point to the brass gate."
           ]
         }
+      ]
+    },
+    {
+      "label": "QACT-SOURCE: exact version with matching automatic source",
+      "requests": [
+        {
+          "at": 1795292129846,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "system"
+          ],
+          "markers": [
+            "The indigo bell rang three times.",
+            "I point to the brass gate."
+          ]
+        }
+      ],
+      "acceptedVersions": [
+        2
       ]
     }
   ],

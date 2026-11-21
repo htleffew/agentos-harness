@@ -84,6 +84,10 @@ test('counts accepted forward slots by surviving chat history and gives a branch
     plan.confirmed=true;
     accept(plan);
     assert.equal(freshRemaining(),4);
+    const automatic={type:'normal'};
+    startQuickReply(automatic,{automatic_trigger:true});
+    assert.equal(automatic.quickDelivery,false);
+    assert.equal(activeQuickPlan(automatic)?.freshStart,true);
     accept(null,'swipe');
     accept(null,'continue');
     assert.equal(freshRemaining(),4);
