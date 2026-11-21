@@ -145,6 +145,8 @@ export function setChatWorld(id) {
     if (cs.world && cs.world!==id) cs.previousStoryWorlds = [...new Set([cs.world,...(cs.previousStoryWorlds || [])])];
     if (id && cs.previousStoryWorlds) cs.previousStoryWorlds = cs.previousStoryWorlds.filter(world=>world!==id);
     cs.world = id || '';
+    cs.worldDetached = !id;
+    if (id && cs.excludedHostBooks) cs.excludedHostBooks = cs.excludedHostBooks.filter(name=>name!==setInfo(id).book);
     delete cs.branchPendingWorld;
     saveChatState();
 }

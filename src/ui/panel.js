@@ -11,13 +11,14 @@ import { renderWorld } from './world.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
 import { renderSettings } from './settings.js';
 import { renderContext } from './context-dashboard.js';
+import { renderCorrections } from './corrections.js';
 import { renderLog } from './log.js';
 import { onLog } from '../log.js';
 import { isChatOpen } from '../st.js';
 
 const GROUPS = [
     { id:'story', label:'Story', accent:'green', tabs:[
-        ['opening','Opening'],['state','Current State'],['books','Reusable Lorebooks'],['facts','Chat Facts'],['plots','Plot Records'],['world','Story World'],
+        ['opening','Opening'],['state','Current State'],['corrections','Corrections'],['books','Reusable Lorebooks'],['facts','Chat Facts'],['plots','Plot Records'],['world','Story World'],
     ] },
     { id:'characters', label:'Characters', accent:'sky', tabs:[
         ['portrayal','Portrayal & Knowledge'],['emotion','Emotions & Relationships'],['goals','Character Goals'],['speakers','Dialogue Colors'],
@@ -115,6 +116,7 @@ export function render() {
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
+    else if (app.tab === 'corrections') renderCorrections(app.body);
     else if (V10_PAGES.has(app.tab)) renderV10(app.body,app,app.tab);
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
@@ -153,6 +155,7 @@ export function mount(missing) {
         refreshUnderReplies();
         // Keep unsaved wording in an open prompt editor during background updates.
         if (what !== 'chat' && app.root?.querySelector('.ri-prompt-editor[open]')) return;
+        if (what !== 'chat' && app.tab === 'corrections') return;
         // Typing in the editor must not be interrupted by a redraw.
         if (app.tab === 'instructions' && app.route.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;

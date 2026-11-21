@@ -13,7 +13,7 @@ import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES,
     isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText, rowsForWorld,
-    readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor,
+    readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor, baseWorld,
 } from '../v10.js';
 
 const options = names => names.map(name => ({ value:name, label:name }));
@@ -179,7 +179,8 @@ function reusableBookControls(local, redraw, memory, app) {
 
 function renderBooks(local, redraw, app, baseOnly = false) {
     const books = [{value:'',label:'None'},...options(reusableBookNames())];
-    const base = select(books,local.base?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
+    const pinned = baseWorld(local);
+    const base = select(books,pinned?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
     const file = h('input',{type:'file',accept:'.json,application/json','aria-label':'Base World JSON file'});
     const upload = button('Upload and assign Base World',async()=>{
         if (!file.files[0]) { file.click(); return; }
@@ -191,17 +192,18 @@ function renderBooks(local, redraw, app, baseOnly = false) {
         } catch (error) { problem(error); }
         finally { upload.disabled = false; }
     });
-    const pins = local.base ? h('details',{class:'ri-card ri-tight'},h('summary',{},'Pinned facts for opening'),
-        Object.values(local.base.entries || {}).filter(row=>!row.disable).map(row=>h('label',{class:'ri-row'},
-            h('input',{type:'checkbox',checked:local.base.pins?.includes(String(row.uid)),onchange:event=>{
-                const ids = new Set(local.base.pins || []);
+    const pins = pinned ? h('details',{class:'ri-card ri-tight'},h('summary',{},'Pinned facts for opening'),
+        Object.values(pinned.entries || {}).filter(row=>!row.disable).map(row=>h('label',{class:'ri-row'},
+            h('input',{type:'checkbox',checked:pinned.pins?.includes(String(row.uid)),onchange:event=>{
+                const ids = new Set(pinned.pins || []);
                 if (event.currentTarget.checked) ids.add(String(row.uid)); else ids.delete(String(row.uid));
-                local.base.pins = [...ids];
+                pinned.pins = [...ids];
                 saveChatState();
             }}),row.comment || row.key?.[0] || `Entry ${row.uid}`))) : null;
     return section('Reusable lorebooks',
         field('Base World','Choose an existing World Info book or upload a native JSON export. The pinned copy keeps its triggers.',base,
-            local.base ? button('Refresh pinned copy',()=>pinBase(local.base.name).then(redraw).catch(problem)) : null,
+            pinned ? button('Refresh pinned copy',()=>pinBase(pinned.name).then(redraw).catch(problem)) : null,
+            local.base && !pinned && h('p',{class:'ri-help'},'The previously pinned Base World is no longer available. Choose another book to replace it.'),
             h('div',{class:'ri-row'},file,upload)),
         pins,
         reusableBookControls(local, redraw, baseOnly, app),
@@ -242,7 +244,7 @@ function editRecord(original, save, cancel, kinds) {
             h('label',{},lock,' Protect this record from automatic changes'));
         if (k === 'knowledge') root.append(choice('basis','Source type',['observed','reported','rumor','belief'],'observed'),flag('private','Limit to relevant character',true));
         if (k === 'fact') {
-            const pinned = Object.values(prefs()?.base?.entries || {});
+            const pinned = Object.values(baseWorld()?.entries || {});
             const entries = pinned.map(entry=>({value:String(entry.uid),label:entry.comment || entry.key?.[0] || `Entry ${entry.uid}`}));
             inputs.baseEntry=select([{value:'',label:'None'},...entries],original?.baseEntry || '',()=>{}, {'aria-label':'Base World entry'});
             root.append(string('aliases','Relevance aliases'),string('link','Related plot record ID'),

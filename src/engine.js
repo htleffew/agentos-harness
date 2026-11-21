@@ -1,11 +1,13 @@
+import { correctedLoreEntry, characterCorrectionFields, replaceUnique, storyCorrectionPrompt } from './correction-rules.js';
+import { rememberStoryTimeline, refreshAfterReplyEdit, refreshAfterDeletion, flushStoryDeletion, refreshAfterChatOpen } from './story-refresh.js';
 import { beginBookTriggers, bookTriggerSource, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
 import { streamUpdate } from './stream-update.js';
-import { observeHostBooks } from './chat-books.js';
+import { filterExcludedBooks, observeHostBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { proseDialogue } from './dialogue.js';
 import { separateReply, hasReplyScaffolding, trimPartialReplyTag } from './reply-format.js';
 import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview, setReplySections } from './reply-progress.js';
-import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate } from './v10.js';
+import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate, baseWorld } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
 import { changesFromProfiles, normalizeScene, sceneFromReplyHeader, sceneAt, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
@@ -21,7 +23,7 @@ import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
 import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile, parseUpdate } from './worldflow.js';
-import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, invalidateAfterEdit, worldIdle, stripUpdateBlock } from './worldflow.js';
+import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
@@ -213,9 +215,14 @@ async function loadMemory(lore, arrays) {
     if (turn && ['swipe','regenerate'].includes(type)) undoForSwipe();
     await worldIdle();
     await addConfiguredBooks(lore,arrays,{}, {}, {base:components.world,guidelines:false,reference:components.world,type});
+    filterExcludedBooks(arrays);
+    for (const entries of arrays) for (let index=0;index<entries.length;index++) entries[index] = correctedLoreEntry(entries[index]);
     const flow = await prepareWorld(type,0,{memory:true,components});
-    if (flow?.notes) lore.chatLore.push(notesEntry(flow.notes.text));
-    if (turn) turn.memoryFlow = flow;
+    const notes = [components.world && storyCorrectionPrompt(),flow?.notes?.text].filter(Boolean).join('\n');
+    if (notes) {
+        lore.chatLore.push(notesEntry(notes));
+    }
+    if (turn) turn.memoryFlow = notes ? {...flow,notes:{...flow?.notes,text:notes}} : flow;
 }
 
 async function onEntriesLoaded(lore) {
@@ -269,6 +276,8 @@ async function onEntriesLoaded(lore) {
         const modules = native ? effectiveModules() : null;
         const activeScene = native ? readScene(kind) : null;
         if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules,{base:memoryComponents().world,reference:memoryComponents().world,type:kind});
+        filterExcludedBooks(arrays);
+        for (const entries of arrays) for (let index=0;index<entries.length;index++) entries[index] = correctedLoreEntry(entries[index]);
         const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
         if (gen && gen.v10Schedule === undefined && native && !gen.dryRun) gen.v10Schedule = !quiet && kind === 'normal' && modules.worldEvents && chance > 0 && rollInt(100) < chance;
         const schedule = gen?.v10Schedule === true;
@@ -279,6 +288,7 @@ async function onEntriesLoaded(lore) {
         if (cs && !native && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
         const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: native ? modules.state : cardsOn(), excludeTargetOverrides: !!gen?.guided }) : '';
         const direction = gen?.guided && kind === 'swipe' ? `[${promptText('guided', { direction: gen.guided.direction })}]` : '';
+        const corrections = !quiet && !isOocTurn() ? storyCorrectionPrompt(activeScene?.present,activeScene?.location) : '';
         const notes = flow?.notes || null;
         if (notes) lore.chatLore.push(notesEntry(notes.text));
         let contextAsk = '';
@@ -292,14 +302,14 @@ async function onEntriesLoaded(lore) {
             if (schedule && !v10Turn.offer && !flow?.order) {
                 v10Turn.offer = {id:'world-event',text:'If the scene has room, introduce one plausible outside development that follows from the current place and circumstances.'};
             }
-            contextAsk = [modules.state && stateText, direction, v10Turn.text].filter(Boolean).join('\n');
+            contextAsk = [corrections, modules.state && stateText, direction, v10Turn.text].filter(Boolean).join('\n');
             if (contextAsk) lore.chatLore.push(askEntry(contextAsk));
         }
         else if (native && direction && Array.isArray(lore.chatLore)) { contextAsk = direction; lore.chatLore.push(askEntry(direction)); }
-        else if (!native && flow?.ask) { contextAsk = [stateText, direction, flow.ask].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
+        else if (!native && flow?.ask) { contextAsk = [corrections, stateText, direction, flow.ask].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
         // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (!native && cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a) { contextAsk = [stateText, direction, a].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); } }
-        else if (direction && Array.isArray(lore.chatLore)) { contextAsk = [stateText, direction].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
+        else if (!native && cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind); if (a || corrections) { contextAsk = [corrections, stateText, direction, a].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); } }
+        else if ((direction || corrections) && Array.isArray(lore.chatLore)) { contextAsk = [corrections, stateText, direction].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
         if (flow && (!native || (flow.order && !v10Turn?.offer))) lore.chatLore.push(orderEntry());
         // The character goal travels as one entry that is made here for each scan.
         if (cs && Array.isArray(lore.chatLore) && !(gen && !gen.dryRun && gen.skip)) {
@@ -1106,6 +1116,16 @@ function onPromptReady(data) {
         const paired = pairedPreset();
         const plainDialogue = paired || (enabledV10() && effectiveModules().colors);
         const memory = gen?.memory ?? memoryOnly();
+        if (record && settings().enabled && chatState()?.storyCorrections?.length) {
+            const fields = characterCorrectionFields().filter(field=>field.before!==field.after)
+                .map(field=>({before:sub(field.before).trim(),after:sub(field.after).trim()}));
+            for (const message of data.chat) {
+                if (message.role!=='system' || typeof message.content!=='string') continue;
+                for (const {before,after} of fields) if (before.length>=12 || before===message.content.trim()) {
+                    message.content = replaceUnique(message.content,before,after) ?? message.content;
+                }
+            }
+        }
         if (!memory) for (const msg of data.chat) {
             // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
             if (msg.role === 'assistant') {
@@ -1319,13 +1339,15 @@ export function init() {
     });
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
         if (dryRun || !settings().enabled) return;
-        if (enabledV10() && !gen?.skip && !isOocTurn() && isChatOpen()) await ensureWorld().catch(e => console.warn(LOG,'v10 story world',e));
-        if ((gen?.memory || chatState()?.carried) && !gen?.skip && memoryComponents().chapters && isChatOpen()) await ensureWorld().catch(e=>console.warn(LOG,'chapter story world',e));
+        if (!gen?.skip) await flushStoryDeletion();
+        if (!chatState()?.worldDetached && enabledV10() && !gen?.skip && !isOocTurn() && isChatOpen()) await ensureWorld().catch(e => console.warn(LOG,'v10 story world',e));
+        if (!chatState()?.worldDetached && (gen?.memory || chatState()?.carried) && !gen?.skip && memoryComponents().chapters && isChatOpen()) await ensureWorld().catch(e=>console.warn(LOG,'chapter story world',e));
         if (gen?.memory || !checkPromise) return;
         // Let a running check finish first, so an instruction that did not happen can be sent again with this reply.
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
     on('MESSAGE_RECEIVED', onMessageReceived);
+    on('MESSAGE_RECEIVED', rememberStoryTimeline);
     on('STREAM_TOKEN_RECEIVED', text => {
         const progress = replyProgress();
         if (!gen || progress?.turn !== gen || typeof text !== 'string' || !text.trim()) return;
@@ -1359,19 +1381,19 @@ export function init() {
         const attempt = guided; guided = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();
-        if (isChatOpen()) { if (!memoryOnly()) applyPronouns(); if (settings().enabled) { reconcile(); syncWorld(); } }
+        if (isChatOpen()) { if (!memoryOnly()) applyPronouns(); if (settings().enabled) { reconcile(); refreshAfterChatOpen(() => changed('messages')); } }
         changed('chat');
         // Former keys of moved sets are read in the background, then this chat's state is brought in line.
         if (isChatOpen() && settings().enabled) refreshAliases().then(() => { const cs = chatState(); if (cs) { syncChat(cs); reconcile(); changed('messages'); } }).catch(e => console.warn(LOG, 'aliases', e));
     });
     for (const name of ['MESSAGE_SWIPED', 'MESSAGE_UPDATED']) on(name, () => changed('messages'));
     // What a reply changed in the story world is undone when that reply is swiped away or deleted.
-    on('MESSAGE_SWIPED', () => { if (settings().enabled && !guided) syncWorld(() => changed('messages')); });
-    on('MESSAGE_DELETED', () => { if (settings().enabled) { reanchorRemovedCorrections(); reconcile(); syncWorld(() => changed('messages')); } changed('messages'); });
+    on('MESSAGE_SWIPED', () => { rememberStoryTimeline(); if (settings().enabled && !guided) syncWorld(() => changed('messages')); });
+    on('MESSAGE_DELETED', () => { if (settings().enabled) { reanchorRemovedCorrections(); reconcile(); refreshAfterDeletion(() => changed('messages')); } changed('messages'); });
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);
-        if (settings().enabled && ctx().chat?.[id] && !ctx().chat[id].is_user) invalidateAfterEdit(id, () => { toast('warning', 'The edited reply and later story state need review. Open Current State to review or rebuild them.'); changed('messages'); });
+        if (settings().enabled && ctx().chat?.[id] && !ctx().chat[id].is_user) refreshAfterReplyEdit(id,()=>changed('messages'));
         else if (settings().enabled && ctx().chat?.[id]?.is_user) syncWorld(() => changed('messages'));
         if (!memoryOnly() && settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
         changed('messages');
@@ -1420,7 +1442,7 @@ export async function acceptV10Opening(draft, prose) {
     if (modules.colors) registerSpeakers(prose,recordMap(rows));
     if (newMessage) c.addOneMessage?.(m);
     else c.updateMessageBlock?.(0,m);
-    await afterReply(0,rec,parsed,0,() => changed('messages',0),{ v10:{ modules, records:recordMap(rows), baselines:portrayalSources(rows), base:prefs()?.base }, propagate:true });
+    await afterReply(0,rec,parsed,0,() => changed('messages',0),{ v10:{ modules, records:recordMap(rows), baselines:portrayalSources(rows), base:baseWorld() }, propagate:true });
     await c.saveChat?.();
     changed('messages',0);
 }

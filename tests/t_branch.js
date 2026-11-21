@@ -70,7 +70,7 @@ const chatInfo = (page) => page.evaluate(async (B) => { const c = globalThis.Sil
         const b2 = await chatInfo(page);
         assert(b2.chat !== o2.chat && b2.world === o2.world, 'off: with "A branch gets its own copy of the world" off, the branch shares the world');
         await L.setSettings(page, { world: { copyOnBranch: true }, summary: { on: false } });
-        // a new chapter shares the world on purpose and is never copied
+        // A new chapter creates its own continuation book without becoming a host branch.
         await L.openChat(page);
         await page.evaluate(async ([B, name]) => { const K = await import(`${B}/src/books.js`); const W = await import(`${B}/src/world.js`); const id = await K.createSet(name, 'world', { entries: {} }, ''); W.setChatWorld(id); }, [L.BASE, 'Chapter world ' + t]);
         await send(page, 'one');
@@ -78,7 +78,7 @@ const chatInfo = (page) => page.evaluate(async (B) => { const c = globalThis.Sil
         await page.evaluate(async (B) => { const C = await import(`${B}/src/chapters.js`); const E = await import(`${B}/src/engine.js`); await C.startNewChapter({ summary: 'S', first: 'F' }, E.burnedSoFar); }, L.BASE);
         await page.waitForTimeout(1500); await idle(page);
         const n3 = await chatInfo(page);
-        assert(n3.chat !== o3.chat && n3.world === o3.world && !n3.from, 'new chapter: a new chapter in a new chat keeps sharing the world, and is not copied as a branch');
+        assert(n3.chat !== o3.chat && n3.world !== o3.world && !n3.from, 'new chapter: the continuation has its own book and is not a host branch');
         console.log('page errors:', JSON.stringify(errors));
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 400));
     } finally { await browser.close(); }

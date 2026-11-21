@@ -1,3 +1,4 @@
+import { correctedLoreEntry, characterCorrectionFields, isRejectedStoryClaim } from './correction-rules.js';
 import { BOOK_TRIGGER_SOURCES, bookTriggerSource, reusableKeywordMatch, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
 import { recallPolicy } from './recall.js';
 import { memoryOnly, memoryComponents } from './components.js';
@@ -58,6 +59,10 @@ export function activePreset() {
 }
 
 export function prefs() { return chatState() && (chatState().v10 ||= {}); }
+export function baseWorld(local = chatState()?.v10) {
+    const base = local?.base;
+    return base && (!ctx().getWorldInfoNames || worldNames().includes(base.name)) ? base : null;
+}
 export function enabledV10() {
     const local = chatState()?.v10?.enabled;
     return settings().enabled && !memoryOnly() && (local ?? isCompanionPreset(activePreset()));
@@ -236,13 +241,15 @@ export function portrayalSources(rows) {
     const context = ctx();
     const card = context.characters?.[context.characterId];
     const name = names().char;
-    const text = safeText([card?.personality || card?.data?.personality, card?.description || card?.data?.description].filter(Boolean).join(' · '),650);
+    const correctedCard = new Map(characterCorrectionFields().map(({field,after})=>[field,after]));
+    const text = safeText(['personality','description'].map(field=>correctedCard.get(field) ?? card?.[field] ?? card?.data?.[field]).filter(Boolean).join(' · '),650);
     const voice = safeText(card?.mes_example || card?.data?.mes_example,260);
     if (name && (text || voice)) sources.push({name,text,voice,source:'Character card'});
-    const base = prefs()?.base;
+    const base = baseWorld();
     const known = [name,...rows.filter(row=>row.on && row.kind==='character').map(row=>row.name),
         ...rows.filter(row=>row.on).map(readRecord).filter(row=>row?.kind==='profile').map(row=>row.subject)];
-    for (const entry of Object.values(base?.entries || {})) {
+    for (const original of Object.values(base?.entries || {})) {
+        const entry = correctedLoreEntry(original,base.name);
         if (entry.disable || !(entry.extensions?.ri?.kind==='character' || base.pins?.includes(String(entry.uid)))) continue;
         const aliases = Array.isArray(entry.key) ? entry.key.filter(key=>typeof key==='string' && key.trim()) : [];
         const subject = known.find(candidate=>candidate && aliases.some(alias=>normalize(alias)===normalize(candidate)));
@@ -280,6 +287,7 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
     const kind = input.kind;
     const previous = rows.get(input.id);
     const text = safeText(input.text,900);
+    if (!manual && ['fact','profile'].includes(kind) && isRejectedStoryClaim(text)) return null;
     const quote = safeText(input.evidence,400);
     if ((!text && (!previous || kind !== 'profile')) || (previous && previous.kind !== kind)) return null;
     if (!manual) {
@@ -468,6 +476,10 @@ export async function uploadReusableBook(file, role = 'base') {
         || new Set(entries.map(entry=>entry.uid)).size !== entries.length) {
         throw new Error('Invalid World Info entries. Import other formats through the host World Info menu first.');
     }
+    for (const entry of entries) {
+        const chance = entry.probability;
+        if (typeof chance==='number' && chance>=0 && chance<100 && entry.useProbability===undefined) entry.useProbability = true;
+    }
     const base = cleanSetName(file.name.replace(/\.json$/i,'')).replace(/^\.+|\.+$/g,'').trim() || 'World Info';
     const taken = new Set(worldNames().map(name=>name.toLocaleLowerCase()));
     let name = base;
@@ -504,6 +516,8 @@ export function assignReusableBook(name, role, on = true) {
     const book = { name, role, on };
     local.reusableBooks = assigned.some(existing => existing.name === name)
         ? assigned.map(existing => existing.name === name ? book : existing) : [...assigned, book];
+    const root = chatState();
+    if (root.excludedHostBooks) root.excludedHostBooks = root.excludedHostBooks.filter(book=>book!==name);
     rememberReusableBook(name);
     saveChatState();
 }
@@ -530,6 +544,8 @@ export async function pinBase(name) {
     rememberReusableBook(local.base?.name);
     rememberReusableBook(name);
     local.base = name ? { name, entries:structuredClone(data.entries), pins:local.base?.name === name ? local.base.pins || [] : [] } : null;
+    const root = chatState();
+    if (name && root.excludedHostBooks) root.excludedHostBooks = root.excludedHostBooks.filter(book=>book!==name);
     saveChatState();
 }
 
@@ -641,6 +657,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const recalled = [];
     const plotAudit = [];
     const local = prefs() || {};
+    const base = baseWorld(local);
     let offer;
     for (const saved of records.values()) {
         const row = saved.kind === 'profile' ? effectivePortrayal(saved,baselineFor(baselines,saved.subject,saved.aliases)) : saved;
@@ -661,8 +678,8 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
             let suffix = '';
             if (row.kind === 'profile') suffix = `${row.voice ? ` Voice: ${row.voice}` : ''}${row.facet && row.facetScene!=null && row.facetScene===sceneId ? ` Current facet: ${row.facet}` : ''}`;
             if (row.kind==='fact' && row.baseEntry) {
-                const canonical = !row.baseBook || row.baseBook===local.base?.name
-                    ? Object.values(local.base?.entries || {}).find(entry=>String(entry.uid)===row.baseEntry) : undefined;
+                const canonical = !row.baseBook || row.baseBook===base?.name
+                    ? Object.values(base?.entries || {}).find(entry=>String(entry.uid)===row.baseEntry) : undefined;
                 if (canonical) suffix = ` ${row.baseRelation==='updates-present' ? 'Current condition building on' : row.baseRelation==='contradicts' ? 'Player correction in this chat conflicts with' : 'Builds on'} Base World entry ${canonical.uid} (${canonical.comment || canonical.key?.[0] || 'untitled'}).`;
             }
             if (row.kind === 'relationship') suffix = [row.other,row.perspective].filter(Boolean).join(' · ');
@@ -723,7 +740,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         repair && `If supported, recover a missing state change from accepted reply ${repair.id}, using exact evidence and placing it in repairChanges alongside "repair":${repair.id}. Keep new changes in changes. Respect newer facts. Prior prose: ${JSON.stringify(repair.text)}`,
         updateContract(modules),
     ].filter(Boolean).join('\n');
-    return { text, offer, repair, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base:local?.base, plotAudit };
+    return { text, offer, repair, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
 }
 
 export function loreReceipt(entries, notes, rows, book, recalled = []) {
@@ -742,7 +759,7 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
         const managed = set && { instructions:'Random Instructions',events:'Random Story Events',style:'Random Writing Style' }[setInfo(set).kind];
         const timing = managed ? null : [
             entry.constant ? 'Always eligible' : `${entry.vectorized ? 'Vector or keyword' : 'Keyword'} · ${BOOK_TRIGGER_SOURCES[bookTriggerSource(entry)]}`,
-            entry.useProbability === false ? '100% chance' : entry.probability != null && Number.isFinite(Number(entry.probability)) ? `${entry.probability}% chance` : '',
+            !entry.useProbability ? '100% chance' : entry.probability != null && Number.isFinite(Number(entry.probability)) ? `${entry.probability}% chance` : '',
             entry.sticky > 0 && `sticky ${entry.sticky}`,
             entry.cooldown > 0 && `cooldown ${entry.cooldown}`,
         ].filter(Boolean).join(' · ');
@@ -770,12 +787,13 @@ export function guidelineEligible(entry, local, scene, modules, book = local.gui
 export async function addConfiguredBooks(lore, arrays, scene, modules, { base = true, guidelines = true, reference = true, type = 'normal' } = {}) {
     const local = chatState()?.v10;
     if (!local || !Array.isArray(lore.chatLore)) return;
-    if (base && local.base) {
-        for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (list[i].world === local.base.name) list.splice(i,1);
+    const pinned = base && baseWorld(local);
+    if (pinned) {
+        for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (list[i].world === pinned.name) list.splice(i,1);
         const opening = !(ctx().chat || []).some(message=>message.is_user && message !== ctx().chat.at(-1));
-        lore.chatLore.push(...Object.values(local.base.entries || {}).map(entry => ({
-            ...structuredClone(entry), world:local.base.name,
-            ...(opening && local.base.pins?.includes(String(entry.uid)) && !entry.disable ? {constant:true} : {}),
+        lore.chatLore.push(...Object.values(pinned.entries || {}).map(entry => ({
+            ...structuredClone(entry), world:pinned.name,
+            ...(opening && pinned.pins?.includes(String(entry.uid)) && !entry.disable ? {constant:true} : {}),
         })));
     }
     const texts = scopedTriggerTexts(ctx().chat || [], type);
@@ -879,18 +897,21 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
     const card = ctx().characters?.[ctx().characterId] || {};
     const modules = effectiveModules();
     const c = ctx();
-    const cardSource = ['description','personality','scenario','mes_example'].map(key=>card[key] || card.data?.[key]).filter(Boolean);
+    const correctedCard = new Map(characterCorrectionFields().map(({field,after})=>[field,after]));
+    const cardSource = ['description','personality','scenario','mes_example']
+        .map(key=>correctedCard.get(key) ?? (card[key] || card.data?.[key])).filter(Boolean);
     const persona = c.powerUserSettings?.persona_description || c.power_user?.persona_description;
     const clue = [text,direction,names().char,names().user,card.scenario || card.data?.scenario].filter(Boolean).join(' ');
-    const selectEntries = (entries,pins=[]) => Object.values(entries || {}).filter(row=>{
+    const selectEntries = (entries,pins=[],book) => Object.values(entries || {}).filter(row=>{
         if (row.disable) return false;
         if (row.constant || pins.includes(String(row.uid))) return true;
         if (!row.key?.some(key=>mentions(clue,key))) return false;
         const secondary = (row.keysecondary || []).map(key=>mentions(clue,key));
         if (!row.selective || !secondary.length) return true;
         return [secondary.some(Boolean),secondary.some(value=>!value),secondary.every(value=>!value),secondary.every(Boolean)][row.selectiveLogic || 0];
-    }).map(row=>row.content).join('\n').slice(0,6000);
-    const base = selectEntries(local.base?.entries,local.base?.pins);
+    }).map(row=>correctedLoreEntry(row,book).content).join('\n').slice(0,6000);
+    const pinned = baseWorld(local);
+    const base = selectEntries(pinned?.entries,pinned?.pins,pinned?.name);
     const selected = { guidelines: [], reference: [] };
     const openingScene = { present: `${names().char}, ${names().user}` };
     for (const book of reusableAssignments(local)) {
@@ -901,7 +922,7 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
             (book.role !== 'guidelines' || guidelineEligible(entry,local,openingScene,modules,book.name)) &&
             (entry.constant || bookTriggerSource(entry) === 'chat' && reusableKeywordMatch(entry,clue)) &&
             (entry.useProbability === false || rollInt(100) < Number(entry.probability ?? 100)));
-        selected[book.role].push(...entries.map(entry => entry.content));
+        selected[book.role].push(...entries.map(entry=>correctedLoreEntry(entry,book.name).content));
     }
     const guidance = selected.guidelines.join('\n').slice(0,4500);
     const reference = selected.reference.join('\n').slice(0,3500);

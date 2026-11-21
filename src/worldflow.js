@@ -2,7 +2,7 @@ import { historySourceMatches } from './history-source.js';
 import { recallPolicy } from './recall.js';
 import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
-import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, prefs } from './v10.js';
+import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, baseWorld, prefs } from './v10.js';
 import { promptText, promptStatus } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor, sceneFromReplyHeader } from './state.js';
 // Keeping the story world up to date by itself.
@@ -17,7 +17,7 @@ import { addLog } from './log.js';
 import { rollInt, pickWeighted, setInfo, entriesOf, createSet, knownSets } from './books.js';
 import { worldOffers, rememberStory } from './pacing.js';
 import { showAgain } from './hide.js';
-import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall } from './world.js';
+import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
 export const ORDER_WORLD = 'Story world';
@@ -753,12 +753,12 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
 
 /** Record extension-editor changes so a later branch can undo future manual edits
  * on its copy without changing the parent world. */
-export function recordManualWorldChange(world, uid, before, after) {
+export function recordManualWorldChange(world, uid, before, after, anchor = correctionAnchor(), {persist = true} = {}) {
     const cs = chatState();
     if (!cs) return;
     cs.manualWorldChanges ||= [];
-    cs.manualWorldChanges.push({ world, uid, before: before ? JSON.parse(JSON.stringify(before)) : null, after: after ? JSON.parse(JSON.stringify(after)) : null, anchor: correctionAnchor(), time: Date.now() });
-    saveChatState();
+    cs.manualWorldChanges.push({ world, uid, before: before ? JSON.parse(JSON.stringify(before)) : null, after: after ? JSON.parse(JSON.stringify(after)) : null, anchor, time: Date.now() });
+    if (persist) saveChatState();
 }
 
 /** A world order happened (or was sent with checking off): make its effect, and store it with the reply. */
@@ -830,13 +830,26 @@ function staleHistoryStart(chat = ctx().chat || []) {
 }
 
 export function invalidateAfterEdit(id, onDone) {
-    return enqueue(() => invalidateFrom(Math.min(id,staleHistoryStart()),onDone));
+    return enqueue(async () => {
+        const host = ctx(), chat = host.chat || [], wid = chatWorld(), current = chatState();
+        let start = Math.min(id,staleHistoryStart(chat));
+        const boundaries = chat.flatMap((message,index)=>index>0 && isReply(message) ? [index] : []);
+        const edited = Math.max(1,boundaries.filter(index=>index<=start).length);
+        const data = wid && await loadWorld(wid).catch(()=>null);
+        if (ctx().chat!==chat || chatState()!==current || chatWorld()!==wid) return;
+        for (const row of data ? listWorld(data,wid) : []) {
+            if (row.kind!=='chapter' || !row.on || !row.span || !chapterIsMine(row,host.getCurrentChatId?.()) ||
+                edited<row.span.from || edited>row.span.to) continue;
+            start = Math.min(start,boundaries[row.span.from-1] ?? start);
+        }
+        await invalidateFrom(start,onDone);
+    });
 }
 
 async function invalidateFrom(id, onDone) {
     const c = ctx(), chatId = String(c.getCurrentChatId?.() || '');
     const cs = chatState(), chat = c.chat || [];
-    if (!cs || id < 0 || id >= chat.length) return;
+    if (!cs || cs.worldDetached || id < 0 || id >= chat.length) return;
     const affected = chat.slice(id).filter(m => !m?.is_user && m?.extra?.[KEY]);
     const waitingForBranch = !!cs.branchPendingWorld;
     let undone = 0;
@@ -860,13 +873,13 @@ async function invalidateFrom(id, onDone) {
     saveChatState();
     try { await c.saveChat?.(); } catch { /* saved on the next change */ }
     addLog({ what: 'Edited story', ok: null, result: `An earlier reply changed. ${affected.length} replies have stale state; ${undone} automatic world changes were undone. Review current state, world entries and any manually edited chapter summaries.`, details: [], got: '' });
-    onDone?.();
+    onDone?.(firstReply);
 }
 
 /** Bring the world in line with the replies that are in the chat now. */
 async function syncNow() {
     const cs = chatState();
-    if (!cs || !settings().enabled || cs.branchPendingWorld) return;
+    if (!cs || !settings().enabled || cs.branchPendingWorld || cs.worldDetached) return;
     const log = worldLog(cs);
     const current = new Map();
     for (const m of ctx().chat || []) { const rec = m?.extra?.[KEY]; if (rec?.update && rec.time) current.set(String(rec.time), rec); }
@@ -881,7 +894,10 @@ async function syncNow() {
     // Replies that are gone (deleted, or swiped away): undo what they changed.
     let laterReplyStillPresent = false;
     for (const t of Object.keys(log.items).reverse()) {
-        if (current.has(t)) { laterReplyStillPresent = true; continue; }
+        if (current.has(t)) {
+            if (!current.get(t).update.undone) laterReplyStillPresent = true;
+            continue;
+        }
         // The host can emit deletion events while a bulk delete is still in
         // progress. Do not discard an older rollback while a newer reply still
         // exists: its changes may currently cover the older values.
@@ -979,6 +995,7 @@ async function ownWorld() {
     const isBranch = !!ctx().chatMetadata?.main_chat && (!cs.worldOwner || cs.worldOwner !== mark);
     if (!isBranch) { if (cs.worldOwner !== mark) { cs.worldOwner = mark; saveChatState(); } return; }
     const removedOverrides = trimBranchOverrides(cs);
+    if (cs.worldDetached) { cs.worldOwner = mark; saveChatState(); return; }
     if (!(ctx().chat || []).some(m => m?.extra?.[KEY]?.stateStale)) { cs.historyNeedsReview = false; delete cs.historyInvalidFrom; }
     const from = cs.branchPendingWorld || cs.world;
     // A branch gets its own world by default, even when its parent had none.
@@ -993,7 +1010,7 @@ async function ownWorld() {
     const retained = new Set((ctx().chat || []).map(m => String(m?.extra?.[KEY]?.time || '')).filter(Boolean));
     const invalidated = new Set((ctx().chat || []).filter(m => m?.extra?.[KEY]?.stateStale && m.extra[KEY].update?.undone).map(m => String(m.extra[KEY].time || '')).filter(Boolean));
     const items = cs.worldLog?.items || {};
-    const anchors = new Set();
+    const anchors = new Set(['seed']);
     for (const m of ctx().chat || []) {
         if (m?.extra?.[KEY]?.time) anchors.add(`record:${m.extra[KEY].time}`);
         if (m?.send_date) anchors.add(`message:${m.send_date}`);
@@ -1003,6 +1020,10 @@ async function ownWorld() {
         ...Object.entries(items).filter(([time, item]) => (!retained.has(String(time)) || invalidated.has(String(time))) && item?.world === from).map(([time, item]) => ({ time: Number(time), item })),
         ...manual.filter(item => item.world === from && item.anchor && !anchors.has(item.anchor)).map(item => ({ time: Number(item.time), manual: item })),
     ].sort((a, b) => b.time - a.time);
+    const retainedHides = new Set(Object.entries(items).filter(([time])=>retained.has(time) && !invalidated.has(time))
+        .flatMap(([,item])=>(item.changes || []).filter(change=>change.type==='hide').flatMap(change=>change.dates || [])));
+    const discardedHides = future.flatMap(change=>(change.item?.changes || [])
+        .filter(item=>item.type==='hide').flatMap(item=>item.dates || [])).filter(mark=>!retainedHides.has(mark));
     for (const change of future) {
         if (change.item) revertChanges(data, from, (change.item.changes || []).filter(c => c.type !== 'hide'));
         else {
@@ -1033,6 +1054,8 @@ async function ownWorld() {
         if (was !== undefined) { uids[String(was)] = e.uid; delete e.extensions.ri.copyOf; }
     }
     await saveWorld(to, made);
+    if (chatState()!==cs || chatMark()!==mark) return;
+    showAgain(discardedHides,{persist:false});
     // The records of this branch now point at the copy.
     let moved = 0;
     for (const rec of allRecords()) {
@@ -1169,7 +1192,7 @@ export async function saveV10Record(input) {
         if (!data) throw new Error('Could not load the story world.');
         if (chatState() !== cs) throw new Error('The chat changed.');
         const rows = listWorld(data,wid);
-        const record = normalizeRecord(input,{ modules:effectiveModules(), rows:recordMap(rows), sceneId:(ctx().chat || []).map(message=>message.extra?.[KEY]?.v10SceneId).filter(Boolean).at(-1), base:prefs()?.base, manual:true });
+        const record = normalizeRecord(input,{ modules:effectiveModules(), rows:recordMap(rows), sceneId:(ctx().chat || []).map(message=>message.extra?.[KEY]?.v10SceneId).filter(Boolean).at(-1), base:baseWorld(), manual:true });
         if (!record) throw new Error('The record has missing or invalid fields.');
         const kind = record.kind === 'seed' ? 'payoff' : record.kind;
         const w = rows.find(row => readRecord(row)?.id === record.id) || newWorldEntry(data,kind);

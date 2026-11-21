@@ -235,6 +235,11 @@ export function trimBranchOverrides(root, chat = ctx().chat || []) {
             if (item.anchor !== 'seed' && (!item.anchor || !anchors.has(item.anchor))) { delete bucket[key]; removed++; }
         }
     }
+    if (Array.isArray(root?.storyCorrections)) {
+        const kept = root.storyCorrections.filter(item=>item.anchor==='seed' || anchors.has(item.anchor));
+        removed += root.storyCorrections.length-kept.length;
+        root.storyCorrections = kept;
+    }
     return removed;
 }
 
@@ -254,6 +259,10 @@ export function reanchorRemovedCorrections() {
         if (entry.anchor && anchors.has(entry.anchor)) continue;
         entry.anchor = anchor;
         root.correctionHistory.push({ kind, key, entry: clone(entry), anchor });
+        changed = true;
+    }
+    for (const correction of root.storyCorrections || []) if (!anchors.has(correction.anchor)) {
+        correction.anchor = anchor;
         changed = true;
     }
     if (changed) { try { (ctx().saveMetadataDebounced || ctx().saveMetadata)?.(); } catch {} }

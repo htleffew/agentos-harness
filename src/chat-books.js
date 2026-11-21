@@ -1,9 +1,65 @@
 import { setInfo } from './books.js';
-import { chatState, settings } from './store.js';
-import { ctx, KEY, worldNames } from './st.js';
-import { chatWorld } from './world.js';
+import { chatState, settings, saveSettings, saveChatState } from './store.js';
+import { ctx, KEY, worldNames, deleteBook, isGenerating } from './st.js';
+import { chatWorld, setChatWorld } from './world.js';
 import { memoryComponents, memoryOnly } from './components.js';
-import { enabledV10, reusableAssignments, reusableBookRoles } from './v10.js';
+import { enabledV10, reusableAssignments, reusableBookRoles, pinBase, unassignReusableBook } from './v10.js';
+import { restoreChapterHistory } from './hide.js';
+import { enqueue } from './worldflow.js';
+
+export function filterExcludedBooks(arrays) {
+    const names = new Set(chatState()?.excludedHostBooks || []);
+    if (!names.size) return;
+    for (const entries of arrays) for (let index=entries.length-1;index>=0;index--) {
+        if (names.has(entries[index].world)) entries.splice(index,1);
+    }
+}
+
+export function showBookInChat(name) {
+    const root = chatState();
+    if (!root) return;
+    root.excludedHostBooks = (root.excludedHostBooks || []).filter(book=>book!==name);
+    saveChatState();
+}
+
+export function hideBookCard(name, hidden) {
+    const root = chatState();
+    if (!root) return;
+    root.hiddenBookCards = [...new Set([...(root.hiddenBookCards || []).filter(book=>book!==name),...(hidden ? [name] : [])])];
+    saveChatState();
+}
+
+async function detachBook(name, root, host) {
+    if (chatState()!==root) throw new Error('The open chat changed.');
+    if (chatWorld() && setInfo(chatWorld()).book===name) {
+        restoreChapterHistory();
+        setChatWorld('');
+    }
+    if (root.v10?.base?.name===name) await pinBase(null);
+    if (chatState()!==root) throw new Error('The open chat changed.');
+    if (reusableAssignments().some(book=>book.name===name)) unassignReusableBook(name);
+    root.activeSets = root.activeSets.filter(id=>setInfo(id).book!==name);
+    if (host.chatMetadata?.world_info===name) delete host.chatMetadata.world_info;
+    root.excludedHostBooks = [...new Set([...(root.excludedHostBooks || []),name])];
+    saveChatState();
+    await host.saveChat?.();
+}
+
+export function removeChatBook(name, { everywhere = false } = {}) {
+    if (isGenerating()) throw new Error('Wait for the current reply to finish.');
+    const host = ctx(), root = chatState();
+    return enqueue(async()=>{
+        if (!root || chatState()!==root) throw new Error('The open chat changed.');
+        if (isGenerating()) throw new Error('Wait for the current reply to finish.');
+        if (everywhere) await deleteBook(name);
+        await detachBook(name,root,host);
+        if (everywhere) {
+            for (const id of Object.keys(settings().sets)) if (setInfo(id).book===name) delete settings().sets[id];
+            saveSettings();
+            hideBookCard(name,true);
+        }
+    },{propagate:true});
+}
 
 let observed;
 const hostSources = {
@@ -81,7 +137,19 @@ export function chatBooks() {
             if (available.has(name) && !books.has(name)) add(name,'Used on an earlier reply');
         }
     }
-    return [...books.values()].map(book=>({...book,roles:[...book.roles]}));
+    for (const name of local.excludedHostBooks || []) add(name,'Removed from this chat');
+    const configured = new Set([
+        world ? setInfo(world).book : '',
+        local.v10?.base?.name,
+        ...assignments.map(book=>book.name),
+        ...local.activeSets.filter(id=>Object.hasOwn(settings().sets,id)).map(id=>setInfo(id).book),
+    ]);
+    return [...books.values()].map(book=>{
+        const excluded = local.excludedHostBooks?.includes(book.name) || false;
+        const roles = [...book.roles];
+        const active = !excluded && (configured.has(book.name) || roles.some(role=>role.startsWith('Host ')));
+        return {...book,roles,excluded,active,hidden:local.hiddenBookCards?.includes(book.name) || false};
+    });
 }
 
 export function openHostBook(name) {

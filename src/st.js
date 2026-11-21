@@ -153,9 +153,9 @@ export async function ask(options) {
 }
 
 /** Pull the first JSON list or object out of a model answer. Returns null when there is none. */
-export function parseJson(text) {
+export function parseJson(text, { object = false } = {}) {
     const s = String(text ?? '').replace(/```(?:json)?/gi, '');
-    for (const [open, close] of [['[', ']'], ['{', '}']]) {
+    for (const [open, close] of object ? [['{','}']] : [['[', ']'], ['{', '}']]) {
         const a = s.indexOf(open);
         const b = s.lastIndexOf(close);
         if (a >= 0 && b > a) {
@@ -177,6 +177,15 @@ export async function saveBook(name, data) {
     const c = ctx();
     await c.saveWorldInfo(name, data, true);
     try { c.reloadWorldInfoEditor?.(name, false); } catch { /* the World Info editor is not open */ }
+}
+
+export async function deleteBook(name) {
+    const host = ctx();
+    const remove = typeof host.deleteWorldInfo==='function' ? host.deleteWorldInfo.bind(host) :
+        (await import('../../../../world-info.js')).deleteWorldInfo;
+    if (typeof remove!=='function' || await remove(name) === false) throw new Error('The host could not delete this World Info book.');
+    await refreshWorldList();
+    if (worldNames().includes(name)) throw new Error('The host still lists this book. Reload World Info before trying again.');
 }
 
 export async function refreshWorldList() {

@@ -1,20 +1,38 @@
 import { bookEntryEditor } from './book-entry-editor.js';
 import { h, button, section, download } from './dom.js';
-import { chatBooks, openHostBook } from '../chat-books.js';
-import { loadBook, toast } from '../st.js';
+import { chatBooks, openHostBook, hideBookCard, removeChatBook, showBookInChat } from '../chat-books.js';
+import { loadBook, toast, confirmBox } from '../st.js';
 import { memoryComponents } from '../components.js';
 import { chatWorld } from '../world.js';
 import { ensureWorld, reusableAssignments } from '../v10.js';
 
 export function renderChatBooks(app, { assignedEditors = false } = {}) {
-    const books = chatBooks();
+    const catalog = chatBooks();
+    const books = catalog.filter(book=>app.showHiddenBooks || !book.hidden);
     const world = chatWorld();
     const reusable = new Set(reusableAssignments().map(book => book.name));
+    const change = async (book, everywhere) => {
+        try {
+            if (everywhere && !await confirmBox(`Delete “${book.name}” everywhere? This permanently removes the book and all its entries for every chat that uses it. Export it first if you want a copy.`)) return;
+            await removeChatBook(book.name,{everywhere});
+            app.render();
+        } catch (error) { toast('error',error.message); }
+    };
     return section('World Info books for this chat',
-        h('p',{class:'ri-help'},'See which physical books this chat uses, what each stores, and which books came from earlier chapters or replies. Edits to a shared book apply in each chat using it. What Was Sent shows the entries selected for a particular reply.'),
-        books.length ? h('ul',{class:'ri-chat-books'},books.map(book=>h('li',{class:'ri-card ri-tight','data-book-name':assignedEditors && reusable.has(book.name) ? null : book.name},
+        h('p',{class:'ri-help'},'Remove from this chat keeps the book available elsewhere. Hide from list clears a historical card from this view. Delete book everywhere removes the shared book from World Info.'),
+        catalog.some(book=>book.hidden) && button(app.showHiddenBooks ? 'Hide books again' : 'Show hidden books',()=>{
+            app.showHiddenBooks=!app.showHiddenBooks;app.render();
+        },{kind:'ghost'}),
+        books.length ? h('ul',{class:'ri-chat-books ri-book-catalog'},books.map(book=>h('li',{class:'ri-card ri-tight','data-book-name':assignedEditors && reusable.has(book.name) ? null : book.name},
             h('strong',{},book.name),
             h('p',{class:'ri-help'},book.roles.join(' · ')),
+            h('div',{class:'ri-row'},
+                book.active && button('Remove from this chat',()=>change(book,false),{kind:'ghost'}),
+                book.excluded && book.exists && button('Allow host recall again',()=>{showBookInChat(book.name);app.render();},{kind:'ghost'}),
+                (!book.active || book.hidden) && button(book.hidden ? 'Show in list' : 'Hide from list',()=>{
+                    hideBookCard(book.name,!book.hidden);app.render();
+                },{kind:'ghost'}),
+                book.exists && button('Delete book everywhere',()=>change(book,true),{kind:'danger'})),
             book.exists ? h('div',{class:'ri-row'},
                 button('Open in World Info',()=>{
                     if (!openHostBook(book.name)) toast('info',`Select “${book.name}” in the host World Info editor.`);

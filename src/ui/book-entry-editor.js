@@ -10,7 +10,7 @@ import { ACTIVATION_MODES, readActivation } from '../recall.js';
 
 const terms = value => String(value || '').split(/\r?\n/).map(part=>part.trim()).filter(Boolean);
 const input = (label,value,control = textInput) => control(value,()=>{},{'aria-label':label});
-const number = (label,value,min,max) => h('input',{type:'number',value,min,max,'aria-label':label});
+const number = (label,value,min,max) => h('input',{type:'number',class:'ri-input ri-input-num',inputMode:'numeric',value,min,max,'aria-label':label});
 const toggle = (label,checked) => h('input',{type:'checkbox',checked,'aria-label':label});
 const option = (value,label) => ({value,label});
 const checkbox = (label,control) => h('label',{class:'ri-row'},control,label);
@@ -40,7 +40,7 @@ async function updateBook(name, entries, action) {
 
 const BOOK_MODES = { off:'Disabled', always:'Always eligible', triggered:'Keyword triggered', vector:'Vector matching' };
 const bookMode = entry => entry.disable ? 'off' : entry.constant ? 'always' : entry.vectorized ? 'vector' : 'triggered';
-const chanceOf = entry => entry.useProbability === false ? 100 : entry.probability ?? 100;
+const chanceOf = entry => entry.useProbability ? entry.probability ?? 100 : 100;
 const titleOf = entry => entry.comment || `Entry ${entry.uid}`;
 
 function applyBookMode(entry, mode) {
@@ -153,7 +153,11 @@ function editEntry(name, entry, target, refresh, reusable, adding = false) {
             const selective = secondary.value === (entry.keysecondary || []).join('\n') ? next.selective : secondaryKeys.length > 0;
             Object.assign(next,{comment:title.value.trim(),
                 key:terms(keys.value),keysecondary:secondaryKeys,selective,selectiveLogic:Number(logic.value),
-                probability:Number(chance.value),useProbability:Number(chance.value)!==100,sticky:Number(sticky.value) || null,cooldown:Number(cooldown.value) || null,content:content.value,extensions});
+                sticky:Number(sticky.value) || null,cooldown:Number(cooldown.value) || null,content:content.value,extensions});
+            if (adding || Number(chance.value)!==Number(chanceOf(entry))) {
+                next.probability=Number(chance.value);
+                next.useProbability=next.probability!==100;
+            }
         };
         controls.push(chance,sticky,cooldown);
     }
@@ -203,11 +207,12 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
             count.textContent = ` · ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`;
             const checked = new Set();
             const remove = button('Delete selected entries', () => removeEntriesFromBook(entries.filter(entry=>checked.has(entry.uid)), remove), {disabled:true});
-            const batchMode = select([option('always','Always eligible'),option('triggered','When a trigger matches'),option('off','Off')],'triggered',()=>{},
+            const batchMode = select([option('','Keep current activation'),option('always','Always eligible'),option('triggered','When a trigger matches'),option('off','Off')],'',()=>{},
                 {'aria-label':'Selected entries activation'});
             const batchKeys = input('Selected entries triggers','',textArea);
-            const batchChance = number('Selected entries chance (%)',100,0,100);
-            const batchSticky = number('Selected entries sticky',0,0,100);
+            const clearKeys = toggle('Clear triggers for selected entries',false);
+            const batchChance = number('Selected entries chance (%)','',0,100);
+            const batchSticky = number('Selected entries sticky','',0,100);
             const batchCooldown = entries.some(entry=>!isWorldEntry(entry))
                 ? number('Selected entries cooldown','',0,1000) : null;
             const batchSource = reusable && ctx().registerMacro ? select([
@@ -216,25 +221,45 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
             const batch = button('Apply recall settings to selected',async()=>{
                 const selected = entries.filter(entry=>checked.has(entry.uid));
                 if (!selected.length || !batchChance.checkValidity() || !batchSticky.checkValidity() || batchCooldown && !batchCooldown.checkValidity()) return;
-                const mode = batchMode.value, keys = terms(batchKeys.value);
-                if (mode==='triggered' && !keys.length) {problem(new Error('Enter at least one trigger phrase.'));return;}
+                const mode = batchMode.value;
+                const setKeys = clearKeys.checked || !!batchKeys.value.trim();
+                const keys = clearKeys.checked ? [] : terms(batchKeys.value);
+                const chance = batchChance.value === '' ? undefined : Number(batchChance.value);
+                const sticky = batchSticky.value === '' ? undefined : Number(batchSticky.value);
+                const cooldown = batchCooldown?.value ? Number(batchCooldown.value) : undefined;
+                const source = batchSource?.value;
+                if (!(mode || setKeys || chance!==undefined || sticky!==undefined || cooldown!==undefined || source)) {
+                    problem(new Error('Enter a recall setting to change.')); return;
+                }
+                const currentKeys = entry => isWorldEntry(entry)
+                    ? readWorldEntry(entry).activation?.keys || entry.key || [] : entry.key || [];
+                if (mode==='triggered' && selected.some(entry=>!(setKeys ? keys : currentKeys(entry)).length)) {
+                    problem(new Error('Each keyword-triggered entry needs at least one trigger phrase.')); return;
+                }
+                if (!mode && (setKeys || chance!==undefined || sticky!==undefined) &&
+                    selected.some(entry=>isWorldEntry(entry) && !readWorldEntry(entry).activation)) {
+                    problem(new Error('Choose an activation to set chance, triggers or stickiness for entries using Story World defaults.')); return;
+                }
                 batch.disabled=true;
                 try {
                     await updateBook(name,selected,book=>{
                         for (const entry of selected) {
                             const stored = book.entries[entry.uid];
-                            const chance = Number(batchChance.value), sticky = Number(batchSticky.value);
                             if (isWorldEntry(stored)) {
-                                stored.extensions.ri.activation=readActivation({mode,keys,chance,sticky});
-                            } else if (mode==='off') stored.disable=true;
-                            else {
-                                applyBookMode(stored, mode);
-                                Object.assign(stored,{key:keys,useProbability:chance!==100,probability:chance,sticky:sticky || null});
-                                if (batchCooldown && batchCooldown.value !== '') stored.cooldown = Number(batchCooldown.value) || null;
-                                if (batchSource?.value) {
+                                if (!(mode || setKeys || chance!==undefined || sticky!==undefined)) continue;
+                                const rule = readWorldEntry(stored).activation;
+                                stored.extensions.ri.activation=readActivation({...rule,mode:mode || rule?.mode,
+                                    keys:setKeys ? keys : currentKeys(entry),chance:chance ?? rule?.chance,sticky:sticky ?? rule?.sticky});
+                            } else {
+                                if (mode) applyBookMode(stored,mode);
+                                if (setKeys) stored.key=keys;
+                                if (chance!==undefined) Object.assign(stored,{probability:chance,useProbability:chance!==100});
+                                if (sticky!==undefined) stored.sticky=sticky || null;
+                                if (cooldown!==undefined) stored.cooldown=cooldown || null;
+                                if (source) {
                                     stored.extensions ||= {};
-                                    if (batchSource.value === 'chat') delete stored.extensions.riTriggerSource;
-                                    else stored.extensions.riTriggerSource = batchSource.value;
+                                    if (source === 'chat') delete stored.extensions.riTriggerSource;
+                                    else stored.extensions.riTriggerSource=source;
                                 }
                             }
                         }
@@ -255,9 +280,11 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
             content.replaceChildren(entries.length ? h('div',{},
                 h('div',{class:'ri-row'},checkbox('Select all entries',all),remove),
                 h('details',{},h('summary',{},'Change recall settings for selected entries'),
-                    field('Activation','',batchMode),field('Triggers','One phrase per line.',batchKeys),
+                    h('p',{class:'ri-help'},'Only the settings you fill in are changed. Check each entry’s row for its saved activation and chance.'),
+                    field('Activation','',batchMode),field('Triggers','One phrase per line. Leave blank to keep current triggers.',batchKeys),
+                    checkbox('Clear triggers for selected entries',clearKeys),
                     batchSource && field('Keyword source', '', batchSource),
-                    field('Chance (%)','',batchChance),field('Sticky','Replies for Story World entries. Host messages for native entries.',batchSticky),
+                    field('Chance (%)','Leave blank to keep each entry’s current chance.',batchChance),field('Sticky','Replies for Story World entries. Host messages for native entries. Leave blank to keep the current value.',batchSticky),
                     batchCooldown && field('Cooldown (host messages)','Applies to native entries. Leave blank to keep the current cooldown.',batchCooldown),
                     batch),
                 h('ul',{class:'ri-chat-books'},entries.map((entry,index)=>{

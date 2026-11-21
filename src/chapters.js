@@ -4,7 +4,8 @@ import { memoryComponents, memoryOnly } from './components.js';
 import { promptText } from './prompts.js';
 import { stateAt, sceneAt, normalizeScene, SCENE_FIELDS, changesFromProfiles } from './state.js';
 import { historySourceMark, historySourceMatches } from './history-source.js';
-import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, recordMap, portrayalSources, updateContract } from './v10.js';
+import { storyCorrectionPrompt } from './correction-rules.js';
+import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, recordMap, portrayalSources, updateContract, baseWorld } from './v10.js';
 // The story so far, kept by the extension itself.
 //  - Chapters: one AI request writes a summary of a stretch of replies. It is filed in the chat's story world as a
 //    "chapter" entry and sent with the story notes. A chapter is cut when a scene ends, after a set number of
@@ -203,7 +204,7 @@ export async function writeChapterNow() {
 }
 
 /** Partition uncovered history on reply boundaries. A long exchange is sent whole in its own request. */
-export function catchUpBatches(chat, covered, every, budget = 28000) {
+export function catchUpBatches(chat, covered, every, budget = 28000, splitAfter = 0) {
     const batches = [];
     let start = 0, number = 0, batch = null;
     for (let end = 1; end < chat.length; end++) {
@@ -218,7 +219,7 @@ export function catchUpBatches(chat, covered, every, budget = 28000) {
                 .replace(/<(roast|profile|think|thinking|analysis)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
             return `${message.name || (message.is_user ? 'Player' : 'Character')}: ${tidy(prose)}`;
         }).join('\n\n');
-        if (!batch || number - batch.from >= every || batch.text.length + text.length + 2 > budget) {
+        if (!batch || batch.to===splitAfter || number - batch.from >= every || batch.text.length + text.length + 2 > budget) {
             batch = { from:number, to:number, start:from, end, text };
             batches.push(batch);
         } else {
@@ -253,7 +254,7 @@ export function stopHistoryCatchUp() {
 
 function catchUpPayload(answer, batch, track, structured) {
     const text = answer.trim();
-    const summary = parseJson(text.slice(Math.max(0,text.indexOf('{'))));
+    const summary = parseJson(text,{object:true});
     if (!summary || typeof summary.summary !== 'string' || !summary.summary.trim()) throw new Error('The model returned no usable chapter summary.');
     if (!track) return { summary, parsed:null, ops:[] };
     if (!Array.isArray(summary.world)) throw new Error('The model omitted the Story World entry list.');
@@ -290,7 +291,7 @@ function keepAuthoredEntries(rows, data, world) {
 
 function fileHistoryBatch(data, wid, meta, batch, payload, rec, config) {
     const {summary, parsed, ops} = payload;
-    const {track,structured,modules,previous,base} = config;
+    const {track,structured,modules,previous,base,keepChapter = true} = config;
     const prior = listWorld(data,wid);
     const changes = track ? applyOps(data,wid,ops,meta,'history',35) : [];
     if (parsed && modules.state && (!rec.scene || rec.stateStale)) {
@@ -310,6 +311,7 @@ function fileHistoryBatch(data, wid, meta, batch, payload, rec, config) {
             modules,records:recordMap(prior),baselines:portrayalSources(prior),base,
         },{historical:true}));
     }
+    if (!keepChapter) return {rec,changes,chapter:null};
     const chapter = newWorldEntry(data,'chapter');
     Object.assign(chapter,{name:clean(summary.title) || `Replies ${batch.from} to ${batch.to}`,auto:true,at:meta,
         span:{chat:meta.chat,from:batch.from,to:batch.to,time:String(rec.time)}});
@@ -329,8 +331,8 @@ async function attachHistoryBatch(wid, batch, staged, original, safeEnd) {
     if (swipe) { swipe.extra ||= {}; swipe.extra[KEY] = rec; }
     const dates = safeEnd === undefined ? [] : await hideCovered(safeEnd,{persist:false});
     attachChanges(rec.time,wid,[...changes,
-        {uid:chapter.uid,name:chapter.name,kind:'chapter',type:'create',createdState:creationFingerprint(chapter),entry:structuredClone(chapter)},
-        ...(dates.length ? [{uid:chapter.uid,name:chapter.name,kind:'chapter',type:'hide',dates}] : [])],{persist:false});
+        ...(chapter ? [{uid:chapter.uid,name:chapter.name,kind:'chapter',type:'create',createdState:creationFingerprint(chapter),entry:structuredClone(chapter)}] : []),
+        ...(dates.length && chapter ? [{uid:chapter.uid,name:chapter.name,kind:'chapter',type:'hide',dates}] : [])],{persist:false});
     return dates.length;
 }
 
@@ -355,9 +357,9 @@ function historyCheckpoint(chat, root) {
 }
 
 /** Read unsummarized history and checkpoint each chapter and its records in the same book write. */
-export async function catchUpChatHistory(onProgress = () => {}, { rebuild = false, keepAuthored = true } = {}) {
+export async function catchUpChatHistory(onProgress = () => {}, { rebuild = false, keepAuthored = true, repair = null } = {}) {
     if (busy || isGenerating()) throw new Error('Wait for the current generation or chapter to finish.');
-    if (!memoryComponents().chapters) throw new Error('Enable Chapter summaries for this chat first.');
+    if (!repair && !memoryComponents().chapters) throw new Error('Enable Chapter summaries for this chat first.');
     const c = ctx(), id = chatId(), root = chatState();
     if (!id || !root) throw new Error('Open the chat you want to catch up.');
     if (!replies().length) throw new Error('This chat has no model replies to catch up.');
@@ -377,7 +379,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
         const originalWorld = chatWorld();
         let wid = rebuild ? originalWorld : await ensureWorld();
         validate();
-        const track = !memoryOnly() && memoryComponents().world && settings().world.update !== 'off';
+        const track = !memoryOnly() && memoryComponents().world && (enabledV10() || settings().world.update !== 'off');
         const structured = track && enabledV10();
         const modules = structured ? { ...effectiveModules(),roast:false } : { state:track };
         const old = wid ? await loadWorld(wid) : null;
@@ -395,18 +397,21 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
         }
         const replyList = replies();
         const covered = rebuild ? new Set() : chapterCoverage(oldRows,id,replyList.length);
-        const batches = catchUpBatches(chat,covered,Math.max(1,Number(settings().summary.every) || 20));
+        if (repair) for (const row of replyList) if (row.n < repair.from) covered.add(row.n);
+        const chapterThrough = repair && memoryComponents().chapters ? repair.chapterThrough : 0;
+        const batches = catchUpBatches(chat,covered,Math.max(1,Number(settings().summary.every) || 20),28000,chapterThrough);
         status.total = batches.length;
         let timestamp = Math.max(Date.now(), ...chat.map(message=>Number(message?.extra?.[KEY]?.time) || 0));
         for (const batch of batches) {
             if (status.stop) break;
             validate();
-            report(`Reading replies ${batch.from}–${batch.to} · chapter ${status.done + 1} of ${status.total}…`);
+            report(`Reading replies ${batch.from}–${batch.to} · batch ${status.done + 1} of ${status.total}…`);
             const before = listWorld(rebuild ? stagingBook : await loadWorld(wid),wid);
             const catalog = before.filter(row=>row.on && row.kind!=='chapter').slice(-45).map(row=>row.name).join(', ');
             const form = [
                 chapterPrompt(batch.text,chaptersOf(before).filter(row=>row.span?.chat!==id || row.span.to<batch.from).slice(-3),{close:false}),
                 track && promptText('catchUpHistory'),
+                (!rebuild || keepAuthored) && storyCorrectionPrompt('','',batch.text),
                 track && catalog && `Reuse existing entry names or record IDs where appropriate: ${catalog}.`,
                 track && [
                     'Add "world", an array of up to 35 objects with "line" and an exact short "evidence" quote from this batch. Use [] if none are established.',
@@ -436,7 +441,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                 const {summary, parsed, ops} = catchUpPayload(response.text,batch,track,structured);
                 const payload = {summary,parsed,ops};
                 const meta = {chat:id,n:batch.to};
-                const config = {track,structured,modules,base:root.v10?.base};
+                const config = {track,structured,modules,base:baseWorld(root.v10),keepChapter:!repair || batch.to<=chapterThrough};
                 const existing = chat[batch.end].extra?.[KEY];
                 if (rebuild) {
                     const rec = savedHistoryRecord(existing) || {v:1,items:[],type:'history',time:++timestamp};
@@ -469,7 +474,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     const rollback = historyCheckpoint(chat,root);
                     let hidden;
                     try {
-                        hidden = await attachHistoryBatch(wid,batch,staged,original,replyList[Math.min(last,batch.to)-1]?.index);
+                        hidden = await attachHistoryBatch(wid,batch,staged,original,staged.chapter ? replyList[Math.min(last,batch.to)-1]?.index : undefined);
                         await c.saveChat?.();
                     } catch (error) {
                         if (current() && chatWorld() === wid) { rollback(); saveChatState(); }
@@ -520,6 +525,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                         delete root.stateOverrides;
                         delete root.sceneOverrides;
                         delete root.correctionHistory;
+                        delete root.storyCorrections;
                         for (const message of chat) for (const holder of [message,...(message.swipe_info || [])]) {
                             if (holder.extra?.[KEY]) {
                                 delete holder.extra[KEY].stateEdits;
@@ -541,7 +547,8 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                 }
             },{propagate:true});
         }
-        report(status.stop && rebuild ? 'Rebuild stopped. The previous Story World is still in use.' : status.stop ? `Paused after ${status.done} of ${status.total} chapters. Run catch-up again to continue.` :
+        report(status.stop && rebuild ? 'Rebuild stopped. The previous Story World is still in use.' : status.stop ? `Paused after ${status.done} of ${status.total} batches.` :
+            repair ? `Refreshed ${status.done} affected history batches and filed ${status.records} Story World changes.` :
             status.book ? `Rebuilt ${status.done} chapters in ${status.book}. Hid ${status.hidden} covered messages from the model.` : status.total ? `Saved ${status.done} chapters and filed ${status.records} Story World changes. Hid ${status.hidden} covered messages from the model.` :
                 'Every model reply in this chat already has chapter coverage.');
         return {...status};
@@ -553,6 +560,26 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
         busy = false;
         onProgress();
     }
+}
+
+/** Re-read changed accepted prose without creating chapters for a previously unsummarized stretch. */
+export async function refreshEditedStory(from, chapterThrough = 0) {
+    const root = chatState();
+    const result = await catchUpChatHistory(undefined,{repair:{from,chapterThrough}});
+    if (chatState()===root && root.historyNeedsReview && result.done===result.total && !result.stop) {
+        await enqueue(async () => {
+            const wid = chatWorld(), current = ctx().chat;
+            const data = wid && await loadWorld(wid);
+            if (chatState()!==root || current!==ctx().chat || chatWorld()!==wid) return;
+            const regenerated = new Set(current.map(message=>message.extra?.[KEY])
+                .filter(record=>record?.historySource?.length && !record.stateStale).map(record=>String(record.time)));
+            const outstanding = data && listWorld(data,wid).some(row=>row.kind==='chapter' && row.on && row.span &&
+                chapterIsMine(row,chatId()) && row.span.to>=root.historyInvalidFrom && !regenerated.has(row.span.time));
+            if (!outstanding) { delete root.historyNeedsReview; delete root.historyInvalidFrom; saveChatState(); }
+        });
+    }
+    addLog({what:'Automatic story refresh',ok:true,result:'Refreshed '+result.done+' affected history batches and filed '+result.records+' world changes.'});
+    return result;
 }
 
 /** When a chat has more chapters than the setting allows, the older ones are combined into one. One AI request. */
@@ -691,6 +718,7 @@ export async function startNewChapter(draft, burnedSoFar) {
     const reviewedScene = chapterSceneFields(draft.scene);
     const openingScene = normalizeScene({...sceneAt(),...reviewedScene});
     const carry = {
+        storyCorrections:(cs.storyCorrections || []).map(item=>({...structuredClone(item),anchor:'seed',replyNo:0})),
         v10, v10ClockSeed, components:cs.components ? structuredClone(cs.components) : undefined,
         activeSets: [...cs.activeSets], presets: structuredClone(cs.presets), locks: structuredClone(cs.locks),
         used: structuredClone(cs.used), picks: structuredClone(cs.picks), pronouns: cs.pronouns ? structuredClone(cs.pronouns) : undefined,
@@ -703,6 +731,8 @@ export async function startNewChapter(draft, burnedSoFar) {
             .filter(([key,value])=>!Object.hasOwn(reviewedScene,key) || reviewedScene[key]===value.value)
             .map(([k, v]) => [k, { ...structuredClone(v), anchor: 'seed' }])),
         blockedEventTags: structuredClone(cs.blockedEventTags || []),
+        excludedHostBooks: structuredClone(cs.excludedHostBooks || []),
+        hiddenBookCards: structuredClone(cs.hiddenBookCards || []),
         chapterOf: oldChat, reusableBookHistory:cs.reusableBookHistory ? [...cs.reusableBookHistory] : undefined,
         previousStoryWorlds: [...new Set([wid,...(cs.previousStoryWorlds || [])].filter(Boolean))],
     };

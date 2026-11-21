@@ -4,6 +4,7 @@ import { h, button } from './dom.js';
 import { guideSwipe, guidedSwipeActive } from '../engine.js';
 import { ctx, KEY } from '../st.js';
 import { settings } from '../store.js';
+import { correctionEditor } from './corrections.js';
 
 /** A small, optional control on the newest character reply. */
 export function refreshGuidedControl() {
@@ -27,4 +28,6 @@ export function refreshGuidedControl() {
         h('summary', { class: 'ri-guided-summary' }, 'Guide a swipe'),
         h('div', { class: 'ri-guided-body' }, h('div', { class: 'ri-help' }, 'Describe how the replacement should go. This direction is sent for this swipe only.'), input, choice, promptGroup(['guided'], 'Customize guided-swipe instruction'), h('label', { class: 'ri-state-lock' }, keepManual, ' Keep my manual world edits after this reply'), status, send));
     block.append(fold);
+    block.append(h('details',{class:'ri-root ri-guided','data-accent':'sky'},
+        h('summary',{class:'ri-guided-summary'},'Correct story facts'),correctionEditor({focus:id})));
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.0.18
+
+- Trace story corrections from the transcript and saved records through chapter summaries, character cards, and lorebooks. Review exact source edits, apply them, and save the accepted fact for future turns.
+- Refresh managed story state and affected chapters after editing a reply or deleting from the middle of a chat. Branches and tail deletions reuse saved state when possible and rebuild missing state from the retained history.
+- Remove an assigned World Info book from the current chat, hide a historical book card, or permanently delete the underlying book using the host.
+- Keep imported odds and timing when bulk editing unrelated fields. Use readable number fields in World Info and Emotion tuning.
+
 ## 10.0.17
 
 - Catch up unprocessed chat history or rebuild the full chat into a new Story World. Both use batches to write chapters and file supported story records. Rebuild keeps the previous book available and can carry authored entries and corrections into the replacement.
