@@ -1,7 +1,7 @@
 import { onReplyProgress, replyProgress } from '../reply-progress.js';
 import { ctx, LOG } from '../st.js';
 import { settings } from '../store.js';
-import { enabledV10, prefs } from '../v10.js';
+import { effectiveModules, enabledV10, prefs } from '../v10.js';
 import { h } from './dom.js';
 
 const stages = [['Context','◇'],['Prose','▱'],['Update','▤'],['Saved','✓']];
@@ -15,8 +15,9 @@ const phases = {
 };
 
 let card;
-let nodes, caption, sections;
+let nodes, caption, sections, expected;
 let lastPhase;
+let turn;
 let preview;
 
 function refreshPreview(target, progress) {
@@ -53,12 +54,19 @@ export function refreshReplyProgress() {
         lastPhase = null;
         return;
     }
-    if (!card) {
+    if (!card || turn!==progress.turn) {
+        card?.remove();
+        lastPhase=null;
+        turn=progress.turn;
+        const modules=effectiveModules();
+        expected=[modules.state && {id:'scene',title:'Scene'},modules.state && {id:'cast',title:'Characters'},
+            (modules.state || modules.knowledge || modules.emotions || modules.relationships || modules.plots || modules.worldEvents)
+                && {id:'changes',title:'Story changes'},modules.roast && {id:'roast',title:'Roast'}].filter(Boolean);
         nodes = stages.map(([label,icon])=>h('li',{},
             h('span',{class:'ri-progress-light','aria-hidden':'true'},icon),
             h('span',{class:'ri-progress-stage-label'},label),
             h('span',{class:'ri-progress-stage-status','aria-hidden':'true'})));
-        sections = h('ul',{class:'ri-progress-sections','aria-label':'Story sections received',hidden:true});
+        sections = h('ul',{class:'ri-progress-sections','aria-label':'Story update sections',hidden:true});
         caption = h('span',{class:'ri-progress-caption',role:'status'});
         card = h('div',{class:'ri-root ri-reply-stack ri-v10-progress','data-accent':'sky'},
             h('div',{class:'ri-reply-card'},
@@ -83,18 +91,26 @@ export function refreshReplyProgress() {
         card.dataset.phase = progress.phase;
         lastPhase = progress.phase;
     }
-    const arrivals = prefs()?.showStreamSections===false ? [] : progress.sections || [];
-    const sectionStamp = arrivals.length ? progress.sectionStamp : '';
+    const showSections = prefs()?.showStreamSections!==false;
+    const arrivals = progress.sections || [];
+    const filed = ['filing','ready'].includes(progress.phase);
+    const sectionStamp = JSON.stringify([showSections,filed,progress.sectionStamp]);
     if (sections.dataset.stamp !== sectionStamp) {
         sections.dataset.stamp = sectionStamp;
-        const known = new Set(Array.from(sections.children,node=>node.dataset.section));
-        for (const section of arrivals) if (!known.has(section.id)) {
-            sections.append(h('li',{'data-section':section.id},
-                h('span',{class:'ri-progress-section-light','aria-hidden':'true'}),
-                h('span',{},h('strong',{},section.title),h('span',{class:'ri-progress-section-detail'},section.detail))));
+        const previous = new Map([...sections.children].map(node=>[node.dataset.slot,node]));
+        const slots = showSections ? new Map([...expected,...arrivals].map(section=>[section.id,section])) : new Map();
+        for (const [id,section] of slots) {
+            let node=previous.get(id);
+            if (!node) {
+                node=h('li',{'data-slot':id},h('span',{class:'ri-progress-section-light','aria-hidden':'true'}),
+                    h('span',{},h('strong',{},section.title),h('span',{class:'ri-progress-section-detail'})));
+                sections.append(node);
+            }
+            if (section.detail) node.dataset.section=id;
+            else delete node.dataset.section;
+            node.querySelector('.ri-progress-section-detail').textContent=section.detail || (filed ? 'No update' : 'Waiting');
         }
-        const active = new Set(arrivals.map(section=>section.id));
-        for (const node of [...sections.children]) if (!active.has(node.dataset.section)) node.remove();
+        for (const [id,node] of previous) if (!slots.has(id)) node.remove();
         sections.hidden = !sections.childElementCount;
     }
     const target = block || chat;

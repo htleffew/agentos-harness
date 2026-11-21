@@ -31,11 +31,12 @@ function entryCard(title, chips, content) {
         ...content);
 }
 
-function structuredCard(record, audit) {
+function structuredCard(record, audit, emotionTiming) {
     const { kind, id, subject, text, other, target, quote, status } = record;
     const title = [subject || words(id),other || target].filter(Boolean).join(' → ');
     const chips = [
         replyChip(labelFor(kind),'sky'),
+        emotionTiming && replyChip(emotionTiming,emotionTiming==='Recorded this reply' ? 'mint' : 'slate'),
         record.basis && replyChip(words(record.basis),'indigo'),
         record.private && replyChip('Private to character','slate'),
         status && replyChip(statusLabels[status] || status,status==='done' ? 'mint' : 'indigo'),
@@ -94,8 +95,10 @@ export function replyWorldTabs(index, modules, reply) {
                     return record ? [{...record,protected:record.protected || row.locked}] : [];
                 });
                 const audit = new Map((reply.v10Plot || []).map(item=>[item.id,{...item,offered:item.id===reply.v10Offer}]));
+                const updated = new Set((reply.v10Changes || []).map(item=>item.id));
                 const cards = items.filter(record=>kinds.includes(record.kind) && modules[KIND_MODULE[record.kind]])
-                    .map(record=>structuredCard(record,view==='Plot' ? audit.get(record.id) : null));
+                    .map(record=>structuredCard(record,view==='Plot' ? audit.get(record.id) : null,
+                        view==='Emotions' && (updated.has(record.id) ? 'Recorded this reply' : 'Earlier record')));
                 if (view!=='Plot' || modules.plots) cards.push(...rows.filter(row=>legacy.includes(row.kind) && !readRecord(row))
                     .map(row=>legacyCard(row,view)).filter(Boolean));
                 panel.replaceChildren(

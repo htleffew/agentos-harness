@@ -11,7 +11,7 @@ import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, 
 import { captureContext } from './context-budget.js';
 import { advanceStoryClock } from './story-clock.js';
 import { promptText } from './prompts.js';
-import { changesFromProfiles, normalizeScene, sceneFromReplyHeader, sceneAt, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
+import { changesFromProfiles, sceneUpdate, sceneFromReplyHeader, sceneAt, statePrompt, stripSceneTracker, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
@@ -871,7 +871,7 @@ function onMessageReceived(id, type) {
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const previousRecord = [...(ctx().chat || []).slice(0,id)].reverse()
             .map(row=>row?.extra?.[KEY]).find(record=>record?.scene && !record.stateStale);
-        const previousScene = normalizeScene(previousRecord?.scene || sceneAt(id,{overrides:false}));
+        const previousScene = sceneAt(id,{overrides:false});
         const turn = pending.v10;
         const plainDialogue = turn && (turn.modules.colors || pairedPreset()) ? proseDialogue(m.mes) : m.mes;
         const rewrittenDialogue = plainDialogue !== m.mes;
@@ -910,7 +910,7 @@ function onMessageReceived(id, type) {
             if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
         }
         const header = turn?.modules.state ? parsed.legacyScene || sceneFromReplyHeader(parsed.clean || m.mes) : {};
-        const acceptedScene = normalizeScene({...header,...normalizeScene(parsed.scene || {})});
+        const acceptedScene = {...header,...sceneUpdate(parsed.scene)};
         let scene = { ...(earlier?.scene || {}), ...acceptedScene };
         if (turn?.modules.state) {
             const timeline = advanceStoryClock({...previousScene,...earlier?.scene},acceptedScene,
@@ -962,7 +962,7 @@ function onMessageReceived(id, type) {
         }, { v10:turn }).finally(() => {
             guidedAttempt?.finish?.(true);
             if (progressTurn && replyProgress()?.turn === progressTurn) {
-                if (replyProgress().phase === 'ready') setTimeout(()=>clearReplyProgress(progressTurn),520);
+                if (replyProgress().phase === 'ready') setTimeout(()=>clearReplyProgress(progressTurn),850);
                 else clearReplyProgress(progressTurn);
             }
         });
@@ -1432,9 +1432,11 @@ export function init() {
         if (!gen || progress?.turn !== gen || typeof text !== 'string' || !text.trim()) return;
         const paired = gen.paired ??= pairedPreset();
         const partial = paired ? trimPartialReplyTag(text) : text;
-        const previewNeeded = paired && (partial!==text || progress.preview!==undefined || hasReplyScaffolding(partial) || /<story_update\b/i.test(partial));
+        const tracker = paired && pending?.v10?.modules?.state;
+        const previewNeeded = paired && (partial!==text || progress.preview!==undefined || hasReplyScaffolding(partial) ||
+            /<story_update\b/i.test(partial) || tracker && /<tracker\b/i.test(partial));
         const visible = previewNeeded ? separateReply(partial).text : text;
-        if (previewNeeded) setReplyPreview(gen,stripUpdateBlock(visible));
+        if (previewNeeded) setReplyPreview(gen,stripUpdateBlock(tracker ? stripSceneTracker(visible,{streaming:true}) : visible));
         if (!['context','waiting','writing','receiving'].includes(progress.phase)) return;
         const sections = streamUpdate(visible);
         if (sections) setReplySections(gen,sections);
@@ -1525,7 +1527,7 @@ export async function acceptV10Opening(draft, prose) {
     m.swipe_info = [{ send_date:m.send_date, extra:{} }];
     const newMessage = !chat.length;
     if (newMessage) chat.push(m);
-    const timeline = modules.state ? advanceStoryClock({},normalizeScene({...sceneFromReplyHeader(prose),...parsed.scene}),
+    const timeline = modules.state ? advanceStoryClock({},{...sceneFromReplyHeader(prose),...sceneUpdate(parsed.scene)},
         {minutes:parsed.minutes}) : null;
     const rec = { v:2, v10:true, items:[], time:Date.now(), type:'opening', stateChanges:modules.state ? changesFromProfiles(parsed.profiles || []) : [], scene:timeline?.scene ?? null,
         v10Minutes:timeline?.minutes, roast:modules.roast ? parsed.roast : '' };

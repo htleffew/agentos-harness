@@ -76,13 +76,16 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(await progress.locator('li[data-status="done"]').count(),2);
         const received=progress.locator('.ri-progress-sections');
         await received.locator('[data-section="scene"]').waitFor();
-        assert.match(await received.textContent(),/Dock · 11:55 PM · Light rain/);
+        assert.match(await received.textContent(),/Dock · Day 1 · 11:55 PM · Light rain/);
         assert.equal(await received.locator('[data-section="changes"]').count(),0);
+        assert.match(await received.locator('[data-slot="changes"]').textContent(),/Waiting/);
         assert.equal(await received.locator('[data-section="scene"]').evaluate(node=>getComputedStyle(node).animationName),'none');
         await received.locator('[data-section="changes"]').waitFor();
         assert.match(await received.textContent(),/2 changes/);
-        await progress.getByRole('status').getByText('Story state ready').waitFor();
-        assert.equal(await progress.locator('li[data-status="done"]').count(),4);
+        await page.waitForFunction(()=>{
+            const ready=document.querySelector('.ri-v10-progress[data-phase="ready"]');
+            return ready?.querySelectorAll('li[data-status="done"]').length===4 && ready.textContent.includes('Story state ready');
+        });
         await sending;
         await progress.waitFor({state:'detached'});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',false).trigger('change'));
@@ -117,7 +120,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert(Object.values(state.speakers).some(x=>x.name==='Seraphina'));
         const latest=page.locator('#chat .last_mes');
         const header=latest.locator('.ri-scene-header');
-        assert.deepEqual(await header.locator('dt').allTextContents(),['Time','Date','Location','Weather']);
+        assert.deepEqual(await header.locator('dt').allTextContents(),['Time','Story date','Location','Weather']);
         assert.deepEqual(await header.locator('dd').allTextContents(),['11:55 PM','Day 1','Dock','Light rain']);
         assert.equal(await header.evaluate(node=>node.nextElementSibling?.classList.contains('mes_text')),true);
         for (const name of ['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs']) {

@@ -1,5 +1,6 @@
 import { h } from './dom.js';
 import { STATE_FIELDS } from '../state.js';
+import { AXES } from '../v10.js';
 
 export function replyChip(text, tone = 'slate') {
     return h('span',{class:'ri-reply-chip','data-tone':tone},text);
@@ -50,7 +51,7 @@ export function roastCard(text, attrs = {}) {
         h('blockquote',{class:'ri-roast-v ri-reply-quote'},paragraphs.map(line=>h('p',{},roastEmphasis(line)))));
 }
 
-export function replyGlance({scene,people,profiles,records,changed}, openTab) {
+export function replyGlance({scene,people,profiles,records,changed,hasSavedTabs}, openTab) {
     const order = new Set(changed.map(person=>person.name));
     const info = new Map(profiles.map(profile=>[profile.subject,profile]));
     const cast = [...people, ...profiles.filter(profile=>!people.some(person=>person.name===profile.subject))
@@ -62,15 +63,22 @@ export function replyGlance({scene,people,profiles,records,changed}, openTab) {
         const preview = profile?.facet || profile?.text;
         if (!lines.length && !preview) return [];
         return [h('button',{type:'button',class:'ri-glance-card ri-glance-person',onclick:()=>openTab(person.name)},
-            h('span',{class:'ri-glance-title'},person.name),
+            h('span',{class:'ri-glance-title'},h('span',{class:'ri-glance-emblem','aria-hidden':'true'}),person.name),
             lines.length ? h('span',{class:'ri-glance-fields'},lines.map(([key,label])=>
                 h('span',{class:'ri-glance-field','data-state':key},h('span',{},label),h('span',{},person.fields[key]))))
                 : h('span',{class:'ri-glance-copy'},preview))];
     }).slice(0,3);
     const filed = records.filter(record=>record.kind==='fact' || (record.kind==='event' && record.status==='done'));
+    const emotion = hasSavedTabs && records.find(record=>record.kind==='emotion' && AXES.some(axis=>Number.isInteger(record.axes?.[axis])));
+    const scenePreview = scene.environment || (!castCards.length && scene.present);
     const contextCards = [
-        scene.environment && h('button',{type:'button',class:'ri-glance-card ri-glance-scene',onclick:()=>openTab('Scene')},
-            h('span',{class:'ri-glance-title'},'Scene'),h('span',{class:'ri-glance-copy'},scene.environment)),
+        scenePreview && h('button',{type:'button',class:'ri-glance-card ri-glance-scene',onclick:()=>openTab('Scene')},
+            h('span',{class:'ri-glance-title'},'Scene'),h('span',{class:'ri-glance-copy'},scenePreview)),
+        emotion && h('button',{type:'button',class:'ri-glance-card ri-glance-emotions',onclick:()=>openTab('Emotions')},
+            h('span',{class:'ri-glance-title'},'Emotions'),h('span',{class:'ri-glance-copy'},emotion.subject),
+            h('span',{class:'ri-glance-axes'},AXES.filter(axis=>Number.isInteger(emotion.axes[axis])).map(axis=>
+                h('span',{class:'ri-glance-axis','data-axis':axis},h('span',{},axis),
+                    h('meter',{min:0,max:10,value:emotion.axes[axis],'aria-label':axis}),h('span',{},`${emotion.axes[axis]}/10`))))),
         filed.length>0 && h('button',{type:'button',class:'ri-glance-card ri-glance-changes',onclick:()=>openTab('Changes')},
             h('span',{class:'ri-glance-title'},'Story changes'),filed.slice(0,2).map(record=>h('span',{class:'ri-glance-copy'},record.text))),
     ].filter(Boolean);

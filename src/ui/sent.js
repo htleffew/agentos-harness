@@ -6,7 +6,7 @@ import { replyCardHeader, replyChip, replyGlance, revealReplyBody, roastCard } f
 import { replyWorldTabs } from './reply-world.js';
 import { chatWorld } from '../world.js';
 import { refreshGuidedControl } from './guided.js';
-import { snapshotState, snapshotScene } from '../state.js';
+import { snapshotState, snapshotScene, sceneDateLabel } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
@@ -370,23 +370,24 @@ function replyLoreRows(lore) {
         loreEntryButton(entry,false))));
 }
 
-function updateSceneHeader(mes,id,show) {
+function updateSceneHeader(mes,id,scene) {
     const area = mes.querySelector('.mes_text');
     if (!area) return;
     const existing = area.parentElement.querySelector(':scope > .ri-scene-header');
-    if (!show) { existing?.remove(); return; }
-    const scene = snapshotScene(id);
-    const fields = [['Time',scene.time ?? scene.when],['Date',scene.date || (scene.lastKnownDate ? 'Unconfirmed' : '')],['Location',scene.where],['Weather',scene.weather]];
+    if (!scene) { existing?.remove(); return; }
+    const days = scene.daysAfterKnownDate;
+    const date = sceneDateLabel(scene);
+    const fields = [['Time',scene.time ?? scene.when],['Date',date],['Location',scene.where],['Weather',scene.weather]];
     const record = ctx().chat?.[id]?.extra?.[KEY];
     if (id===0 && !record && !fields.some(([,value])=>value)) { existing?.remove(); return; }
     const inherited = !!record?.weatherInherited && !Object.hasOwn(record?.sceneSnapshotEdits || {},'weather');
-    const stamp = JSON.stringify([fields,inherited,scene.lastKnownDate]);
+    const stamp = JSON.stringify([fields,inherited,scene.lastKnownDate,days]);
     if (existing?.dataset.scene === stamp) return;
     const header = h('div',{class:'ri-scene-header','aria-label':'Scene details','data-scene':stamp},
         h('dl',{},fields.map(([label,value])=>h('div',{class:`ri-scene-header-${label.toLowerCase()}`},
-            h('dt',{},label),h('dd',{title:label==='Weather' && inherited ? 'Last established weather' :
-                label==='Date' && !scene.date && scene.lastKnownDate ? `Last established date: ${scene.lastKnownDate}` : undefined},
-                value || h('span',{class:'ri-scene-header-empty','aria-label':'Unspecified'},'—'))))));
+            h('dt',{},label==='Date' ? (!scene.date && scene.lastKnownDate && !days ? 'Last known date' : 'Story date') : label),
+            h('dd',{title:label==='Weather' && inherited ? 'Last established weather' : undefined},
+                value || h('span',{class:'ri-scene-header-empty'},label==='Date' ? 'Awaiting story date' : '—'))))));
     if (existing) existing.replaceWith(header);
     else area.before(header);
 }
@@ -409,11 +410,12 @@ function refreshV10Replies(chat) {
         const old=block.querySelector(':scope > .ri-v10-reply');
         const showHeader = enabled && !memoryOnly() && (native || rec?.v10) && isReply(msg);
         const show = showHeader && !!rec;
-        updateSceneHeader(mes,id,showHeader);
+        const snapshot=showHeader ? snapshotScene(id) : null;
+        updateSceneHeader(mes,id,snapshot);
         if (!show) {old?.remove();continue;}
         const showConsole=settings().scene?.card !== 'off';
         const showState=showConsole && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
-        const sc=showState && modules.state ? snapshotScene(id) : {};
+        const sc=showState && modules.state ? snapshot : {};
         const people=showState && modules.state ? Object.values(snapshotState(id)).filter(p=>!sc.present || sc.present.toLowerCase().includes(p.name.toLowerCase())) : [];
         const records=(rec.v10Changes || []).filter(record=>modules[KIND_MODULE[record.kind]]);
         const profiles=showState && modules.state ? rec.v10Profiles || [] : [];
@@ -467,7 +469,7 @@ function refreshV10Replies(chat) {
                 if (consoleCard.open) tabs.loadSelected();
                 else {tabs.reset();saved?.reset();}
             });
-            const glance = id===latestReply && replyGlance({scene:sc,people,profiles,records,changed:rec.stateChanges || []},label=>{
+            const glance = id===latestReply && replyGlance({scene:sc,people,profiles,records,changed:rec.stateChanges || [],hasSavedTabs:!!saved},label=>{
                 consoleCard.open=true;
                 revealReplyBody(consoleCard,tabs.choose(label));
             });
@@ -481,14 +483,14 @@ function refreshV10Replies(chat) {
         if(lore.length) out.append(h('details',{class:'ri-reply-card ri-v10-lore','data-reply-fold':'lore'},
             replyCardHeader({icon:'▤',title:'World Info',chips:[
                 {text:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}`,tone:'sky'},
-                ...(lore.some(entry=>entry.confirmed) ? [{text:`${lore.filter(entry=>entry.confirmed).length} confirmed`,tone:'mint'}] : []),
+                ...(lore.some(entry=>entry.confirmed) ? [{text:`${lore.filter(entry=>entry.confirmed).length} confirmed in prompt`,tone:'mint'}] : []),
             ]}),replyLoreRows(lore)));
         if(old?.dataset.responseKey===responseKey) for(const fold of out.querySelectorAll('[data-reply-fold]')) {
             fold.open=!!old.querySelector(`[data-reply-fold="${fold.dataset.replyFold}"]`)?.open;
         }
         if(!out.childElementCount) old?.remove();
         else if(old) old.replaceWith(out);
-        else block.append(out);
+        else block.insertBefore(out,block.querySelector(':scope > .ri-guided'));
     }
     refreshDialogue();
 }

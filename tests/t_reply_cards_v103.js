@@ -52,6 +52,7 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         assert.equal(await latest.locator('.ri-reply-roast').evaluate(el=>el.open),false);
         assert.match(await latest.locator('.ri-reply-roast').textContent(),/light do the talking/);
         const tr = latest.locator('.ri-v10-reply');
+        assert.ok(await tr.evaluate(node=>node.nextElementSibling?.classList.contains('ri-guided')));
         const consoleCard = tr.locator('.ri-v10-console');
         assert.equal(await consoleCard.evaluate(el=>el.open),false);
         const cast = tr.locator('.ri-glance-person');
@@ -148,6 +149,32 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         assert.match(L.text(L.requests().at(-1)),/mira-mood[^\n]*"fury":6/);
         assert.match(L.text(L.requests().at(-1)),/mira-rel[^\n]*Trusted friend/);
         assert.equal(await header.locator('.ri-scene-header-time dd').textContent(),'12:04 AM');
+
+        const anchor='Wednesday, Month 7, Day 14';
+        L.mode({reply:`<tracker>🕰️ 11:58 PM | ${anchor} | Northern Walk | 🌧️ Light rain</tracker>\nMira held the oil lamp steady.\n`+
+            block({scene:{date:'Unknown',present:'Mira',environment:'The lamp lit the passage to the quay.'},
+                characters:[{name:'Mira',mind:'Guiding the party',heart:'Relieved',body:'Steady hands',psyche:'Proud of keeping her word',evidence:'Mira held the oil lamp steady.'}],
+                changes:[{id:'mira-quay-mood',kind:'emotion',subject:'Mira',axes:{tenderness:7,fury:2,dread:4,yearning:3},text:'Relieved at the docks',evidence:'Mira held the oil lamp steady.'}],
+                roast:'that little pause before stepping onto the quay. **Oh, she was READY.**'} )});
+        await L.send(page,'I join Mira at the quay that evening.');
+        assert.deepEqual(await header.locator('dd').allTextContents(),['11:58 PM',anchor,'Northern Walk','Light rain']);
+        assert.equal(await latest.locator('.mes_text').innerText(),'Mira held the oil lamp steady.');
+        const meter=latest.locator('.ri-glance-emotions meter[aria-label="tenderness"]');
+        assert.equal(await meter.evaluate(node=>node.value),7);
+        assert.match(await latest.locator('.ri-glance-emotions').textContent(),/7\/10/);
+        await latest.locator('.ri-glance-emotions').click();
+        assert.equal(await latest.getByRole('tab',{name:'Emotions',exact:true}).getAttribute('aria-selected'),'true');
+        await latest.getByRole('tabpanel',{name:'Emotions',exact:true}).getByText('Recorded this reply',{exact:true}).waitFor();
+        await latest.locator('.ri-v10-console > summary').click();
+
+        L.mode({reply:'Mira opened the quay door.\n'+block({scene:{elapsed:4,date:'—',weather:'Unknown'},roast:'Mira brought her own light and STILL waited for him to find the door.'})});
+        await L.send(page,'Four minutes later, I follow her through the door.');
+        assert.deepEqual(await header.locator('dd').allTextContents(),['12:02 AM',`Day after ${anchor}`,'Northern Walk','Light rain']);
+        if (process.env.RI_CHRONOLOGY_SCREENSHOT) await latest.locator('.mes_block').screenshot({path:process.env.RI_CHRONOLOGY_SCREENSHOT});
+        L.mode({reply:'Mira turned to the quay.\n'+block({scene:{date:'Thursday, Month 7, Day 15'}})});
+        await L.send(page,'I turn and look out over the water.');
+        assert.match(L.text(L.requests().at(-1)),/Date: Day after Wednesday, Month 7, Day 14/);
+        assert.equal(await header.locator('.ri-scene-header-date dd').textContent(),'Thursday, Month 7, Day 15');
         assert.deepEqual(errors,[]);
         console.log('PASS reply previews, direct tab jumps, formatted collapsed Roast, editable commentator voice, and chapter continuity');
     } finally { await browser.close(); }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.25
+
+- Recover established dates and weather through partial scene updates and placeholders. Read Sola chronology, Vexa headers, and Deus trackers. Carry supported dates through midnight and retain a last known date with the established day offset when a fictional calendar is unresolved.
+- Give the scene header more room for dates and locations. Restyle the cast and story cards, and show emotion meters when that reply records actual scores.
+- Show waiting sections in the streaming card and light each section as its data arrives. Keep the reduced-motion setting and the existing display controls.
+
 ## 10.0.24
 
 - Show scene, cast and story-change previews beneath the newest reply. Each preview opens the matching section of Story State in one tap.

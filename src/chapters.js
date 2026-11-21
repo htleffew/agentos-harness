@@ -2,7 +2,7 @@ import { readActivation } from './recall.js';
 import { separateReply } from './reply-format.js';
 import { memoryComponents, memoryOnly } from './components.js';
 import { promptText } from './prompts.js';
-import { stateAt, sceneAt, storyMinuteAt, normalizeScene, SCENE_FIELDS, changesFromProfiles } from './state.js';
+import { stateAt, sceneAt, storyMinuteAt, sceneUpdate, sceneFromReplyHeader, SCENE_FIELDS, changesFromProfiles } from './state.js';
 import { advanceStoryClock, validElapsed } from './story-clock.js';
 import { historySourceMark, historySourceMatches } from './history-source.js';
 import { storyCorrectionPrompt } from './correction-rules.js';
@@ -349,7 +349,7 @@ function fileHistoryBatch(data, wid, meta, batch, payload, rec, config) {
     const prior = listWorld(data,wid);
     const changes = track ? applyOps(data,wid,ops,meta,'history',35) : [];
     if (parsed && modules.state && (!rec.scene || rec.stateStale)) {
-        const scene = normalizeScene(parsed.scene);
+        const scene = sceneUpdate(parsed.scene);
         const timeline = advanceStoryClock(previous,scene,{clock:previousClock,minutes:parsed.minutes,elapsed:parsed.elapsed});
         rec.scene = timeline.scene;
         rec.stateChanges = changesFromProfiles(parsed.profiles);
@@ -741,8 +741,9 @@ export async function draftNewChapter(wish = '') {
     const block = /<chapter_scene>\s*([\s\S]*?)\s*<\/chapter_scene>\s*$/i.exec(m[2]);
     const parsed = block ? parseJson(block[1]) : null;
     const elapsed = validElapsed(parsed?.elapsed) ? parsed.elapsed : undefined;
-    const { scene } = advanceStoryClock(currentScene,normalizeScene(chapterSceneFields(parsed)),{elapsed});
-    return {summary:m[1].trim(),first:(block ? m[2].slice(0,block.index) : m[2]).trim(),scene,
+    const first = (block ? m[2].slice(0,block.index) : m[2]).trim();
+    const { scene } = advanceStoryClock(currentScene,{...sceneFromReplyHeader(first),...sceneUpdate(chapterSceneFields(parsed))},{elapsed});
+    return {summary:m[1].trim(),first,scene,
         elapsed,previewTime:scene.time,previewDate:scene.date};
 }
 
@@ -782,7 +783,7 @@ export async function startNewChapter(draft, burnedSoFar) {
     const reviewedScene = chapterSceneFields(draft.scene);
     const elapsed = draft.scene?.time===draft.previewTime && draft.scene?.date===draft.previewDate ? draft.elapsed : undefined;
     if (!reviewedScene.date && draft.scene?.lastKnownDate) delete reviewedScene.date;
-    const { scene:openingScene,minutes:v10ClockSeed } = advanceStoryClock(sceneAt(),normalizeScene(reviewedScene),
+    const { scene:openingScene,minutes:v10ClockSeed } = advanceStoryClock(sceneAt(),sceneUpdate(reviewedScene),
         {clock:storyMinuteAt(),elapsed});
     const carry = {
         storyCorrections:(cs.storyCorrections || []).map(item=>({...structuredClone(item),anchor:'seed',replyNo:0})),

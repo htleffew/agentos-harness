@@ -1,15 +1,17 @@
 const DAY = 1440;
 const DAY_MS = 86400000;
+const WEEK = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export const validStoryMinute = value => Number.isSafeInteger(value) && value >= 0;
 export const validElapsed = value => validStoryMinute(value) && value <= 5256000;
 
 function clockTime(value) {
-    const match = /^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i.exec(String(value || '').trim());
+    const match = /^(\d{1,2}):(\d{2})(?:\s*([AP])\.?M\.?)?$/i.exec(String(value || '').trim());
     if (!match) return null;
     const hour = Number(match[1]), minute = Number(match[2]), period = match[3]?.toUpperCase();
     if (minute > 59 || (period ? hour < 1 || hour > 12 : hour > 23)) return null;
-    return { minutes:(period ? hour % 12 + (period==='PM' ? 12 : 0) : hour)*60+minute, twelve:!!period };
+    return { minutes:(period ? hour % 12 + (period==='P' ? 12 : 0) : hour)*60+minute, twelve:!!period };
 }
 
 function formatTime(minutes, twelve) {
@@ -19,13 +21,19 @@ function formatTime(minutes, twelve) {
 }
 
 function dayNumber(value) {
-    const date = String(value || '').trim();
+    const prefix = new RegExp(`^(${WEEK.join('|')}),?\\s+`,'i');
+    const original = String(value || '').trim();
+    const weekday = WEEK.findIndex(day=>day.toLowerCase()===original.match(prefix)?.[1].toLowerCase());
+    const date = original.replace(prefix,'');
     const ordinal = /^Day\s+(\d{1,9})$/i.exec(date);
-    if (ordinal) return { format:'ordinal', day:Number(ordinal[1]) };
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-    const stamp = Date.parse(date+'T00:00:00Z');
-    return Number.isFinite(stamp) && new Date(stamp).toISOString().startsWith(date+'T')
-        ? { format:'iso',day:stamp/DAY_MS } : null;
+    if (ordinal) return { format:'ordinal', day:Number(ordinal[1]),weekday };
+    const written = /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/.exec(date);
+    const month = written ? MONTHS.findIndex(name=>name.toLowerCase()===written[1].toLowerCase()) : -1;
+    const iso = month>=0 ? `${written[3]}-${String(month+1).padStart(2,'0')}-${written[2].padStart(2,'0')}` : date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+    const stamp = Date.parse(iso+'T00:00:00Z');
+    return Number.isFinite(stamp) && new Date(stamp).toISOString().startsWith(iso+'T')
+        ? { format:'calendar',day:stamp/DAY_MS,weekday,written:month>=0 } : null;
 }
 
 function nextDate(date, days) {
@@ -33,10 +41,16 @@ function nextDate(date, days) {
     const current = dayNumber(date);
     if (!current) return '';
     const day = current.day+days;
-    if (current.format==='ordinal') return day < 1e9 ? `Day ${day}` : '';
+    if (current.format==='ordinal') {
+        const prefix = current.weekday>=0 ? `${WEEK[(current.weekday+days)%7]}, ` : '';
+        return day < 1e9 ? `${prefix}Day ${day}` : '';
+    }
     const shifted = new Date(day*DAY_MS);
-    return Number.isFinite(shifted.valueOf()) && shifted.getUTCFullYear() <= 9999
-        ? shifted.toISOString().slice(0,10) : '';
+    if (!Number.isFinite(shifted.valueOf()) || shifted.getUTCFullYear()>9999) return '';
+    const prefix = current.weekday>=0 ? `${WEEK[shifted.getUTCDay()]}, ` : '';
+    return prefix + (current.written
+        ? `${MONTHS[shifted.getUTCMonth()]} ${shifted.getUTCDate()}, ${shifted.getUTCFullYear()}`
+        : shifted.toISOString().slice(0,10));
 }
 
 function datedInterval(before, next, start, end) {
@@ -45,6 +59,16 @@ function datedInterval(before, next, start, end) {
     const from = dayNumber(before.date), to = dayNumber(next.date);
     if (from && to?.format===from.format) return (to.day-from.day)*DAY+end.minutes-start.minutes;
     return undefined;
+}
+
+function rollDate(scene,previous,days) {
+    scene.date=nextDate(previous.date,days);
+    const known=previous.date || previous.lastKnownDate;
+    if (scene.date || !known) return;
+    scene.lastKnownDate=known;
+    if (previous.date || Number.isSafeInteger(previous.daysAfterKnownDate)) {
+        scene.daysAfterKnownDate=(previous.date ? 0 : previous.daysAfterKnownDate)+days;
+    }
 }
 
 /** Advance the relative story clock and the displayed scene from one accepted update. */
@@ -94,20 +118,25 @@ export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, 
             }
             scene.time=formatTime(endMinute,(end || start).twelve);
             if (days && (!Object.hasOwn(update,'date') || update.date===previous.date || measured<0)) {
-                const date = nextDate(previous.date,days);
-                scene.date=date;
-                if (!date && previous.date) scene.lastKnownDate=previous.date;
+                rollDate(scene,previous,days);
             }
         } else {
             if (duration>=60 && !update.time) delete scene.time;
             if (duration>=DAY && !Object.hasOwn(update,'date')) {
-                const date = duration%DAY===0 ? nextDate(previous.date,duration/DAY) : '';
-                scene.date=date;
-                if (!date && previous.date) scene.lastKnownDate=previous.date;
+                const days=Math.floor(duration/DAY);
+                rollDate(scene,previous,days);
+                if (duration%DAY) {
+                    scene.date='';
+                    scene.lastKnownDate=previous.date || previous.lastKnownDate;
+                    delete scene.daysAfterKnownDate;
+                }
             }
         }
     }
-    if (scene.date) delete scene.lastKnownDate;
+    if (scene.date) {
+        delete scene.lastKnownDate;
+        delete scene.daysAfterKnownDate;
+    }
     const candidate = known ? clock+(duration ?? 0)
         : validStoryMinute(minutes) ? minutes : duration ?? (end || start ? 0 : undefined);
     const storyMinute = validStoryMinute(candidate) ? candidate : known ? clock : undefined;

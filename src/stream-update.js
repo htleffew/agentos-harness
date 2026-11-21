@@ -57,7 +57,7 @@ export function streamUpdate(text) {
     const scene = update.get('scene');
     return [
         scene && typeof scene==='object' && !Array.isArray(scene) && {
-            id:'scene', title:'Scene', detail:[label(scene.where),label(scene.time || scene.when),label(scene.weather)].filter(Boolean).join(' · ') || 'Scene details',
+            id:'scene', title:'Scene', detail:[label(scene.where),label(scene.date),label(scene.time || scene.when),label(scene.weather)].filter(Boolean).join(' · ') || 'Scene details',
         },
         Array.isArray(update.get('characters')) && {
             id:'cast',title:'Characters',detail:count(update.get('characters').length,'snapshot','snapshots'),

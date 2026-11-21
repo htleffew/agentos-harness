@@ -24,10 +24,15 @@ assert.equal(advanceStoryClock(ordinal,{time:'00:15',date:'Day 3'}, {clock:30,mi
 
 const fictional = {date:'Wednesday, Month 7, Day 14',time:'11:58 PM'};
 const unknown = advanceStoryClock(fictional,{}, {clock:10,elapsed:4});
-assert.deepEqual(unknown.scene,{date:'',time:'12:02 AM',lastKnownDate:fictional.date});
+assert.deepEqual(unknown.scene,{date:'',time:'12:02 AM',lastKnownDate:fictional.date,daysAfterKnownDate:1});
+assert.equal(advanceStoryClock(unknown.scene,{}, {elapsed:2880}).scene.daysAfterKnownDate,3);
 assert.deepEqual(advanceStoryClock(unknown.scene,{date:'Thursday, Month 7, Day 15'}, {clock:unknown.minutes}).scene,
     {date:'Thursday, Month 7, Day 15',time:'12:02 AM'});
 const approximate = {date:'Day 4',when:'Near dawn'};
 assert.deepEqual(advanceStoryClock(approximate,{}, {elapsed:2}).scene,approximate);
 assert.deepEqual(advanceStoryClock(approximate,{}, {elapsed:1440}).scene,{date:'Day 5'});
 assert.deepEqual(advanceStoryClock({where:'Dock'}, {time:'04:00'}),{scene:{where:'Dock',time:'04:00'},minutes:0,issues:[]});
+assert.deepEqual(advanceStoryClock({date:'Wednesday, Day 14',time:'11:58 p.m.'},{},{elapsed:4}).scene,
+    {date:'Thursday, Day 15',time:'12:02 AM'});
+assert.deepEqual(advanceStoryClock({date:'Wednesday, February 28, 2024',time:'23:58'},{},{elapsed:4}).scene,
+    {date:'Thursday, February 29, 2024',time:'00:02'});
