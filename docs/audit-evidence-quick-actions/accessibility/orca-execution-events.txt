@@ -1,0 +1,22 @@
+21:03:49.055506 - BRAILLE: Line 0: '& y How it ran · Uses the reply request collapsed toggle button' focusOffset: 0 [[0, 32], [32, 63]]
+21:03:49.055536 - BRAILLE LINE:  '& y How it ran · Uses the reply request collapsed toggle button'
+21:03:49.063508 - SPEECH OUTPUT: 'How it ran · Uses the reply request toggle button collapsed.' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:49.796435 - BRAILLE LINE:  '& y How it ran · Uses the reply request expanded toggle button'
+21:03:49.800203 - SPEECH OUTPUT: 'expanded' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:50.609033 - BRAILLE: Line 0: '& y How it ran · Uses the reply request collapsed toggle button' focusOffset: 0 [[0, 32], [32, 63]]
+21:03:50.609225 - BRAILLE LINE:  '& y How it ran · Uses the reply request collapsed toggle button'
+21:03:50.612013 - SPEECH OUTPUT: 'collapsed' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:52.936531 - BRAILLE: Line 0: '& y How it ran · Additional model request collapsed toggle button' focusOffset: 0 [[0, 28], [28, 59], [59, 65]]
+21:03:52.936563 - BRAILLE LINE:  '& y How it ran · Additional model request collapsed toggle button'
+21:03:52.948739 - SPEECH OUTPUT: 'How it ran · Additional model request toggle button collapsed.' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:53.637880 - BRAILLE LINE:  '& y How it ran · Additional model request expanded toggle button'
+21:03:53.640958 - SPEECH OUTPUT: 'expanded' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:54.542081 - BRAILLE: Line 0: '& y How it ran · Additional model request collapsed toggle button' focusOffset: 0 [[0, 28], [28, 59], [59, 65]]
+21:03:54.542108 - BRAILLE LINE:  '& y How it ran · Additional model request collapsed toggle button'
+21:03:54.545451 - SPEECH OUTPUT: 'collapsed' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:56.677967 - BRAILLE: Line 0: '& y How it ran · Additional model request collapsed toggle button' focusOffset: 0 [[0, 28], [28, 59], [59, 65]]
+21:03:56.677997 - BRAILLE LINE:  '& y How it ran · Additional model request collapsed toggle button'
+21:03:56.690162 - SPEECH OUTPUT: 'How it ran · Additional model request toggle button collapsed.' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:57.365262 - BRAILLE LINE:  '& y How it ran · Additional model request expanded toggle button'
+21:03:57.368864 - SPEECH OUTPUT: 'expanded' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+21:03:58.276254 - BRAILLE: Line 0: '& y How it ran · Additional model request collapsed toggle button' focusOffset: 0 [[0, 28], [28, 59], [59, 65]]

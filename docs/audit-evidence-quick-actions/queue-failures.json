@@ -1,0 +1,54 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "viewport": [
+    360,
+    460
+  ],
+  "touch": true,
+  "taps": [
+    "Quick actions",
+    "Steer the next reply",
+    "Add nudge",
+    "Save button",
+    "Offline action 1795296592758",
+    "Close",
+    "Quick actions",
+    "Steer the next reply",
+    "Browse all",
+    "Back",
+    "Close",
+    "Quick actions",
+    "Steer the next reply",
+    "Unavailable missing 1795296593876",
+    "Broken direction 1795296593876",
+    "Close",
+    "Quick actions",
+    "Steer the next reply",
+    "Close"
+  ],
+  "trace": [
+    {
+      "case": "offline authorship",
+      "title": "Offline action 1795296592758",
+      "typed": "Local pending wording."
+    },
+    {
+      "case": "disabled source",
+      "reason": "Disabled in this source book"
+    },
+    {
+      "case": "missing linked book",
+      "reason": "Unavailable missing 1795296593876: The linked source is missing or changed. Relink it or make a standalone copy."
+    },
+    {
+      "case": "malformed macro",
+      "reason": "Broken direction 1795296593876: Replace unresolved variables or choose to keep them literally: {{unknown"
+    },
+    {
+      "case": "unavailable host event",
+      "reason": "This host does not expose the player send and final prompt needed for queue delivery."
+    }
+  ],
+  "requests": [],
+  "errors": []
+}

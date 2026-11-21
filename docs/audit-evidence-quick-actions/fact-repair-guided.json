@@ -1,0 +1,584 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "viewport": [
+    390,
+    760
+  ],
+  "touch": true,
+  "preset": "Default",
+  "disabled": [
+    "assets",
+    "attachments",
+    "caption",
+    "connection-manager",
+    "expressions",
+    "gallery",
+    "memory",
+    "quick-reply",
+    "regex",
+    "stable-diffusion",
+    "token-counter",
+    "translate",
+    "tts",
+    "vectors"
+  ],
+  "clear": {
+    "capture": "D-ST-A28-clear",
+    "correctionCount": 1,
+    "story": "The gate is open.",
+    "physical": [],
+    "effective": [
+      {
+        "uid": 0,
+        "kind": "place",
+        "name": "Gate",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The gate is closed.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": true,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m42s909ms",
+          "n": 1
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      }
+    ],
+    "requestCount": 1,
+    "visibleResult": "Updated sources · Clear repair 1795295684464 / Gate / What it is"
+  },
+  "ambiguous": {
+    "capture": "D-ST-A35-ambiguous",
+    "correctionCount": 0,
+    "story": "The gate is open.",
+    "physical": [],
+    "effective": [
+      {
+        "uid": 0,
+        "kind": "place",
+        "name": "Gate",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The gate is open.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": false,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m47s563ms",
+          "n": 1
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      }
+    ],
+    "requestCount": 1,
+    "visibleResult": "The available evidence did not establish a unique correction."
+  },
+  "combined": {
+    "capture": "D-ST-A35-A40",
+    "fixture": "legacy-story-memory.json",
+    "correctionId": "dca15d32-442b-40cb-a1f5-611c847abf2d",
+    "attempts": [
+      {
+        "t": 1795295698997,
+        "url": "/v1/chat/completions",
+        "stream": false,
+        "max_tokens": 300,
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+          },
+          {
+            "role": "system",
+            "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+          },
+          {
+            "role": "system",
+            "content": "[Start a new Chat]"
+          },
+          {
+            "role": "assistant",
+            "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+          },
+          {
+            "role": "user",
+            "content": "I walk toward the stone gate."
+          },
+          {
+            "role": "assistant",
+            "content": "The gate is open."
+          },
+          {
+            "role": "user",
+            "content": "I look for guards."
+          },
+          {
+            "role": "assistant",
+            "content": "The tower guard stands at the rail."
+          },
+          {
+            "role": "user",
+            "content": "I check the steps."
+          },
+          {
+            "role": "assistant",
+            "content": "Rain pools in the chipped steps."
+          },
+          {
+            "role": "user",
+            "content": "I wait on the landing."
+          },
+          {
+            "role": "assistant",
+            "content": "The captain waves from the hallway."
+          },
+          {
+            "role": "user",
+            "content": "I listen."
+          },
+          {
+            "role": "assistant",
+            "content": "A bell sounds from the quay."
+          },
+          {
+            "role": "user",
+            "content": "I return to the gate."
+          },
+          {
+            "role": "system",
+            "content": "[Story notes. These are facts already true in this story. Write the reply so that they stay true, and let the people in the scene act from what they want and what they know. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\nWhere:\n- Gate (The gate is open).]"
+          },
+          {
+            "role": "assistant",
+            "content": "The captain carries a lantern."
+          },
+          {
+            "role": "user",
+            "content": "I watch the gate."
+          },
+          {
+            "role": "assistant",
+            "content": "The gate is open."
+          },
+          {
+            "role": "user",
+            "content": "I watch the gate with the captain."
+          },
+          {
+            "role": "system",
+            "content": "[Accepted story corrections. Treat these as canon when older narration, summaries or lore disagree. Preserve differences between established truth and what an individual character knows.\n- The gate is closed]\n[Current story state. Maintain continuity, but allow change when events justify it. Respect established character boundaries and physical conditions when interpreting events; adapt an incompatible event rather than force a violation. Private states are for the narrator; other characters know only what they have observed or been told.\nScene: Environment: The gate is closed.]\n[Direction for this replacement reply only: Apply the established facts and show how they affect the characters’ choices.\n\nLet the responding character show what they feel through what they say and do.\n\nThe gate is closed; let the captain sound relieved.\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user's agency.]\n[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Compass, Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+          }
+        ],
+        "answer": "The gate is closed. The captain lets out a breath."
+      },
+      {
+        "t": 1795295701104,
+        "url": "/v1/chat/completions",
+        "stream": false,
+        "max_tokens": 300,
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+          },
+          {
+            "role": "system",
+            "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+          },
+          {
+            "role": "system",
+            "content": "[Start a new Chat]"
+          },
+          {
+            "role": "assistant",
+            "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+          },
+          {
+            "role": "user",
+            "content": "I walk toward the stone gate."
+          },
+          {
+            "role": "assistant",
+            "content": "The gate is open."
+          },
+          {
+            "role": "user",
+            "content": "I look for guards."
+          },
+          {
+            "role": "assistant",
+            "content": "The tower guard stands at the rail."
+          },
+          {
+            "role": "user",
+            "content": "I check the steps."
+          },
+          {
+            "role": "assistant",
+            "content": "Rain pools in the chipped steps."
+          },
+          {
+            "role": "user",
+            "content": "I wait on the landing."
+          },
+          {
+            "role": "assistant",
+            "content": "The captain waves from the hallway."
+          },
+          {
+            "role": "user",
+            "content": "I listen."
+          },
+          {
+            "role": "assistant",
+            "content": "A bell sounds from the quay."
+          },
+          {
+            "role": "user",
+            "content": "I return to the gate."
+          },
+          {
+            "role": "system",
+            "content": "[Story notes. These are facts already true in this story. Write the reply so that they stay true, and let the people in the scene act from what they want and what they know. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\nWhere:\n- Gate (The gate is open).]"
+          },
+          {
+            "role": "assistant",
+            "content": "The captain carries a lantern."
+          },
+          {
+            "role": "user",
+            "content": "I watch the gate."
+          },
+          {
+            "role": "assistant",
+            "content": "The gate is open."
+          },
+          {
+            "role": "user",
+            "content": "I watch the gate with the captain."
+          },
+          {
+            "role": "system",
+            "content": "[Accepted story corrections. Treat these as canon when older narration, summaries or lore disagree. Preserve differences between established truth and what an individual character knows.\n- The gate is closed]\n[Current story state. Maintain continuity, but allow change when events justify it. Respect established character boundaries and physical conditions when interpreting events; adapt an incompatible event rather than force a violation. Private states are for the narrator; other characters know only what they have observed or been told.\nScene: Environment: The gate is closed.]\n[Direction for this replacement reply only: Apply the established facts and show how they affect the characters’ choices.\n\nLet the responding character show what they feel through what they say and do.\n\nThe gate is closed; let the captain sound relieved.\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user's agency.]\n[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Compass, Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+          }
+        ],
+        "answer": "The gate is closed. The captain lets out a breath.\n<story_update>\nplace: Courtyard | The courtyard lies beyond the tower.\n</story_update>"
+      }
+    ],
+    "receipt": "◇\nHow it ran · multiple stages\nAudit world facts\nExecution\nRuns in code\nCalls\n0 model calls\nTrigger\nWhen you run this action.\nAttempts used\n0\nOutcome\ncompleted\nResult\n3 updated sources\nGuide a swipe\nExecution\nUses the reply request\nCalls\n0 additional model calls\nConnection\nMain API (openai · custom · mock-model)\nRoute\nChat Completion\nHistory\nordinary\nTrigger\nOne ordinary generation for this selected reply.\nTarget\nSeraphina · swipe 1\nAttempts used\n1\nOutcome\ncompleted\nResult\nSaved on the selected reply.",
+    "oldSource": [
+      {
+        "id": "scene:16:environment",
+        "kind": "scene",
+        "label": "Chat message 17 / Seraphina / Environment",
+        "index": 16,
+        "field": "environment",
+        "quote": "The gate is open",
+        "replacement": "The gate is closed",
+        "evidenceAt": 16
+      },
+      {
+        "id": "world:0:what",
+        "kind": "world",
+        "label": "Legacy managed 1795295693258 / Gate / What it is",
+        "book": "Legacy managed 1795295693258",
+        "uid": 0,
+        "field": "what",
+        "quote": "The gate is open",
+        "replacement": "The gate is closed",
+        "evidenceAt": 2,
+        "pending": false
+      },
+      {
+        "id": "scene:14:environment",
+        "kind": "scene",
+        "label": "Chat message 15 / Seraphina / Environment",
+        "index": 14,
+        "field": "environment",
+        "quote": "The gate is open",
+        "replacement": "The gate is closed",
+        "evidenceAt": 14
+      }
+    ],
+    "corrected": [
+      {
+        "uid": 1,
+        "kind": "place",
+        "name": "Compass",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The compass points north.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": false,
+        "locked": true,
+        "at": null,
+        "span": null,
+        "rollup": false,
+        "activation": null
+      },
+      {
+        "uid": 0,
+        "kind": "place",
+        "name": "Gate",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The gate is closed.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": true,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m51s815ms",
+          "n": 1
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      }
+    ],
+    "originalSwipeFacts": [
+      {
+        "uid": 1,
+        "kind": "place",
+        "name": "Compass",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The compass points north.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": false,
+        "locked": true,
+        "at": null,
+        "span": null,
+        "rollup": false,
+        "activation": null
+      },
+      {
+        "uid": 0,
+        "kind": "place",
+        "name": "Gate",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The gate is closed.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": true,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m51s815ms",
+          "n": 1
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      },
+      {
+        "uid": 2,
+        "kind": "place",
+        "name": "Pier",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The lamp lights the stone pier.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": false,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m51s815ms",
+          "n": 8
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      }
+    ],
+    "alternateFacts": [
+      {
+        "uid": 1,
+        "kind": "place",
+        "name": "Compass",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The compass points north.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": false,
+        "locked": true,
+        "at": null,
+        "span": null,
+        "rollup": false,
+        "activation": null
+      },
+      {
+        "uid": 2,
+        "kind": "place",
+        "name": "Courtyard",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The courtyard lies beyond the tower.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": false,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m51s815ms",
+          "n": 8
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      },
+      {
+        "uid": 0,
+        "kind": "place",
+        "name": "Gate",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The gate is closed.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": true,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m51s815ms",
+          "n": 1
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      }
+    ],
+    "afterUndo": [
+      {
+        "uid": 1,
+        "kind": "place",
+        "name": "Compass",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The compass points north.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": false,
+        "locked": true,
+        "at": null,
+        "span": null,
+        "rollup": false,
+        "activation": null
+      },
+      {
+        "uid": 0,
+        "kind": "place",
+        "name": "Gate",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The gate is open.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": true,
+        "locked": false,
+        "at": {
+          "chat": "Seraphina - 2026-11-21@21h14m51s815ms",
+          "n": 1
+        },
+        "span": null,
+        "rollup": false,
+        "activation": null
+      }
+    ],
+    "unrelated": [
+      {
+        "uid": 0,
+        "kind": "place",
+        "name": "Gate",
+        "on": true,
+        "aliases": [],
+        "fields": {
+          "what": "The gate is open.",
+          "layout": "",
+          "people": "",
+          "goes": ""
+        },
+        "status": "",
+        "show": "shadow",
+        "auto": false,
+        "locked": true,
+        "at": null,
+        "span": null,
+        "rollup": false,
+        "activation": null
+      }
+    ],
+    "status": "failed then explicit retry"
+  },
+  "hostCommit": "7e8663cd9c184a550b37238218bdd32c6efc68e9",
+  "browser": "Chromium 156.0.8078.79",
+  "provider": "Local OpenAI-compatible mock"
+}

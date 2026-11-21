@@ -1,0 +1,33 @@
+{
+  "screen": "Isolated X11 Xvfb, 600×880",
+  "screenReader": "Debian GNOME Orca 48.1",
+  "host": "SillyTavern via headful Chromium",
+  "viewport": {
+    "width": 390,
+    "height": 515
+  },
+  "runs": [
+    {
+      "test": "Chat execution disclosure with Orca active",
+      "open": true,
+      "closed": true,
+      "control": "↪How it ran · Uses the reply request"
+    },
+    {
+      "test": "Setup execution disclosure with Orca active",
+      "open": true,
+      "closed": true,
+      "control": "▲How it ran · Additional model request"
+    },
+    {
+      "test": "Review execution disclosure with Orca active",
+      "open": true,
+      "closed": true,
+      "control": "▲How it ran · Additional model request"
+    },
+    {
+      "test": "Native accessibility request delta",
+      "calls": 0
+    }
+  ]
+}

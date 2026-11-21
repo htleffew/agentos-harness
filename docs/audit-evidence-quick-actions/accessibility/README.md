@@ -1,0 +1,11 @@
+# Quick actions accessibility verification
+
+The test host was SillyTavern 1.19.0 with a local mock model. Opening or closing execution details did not call the model.
+
+- A13, touchscreen emulation at 320 × 420. The composer initially kept focus and exposed only its draft behind Quick actions. Browse moved focus to the heading and isolated the host from Chromium's accessibility tree. Close restored the exact draft, selection direction and focus. Opening Guide a swipe from an older reply selected its exact text and saved swipe. Closing restored the reply control.
+- A52, touchscreen emulation at 320 × 420. Before the fix, Move down changed order, closed Pins and order, moved focus to BODY and clipped an unbroken label. After the fix, the list stayed open, focus moved to the enabled reorder control on the moved row, and the label used the available width. Touch and keyboard opened and closed execution details without sending a request.
+- A52, actual native Orca 48.1 in a temporary X11 session with headful Chromium and a 390 × 515 page. Return opened and Space closed details in Chat, Setup, and Review. Orca exposed the named toggle and changes in expansion state through AT-SPI. The excerpt records generated speech and braille events. The run captured those events with Speech Dispatcher; it did not use a speaker.
+- A13, actual xvkbd 4.1-3 in a separate X11 run at 390 × 515. A click on the visible software keyboard entered “a” in the composer. Quick actions → Browse all → Close preserved the value, caret and focus. The desktop keyboard remained visible. It occupied a separate native window and did not shrink Chromium's visual viewport.
+- A53, Chromium emulated touchscreen and reduced motion. CDP achromatopsia removed color. Every pixel in the choices screenshot had equal red, green and blue values. Rolling a d20 and queueing the direction each made zero calls, the ordinary reply with queued directions made one call, and Give me choices explicitly disclosed and made one additional call.
+
+The touchscreen runs resized the Chromium visual and layout viewports to approximate a phone with its keyboard open. Physical phone and TauriTavern webview behavior were outside this environment.

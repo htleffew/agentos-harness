@@ -105,9 +105,9 @@
     "earlier": {
       "story": true,
       "source": {
-        "turn": "2026-11-21T19:49:39.110Z",
+        "turn": "2026-11-21T21:16:33.433Z",
         "swipe": 0,
-        "fingerprint": "79:1272807561"
+        "fingerprint": "79:326250992"
       },
       "notes": [],
       "audits": [
@@ -116,27 +116,27 @@
           "evidence": [
             {
               "source": {
-                "turn": "2026-11-21T19:49:34.312Z",
+                "turn": "2026-11-21T21:16:28.288Z",
                 "swipe": 0,
-                "fingerprint": "100:1859087607"
+                "fingerprint": "100:3903928089"
               },
               "text": "The harbor watch patrols the southern pier in rain.",
               "label": "R2"
             },
             {
               "source": {
-                "turn": "2026-11-21T19:49:35.594Z",
+                "turn": "2026-11-21T21:16:29.560Z",
                 "swipe": 0,
-                "fingerprint": "109:2058564559"
+                "fingerprint": "109:1527498850"
               },
               "text": "The bakery workers carry the sacks through freezing streets.",
               "label": "R3"
             },
             {
               "source": {
-                "turn": "2026-11-21T19:49:36.860Z",
+                "turn": "2026-11-21T21:16:31.066Z",
                 "swipe": 0,
-                "fingerprint": "102:1635878402"
+                "fingerprint": "102:3141390854"
               },
               "text": "The soldiers set their lanterns by the carriage gate.",
               "label": "R4"
@@ -156,17 +156,17 @@
     "next": {
       "story": true,
       "source": {
-        "turn": "2026-11-21T19:49:40.998Z",
+        "turn": "2026-11-21T21:16:35.566Z",
         "swipe": 0,
-        "fingerprint": "94:3419245710"
+        "fingerprint": "94:815149320"
       },
       "notes": [],
       "audits": [],
       "delivery": {
         "owner": {
-          "turn": "2026-11-21T19:49:39.110Z",
+          "turn": "2026-11-21T21:16:33.433Z",
           "swipe": 0,
-          "fingerprint": "79:1272807561"
+          "fingerprint": "79:326250992"
         },
         "outcome": "confirmed",
         "findings": [
@@ -176,9 +176,9 @@
             "window": 5,
             "sources": [
               {
-                "turn": "2026-11-21T19:49:36.860Z",
+                "turn": "2026-11-21T21:16:31.066Z",
                 "swipe": 0,
-                "fingerprint": "102:1635878402"
+                "fingerprint": "102:3141390854"
               }
             ]
           }
@@ -193,7 +193,7 @@
       }
     },
     "spent": [
-      "[\"2026-11-21T19:49:39.110Z\",0,\"79:1272807561\"]"
+      "[\"2026-11-21T21:16:33.433Z\",0,\"79:326250992\"]"
     ]
   },
   "errors": []

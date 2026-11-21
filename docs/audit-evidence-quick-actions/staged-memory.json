@@ -5,7 +5,7 @@
     760
   ],
   "touch": true,
-  "world": "Staged Memory 1795291353009",
+  "world": "Staged Memory 1795296478402",
   "firstProviderCalls": 7,
   "counts": {
     "ordinary": 26,
@@ -36,14 +36,14 @@
     "error": ""
   },
   "chapter": {
-    "chat": "Seraphina - 2026-11-21@20h02m28s164ms",
+    "chat": "Seraphina - 2026-11-21@21h27m56s817ms",
     "from": 1,
     "to": 20,
-    "time": "1795291390201"
+    "time": "1795296504767"
   },
   "hidden": 22,
   "summaryRequest": {
-    "t": 1795291405007,
+    "t": 1795296514310,
     "url": "/v1/chat/completions",
     "stream": false,
     "max_tokens": 700,
@@ -67,13 +67,5 @@
     "after": "An old wooden pier reaches the bay",
     "undone": true,
     "modelRequests": 0
-  },
-  "host": {
-    "name": "SillyTavern",
-    "version": "1.19.0",
-    "commit": "7e8663cd9c184a550b37238218bdd32c6efc68e9"
-  },
-  "browser": "Chromium 156.0.8078.79",
-  "preset": "Default",
-  "provider": "OpenAI-compatible local mock"
+  }
 }

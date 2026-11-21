@@ -1,0 +1,565 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "chromium": "156.0.8078.79",
+  "inputs": "Chromium touchscreen emulation and keyboard events. No physical device, Tauri, OSK or screen reader.",
+  "grayscale": "CDP vision deficiency achromatopsia",
+  "runs": [
+    {
+      "title": "A13 composer touch open, browse, close",
+      "geometry": {
+        "height": 420,
+        "width": 320,
+        "active": "send_textarea",
+        "layout": 420
+      },
+      "original": {
+        "text": "Keep this unsent phone draft.",
+        "start": 17,
+        "end": 22,
+        "selectionDirection": "forward",
+        "focused": true
+      },
+      "focusedAfterOpen": [
+        "TEXTAREA",
+        "send_textarea",
+        null,
+        ""
+      ],
+      "focusAfterBrowse": [
+        "H2",
+        "ri-quick-heading",
+        null,
+        "Browse all"
+      ],
+      "exposedBefore": [
+        [
+          "textbox",
+          "Type a message, or /? for help"
+        ]
+      ],
+      "exposedAfter": [],
+      "firstKeyboardFocus": [
+        "BUTTON",
+        "",
+        null,
+        "Close"
+      ],
+      "result": {
+        "text": "Keep this unsent phone draft.",
+        "start": 17,
+        "end": 22,
+        "selectionDirection": "forward",
+        "focused": true
+      },
+      "countDelta": 0
+    },
+    {
+      "title": "A13 historical reply touch open and close",
+      "target": "Seraphina · swipe 1 · revision 95842120",
+      "sourceMatches": true,
+      "source": "*You wake with a start, recalling the events that led you deep into the forest and the bea",
+      "openerRecovered": true,
+      "after": {
+        "text": "Keep this unsent phone draft.",
+        "start": 17,
+        "end": 22,
+        "selectionDirection": "forward",
+        "focused": false
+      },
+      "countDelta": 0
+    },
+    {
+      "title": "A52-chat-same-keyboard",
+      "input": "keyboard",
+      "titleOnPage": "↪\nHow it ran · Uses the reply request",
+      "before": {
+        "x": 11,
+        "y": 305.53125,
+        "w": 298,
+        "h": 44
+      },
+      "closed": true,
+      "open": true,
+      "reclosed": true,
+      "afterFocus": [
+        "SUMMARY",
+        "",
+        null,
+        "↪How it ran · Uses the reply request"
+      ],
+      "description": "↪\nHow it ran · Uses the reply request\nQueued directions\nExecution\nUses the reply request\nCalls\n0 additional model calls\nConnection\nMain API (openai · custom · mock-model)\nTrigger\nThe reply to your next player message.",
+      "disclosure": [
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "focused": true,
+            "expanded": true
+          }
+        }
+      ],
+      "countDelta": 0
+    },
+    {
+      "title": "A52-chat-code-touch",
+      "input": "touch",
+      "titleOnPage": "◇\nHow it ran · Runs in code",
+      "before": {
+        "x": 93,
+        "y": 171.296875,
+        "w": 194,
+        "h": 44
+      },
+      "closed": true,
+      "open": true,
+      "reclosed": true,
+      "afterFocus": [
+        "SUMMARY",
+        "",
+        null,
+        "◇How it ran · Runs in code"
+      ],
+      "description": "◇\nHow it ran · Runs in code\nFind source facts to repair\nExecution\nRuns in code\nCalls\n0 model calls\nTrigger\nWhen you run this action.",
+      "disclosure": [
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Runs in code",
+          "state": {
+            "focusable": true,
+            "focused": true,
+            "expanded": true
+          }
+        }
+      ],
+      "countDelta": 0
+    },
+    {
+      "title": "A52-chat-extra-touch",
+      "input": "touch",
+      "titleOnPage": "▲\nHow it ran · multiple stages",
+      "before": {
+        "x": 11,
+        "y": 270.921875,
+        "w": 298,
+        "h": 44
+      },
+      "closed": true,
+      "open": true,
+      "reclosed": true,
+      "afterFocus": [
+        "SUMMARY",
+        "",
+        null,
+        "▲How it ran · multiple stages"
+      ],
+      "description": "▲\nHow it ran · multiple stages\nGenerate my draft\nExecution\nAdditional model request\nCalls\n1 model call expected\nConnection\nMain API (openai · custom · mock-model)\nTrigger\nWhen you run this action.\nConnection settings\nGive me choices\nExecution\nAdditional model request\nCalls\n1 model call expected\nConnection\nMain API (openai · custom · mock-model)\nTrigger\nWhen you run this action.\nConnection settings",
+      "disclosure": [
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · multiple stages",
+          "state": {
+            "focusable": true,
+            "focused": true,
+            "expanded": true
+          }
+        }
+      ],
+      "countDelta": 0
+    },
+    {
+      "title": "A52-setup-extra-keyboard",
+      "input": "keyboard",
+      "titleOnPage": "▲\nHow it ran · Additional model request",
+      "before": {
+        "x": 56,
+        "y": 291.515625,
+        "w": 204,
+        "h": 44
+      },
+      "closed": true,
+      "open": true,
+      "reclosed": true,
+      "afterFocus": [
+        "SUMMARY",
+        "",
+        null,
+        "▲How it ran · Additional model request"
+      ],
+      "description": "▲\nHow it ran · Additional model request\nGenerate my draft\nExecution\nAdditional model request\nCalls\n1 model call expected\nConnection\nMain API (openai · custom · mock-model)\nTrigger\nWhen you run this action.",
+      "disclosure": [
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Runs in code",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Additional model request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Additional model request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Additional model request",
+          "state": {
+            "focusable": true,
+            "focused": true,
+            "expanded": true
+          }
+        }
+      ],
+      "countDelta": 0
+    },
+    {
+      "title": "A52-Review",
+      "error": "locator.evaluate: Timeout 3600ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#ri_root').locator('.ri-execution > summary:visible').first()\u001b[22m\n",
+      "focus": [
+        "BUTTON",
+        "",
+        null,
+        "Close full screen"
+      ],
+      "snapshot": [
+        "- button \"Quick actions\"",
+        "- text: ",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- status",
+        "- dialog \"Roleplay Instructions\":",
+        "  - text: Roleplay Instructions On",
+        "  - switch \"Turn the whole extension on or off\" [checked]",
+        "  - button \"Close full screen\"",
+        "  - navigation \"Roleplay sections\":",
+        "    - button \"Story\"",
+        "    - button \"Characters\"",
+        "    - button \"Direction\"",
+        "    - button \"Review\"",
+        "    - button \"Setup\"",
+        "  - navigation \"Review pages\":",
+        "    - button \"What Was Sent\"",
+        "    - button \"Context & Memory\"",
+        "    - button \"Log\"",
+        "  - text: Conversation and memory The preset’s Chat History includes the messages still visible to the AI. Chapters summarize older story, and the extension can hide the messages they cover. Keep Chat History enabled to include the recent conversation. Keep the story so far in chapters",
+        "  - combobox \"Keep the story so far in chapters\":",
+        "    - option \"On\"",
+        "    - option \"Off\" [selected]",
+        "  - text: Each new chapter uses one AI request. A successful chapter is stored in the Story World. Earlier replies kept editable",
+        "  - combobox \"Earlier replies kept editable\":",
+        "    - option \"File immediately\"",
+        "    - option \"0\"",
+        "    - option \"1\"",
+        "    - option \"2\"",
+        "    - option \"3\"",
+        "    - option \"4\"",
+        "    - option \"5\" [selected]",
+        "    - option \"6\"",
+        "    - option \"7\"",
+        "    - option \"8\"",
+        "    - option \"9\"",
+        "    - option \"10\"",
+        "    - option \"11\"",
+        "    - option \"12\"",
+        "    - option \"13\"",
+        "    - option \"14\"",
+        "    - option \"15\"",
+        "    - option \"16\"",
+        "    - option \"17\"",
+        "    - option \"18\"",
+        "    - option \"19\"",
+        "    - option \"20\"",
+        "  - text: The current reply is kept separately · 6 total editable slots. The Story World book holds filed facts. Recent changes appear in reply cards and extension recall.",
+        "  - status: Filed through reply 4 · 0 editable records with changes · 0 replies need review.",
+        "  - group: Automatic chapter model requests",
+        "  - text: Write a chapter when the scene ends",
+        "  - combobox \"Write a chapter when the scene ends\":",
+        "    - option \"On\" [selected]",
+        "    - option \"Off\"",
+        "  - text: Requires Story World updates and at least the minimum number of replies. Minimum replies for a scene-end chapter",
+        "  - spinbutton \"Minimum replies for a scene-end chapter\": \"4\"",
+        "  - text: replies A reply is a model message. Write a chapter at least every",
+        "  - spinbutton \"Write a chapter at least every\": \"20\"",
+        "  - text: replies Set 0 to disable the reply-count threshold. Summarize at estimated tokens",
+        "  - spinbutton \"Summarize at estimated tokens\": \"0\"",
+        "  - text: tokens After an accepted reply, write a chapter when unsummarized text reaches this estimate. Whichever enabled threshold is reached first starts the chapter. Set 0 to disable the token threshold. Hide messages covered by a chapter",
+        "  - combobox \"Hide messages covered by a chapter\":",
+        "    - option \"On\"",
+        "    - option \"Off\" [selected]",
+        "  - text: Hidden messages remain readable in the chat. Only successfully saved chapters can hide messages. The latest 10 model replies and their surrounding messages contain about 245 tokens across 20 messages. This is a preview of recent text, not the exact next chapter. Protect recent history by",
+        "  - combobox \"Protect recent history by\":",
+        "    - option \"Message count\" [selected]",
+        "    - option \"Estimated tokens\"",
+        "  - text: Choose how to size the full-text window for covered history. The opening and unsummarized messages stay available. Recent messages to protect",
+        "  - slider \"Recent messages to protect\": \"30\"",
+        "  - spinbutton \"Recent messages to protect (number)\": \"30\"",
+        "  - text: messages",
+        "  - status: In this chat, the newest 20 story messages contain ~245 tokens of text. The opening message is kept separately.",
+        "  - text: Protects this many recent story messages. Story World notes budget",
+        "  - spinbutton \"Story World notes budget\": \"600\"",
+        "  - text: tokens Approximate text budget for relevant story facts. Chapter notes budget",
+        "  - spinbutton \"Chapter notes budget\": \"800\"",
+        "  - text: tokens Approximate text budget for the story so far. Catch up or rebuild this chat",
+        "  - paragraph: Read accepted replies in order and write chapters in batches. Each batch uses an AI request. Enabled story features file supported details in this chat’s Story World. Auto-hide and the protected message window apply after chapters are saved.",
+        "  - paragraph: Enable Chapter summaries above to use these actions.",
+        "  - button \"Catch up this chat 1 model call per batch\" [disabled]",
+        "  - paragraph: Catch-up fills uncovered history and resumes from saved chapters. A fresh rebuild reads the entire chat and switches to a new managed Story World after all chapters are ready. The previous book stays available as a backup.",
+        "  - group: Fresh rebuild options",
+        "  - group: Customize catch-up and rebuild guidance",
+        "  - text: This chat now Story messages",
+        "  - strong: \"21\"",
+        "  - text: Includes messages hidden from the AI. Currently visible",
+        "  - strong: \"21\"",
+        "  - text: The host may omit more when assembling a request. Hidden from AI",
+        "  - strong: \"0\"",
+        "  - text: Still readable in the chat. Last observed request No assembled chat-completion request has been observed in this chat since opening or reloading the app. Send a reply to see its breakdown."
+      ]
+    },
+    {
+      "title": "A52 touch reorder with long labels",
+      "names": [
+        "Erinnerung an den eisernen Torbogen bei der verlassenen Sternwarte vérification",
+        "Garderlespersonnageshorsdelaportedebronzejusquàcequelesclochessonnenttroisfois vérification"
+      ],
+      "orderBefore": [
+        "Garderlespersonnageshorsdelaportedebronzejusquàcequelesclochessonnenttroisfois",
+        "Erinnerung an den eisernen Torbogen bei der verlassenen Sternwarte",
+        "Erinnerung an den eisernen Torbogen bei der verlassenen Sternwarte vérification",
+        "Garderlespersonnageshorsdelaportedebronzejusquàcequelesclochessonnenttroisfois vérification"
+      ],
+      "orderAfter": [
+        "Garderlespersonnageshorsdelaportedebronzejusquàcequelesclochessonnenttroisfois",
+        "Erinnerung an den eisernen Torbogen bei der verlassenen Sternwarte",
+        "Garderlespersonnageshorsdelaportedebronzejusquàcequelesclochessonnenttroisfois vérification",
+        "Erinnerung an den eisernen Torbogen bei der verlassenen Sternwarte vérification"
+      ],
+      "moveRect": {
+        "x": 105.78125,
+        "y": 578.828125,
+        "w": 107.28125,
+        "h": 44
+      },
+      "labelRect": {
+        "x": 11,
+        "y": 628.828125,
+        "w": 298,
+        "h": 65.25
+      },
+      "reopened": true,
+      "activeAfterMove": [
+        "BUTTON",
+        "",
+        null,
+        "Move up"
+      ],
+      "overflow": {
+        "scrollWidth": 298,
+        "clientWidth": 298,
+        "textOverflow": [
+          {
+            "scrollWidth": 298,
+            "clientWidth": 298
+          },
+          {
+            "scrollWidth": 298,
+            "clientWidth": 298
+          },
+          {
+            "scrollWidth": 298,
+            "clientWidth": 298
+          },
+          {
+            "scrollWidth": 298,
+            "clientWidth": 298
+          }
+        ]
+      },
+      "countDelta": 0
+    },
+    {
+      "title": "A53 same request and extra request with grayscale and reduced motion",
+      "queueDelta": 0,
+      "ordinaryDelta": 1,
+      "extraDelta": 1,
+      "mainAction": "Give me choices · 1 model call",
+      "geometry": {
+        "x": 163,
+        "y": 343.09375,
+        "w": 146,
+        "h": 59.125
+      },
+      "sharedExecutionDisclosureCount": 1
+    }
+  ],
+  "environment": {
+    "width": 320,
+    "height": 685,
+    "touch": 1,
+    "reducedMotion": true
+  }
+}

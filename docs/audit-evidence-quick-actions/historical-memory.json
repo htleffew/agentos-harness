@@ -9,7 +9,7 @@
   "ordinaryBeforeReplacement": 2,
   "additionalReplacementAttempts": 1,
   "additionalRepairAttempts": 0,
-  "world": "Historical Memory 1795291640484",
+  "world": "Historical Memory 1795296528979",
   "initial": {
     "rows": [
       {
@@ -38,7 +38,7 @@
         "auto": true,
         "locked": false,
         "at": {
-          "chat": "Seraphina - 2026-11-21@20h07m18s722ms",
+          "chat": "Seraphina - 2026-11-21@21h28m47s446ms",
           "n": 1
         },
         "span": null,
@@ -62,7 +62,7 @@
         "auto": true,
         "locked": false,
         "at": {
-          "chat": "Seraphina - 2026-11-21@20h07m18s722ms",
+          "chat": "Seraphina - 2026-11-21@21h28m47s446ms",
           "n": 2
         },
         "span": null,
@@ -115,7 +115,7 @@
         "auto": true,
         "locked": false,
         "at": {
-          "chat": "Seraphina - 2026-11-21@20h07m18s722ms",
+          "chat": "Seraphina - 2026-11-21@21h28m47s446ms",
           "n": 2
         },
         "span": null,
@@ -168,7 +168,7 @@
         "auto": true,
         "locked": true,
         "at": {
-          "chat": "Seraphina - 2026-11-21@20h07m18s722ms",
+          "chat": "Seraphina - 2026-11-21@21h28m47s446ms",
           "n": 2
         },
         "span": null,
@@ -203,7 +203,7 @@
     ]
   },
   "generated": {
-    "t": 1795291643744,
+    "t": 1795296532316,
     "url": "/v1/chat/completions",
     "stream": false,
     "max_tokens": 1000,
@@ -219,13 +219,5 @@
     ],
     "answer": "The heavy brass key stays on the desk."
   },
-  "errors": [],
-  "host": {
-    "name": "SillyTavern",
-    "version": "1.19.0",
-    "commit": "7e8663cd9c184a550b37238218bdd32c6efc68e9"
-  },
-  "browser": "Chromium 156.0.8078.79",
-  "preset": "Default",
-  "provider": "OpenAI-compatible local mock"
+  "errors": []
 }

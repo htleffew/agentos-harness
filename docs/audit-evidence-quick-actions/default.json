@@ -7,7 +7,7 @@
       "label": "QACT-01: blank choices",
       "requests": [
         {
-          "at": 1795292053930,
+          "at": 1795296412264,
           "stream": false,
           "roles": [
             "system",
@@ -18,10 +18,15 @@
       ]
     },
     {
+      "label": "QACT-CHOICES-RECOVERED: after reload",
+      "requests": [],
+      "choices": 3
+    },
+    {
       "label": "QACT-CYOA: cues only",
       "requests": [
         {
-          "at": 1795292055774,
+          "at": 1795296422070,
           "stream": false,
           "roles": [
             "system",
@@ -35,7 +40,7 @@
       "label": "QACT-CYOA: free text only",
       "requests": [
         {
-          "at": 1795292056346,
+          "at": 1795296422659,
           "stream": false,
           "roles": [
             "system",
@@ -49,7 +54,7 @@
       "label": "QACT-CYOA: cues and free text",
       "requests": [
         {
-          "at": 1795292057502,
+          "at": 1795296424598,
           "stream": false,
           "roles": [
             "system",
@@ -63,7 +68,7 @@
       "label": "QACT-CYOA: explicit choice expansion",
       "requests": [
         {
-          "at": 1795292057769,
+          "at": 1795296424990,
           "stream": false,
           "roles": [
             "system",
@@ -77,7 +82,7 @@
       "label": "QACT-02: bound ordinary reply",
       "requests": [
         {
-          "at": 1795292060149,
+          "at": 1795296428069,
           "stream": false,
           "roles": [
             "system",
@@ -106,7 +111,7 @@
       "label": "QACT-03: Fresh start on ordinary reply",
       "requests": [
         {
-          "at": 1795292062135,
+          "at": 1795296431491,
           "stream": false,
           "roles": [
             "system",
@@ -130,7 +135,7 @@
       "label": "QACT-04: reply-level guided swipe",
       "requests": [
         {
-          "at": 1795292063711,
+          "at": 1795296433193,
           "stream": false,
           "roles": [
             "system",
@@ -154,7 +159,7 @@
       "label": "QACT-05: guided continuation",
       "requests": [
         {
-          "at": 1795292064782,
+          "at": 1795296434359,
           "stream": false,
           "roles": [
             "system",
@@ -180,7 +185,7 @@
       "label": "QACT-06: provider failure",
       "requests": [
         {
-          "at": 1795292065919,
+          "at": 1795296435961,
           "stream": false,
           "roles": [
             "system",
@@ -197,7 +202,7 @@
       "label": "QACT-07: explicit retry and valid partial result",
       "requests": [
         {
-          "at": 1795292065919,
+          "at": 1795296435961,
           "stream": false,
           "roles": [
             "system",
@@ -209,7 +214,7 @@
           ]
         },
         {
-          "at": 1795292066434,
+          "at": 1795296436334,
           "stream": false,
           "roles": [
             "system",
@@ -226,7 +231,7 @@
       "label": "QACT-08: failed ordinary reply",
       "requests": [
         {
-          "at": 1795292067875,
+          "at": 1795296438291,
           "stream": false,
           "roles": [
             "system",
@@ -244,7 +249,7 @@
       "label": "QACT-09: retry of bound outgoing message",
       "requests": [
         {
-          "at": 1795292067875,
+          "at": 1795296438291,
           "stream": false,
           "roles": [
             "system",
@@ -257,7 +262,7 @@
           "markers": []
         },
         {
-          "at": 1795292068927,
+          "at": 1795296439432,
           "stream": false,
           "roles": [
             "system",
@@ -281,7 +286,7 @@
       "label": "QACT-ROLL: Keep original roll",
       "requests": [
         {
-          "at": 1795292071009,
+          "at": 1795296441467,
           "stream": false,
           "roles": [
             "system",
@@ -302,23 +307,23 @@
         }
       ],
       "roll": {
-        "id": "draw:mwqujkmw0gs",
+        "id": "draw:mwqx58th0ht",
         "kind": "d20",
-        "natural": 5,
+        "natural": 11,
         "modifier": 0,
-        "total": 5,
+        "total": 11,
         "target": null,
-        "result": "fails",
+        "result": "partly succeeds",
         "stat": "",
         "who": "user",
-        "text": "The d20 rolled 5 with modifier 0, for a total of 5. The attempt fails."
+        "text": "The d20 rolled 11 with modifier 0, for a total of 11. The attempt partly succeeds."
       }
     },
     {
       "label": "QACT-ROLL: Reroll d20",
       "requests": [
         {
-          "at": 1795292072611,
+          "at": 1795296443266,
           "stream": false,
           "roles": [
             "system",
@@ -339,23 +344,23 @@
         }
       ],
       "roll": {
-        "id": "draw:mwqujoey1t0",
+        "id": "draw:mwqx5cv11au",
         "kind": "d20",
-        "natural": 16,
+        "natural": 9,
         "modifier": 0,
-        "total": 16,
+        "total": 9,
         "target": null,
-        "result": "succeeds",
+        "result": "partly succeeds",
         "stat": "",
         "who": "user",
-        "text": "The d20 rolled 16 with modifier 0, for a total of 16. The attempt succeeds."
+        "text": "The d20 rolled 9 with modifier 0, for a total of 9. The attempt partly succeeds."
       }
     },
     {
       "label": "QACT-FRESH: 2 slots remain",
       "requests": [
         {
-          "at": 1795292073663,
+          "at": 1795296444281,
           "stream": false,
           "roles": [
             "system",
@@ -372,7 +377,7 @@
       "label": "QACT-FRESH: 1 slots remain",
       "requests": [
         {
-          "at": 1795292074877,
+          "at": 1795296445544,
           "stream": false,
           "roles": [
             "system",
@@ -389,7 +394,7 @@
       "label": "QACT-FRESH: 0 slots remain",
       "requests": [
         {
-          "at": 1795292076119,
+          "at": 1795296446857,
           "stream": false,
           "roles": [
             "system",
@@ -406,7 +411,7 @@
       "label": "QACT-FRESH: expired on next normal reply",
       "requests": [
         {
-          "at": 1795292077402,
+          "at": 1795296448122,
           "stream": false,
           "roles": [
             "system",
@@ -439,7 +444,7 @@
       "label": "QACT-SOURCE: exact version with matching automatic source",
       "requests": [
         {
-          "at": 1795292080246,
+          "at": 1795296450879,
           "stream": false,
           "roles": [
             "system",
@@ -460,6 +465,7 @@
             "assistant",
             "user",
             "assistant",
+            "system",
             "user",
             "system"
           ],

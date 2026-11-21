@@ -1,0 +1,166 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "chromium": "156.0.8078.79",
+  "inputs": "Chromium touchscreen emulation and keyboard events. No physical device, Tauri, OSK or screen reader.",
+  "grayscale": "CDP vision deficiency achromatopsia",
+  "runs": [
+    {
+      "title": "A52-review-extra-touch",
+      "input": "touch",
+      "titleOnPage": "▲\nHow it ran · Additional model request",
+      "before": {
+        "x": 26,
+        "y": 424.125,
+        "w": 264,
+        "h": 44
+      },
+      "closed": true,
+      "open": true,
+      "reclosed": true,
+      "afterFocus": [
+        "SUMMARY",
+        "",
+        null,
+        "▲How it ran · Additional model request"
+      ],
+      "description": "▲\nHow it ran · Additional model request\nWrite a chapter summary\nExecution\nAdditional model request\nCalls\n1 model call expected\nConnection\nMain API (openai · custom · mock-model)\nTrigger\nWhen you run this action.",
+      "disclosure": [
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Uses the reply request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Additional model request",
+          "state": {
+            "focusable": true,
+            "focused": true,
+            "expanded": true
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Additional model request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Additional model request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        },
+        {
+          "role": "DisclosureTriangle",
+          "name": "How it ran · Additional model request",
+          "state": {
+            "focusable": true,
+            "expanded": false
+          }
+        }
+      ],
+      "countDelta": 0
+    },
+    {
+      "title": "A53 same request and extra request with grayscale and reduced motion",
+      "rollDelta": 0,
+      "queueDelta": 0,
+      "ordinaryDelta": 1,
+      "extraDelta": 1,
+      "mainAction": "Give me choices · 1 model call",
+      "geometry": {
+        "x": 163,
+        "y": 608.09375,
+        "w": 146,
+        "h": 59.125
+      },
+      "sharedExecutionDisclosureCount": 1
+    }
+  ],
+  "environment": {
+    "width": 320,
+    "height": 685,
+    "touch": 1,
+    "reducedMotion": true
+  }
+}
