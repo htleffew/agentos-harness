@@ -51,7 +51,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.match(await row.textContent(),/Default for this preset: Off/);
         await scope('chat');
         assert.match(await row.textContent(),/Off in this chat/);
-        assert.match(await row.textContent(),/Following the preset setting/);
+        assert.match(await row.textContent(),/Using this preset’s extension module default/);
         L.resetLog();
         assert.equal(n(await send('Is anyone at the door?'),extensionRule),0);
         await set('on');
@@ -95,7 +95,17 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         await scope('preset');
         await row.locator('button').filter({hasText:'Reset to extension setting (On)'}).evaluate(el=>el.click());
         assert.match(await row.textContent(),/Default for this preset: On/);
-        assert.equal(L.requests().length,7);
+        await page.evaluate(()=>{
+            const order=SillyTavern.getContext().chatCompletionSettings.prompt_order.find(row=>row.character_id===100001);
+            order.order.find(row=>row.identifier==='ri-check-physical').enabled=true;
+        });
+        text=await send('I hold the door open.');
+        assert.match(text,/Check positions, physical reach, lines of sight/);
+        assert.doesNotMatch(text,/Ground the action in the established surroundings/);
+        assert.match(text,/Give NPCs practical aims of their own/);
+        await ext(async({B})=>(await import(`${B}/src/ui/panel.js`)).app.openPage('writing'));
+        await page.locator('#ri_root').getByText('Host preset · Physical realism',{exact:true}).waitFor({state:'attached'});
+        assert.equal(L.requests().length,8);
         assert.deepEqual(errors,[]);
         console.log('PASS module ownership: inherited preset values, chat override and reset, separate preset blocks and exclusive instructions on the wire.');
     } finally { await browser.close(); }

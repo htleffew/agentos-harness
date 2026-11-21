@@ -20,6 +20,7 @@ Use `RI_HOST_URL` to point Playwright at an isolated SillyTavern instance. Run b
 | `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |
 | `t_reply_cards.js` | Independent reply cards, snapshot editing, visibility settings and responsive layout |
 | `t_context_v9.js` | Real-host request breakdown, context controls, persistence and no extra requests |
+| `t_gap_closure.js` | Phone-width book navigation, optional keyword suggestions, role-scoped managed recall, sticky and cooldown timing, token-triggered chapters, and restoring protected history without another model request |
 | `t_memory_v9.js` | Chapter timing, hiding covered history, preserving recent messages and including the summary |
 | `unit/context_v9.mjs` | Text estimates, partial matching, non-text handling and chat isolation |
 | `t_prompts_v8.js` | Custom instructions in real chat, guided swipes and AI writer requests; persistence and independent restore |

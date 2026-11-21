@@ -1,12 +1,14 @@
 import { BOOK_TRIGGER_SOURCES, bookTriggerSource } from '../book-triggers.js';
 import { h, field, button, select, textInput, textArea } from './dom.js';
-import { ctx, isReply, loadBook, saveBook, confirmBox, toast, worldNames } from '../st.js';
+import { ctx, isReply, loadBook, saveBook, confirmBox, toast, worldNames, parseJson } from '../st.js';
 import { sharedId, setInfo, blankEntry, freeUid, removeEntries } from '../books.js';
 import { chatWorld, readWorldEntry, writeWorldEntry, WORLD_KINDS, isWorldEntry } from '../world.js';
 import { recordManualWorldChange, enqueue } from '../worldflow.js';
 import { pinBase, prefs, readRecord, reusableAssignments } from '../v10.js';
 import { restoreChapterHistory } from '../hide.js';
-import { ACTIVATION_MODES, readActivation } from '../recall.js';
+import { ACTIVATION_MODES, readActivation, recallTiming, RECALL_SOURCES } from '../recall.js';
+import { suggestEntryKeywords } from '../book-keywords.js';
+import { promptGroup } from './prompts.js';
 
 const terms = value => String(value || '').split(/\r?\n/).map(part=>part.trim()).filter(Boolean);
 const input = (label,value,control = textInput) => control(value,()=>{},{'aria-label':label});
@@ -15,6 +17,7 @@ const toggle = (label,checked) => h('input',{type:'checkbox',checked,'aria-label
 const option = (value,label) => ({value,label});
 const checkbox = (label,control) => h('label',{class:'ri-row'},control,label);
 const problem = error => toast('error',error.message || String(error));
+const sourceChoices = sources => Object.entries(sources).map(([value,label])=>option(value,label));
 
 async function updateBook(name, entries, action) {
     const local = prefs();
@@ -34,7 +37,11 @@ async function updateBook(name, entries, action) {
         for (const entry of entries) if (info?.book===name && isWorldEntry(entry) &&
             (!info.shared || entry.extensions?.ri?.set===info.group)) recordManualWorldChange(world,entry.uid,entry,data.entries[entry.uid] || null);
         if (local?.base?.name===name) await pinBase(name);
-        if (entries.some(entry=>entry.extensions?.ri?.kind==='chapter' && !data.entries[entry.uid])) restoreChapterHistory();
+        if (info?.book===name && entries.some(entry=>{
+            if (entry.extensions?.ri?.kind!=='chapter' || (info.shared && entry.extensions.ri.set!==info.group)) return false;
+            const saved=data.entries[entry.uid];
+            return !saved || saved.disable || saved.extensions?.ri?.activation?.mode==='off';
+        })) restoreChapterHistory();
     },{propagate:true});
 }
 
@@ -55,12 +62,41 @@ function entryTiming(entry) {
         const rule = readWorldEntry(entry).activation;
         if (entry.disable || rule?.mode === 'off') return 'Disabled';
         if (!rule) return 'Story World recall rules';
-        const mode = { always:'Always eligible', triggered:'Keyword triggered', window:`First ${rule.window} replies, then keywords` }[rule.mode];
-        return `${mode} · ${rule.chance}% chance · Sticky ${rule.sticky} replies`;
+        return recallTiming(rule);
     }
     const mode = bookMode(entry);
     const source = mode === 'triggered' ? ` · ${BOOK_TRIGGER_SOURCES[bookTriggerSource(entry)]}` : '';
     return `${BOOK_MODES[mode]}${source} · ${chanceOf(entry)}% chance · Sticky ${entry.sticky || 0} · Cooldown ${entry.cooldown || 0} messages`;
+}
+
+function keywordHelp(keys, source, whenApplied = () => {}) {
+    const status=h('p',{class:'ri-help',role:'status'});
+    const suggestions=h('div');
+    const generate=button('Suggest trigger phrases with AI',async()=>{
+        generate.disabled=true;
+        suggestions.replaceChildren();
+        status.textContent='Reading this entry…';
+        try {
+            const phrases=await suggestEntryKeywords(source());
+            if (!phrases.length) { status.textContent='No suitable phrases were returned.'; return; }
+            const checks=phrases.map(phrase=>({phrase,control:toggle(phrase,true)}));
+            status.textContent='Review the suggestions before adding them to the draft.';
+            suggestions.append(...checks.map(({phrase,control})=>checkbox(phrase,control)),
+                button('Add checked phrases to draft',()=>{
+                    const selected=checks.filter(({control})=>control.checked).map(({phrase})=>phrase);
+                    if (!selected.length) return;
+                    keys.value=[...new Set([...terms(keys.value),...selected])].join('\n');
+                    whenApplied();
+                    keys.dispatchEvent(new Event('input',{bubbles:true}));
+                    suggestions.replaceChildren();
+                    status.textContent='Added to the draft. Save the entry to apply the changes.';
+                },{kind:'ghost'}));
+        } catch(error) { status.textContent=error.message; }
+        finally { generate.disabled=false; }
+    },{kind:'ghost'});
+    return h('details',{},h('summary',{},'Help choosing triggers'),
+        h('p',{class:'ri-help'},'One optional model request reads the entry’s title and text. Review and edit its suggestions before saving.'),
+        generate,status,suggestions,promptGroup(['bookKeywords','systemBookKeywords'],'Customize keyword suggestion prompts'));
 }
 
 function editEntry(name, entry, target, refresh, reusable, adding = false, cancel = () => target.replaceChildren()) {
@@ -83,19 +119,32 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
         const mode = select(ACTIVATION_MODES.map(key=>option(key,labels[key])),existing?.mode || 'default',()=>{}, {'aria-label':'Activation'});
         const keys = input('Trigger phrases',(existing?.keys || row.aliases).join('\n'),textArea);
         const sticky = number('Keep active for replies',existing?.sticky || 0,0,100);
+        const cooldown = number('Cooldown (replies)',existing?.cooldown || 0,0,1000);
+        const triggerSource = select(sourceChoices(RECALL_SOURCES),existing?.source || 'chat',()=>{},{'aria-label':'Keyword source'});
         const chance = number('Chance (%)',existing?.chance ?? 100,0,100);
         const window = number('Initial window (replies)',existing?.window ?? 6,0,200);
-        const inputs = WORLD_KINDS[row.kind].fields.map(item=>[item.key,input(item.label,row.fields[item.key],item.long ? textArea : textInput),item.label]);
+        const structured = parseJson(row.fields.data,{object:true});
+        const inputs = WORLD_KINDS[row.kind].fields.filter(item=>item.key!=='data' || !structured)
+            .map(item=>[item.key,input(item.label,row.fields[item.key],item.long ? textArea : textInput),item.label]);
+        const recordText = structured && input('Record text',structured.text,textArea);
+        const recordData = structured && input('Structured fields',JSON.stringify({...structured,text:undefined},null,2),textArea);
         const states = WORLD_KINDS[row.kind].steps;
         const status = states ? select(states.map(([value,label])=>option(value,label)),row.status,()=>{},{'aria-label':'Story status'}) : null;
-        panel.append(field('Aliases','One per line.',aliases),checkbox('Protect from automated updates',keep),
+        panel.append(recordText && field('Record text','',recordText),
+            field('Aliases','One per line.',aliases),checkbox('Protect from automated updates',keep),
             field('Activation','Uses the extension’s recall budget and applicable knowledge and plot rules.',mode),
-            field('Trigger phrases','One phrase per line. Matches recent visible conversation.',keys),
+            field('Trigger phrases','One word, phrase or /pattern/i per line.',keys),
+            field('Keyword source','Choose which conversation text the triggers scan.',triggerSource),
+            keywordHelp(keys,()=>({title:title.value,text:recordText?.value || inputs.map(([,control])=>control.value).filter(Boolean).join('\n')}),
+                ()=>{if (mode.value==='default') mode.value='triggered';}),
             field('Keep active for replies','Number of later replies after a fresh match.',sticky),
+            field('Cooldown (replies)','Wait this many replies after the active replies before the entry can start again.',cooldown),
             field('Chance (%)','Applied once to each eligible turn.',chance),
             field('Initial window (replies)','Applies to the window mode. Editing an existing rule keeps its original starting reply.',window),
             status && field('Story status','',status),
-            ...inputs.map(([,control,label])=>field(label,'',control)));
+            ...inputs.map(([,control,label])=>field(label,'',control)),
+            recordData && h('details',{},h('summary',{},'Advanced record fields'),
+                field('Structured fields','Preserve the record’s ID and kind. Use Record text above to edit the narrative content.',recordData)));
         apply = data => {
             row.name=title.value;
             row.on=enabled.checked;
@@ -103,19 +152,21 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
             row.locked=keep.checked;
             if (status) row.status=status.value;
             for (const [key,control] of inputs) row.fields[key]=control.value;
-            if (WORLD_KINDS[row.kind].fields.some(item=>item.key==='data')) {
-                const parsed = JSON.parse(row.fields.data);
-                const original = JSON.parse(entry.extensions.ri.fields.data);
-                if (!parsed || Array.isArray(parsed) || parsed.id!==original.id || parsed.kind!==original.kind || typeof parsed.text!=='string') {
-                    throw new Error('Preserve the structured record ID and kind, and provide its text.');
+            if (recordData) {
+                const parsed = JSON.parse(recordData.value);
+                if (!parsed || Array.isArray(parsed) || parsed.id!==structured.id || parsed.kind!==structured.kind || !recordText.value.trim()) {
+                    throw new Error('Preserve the structured record ID and kind, and enter record text.');
                 }
+                row.fields.data=JSON.stringify({...parsed,text:recordText.value.trim()});
             }
             row.activation=readActivation({mode:mode.value,keys:terms(keys.value),sticky:Number(sticky.value),
-                chance:Number(chance.value),window:Number(window.value),after:existing?.mode==='window' ? existing.after : (ctx().chat || []).slice(1).filter(isReply).length});
+                source:triggerSource.value,cooldown:Number(cooldown.value),chance:Number(chance.value),window:Number(window.value),
+                after:existing?.mode==='window' ? existing.after : (ctx().chat || []).slice(1).filter(isReply).length});
+            if (row.activation?.mode==='triggered' && !row.activation.keys.length) throw new Error('Enter at least one trigger phrase.');
             const group=entry.extensions?.ri?.set;
             writeWorldEntry(data,row,group ? sharedId(name,group) : name);
         };
-        controls.push(chance,sticky,window,...inputs.map(([,control])=>control));
+        controls.push(chance,sticky,cooldown,window,...inputs.map(([,control])=>control));
     } else {
         const originalMode = bookMode(entry);
         const choices = Object.entries(BOOK_MODES).filter(([key]) => key !== 'vector' || reusable || entry.vectorized);
@@ -133,10 +184,11 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
         const extensionData = input('Extension data',JSON.stringify(entry.extensions || {},null,2),textArea);
         panel.append(field('Entry content','',content),
             field('Activation','Always eligible uses chance and timing alone. Keyword triggered requires a match. Vector matching uses the host’s World Info vector search when enabled.',activation),
-            reusable && field('Keyword source', ctx().registerMacro
+            field('Keyword source', ctx().registerMacro
                 ? 'Keyword-triggered entries can match the latest visible message of one role.'
                 : 'This host supports the recent-chat scan. Role-specific matching requires host macro support.',triggerSource),
             field('Primary triggers','One word, phrase, or /pattern/i per line.',keys),
+            keywordHelp(keys,()=>({title:title.value,text:content.value})),
             field('Secondary triggers','One per line.',secondary),field('Secondary trigger rule','',logic),
             field('Chance (%)','The host rolls for activation.',chance),
             field('Sticky (host messages)','Uses the host’s message-based timing.',sticky),
@@ -147,7 +199,7 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
             const next = adding ? (data.entries[uid] = { ...blankEntry(uid), ignoreBudget:false }) : data.entries[uid];
             const extensions = JSON.parse(extensionData.value);
             if (!extensions || Array.isArray(extensions) || typeof extensions!=='object') throw new Error('Extension data must be a JSON object.');
-            if (reusable && ctx().registerMacro) {
+            if (ctx().registerMacro) {
                 if (triggerSource.value === 'chat') delete extensions.riTriggerSource;
                 else extensions.riTriggerSource = triggerSource.value;
             }
@@ -267,30 +319,36 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
             const batchSticky = number('Selected entries sticky','',0,100);
             const batchCooldown = entries.some(entry=>!isWorldEntry(entry))
                 ? number('Selected entries cooldown','',0,1000) : null;
-            const batchSource = reusable && ctx().registerMacro ? select([
-                option('', 'Keep current source'), ...Object.entries(BOOK_TRIGGER_SOURCES).map(([value,label]) => option(value,label)),
+            const managedCooldown = entries.some(isWorldEntry) ? number('Selected entries cooldown (replies)','',0,1000) : null;
+            const batchSource = managedCooldown || ctx().registerMacro ? select([
+                option('', 'Keep current source'), ...sourceChoices(RECALL_SOURCES),
             ], '', () => {}, {'aria-label':'Selected entries keyword source'}) : null;
             const batch = button('Apply recall settings to selected',async()=>{
                 const selected = entries.filter(entry=>checked.has(entry.uid));
-                if (!selected.length || !batchChance.checkValidity() || !batchSticky.checkValidity() || batchCooldown && !batchCooldown.checkValidity()) return;
+                if (!selected.length || [batchChance,batchSticky,batchCooldown,managedCooldown].some(input=>input && !input.checkValidity())) return;
                 const mode = batchMode.value;
                 const setKeys = clearKeys.checked || !!batchKeys.value.trim();
                 const keys = clearKeys.checked ? [] : terms(batchKeys.value);
                 const chance = batchChance.value === '' ? undefined : Number(batchChance.value);
                 const sticky = batchSticky.value === '' ? undefined : Number(batchSticky.value);
                 const cooldown = batchCooldown?.value ? Number(batchCooldown.value) : undefined;
+                const managedWait = managedCooldown?.value ? Number(managedCooldown.value) : undefined;
                 const source = batchSource?.value;
-                if (!(mode || setKeys || chance!==undefined || sticky!==undefined || cooldown!==undefined || source)) {
+                if (!(mode || setKeys || chance!==undefined || sticky!==undefined || cooldown!==undefined || managedWait!==undefined || source)) {
                     problem(new Error('Enter a recall setting to change.')); return;
                 }
                 const currentKeys = entry => isWorldEntry(entry)
-                    ? readWorldEntry(entry).activation?.keys || entry.key || [] : entry.key || [];
-                if (mode==='triggered' && selected.some(entry=>!(setKeys ? keys : currentKeys(entry)).length)) {
+                    ? readWorldEntry(entry).activation?.keys || readWorldEntry(entry).aliases : entry.key || [];
+                if (selected.some(entry=>(mode==='triggered' || !mode && isWorldEntry(entry) && readWorldEntry(entry).activation?.mode==='triggered') &&
+                    !(setKeys ? keys : currentKeys(entry)).length)) {
                     problem(new Error('Each keyword-triggered entry needs at least one trigger phrase.')); return;
                 }
-                if (!mode && (setKeys || chance!==undefined || sticky!==undefined) &&
+                if (source && source!=='chat' && !ctx().registerMacro && selected.some(entry=>!isWorldEntry(entry))) {
+                    problem(new Error('This host cannot scan a single role for native entries.')); return;
+                }
+                if (!mode && (setKeys || chance!==undefined || sticky!==undefined || managedWait!==undefined || source) &&
                     selected.some(entry=>isWorldEntry(entry) && !readWorldEntry(entry).activation)) {
-                    problem(new Error('Choose an activation to set chance, triggers or stickiness for entries using Story World defaults.')); return;
+                    problem(new Error('Choose an activation for entries using Story World defaults.')); return;
                 }
                 batch.disabled=true;
                 try {
@@ -298,10 +356,11 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
                         for (const entry of selected) {
                             const stored = book.entries[entry.uid];
                             if (isWorldEntry(stored)) {
-                                if (!(mode || setKeys || chance!==undefined || sticky!==undefined)) continue;
+                                if (!(mode || setKeys || chance!==undefined || sticky!==undefined || managedWait!==undefined || source)) continue;
                                 const rule = readWorldEntry(stored).activation;
                                 stored.extensions.ri.activation=readActivation({...rule,mode:mode || rule?.mode,
-                                    keys:setKeys ? keys : currentKeys(entry),chance:chance ?? rule?.chance,sticky:sticky ?? rule?.sticky});
+                                    keys:setKeys ? keys : currentKeys(entry),chance:chance ?? rule?.chance,sticky:sticky ?? rule?.sticky,
+                                    source:source || rule?.source,cooldown:managedWait ?? rule?.cooldown});
                             } else {
                                 if (mode) applyBookMode(stored,mode);
                                 if (setKeys) stored.key=keys;
@@ -338,6 +397,7 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
                     batchSource && field('Keyword source', '', batchSource),
                     field('Chance (%)','Leave blank to keep each entry’s current chance.',batchChance),field('Sticky','Replies for Story World entries. Host messages for native entries. Leave blank to keep the current value.',batchSticky),
                     batchCooldown && field('Cooldown (host messages)','Applies to native entries. Leave blank to keep the current cooldown.',batchCooldown),
+                    managedCooldown && field('Cooldown (replies)','Applies to Story World entries. Leave blank to keep the current cooldown.',managedCooldown),
                     batch),
                 h('ul',{class:'ri-chat-books'},entries.map((entry,index)=>{
                     checks[index].addEventListener('change',()=>set(entry,index,checks[index].checked));
@@ -346,6 +406,7 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
                     const world = isWorldEntry(entry) ? readWorldEntry(entry) : null;
                     const keys = world ? world.activation?.keys || world.aliases : [...(entry.key || []), ...(entry.keysecondary || [])];
                     const text = world ? Object.entries(world.fields).filter(([,value])=>value).map(([key,value]) => {
+                        if (key==='data') return readRecord(world)?.text || value;
                         const label = WORLD_KINDS[world.kind].fields.find(field=>field.key===key)?.label || key;
                         return `${label}\n${value}`;
                     }).join('\n\n') : entry.content;

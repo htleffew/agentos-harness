@@ -7,11 +7,26 @@ const clean = text => String(text || '').replace(/\s*<sent_instructions>[\s\S]*?
 const chatId = () => String(ctx().getCurrentChatId?.() || '');
 let last = null;
 
+/** Index of the oldest protected recent story message. The opening is kept separately. */
+export function historyWindowStart(chat,{limit,unit='messages'}) {
+    let start=chat.length, count=0, chars=0;
+    for (let i=chat.length-1;i>=1;i--) {
+        if (!isStory(chat[i])) continue;
+        const next=chars+(count ? 1 : 0)+clean(chat[i].mes).length;
+        if (unit==='tokens' ? count>=2 && Math.ceil(next/4)>limit : count>=limit) break;
+        start=i;
+        count++;
+        chars=next;
+    }
+    return start;
+}
+
 /** Preview the recent protected window. This is not the future assembled prompt. */
-export function historyPreview(limit) {
+export function historyPreview(limit,unit='messages') {
     const chat = ctx().chat || [];
     const eligible = chat.map((m, i) => ({m, i})).filter(({m}) => isStory(m));
-    const recent = eligible.filter(({i}) => i >= Math.max(1, chat.length - limit));
+    const start=historyWindowStart(chat,{limit,unit});
+    const recent = eligible.filter(({i}) => i>=start);
     return { count: recent.length, tokens: estimateTokens(recent.map(({m}) => clean(m.mes)).join('\n')), hidden: eligible.filter(({m}) => isHidden(m)).length,
         open: eligible.filter(({m}) => !isHidden(m)).length, total: eligible.length };
 }
@@ -35,7 +50,7 @@ export function chapterPreview(limit) {
 }
 
 /** Capture only counts and estimates, after the extension has cleaned the request. */
-export function captureContext(messages, { items = [], ask = '' } = {}) {
+export function captureContext(messages, { items = [], ask = '', lore = [] } = {}) {
     const texts = messages.map(m => plain(m?.content));
     const used = texts.map(() => []);
     // Match each full passage once and reserve its span. An unmatched passage is unknown, not zero.
@@ -53,7 +68,8 @@ export function captureContext(messages, { items = [], ask = '' } = {}) {
         return -1;
     }
     const result = { chatId: chatId(), at: Date.now(), total: estimateTokens(texts.join('\n')), unsupportedContent: messages.some(m => Array.isArray(m?.content) && m.content.some(p => p?.type && !['text','input_text'].includes(p.type))),
-        history: { count: 0, chars: 0, unmatched: 0 }, notes: { chars: 0, unmatched: 0 }, chapters: { chars: 0, unmatched: 0 }, events: { chars: 0, unmatched: 0 }, other: { chars: 0, unmatched: 0 }, updates: { chars: 0, unmatched: 0 } };
+        history: { count: 0, chars: 0, unmatched: 0 }, notes: { chars: 0, unmatched: 0 }, chapters: { chars: 0, unmatched: 0 },
+        lore: { chars: 0, unmatched: 0 }, events: { chars: 0, unmatched: 0 }, other: { chars: 0, unmatched: 0 }, updates: { chars: 0, unmatched: 0 } };
     // Claim extension passages first: they can be merged into a user/assistant role by a preset.
     for (const item of items) {
         const value = sub(item.text || '');
@@ -66,14 +82,32 @@ export function captureContext(messages, { items = [], ask = '' } = {}) {
             group.chars += Math.max(0, hit - chapter.length);
         } else group.chars += hit;
     }
-    if (ask) { const hit = claim(sub(ask)); if (hit < 0) result.updates.unmatched++; else result.updates.chars += hit; }
+    const guidance=ask ? sub(ask).trim() : '';
+    const guidanceHit=guidance ? claim(guidance) : 0;
+    if (guidanceHit<0) result.updates.unmatched++;
+    else result.updates.chars+=guidanceHit;
+    const counted=new Set();
+    for (const entry of lore) {
+        if (entry.managedSet || entry.delivery==='Story notes block') continue;
+        const text=sub(entry.text || '').trim();
+        if (!text || counted.has(text)) continue;
+        counted.add(text);
+        if (entry.recallUid!=null && guidanceHit>0 && guidance.includes(text)) {
+            result.lore.chars+=text.length;
+            result.updates.chars=Math.max(0,result.updates.chars-text.length);
+            continue;
+        }
+        const hit=claim(text);
+        if (hit<0) result.lore.unmatched++;
+        else result.lore.chars+=hit;
+    }
     // Recognize full unhidden story messages. Injected role messages are not treated as chat history.
     for (const m of (ctx().chat || []).filter(m => isStory(m) && !isHidden(m)).reverse()) {
         const text = sub(clean(m.mes)); if (!text) continue;
         const hit = claim(text);
         if (hit < 0) result.history.unmatched++; else { result.history.count++; result.history.chars += hit; }
     }
-    for (const key of ['history','notes','chapters','events','other','updates']) result[key].tokens = Math.ceil(result[key].chars / 4);
+    for (const key of ['history','notes','chapters','lore','events','other','updates']) result[key].tokens = Math.ceil(result[key].chars / 4);
     last = result;
     return result;
 }

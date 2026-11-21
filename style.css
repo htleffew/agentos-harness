@@ -466,6 +466,12 @@
 .ri-page-nav .ri-tab { text-transform: none; letter-spacing: normal; padding: 8px 10px; }
 .ri-category:focus-visible, .ri-page-nav .ri-tab:focus-visible { outline: 2px solid var(--ri-accent); outline-offset: -2px; }
 .ri-page-nav[hidden] { display: none; }
+@media (max-width: 480px) {
+    .ri-expanded .ri-categories { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .ri-expanded .ri-category { padding-inline: 4px; font-size: .77em; overflow-wrap: anywhere; }
+    .ri-expanded .ri-page-nav:not([hidden]) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .ri-expanded .ri-page-nav .ri-tab { padding-inline: 4px; overflow-wrap: anywhere; }
+}
 .ri-stream-preview { overflow-wrap: anywhere; }
 .ri-stream-preview + .mes_text { display: none !important; }
 

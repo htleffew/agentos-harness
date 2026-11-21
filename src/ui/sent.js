@@ -216,7 +216,7 @@ export function renderSent(body, app) {
     const waiting = overdueList();
     if (waiting.length) body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `Waiting to be sent again with the next reply: ${waiting.map(o => o.name).join(', ')}.`,
         h('div', { class: 'ri-row ri-row-tight' }, button('Do not send these again', () => clearQueue(), { kind: 'ghost' }))));
-    if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Checking is off, so replies are not checked. Turn on "Check that it happened" in Settings to see Done and Overdue here.'));
+    if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Instruction follow-through checks are off. Turn on “Check that it happened” in Settings to see Done and Overdue for required instructions here.'));
     // The way to carry the story into a new chat, kept where it is easy to find.
     body.appendChild(h('div', { class: 'ri-row ri-row-tight' }, button('Start a new chapter in a new chat', () => {
         import('./panel.js').then((P) => { P.app.tab = 'world'; P.app.wroute = { view: 'list', sheet: { kind: 'chapter', wish: '', busy: false, error: '', draft: null } }; P.app.render(); });

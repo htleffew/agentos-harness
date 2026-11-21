@@ -18,7 +18,7 @@ export function renderChatBooks(app, { assignedEditors = false } = {}) {
             app.render();
         } catch (error) { toast('error',error.message); }
     };
-    return section('World Info books for this chat',
+    const inventory = section('World Info books for this chat',
         h('p',{class:'ri-help'},'Remove from this chat keeps the book available elsewhere. Hide from list clears a historical card from this view. Delete book everywhere removes the shared book from World Info.'),
         catalog.some(book=>book.hidden) && button(app.showHiddenBooks ? 'Hide books again' : 'Show hidden books',()=>{
             app.showHiddenBooks=!app.showHiddenBooks;app.render();
@@ -55,4 +55,7 @@ export function renderChatBooks(app, { assignedEditors = false } = {}) {
         !world && (memoryComponents().world || memoryComponents().chapters) ? button('Create this chat’s Story World',async()=>{
             try {await ensureWorld(); app.render();} catch(error) {toast('error',error.message);}
         },{kind:'primary'}) : null);
+    inventory.id = 'ri-chat-book-inventory';
+    inventory.tabIndex = -1;
+    return inventory;
 }

@@ -172,7 +172,7 @@ function rebuildEditor(refresh) {
 }
 
 export function renderCurrentState(body, refresh) {
-    body.appendChild(promptGroup(['rebuild'], 'Customize rebuild instruction'));
+    body.appendChild(promptGroup(['rebuild','timingUpdate'], 'Customize scene timing and rebuild prompts'));
     const id = lastReply(), scene = sceneAt();
     const needsReview = !!ctx().chatMetadata?.[KEY]?.historyNeedsReview;
     body.append(h('div', { class: 'ri-h2' }, 'Current story state'), h('div', { class: 'ri-help' }, 'These details guide future replies. Edits are protected until you allow automatic changes. Lasting facts can be saved to Story World.'));

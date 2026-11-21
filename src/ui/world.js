@@ -30,7 +30,12 @@ function worldPicker(app) {
     const worlds = knownWorlds();
     const options = [{ value: '', label: 'No story world for this chat' }, ...worlds.map(w => { const i = setInfo(w); return { value: w, label: i.shared ? `${i.name} (in "${i.book}")` : i.name }; })];
     return section('The story world of this chat',
-        button('See this chat’s World Info books',()=>app.openPage('books'),{kind:'ghost'}),
+        button('See this chat’s World Info books',async()=>{
+            if (!await app.openPage('books')) return;
+            const inventory = app.root.querySelector('#ri-chat-book-inventory');
+            inventory?.scrollIntoView({block:'start'});
+            inventory?.focus({preventScroll:true});
+        },{kind:'ghost'}),
         h('div', { class: 'ri-help' }, 'A story world holds what is true in one story: its people, places, groups, secrets, open threads, planted details and what is going on elsewhere. One chat uses one world. Before each reply the extension reads who is in the scene and sends the entries that matter as one block of story notes. This makes no extra AI request.'),
         field('World used by this chat', id ? '' : 'Choose a world, or make a new one for this story.',
             select(options, id, (v) => { setChatWorld(v); go(app, { view: 'list' }); })),
@@ -185,7 +190,7 @@ function renderList(body, app) {
     if (app.wroute.sheet) { body.appendChild(app.wroute.sheet.kind === 'starter' ? starterSheet(app) : chapterSheet(app)); return; }
     body.appendChild(worldPicker(app));
     body.appendChild(promptGroup(['entryWriterRules', 'systemWorldEntry', 'starterWorld', 'systemStarter'], 'Customize world-writing instructions'));
-    body.appendChild(promptGroup(['chapterSummary', 'systemChapter', 'chapterCombine', 'systemCombine', 'newChapterSummary', 'newChapterFirst', 'systemNewChapter'], 'Customize chapter instructions'));
+    body.appendChild(promptGroup(['chapterSummary', 'systemChapter', 'chapterCombine', 'systemCombine', 'newChapterSummary', 'newChapterFirst', 'systemNewChapter','chapterOpeningScene'], 'Customize chapter instructions'));
     body.appendChild(promptGroup(['worldUpdate', 'storyNotes', 'worldOrder', 'silentCharacter', 'threadOrder', 'seedOrder', 'activityOrder', 'secretOrder'], 'Customize world-update instructions'));
     const id = chatWorld();
     if (!id) { body.appendChild(summarySection(app, '')); return; }

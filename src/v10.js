@@ -1,12 +1,13 @@
 import { correctedLoreEntry, characterCorrectionFields, isRejectedStoryClaim } from './correction-rules.js';
-import { BOOK_TRIGGER_SOURCES, bookTriggerSource, reusableKeywordMatch, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
-import { recallPolicy } from './recall.js';
+import { BOOK_TRIGGER_SOURCES, bookTriggerSource, reusableKeywordMatch } from './book-triggers.js';
+import { recallPolicy, recallTiming } from './recall.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
 import { validStoryMinute, validElapsed } from './story-clock.js';
+import { promptText } from './prompts.js';
 // V10's canonical update contract and chat-local configuration.
-import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating } from './st.js';
+import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating, isReply } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
 import { rollInt, createSet, cleanSetName, setInfo, setOfEntry } from './books.js';
 import { chatWorld, setChatWorld, loadWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
@@ -28,12 +29,15 @@ export const STYLE = 'Write direct, concrete fiction. Give the current cast dist
 const COMPANION_STYLE = 'Treat good health and rest as normal. Minor setbacks usually resolve quickly. Carry a lasting limitation only when the story establishes one.';
 const COMPANION_WRITING_BLOCKS = new Set(['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs', 'Decisive NPCs', 'Recurring NPC creation', 'Voice continuity', 'Same-reply quality checks', 'Slow-burn scene profile', 'Player-limited viewpoint']);
 export const defaultWritingGuidance = () => pairedPreset() ? COMPANION_STYLE : STYLE;
-export const PREFLIGHT = 'Carry forward one unresolved beat or show why it changes. Keep movement, positions, audible speech, arrivals and time consistent with what the viewpoint can perceive. Check whether NPC plans would still make sense if the player stepped away. Use the character’s habitual voice under pressure. Choose a fresh opening, key moment and stopping point, with an in-world action or exchange left alive. Apply these checks to the prose itself.';
+export const PREFLIGHT = 'Apply the enabled checks to the prose itself. Use the established scene and cast to decide which checks matter on this turn.';
+export const SCENE_CHECKS = {physical:'Physical realism',social:'Social realism and character fidelity',craft:'Pacing and prose',continuity:'Information and continuity'};
+const HOST_SCENE_CHECKS = {physical:'ri-check-physical',social:'ri-check-social',craft:'ri-check-craft',continuity:'ri-check-continuity'};
+export const sceneCheckId = key => 'check'+key[0].toUpperCase()+key.slice(1);
 export const WRITING_PROFILES = {
-    grounded: 'Favor physical and social realism. Let pace, awkwardness and imperfect information shape how people react. Resolve only what the scene earns and give consequences a credible scale.',
-    heightened: 'Heighten dramatic contrast through rhythm, decisive actions and vivid sensory detail. Keep reactions rooted in the character, and preserve established facts, physical continuity and player agency.',
+    grounded: 'groundedRealism',
+    heightened: 'heightenedRealism',
 };
-const writingProfileText = key => Object.hasOwn(WRITING_PROFILES,key) ? WRITING_PROFILES[key] : '';
+export const writingProfileText = key => Object.hasOwn(WRITING_PROFILES,key) ? promptText(WRITING_PROFILES[key]) : '';
 export const OPENING = 'Write a rich opening of roughly 350–650 words. Establish the place, who is present and what is already in motion through concrete action and dialogue. Follow the selected point of view, tense and voice. Use normal paragraphs and quoted dialogue, with natural alternation between narration and speech. Default to close third-person past from the viewpoint NPC unless the shared profile specifies otherwise. Describe action in prose and identify speakers through ordinary narration or a speech verb. If using viewpoint NPC thoughts, mark them with asterisks. Leave player thoughts and decisions open. End at a natural opportunity to respond.';
 export const AXES = ['tenderness', 'fury', 'dread', 'yearning'];
 export const KIND_MODULE = { fact:'state', profile:'state', knowledge:'knowledge', emotion:'emotions', relationship:'relationships', arc:'plots', seed:'plots', agenda:'plots', event:'worldEvents' };
@@ -69,8 +73,8 @@ export function enabledV10() {
     return settings().enabled && !memoryOnly() && (local ?? isCompanionPreset(activePreset()));
 }
 const HOST_OVERLAPS = {
-    style: ['Prose Rules','Realistic Bold NPCs','HQ NPC Creation','NPC Voice','Prose Lint Functions','Output Length','Card Fidelity','🎭 Card Fidelity 🃏','Gemini Pacing Nerf'],
-    preflight: ['Antithesis - Boot','Antithesis - Router','Antithesis - Pages','Antithesis - Tail/Output'],
+    style: ['Prose Rules','Realistic Bold NPCs','HQ NPC Creation','NPC Voice','Prose Lint Functions','Output Length','Card Fidelity','🎭 Card Fidelity 🃏','Gemini Pacing Nerf','Realism Mode/Jailbreak','[Gemini] Realism NSFW/Jailbreak'],
+    preflight: ['Antithesis - Boot','Antithesis - Mechanics','Antithesis - Router','Antithesis - Helper Functions','Antithesis - Pages','Antithesis - Tail/Output'],
     dice: ['D&D Sim','Dice Rolls'],
     worldEvents: ['World Sim'],
     plots: ['World Sim','Internal States Template','World Turns','ARC Engine',"Chekhov's Gun"],
@@ -90,8 +94,14 @@ export function activeHostPrompts() {
     const prompts = new Map(host.prompts.map(prompt=>[prompt.identifier,prompt]));
     return order.flatMap(entry=>{
         const prompt = prompts.get(entry.identifier);
-        return prompt ? [{name:prompt.name || entry.identifier, enabled:entry.enabled===true, content:prompt.content || '', marker:!!prompt.marker}] : [];
+        return prompt ? [{id:entry.identifier,name:prompt.name || entry.identifier, enabled:entry.enabled===true, content:prompt.content || '', marker:!!prompt.marker}] : [];
     });
+}
+
+export function hostSceneChecks() {
+    if (!pairedPreset()) return {};
+    const enabled = new Map(activeHostPrompts()?.filter(block=>block.enabled).map(block=>[block.id,block.name]) || []);
+    return Object.fromEntries(Object.entries(HOST_SCENE_CHECKS).flatMap(([key,id])=>enabled.has(id) ? [[key,enabled.get(id)]] : []));
 }
 
 export function moduleOwnership(preset = activePreset()) {
@@ -153,7 +163,7 @@ export function savePresetDefault(name,key,value) {
     if (value === undefined) delete next[key]; else next[key] = value;
     Object.defineProperty(presets,name,{value:next,enumerable:true,writable:true,configurable:true});
 }
-export const formatSpeaker = modules => modules.colors ? 'Use ordinary quoted dialogue and natural speech attribution when a speaker would otherwise be unclear, such as “Wait,” Mira said. Use prose paragraphs for narration and speaker changes. If a character’s thoughts appear, italicize them with single asterisks and identify the thinker naturally where needed. Keep speaker labels and color markup out of the prose.' : '';
+export const formatSpeaker = modules => modules.colors ? promptText('speakerGuidance') : '';
 
 export function extractUpdate(raw, { sourceProse, allowPlayerThoughts = false } = {}) {
     const text = String(raw || '');
@@ -590,7 +600,7 @@ export function resolveCheck(spec) {
 }
 
 export function checkText(check) {
-    return check ? `Resolved action check: ${check.name} attempts ${check.action}. ${check.stat}: d20 ${check.natural} + (${check.mod}) = ${check.total}, difficulty ${check.dc}: ${check.result}. Honor the outcome and preserve player agency.` : '';
+    return check ? `Resolved action check: ${check.name} attempts ${check.action}. ${check.stat}: d20 ${check.natural} + (${check.mod}) = ${check.total}, difficulty ${check.dc}: ${check.result}.` : '';
 }
 
 export function recordMap(rows) {
@@ -603,40 +613,47 @@ export function previousV10(type) {
     return chat.slice(0,end).filter(m => !m.is_user && !m.extra?.[KEY]?.stateStale).map(m => ({ message:m, record:m.extra?.[KEY] })).filter(x => x.record);
 }
 
+export function emotionReplyAge(record, chat, type = 'normal') {
+    const replace = ['swipe','regenerate','continue'].includes(type) && isReply(chat.at(-1));
+    const start = Math.max(1,(record.atIndex ?? 0)+1);
+    const prior = Number.isSafeInteger(record.emotionAge) ? Math.max(0,record.emotionAge) : 0;
+    return prior + chat.slice(start,replace ? -1 : undefined).filter(isReply).length;
+}
+
 export function updateContract(modules, opening = false, { fieldsOnly = false } = {}) {
     const kinds = RECORD_KINDS.filter(kind => modules[KIND_MODULE[kind]]);
     const sections = [
-        modules.state && 'scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","elapsed":0,"minutes":0,"ended":false}. Use time for the clock, for example "11:58 PM" or "23:58", date for the calendar, and when for approximate timing. Omit unknown or unchanged fields. Use an empty environment string when a condition resolves. Report elapsed story minutes when the accepted action establishes them, measured from the supplied scene, or since the saved part when continuing. Keep minutes for an exact position on the relative story clock. Follow explicit player time skips, linger during consequential beats, and compress routine travel, waiting or sleep. If a skip crosses midnight on a fictional calendar, include the resulting date when its rules establish it.',
-        kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). Record meaningful changes, not repetition.`,
-        modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Set bodyLasting:true only for an established durable condition. Omit unsupported dimensions and leave the player’s private state to the player.',
-        modules.state && 'For profiles include voice, aliases or current facet when applicable. Set development:true only for lasting character growth that the reply establishes. Preserve card canon and player edits. Keep transient setbacks out of durable facts. A fact may link to the plot record that established it and reference a known baseEntry and baseRelation (extends or updates-present).',
-        modules.relationships && 'For a relationship use subject and other for the two people. Consider relevant relationships in dialogue and choices. Use perspective for meaningful asymmetry and record only lasting dynamics or turning points.',
-        modules.knowledge && 'For knowledge include basis: observed, reported, rumor or belief; private defaults to true. Quote the passage that establishes who learned the information and what they learned. Preserve rumors as rumors.',
-        modules.emotions && 'For emotion include axes (tenderness, fury, dread, yearning, each 0–10 or omitted) and optional outward behavior. For a meaningful reaction to one person, set target to their name and counterweight to any coexisting positive or neutral feeling. Consider every applicable dimension without forcing each to change or be displayed.',
-        (modules.plots || modules.worldEvents) && 'For plot and event records use status open or done. Record an outcome only on completion. An offer or deadline alone does not establish completion.',
+        modules.state && `scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","elapsed":0,"minutes":0,"ended":false}. ${promptText('timingUpdate')}`,
+        kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). ${promptText('structuredFacts')}`,
+        modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Use bodyLasting:true for a durable condition.',
+        modules.state && `${promptText('structuredPortrayal')} Use development:true for lasting growth. A fact may link to a plot record and reference a known baseEntry and baseRelation (extends or updates-present).`,
+        modules.relationships && `For a relationship use subject and other, with optional perspective. ${promptText('structuredRelationships')}`,
+        modules.knowledge && `For knowledge include basis: observed, reported, rumor or belief; private defaults to true. ${promptText('structuredKnowledge')}`,
+        modules.emotions && `For emotion include axes (tenderness, fury, dread, yearning, each 0–10 or omitted), optional outward behavior, target and counterweight. ${promptText('structuredEmotions')}`,
+        (modules.plots || modules.worldEvents) && `For plot and event records use status open or done. ${promptText('structuredOutcomes')}`,
         modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts and a travel object with from, to, departed (exact story minute), and minutes (minimum duration), when timing and travel are established.',
-        modules.plots && modules.worldEvents && 'Use schedule:true with optional weight and spacing in replies only when a future opportunity should be surfaced.',
-        modules.roast && !opening && 'roast: write one brief out-of-story reaction about this reply, focusing on character voice, variety, or pacing. Include this string even when no story facts changed.',
+        modules.plots && modules.worldEvents && `Use schedule:true with optional weight and spacing in replies. ${promptText('structuredSchedule')}`,
+        modules.roast && !opening && `roast: ${promptText('structuredRoast')} Include this string even when no story facts changed.`,
     ].filter(Boolean);
     if (fieldsOnly || !sections.length) return sections.join('\n');
     return `After the visible prose, ${opening || modules.roast ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;
 }
 
-export function sceneCheckPrompt(scene, {modules, type, preflight = PREFLIGHT, opening = false} = {}) {
+export function sceneCheckPrompt(scene, {modules, type, preflight = PREFLIGHT, opening = false, checks = prefs()?.sceneChecks} = {}) {
     if (!modules?.preflight) return '';
+    const hostChecks = hostSceneChecks();
     const actors = [...new Set(clean(scene?.present).split(/[,;\n]|\s+and\s+/i).map(clean)
         .filter(name=>name && normalize(name)!==normalize(names().user) && !/^(?:none|unknown|alone|nobody)$/i.test(name)))].slice(0,10);
-    const route = actors.length>1 ? 'Ensemble scene. Where natural, give supporting characters a consequential exchange or activity with each other.'
-        : actors.length===1 ? 'Solo spotlight. Give the identified NPC a distinct concern and a choice within their control.'
-        : 'The spotlight cast is uncertain. Use established scene evidence before assigning a character to it.';
+    const route = actors.length>1 ? 'sceneEnsemble' : actors.length===1 ? 'sceneSolo' : 'sceneUnknown';
     return [
         'Scene and character checks:',
-        opening ? 'Opening: establish physical access, the active cast and a situation already in progress.' : route,
+        (!hostChecks.continuity || opening) && promptText(opening ? 'sceneOpening' : route),
         actors.length && `Known cast: ${actors.join(', ')}.`,
-        type==='continue' && 'Continue the action already under way and preserve its sequence.',
-        modules.knowledge && 'Check what each speaker could have witnessed, learned from someone, inferred, or mistaken.',
-        modules.plots && 'Consider one eligible payoff or due agenda only if it fits this beat. Defer competing developments.',
-        modules.emotions && 'For the important interaction, consider the character’s prior feeling, the new friction and a plausible positive or neutral counterweight. Let the target affect what they reveal.',
+        type==='continue' && promptText('sceneContinue'),
+        ...Object.keys(SCENE_CHECKS).filter(key=>!hostChecks[key] && checks?.[key]!==false).map(key=>promptText(sceneCheckId(key))),
+        modules.knowledge && promptText('checkKnowledge'),
+        modules.plots && promptText('checkPlot'),
+        modules.emotions && promptText('checkEmotion'),
         clean(preflight).slice(0,1800),
     ].filter(Boolean).join(' ');
 }
@@ -687,7 +704,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
             if (row.kind === 'emotion') {
                 if (row.target && !matches(row.target)) continue;
                 const tuning = chatState()?.v10?.emotion || {};
-                const passes = Math.max(0, Math.floor(((ctx().chat || []).length - (row.atIndex || 0) - 1)/2));
+                const passes = emotionReplyAge(row,ctx().chat || [],type);
                 const persistence = Number(tuning.persistence ?? 3);
                 const recovery = Number(tuning.recovery ?? 1);
                 const baseline = Number(tuning.baseline ?? 3);
@@ -722,23 +739,20 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         !recalled.some(item=>item.record.kind==='profile' && baselineFor(baselines,item.record.subject,item.record.aliases)===source))
         .slice(0,8).map(source=>`${source.name}: ${[source.text,source.voice && `Voice: ${source.voice}`].filter(Boolean).join(' · ')}`);
     const paired = pairedPreset();
-    const format = paired
-        ? (local.generatePlan
-            ? 'Put a brief outline of intended beats and character focus in one <reply_plan> block before the story prose. Use up to five short bullets, then close it with </reply_plan>. Use the story update for established state.'
-            : 'Begin with the story prose. Keep planning outside the visible reply. Follow the story update format below when applicable.')
-        : '';
+    const format = !paired ? '' : local.generatePlan
+        ? `${promptText('planGuidance')} Place the outline inside one <reply_plan>…</reply_plan> block before the prose.`
+        : promptText('proseFirst');
     const text = [
         format, modules.style && style, modules.style && writingProfileText(local.writingProfile),
         avoid.length && `Avoid these stock phrases when composing the scene: ${JSON.stringify(avoid)}.`,
         sceneCheckPrompt(scene,{modules,type,preflight:local.preflight}),formatSpeaker(modules),
-        paired && modules.knowledge && 'Respect what each character could know from their own observations and conversations.',
-        paired && modules.plots && 'Let off-screen activity matter when it reaches the scene.', modules.emotions && `Consider established emotional dimensions and outward bearing. Sensitivity: ${local.emotion?.sensitivity || 'flexible'}. Credible sudden or mixed reactions are welcome.`,
+        modules.emotions && promptText('emotionSensitivity',{sensitivity:local.emotion?.sensitivity || 'flexible'}),
         baseline.length && `Established portrayal takes precedence over general style:\n${baseline.slice(0,8).join('\n')}`,
-        plotAudit.some(row=>!row.eligible && row.recalled) && 'Pending prerequisites constrain reveals and payoffs, including when introducing a required or optional event.',
+        plotAudit.some(row=>!row.eligible && row.recalled) && promptText('lockedPayoff'),
         recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`,
         modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`,
-        checkText(check), feedback.length && `Out-of-story voice feedback, not canon:\n${feedback.join('\n')}`,
-        repair && `If supported, recover a missing state change from accepted reply ${repair.id}, using exact evidence and placing it in repairChanges alongside "repair":${repair.id}. Keep new changes in changes. Respect newer facts. Prior prose: ${JSON.stringify(repair.text)}`,
+        check && `${checkText(check)} ${promptText('resolvedActionGuidance')}`, feedback.length && `Out-of-story voice feedback, not canon:\n${promptText('roastFeedback')}\n${feedback.join('\n')}`,
+        repair && `If applicable, recover a missing state change from accepted reply ${repair.id}. Put it in repairChanges alongside "repair":${repair.id}. ${promptText('structuredRepair')} Prior prose: ${JSON.stringify(repair.text)}`,
         updateContract(modules),
     ].filter(Boolean).join('\n');
     return { text, offer, repair, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
@@ -772,10 +786,15 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
     }
     for (const uid of notes?.ids || []) {
         const row = rows.find(item => item.uid === uid);
-        if (row) add({ book, uid, ...source, title:row.kind === 'secret' && row.status !== 'out' ? 'Concealed entry' : row.name,
-            selected:true, role:'Story World', delivery:'Story notes block', text:notes.text });
+        if (row) add({ book, uid, ...source, recallUid:String(uid),title:row.kind === 'secret' && row.status !== 'out' ? 'Concealed entry' : row.name,
+            timing:recallTiming(row.activation),selected:true, role:'Story World', delivery:'Story notes block', text:notes.text });
     }
-    for (const {record,text} of recalled) add({book,uid:record.id,...source,title:record.kind === 'knowledge' && record.private ? 'Character knowledge' : record.id,role:PLOT_KINDS.includes(record.kind) ? 'Plot Records' : 'Chat Facts',selected:true,text});
+    const recordEntries=new Map(rows.map(row=>[readRecord(row)?.id,row]));
+    for (const {record,text} of recalled) {
+        const row=recordEntries.get(record.id);
+        add({book,uid:record.id,...source,recallUid:row ? String(row.uid) : undefined,timing:recallTiming(row?.activation),
+            title:record.kind === 'knowledge' && record.private ? 'Character knowledge' : record.id,role:PLOT_KINDS.includes(record.kind) ? 'Plot Records' : 'Chat Facts',selected:true,text});
+    }
     return receipt.slice(0,120);
 }
 
@@ -787,7 +806,7 @@ export function guidelineEligible(entry, local, scene, modules, book = local.gui
         (!scope?.location || mentions(scene?.where,scope.location));
 }
 
-export async function addConfiguredBooks(lore, arrays, scene, modules, { base = true, guidelines = true, reference = true, type = 'normal' } = {}) {
+export async function addConfiguredBooks(lore, arrays, scene, modules, { base = true, guidelines = true, reference = true } = {}) {
     const local = chatState()?.v10;
     if (!local || !Array.isArray(lore.chatLore)) return;
     const pinned = base && baseWorld(local);
@@ -799,7 +818,6 @@ export async function addConfiguredBooks(lore, arrays, scene, modules, { base = 
             ...(opening && pinned.pins?.includes(String(entry.uid)) && !entry.disable ? {constant:true} : {}),
         })));
     }
-    const texts = scopedTriggerTexts(ctx().chat || [], type);
     const managed = entry => entry.extensions?.ri?.type || entry.extensions?.ri?.set || setOfEntry(entry);
     for (const book of reusableAssignments(local)) {
         for (const list of arrays) for (let i = list.length - 1; i >= 0; i--) {
@@ -812,7 +830,7 @@ export async function addConfiguredBooks(lore, arrays, scene, modules, { base = 
             const candidate = { ...entry, world: book.name };
             if (managed(candidate)) continue;
             if (book.role === 'guidelines' && !guidelineEligible(candidate, local, scene, modules, book.name)) continue;
-            lore.chatLore.push(scopedBookEntry(candidate,texts));
+            lore.chatLore.push(candidate);
         }
     }
 }
@@ -932,20 +950,21 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
     const source = [base && `Pre-opening canon:\n${base}`, ...cardSource, persona && `Player persona:\n${persona}`,
         reference && `Reference lore:\n${reference}`, guidance && `Selected writing guidance:\n${guidance}`].filter(Boolean).join('\n').slice(0,15000);
     const writing = modules.style ? local.style ?? defaultWritingGuidance() : '';
+    const companionChecks = new Set(Object.values(HOST_SCENE_CHECKS));
     const companionWriting = pairedPreset() && !text ? (activeHostPrompts() || [])
-        .filter(block=>block.enabled && COMPANION_WRITING_BLOCKS.has(block.name)).map(block=>block.content).join('\n') : '';
+        .filter(block=>block.enabled && (COMPANION_WRITING_BLOCKS.has(block.name) || companionChecks.has(block.id))).map(block=>block.content).join('\n') : '';
     const openingPermission = local.openingPlayerThoughts === true
-        ? 'For this opening only, the player authorizes writing their viewpoint thoughts in single asterisks. Leave their dialogue and consequential actions open.'
+        ? promptText('openingPlayerThoughts')
         : 'The player supplies their own thoughts, dialogue, and choices.';
     const avoid = modules.style ? avoidPhrases(local.avoidPhrases) : [];
     const format = [avoid.length && `Avoid these stock phrases in the opening: ${JSON.stringify(avoid)}.`,companionWriting,local.opening ?? OPENING,writing,modules.style && writingProfileText(local.writingProfile),sceneCheckPrompt({present:names().char},{modules,preflight:local.preflight,opening:true}),formatSpeaker(modules),openingPermission].filter(Boolean).join('\n');
     const user = [
-        text ? 'Extract scene state from the chosen greeting. Return only the update block. Preserve what the greeting establishes and do not invent facts.' : format,
+        text ? `${promptText('readGreeting')} Return only the update block.` : format,
         `Character: ${names().char}. Player: ${names().user}.`, source && `Source material:\n${source}`,
         text && `Chosen greeting:\n${text}`, direction && `Opening direction:\n${safeText(direction,2000)}`,
         updateContract(modules,true),
     ].filter(Boolean).join('\n\n');
-    const result = await request({ what:text ? 'Read greeting for story state' : 'Draft story opening', system:'Create or analyze the opening of this roleplay. Follow the requested output format.', user, tokens:text?1200:2200, profileId:settings().profileId });
+    const result = await request({ what:text ? 'Read greeting for story state' : 'Draft story opening', system:promptText('systemOpening'), user, tokens:text?1200:2200, profileId:settings().profileId });
     if (prefs() !== local) throw new Error('The chat changed.');
     const output = pairedPreset() ? separateReply(result.text).text : result.text;
     const parsed = extractUpdate(output,{sourceProse:text || undefined,allowPlayerThoughts:local.openingPlayerThoughts===true});

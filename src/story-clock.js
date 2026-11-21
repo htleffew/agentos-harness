@@ -70,7 +70,7 @@ export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, 
         }
         duration=measured;
     }
-    if (duration===undefined && previous.date && start && end && !update.date && end.minutes>=start.minutes) {
+    if (duration===undefined && start && end && !update.date && end.minutes>=start.minutes) {
         duration=end.minutes-start.minutes;
     }
     if (duration===undefined && previous.date && update.date && update.date!==previous.date && !update.time) {

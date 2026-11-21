@@ -152,6 +152,38 @@
       "role": "system",
       "injection_position": 0,
       "content": "Use the player character as the single viewpoint. Describe what they can perceive or what the story establishes they already know, and keep unknown causes uncertain. Reveal an off-screen event through an arrival, report, trace, or later discovery. Keep narration in close third person unless the card or chat uses a different person. Let the player provide their own private reaction, dialogue, and decisions."
+    },
+    {
+      "identifier": "ri-check-physical",
+      "name": "Physical realism",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Check positions, physical reach, lines of sight, what can be heard, who has the necessary object, and how long a consequential action or journey would take. Anchor the scene in one or two observations that change what someone does. Carry physical effects through the scene and allow ordinary recovery."
+    },
+    {
+      "identifier": "ri-check-social",
+      "name": "Social realism",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Keep habits of speech and conduct specific to the card, including quirks and what changes with company. Ask whose decision this would be if the player were elsewhere. Give each spotlight NPC a practical aim. Let loyalty, embarrassment, humor, or divided loyalties produce different reactions in the same conversation. Keep the player’s decisions open."
+    },
+    {
+      "identifier": "ri-check-craft",
+      "name": "Prose and pacing pass",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Check the recent opening and ending for repeated structures. Choose an immediate action, a consequential change, and a natural place to leave space for the player. Keep concrete details that affect the scene. Replace a generic exchange, stock reaction, or convenient shortcut with something the actual characters would do. Allow a difficult beat to develop before moving on."
+    },
+    {
+      "identifier": "ri-check-continuity",
+      "name": "Story route and continuity",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "Orient to time, place, viewpoint, urgency and who is present. On an opening or arrival, establish what is already happening. For one spotlight character, follow their pressing concern. For several, make each contribution distinct and allow an exchange between them. Check how each character came to know what they act on, and honor unresolved prerequisites and consequences. Use elapsed time and off-screen developments when established. Each of these checks guides this reply’s prose."
     }
   ],
   "prompt_order": [
@@ -236,6 +268,22 @@
         },
         {
           "identifier": "ri-craft-player-pov",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-physical",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-social",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-craft",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-continuity",
           "enabled": false
         },
         {
@@ -325,6 +373,22 @@
         },
         {
           "identifier": "ri-craft-player-pov",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-physical",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-social",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-craft",
+          "enabled": false
+        },
+        {
+          "identifier": "ri-check-continuity",
           "enabled": false
         },
         {

@@ -16,3 +16,16 @@ assert.equal(test({mode:'triggered',keys:['ferry'],sticky:1},'swipe').on,false);
 ctx.chat.push({is_user:true,mes:'Goodbye.'},{mes:'Until tomorrow.'});
 assert.equal(test({mode:'triggered',keys:['ferry'],sticky:1}).on,false);
 assert.equal(test({mode:'window',window:1,after:2}).on,true);
+
+ctx.chat.splice(0,ctx.chat.length,{mes:'We left the harbor.'},{is_user:true,mes:'Watch the delta beacon.'});
+const roleRule={mode:'triggered',source:'assistant',keys:['delta beacon'],sticky:1,cooldown:1};
+assert.equal(test(roleRule).on,false);
+assert.equal(test({...roleRule,source:'user'}).on,true);
+ctx.chat.push({mes:'The delta beacon flashed.'},{is_user:true,mes:'I wait.'});
+assert.deepEqual(test(roleRule),{on:true,fresh:true});
+ctx.chat.push({mes:'All was quiet.',extra:{roleplay_instructions:{recall:{book:'Book',fresh:['7']}}}},{is_user:true,mes:'I wait again.'});
+assert.deepEqual(test(roleRule),{on:true,fresh:false});
+ctx.chat.push({mes:'The delta beacon flashed again.'},{is_user:true,mes:'I watch.'});
+assert.deepEqual(test(roleRule),{on:false,fresh:false});
+ctx.chat.push({mes:'The delta beacon stayed lit.'},{is_user:true,mes:'I wait a third time.'});
+assert.deepEqual(test(roleRule),{on:true,fresh:true});

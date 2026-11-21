@@ -6,6 +6,7 @@ import { loadBook, saveBook, refreshWorldList, worldNames } from './st.js';
 import { settings, saveSettings, FORMS } from './store.js';
 
 export const USER_LINE = " {{user}}'s words, choices and thoughts are theirs to write.";
+export const instructionAgency = () => ` ${promptText('instructionAgency')}`;
 
 /** How an instruction is sent. role: 0 system, 1 user, 2 assistant, null keeps the entry's own role. */
 export const SENT_AS = {
@@ -161,11 +162,11 @@ export function wrapText(sentAs, version, misses = 0) {
     const w = SENT_AS[sentAs] || SENT_AS.plain;
     const body = toStore(version).trim();
     if (!misses) {
-        if (sentAs === 'system' || sentAs === 'ooc') return `${sentAs === 'ooc' ? '[OOC: ' : '[System note: '}${promptText('instructionOrder', { instruction: body })}${USER_LINE}]`;
+        if (sentAs === 'system' || sentAs === 'ooc') return `${sentAs === 'ooc' ? '[OOC: ' : '[System note: '}${promptText('instructionOrder', { instruction: body })}${instructionAgency()}]`;
         return `${w.pre}${body}${w.post}`;
     }
     const open = sentAs === 'ooc' ? '[OOC: ' : '[System note: ';
-    return `${open}${promptText(misses === 1 ? 'overdueOrder' : 'finalOrder', { instruction: body })}${USER_LINE}]`;
+    return `${open}${promptText(misses === 1 ? 'overdueOrder' : 'finalOrder', { instruction: body })}${instructionAgency()}]`;
 }
 
 /** The entry text saved in the lorebook, so it also works with the extension turned off. */

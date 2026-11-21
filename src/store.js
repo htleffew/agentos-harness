@@ -34,11 +34,14 @@ const DEFAULTS = {
         onSceneEnd: true,     // write a chapter when the update block says the scene ended
         minReplies: 4,        // and at least this many replies have gone by since the last chapter
         every: 20,            // write a chapter after this many replies in any case (0 = only when a scene ends, or by hand)
+        everyTokens: 0,       // optional estimated unsummarized text threshold
         keep: 2,              // newest chapters of the chat eligible for full recall
         roll: 8,              // when a chat has more chapters than this, the older ones are combined into one
         budget: 800,          // room in tokens for the story so far
         hide: true,           // hide from the AI the messages a chapter covers (they stay in the chat)
         keepShown: 30,        // the newest messages are never hidden this way
+        historyUnit: 'messages',
+        keepTokens: 8000,
     },
     pace: {
         quiet: 2,             // after a big event has happened, nothing new starts for this many replies (0 = off)

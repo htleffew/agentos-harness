@@ -1,5 +1,6 @@
 import { ctx, KEY, isReply } from './st.js';
 import { chatState } from './store.js';
+import { promptText } from './prompts.js';
 
 const stop = new Set('the that this with from have instead changed should wrong correct actually were was not they their there said where into about then only been and for its theirs what which fact facts'.split(' '));
 export const correctionTerms = value => [...new Set(String(value || '').toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || [])].filter(word=>!stop.has(word));
@@ -54,7 +55,7 @@ export function storyCorrectionPrompt(present = '', where = '', material = '') {
         lines.push('- '+item.truth);
         size += item.truth.length+3;
     }
-    return lines.length ? '[Accepted story corrections. Treat these as canon when older narration, summaries or lore disagree. Preserve differences between established truth and what an individual character knows.\n'+lines.join('\n')+']' : '';
+    return lines.length ? `[Accepted story corrections. ${promptText('correctionCanon')}\n${lines.join('\n')}]` : '';
 }
 
 export function isRejectedStoryClaim(text) {

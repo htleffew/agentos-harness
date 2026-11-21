@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.0.23
+
+- Manage keyword source, chance, sticky duration and cooldown on Story World entries. An optional AI helper suggests trigger phrases for an entry and leaves the final selection in its editor.
+- Set the protected conversation window and chapter threshold in estimated tokens. Reapply the window to saved chapters without a model request. Review confirmed World Info and structured record estimates in Context & Memory.
+- Carry emotional recovery time and relationship notes into a new chapter. A chapter save checks that the accepted source history is still current before hiding covered messages.
+- Edit and restore feature guidance for openings, story checks, record updates, corrections, opportunity rolls and catch-up. The companion preset offers optional physical, social, prose and continuity checks. The extension yields the matching check when the preset provides it.
+- Link directly to the current chat’s editable book inventory and clarify where the extension module defaults come from.
+
 ## 10.0.22
 
 - Advance the scene header and relative story clock from the same accepted timing. ISO dates and numbered days roll over automatically. A fictional date that cannot be calculated is marked unconfirmed until the story establishes it.

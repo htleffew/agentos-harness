@@ -2,6 +2,8 @@
 
 This audit uses the attached **[ST] Vexa v1.0** export, the attached **Roleplay Instructions V10** export, and companion preset and extension code at commit `fec7e58` (extension 10.0.7). The attached companion export matches commit `104fdc3`. The newer companion preserves the same name and adds five writing blocks. The findings below describe the audited 10.0.7 release. Release 10.0.8 adds the Memory only workflow and the companion writing blocks listed in the changelog.
 
+The [v10 verification](v10-verification.md) records the later changes to the extension and companion preset and the SillyTavern checks for the agreed design.
+
 The Vexa export has **78 ordered slots**, **71 enabled** and **7 disabled**. Of the enabled slots, **48 contain raw text**. That includes macro and routing material. The enabled flag describes the saved export. It does not establish that every block runs in every request. Marker rows receive host data at assembly time. Character count or number of blocks cannot determine wire cost or prose quality.
 
 The extension substantially covers story storage and selected controls. The clearest missing writing behaviors are decisive and source-faithful NPC portrayal, richer creation of recurring NPCs, a configurable narrative viewpoint, regular-turn length and dialogue balance, specific prose checks, and slow-burn pacing across a set of events. Rendering and motion also differ. The script audit below identifies the exact progressive-reveal gap.

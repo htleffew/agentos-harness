@@ -147,7 +147,7 @@ export function renderEditor(body, app) {
             ? (isChatOpen() ? 'Shows the first saved or drafted version with this chat’s names.' : 'Shows the first version. Open a chat to fill in names.')
             : 'Example wording. Add a version to send this instruction during play.',
             preview),
-        promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder'], 'Customize in-chat instruction wording',
+        promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency'], 'Customize in-chat instruction wording',
             { contextual: true, onChange: refreshPreview })));
 
     // ----- Versions -----

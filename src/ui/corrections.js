@@ -214,7 +214,8 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         h('details',{class:'ri-correction-sources'},h('summary',{},'Find and edit source records'),
             h('label',{class:'ri-field'},'Wrong wording, optional',wording),
             h('p',{class:'ri-help'},'Enter an exact phrase to narrow the search. AI tracing can propose source edits in one additional request.'),
-            h('div',{class:'ri-row'},search,trace),promptGroup(['traceCorrection'],'Customize correction tracing')),
+            h('div',{class:'ri-row'},search,trace)),
+        promptGroup(['traceCorrection','correctionSwipe','correctionCanon'],'Customize correction prompts'),
         results);
 }
 

@@ -26,7 +26,7 @@ import { chapterAfterReply } from './chapters.js';
 import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile, parseUpdate } from './worldflow.js';
 import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, acceptGuidedSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
-import { USER_LINE, parseContent, readInstruction, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
+import { USER_LINE, instructionAgency, parseContent, readInstruction, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 const sentEntries = new Map();   // key -> the lorebook entry whose text is being sent in this reply
 
@@ -35,9 +35,12 @@ const sentEntries = new Map();   // key -> the lorebook entry whose text is bein
  * When several notes go out in one reply, the line is said once, on the last of them.
  */
 function sayUserLineOnce(items) {
-    const tail = `${sub(USER_LINE)}]`;
-    const having = items.filter(it => typeof it.text === 'string' && it.text.endsWith(tail));
-    for (const it of having.slice(0, -1)) {
+    const tails = [instructionAgency(),USER_LINE].map(text=>`${sub(text)}]`);
+    const having = items.flatMap(it=>{
+        const tail = typeof it.text==='string' && tails.find(value=>it.text.endsWith(value));
+        return tail ? [{it,tail}] : [];
+    });
+    for (const {it,tail} of having.slice(0,-1)) {
         it.text = `${it.text.slice(0, -tail.length)}]`;
         const entry = sentEntries.get(it.key);
         if (entry) entry.content = it.text;
@@ -206,6 +209,13 @@ function keepsGoing(key) {
 
 // ---------- before the scan: add this chat's instruction sets ----------
 
+function scopeBookEntries(arrays,type) {
+    const entries=arrays.flat().filter(entry=>entry && bookTriggerSource(entry)!=='chat' && !entry.constant);
+    if (!entries.length) return;
+    const texts=scopedTriggerTexts(ctx().chat || [],type);
+    for (const entry of entries) Object.assign(entry,scopedBookEntry(entry,texts));
+}
+
 async function loadMemory(lore, arrays) {
     // Keep native World Info entries. Suppress managed instructions even if their books are also indexed by the host.
     for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (isManaged(list[i])) list.splice(i,1);
@@ -215,9 +225,10 @@ async function loadMemory(lore, arrays) {
     const components = memoryComponents();
     if (turn && ['swipe','regenerate'].includes(type)) undoForSwipe();
     await worldIdle();
-    await addConfiguredBooks(lore,arrays,{}, {}, {base:components.world,guidelines:false,reference:components.world,type});
+    await addConfiguredBooks(lore,arrays,{}, {}, {base:components.world,guidelines:false,reference:components.world});
     filterExcludedBooks(arrays);
     for (const entries of arrays) for (let index=0;index<entries.length;index++) entries[index] = correctedLoreEntry(entries[index]);
+    scopeBookEntries(arrays,type);
     const flow = await prepareWorld(type,0,{memory:true,components});
     const notes = [components.world && storyCorrectionPrompt(),flow?.notes?.text].filter(Boolean).join('\n');
     if (notes) {
@@ -276,7 +287,7 @@ async function onEntriesLoaded(lore) {
         const scale = phase?.chance ?? 100;
         const modules = native ? effectiveModules() : null;
         const activeScene = native ? readScene(kind) : null;
-        if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules,{base:memoryComponents().world,reference:memoryComponents().world,type:kind});
+        if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules,{base:memoryComponents().world,reference:memoryComponents().world});
         filterExcludedBooks(arrays);
         for (const entries of arrays) for (let index=0;index<entries.length;index++) entries[index] = correctedLoreEntry(entries[index]);
         const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
@@ -301,7 +312,7 @@ async function onEntriesLoaded(lore) {
             const check = modules.dice ? (gen?.check ?? old?.v10Check ?? null) : null;
             v10Turn = prepareTurn(v10Rows,{where:activeScene.location,present:activeScene.present},kind,modules,check,{schedule,recallFacts:memoryComponents().world});
             if (schedule && !v10Turn.offer && !flow?.order) {
-                v10Turn.offer = {id:'world-event',text:'If the scene has room, introduce one plausible outside development that follows from the current place and circumstances.'};
+                v10Turn.offer = {id:'world-event',text:promptText('autonomousEvent')};
             }
             contextAsk = [corrections, modules.state && stateText, direction, v10Turn.text].filter(Boolean).join('\n');
             if (contextAsk) lore.chatLore.push(askEntry(contextAsk));
@@ -337,12 +348,7 @@ async function onEntriesLoaded(lore) {
             }
             return;
         }
-        const scopedInstructions = arrays.flat().filter(entry =>
-            isManaged(entry) && setInfo(setOf(entry)).kind === 'instructions' && !entry.constant && bookTriggerSource(entry) !== 'chat');
-        if (scopedInstructions.length) {
-            const texts = scopedTriggerTexts(ctx().chat || [], kind);
-            for (const entry of scopedInstructions) Object.assign(entry, scopedBookEntry(entry, texts));
-        }
+        scopeBookEntries(arrays,kind);
         if (cs) applyTiming(arrays.flat().filter(isManaged), cs);
         plan.v10Turn = v10Turn;
         plan.v10Rows = v10Rows;
@@ -781,7 +787,7 @@ function onScanDone(args) {
         const offer = !isRepeat && !gen.quiet && askE && map.has(keyOf(askE)) && !items.some(it => !it.noCheck || it.worldOrder) ? plan.v10Turn?.offer : null;
         if (offer) {
             const completion = offer.id === 'world-event' ? 'Record a new event only if it occurs in the prose.' : 'Mark done only if it occurs in the prose.';
-            askE.content += `\nOptional plot opportunity (${offer.id}): ${offer.payoff || offer.text} Defer if it does not fit. ${completion}`;
+            askE.content += `\nOptional plot opportunity (${offer.id}): ${offer.payoff || offer.text} ${promptText('optionalOpportunity')} ${completion}`;
             plan.contextAsk = askE.content;
         }
         sayUserLineOnce(items);
@@ -796,7 +802,8 @@ function onScanDone(args) {
         const guidanceSelected = askE && map.has(keyOf(askE));
         pending = { items, type, states, pace, v10:plan.v10Turn,
             recall:{book:plan.flow?.id,fresh:[...new Set([...notesFresh,...(guidanceSelected ? plan.v10Turn?.recallFresh || [] : [])])]}, progressTurn:replyProgress()?.turn, offer:offer?.id,
-            lore:plan.v10Turn ? loreReceipt(map.values(),receiptNotes,plan.v10Rows,plan.flow?.id,guidanceSelected ? plan.v10Turn.recalled : []) : null, usedUp: gen.usedUp || null,
+            lore:plan.v10Turn || receiptNotes ? loreReceipt(map.values(),receiptNotes,plan.v10Turn ? plan.v10Rows : plan.flow?.rows || [],plan.flow?.id,
+                guidanceSelected ? plan.v10Turn?.recalled : []) : null, usedUp: gen.usedUp || null,
             guided: gen.guided ? {direction:gen.guided.direction,repeatOrders:gen.guided.repeatOrders,correctionId:gen.guided.correction?.id} : null };
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
@@ -1176,9 +1183,14 @@ function onPromptReady(data) {
                 const expanded = typeof entry.text === 'string' ? sub(entry.text).trim() : '';
                 entry.confirmed = !!expanded && full.includes(expanded);
             }
+            if (pending.recall) {
+                const seen = new Set(pending.lore.filter(entry=>entry.confirmed).map(entry=>entry.recallUid));
+                pending.recallCandidates ??= pending.recall.fresh;
+                pending.recall.fresh = pending.recallCandidates.filter(uid=>seen.has(uid));
+            }
         }
         if (record && gen && replyProgress()?.phase === 'context') showReplyProgress(gen,'waiting');
-        if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: memory && pending?.notes ? [{notes:true,text:pending.notes}] : pending?.items || [], ask: memory ? '' : plan.contextAsk || '' }); }
+        if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: memory && pending?.notes ? [{notes:true,text:pending.notes}] : pending?.items || [], ask: memory ? '' : plan.contextAsk || '', lore:pending?.lore || [] }); }
     } catch (e) { console.error(LOG, 'prompt-ready', e); }
 }
 
@@ -1322,7 +1334,7 @@ export async function regenerateStoryCorrection(correction, target) {
         saveChatState();
     };
     const facts = correction.truth;
-    const direction = 'Regenerate this reply using the following accepted correction. Keep the same point in the story and retain unrelated established details. Apply the correction in the fiction without discussing the edit.\n\n'+facts;
+    const direction = promptText('correctionSwipe')+'\n\n'+facts;
     note('running');
     try {
         if (!await guideSwipe(direction,{correction,keepManualEdits:true})) {

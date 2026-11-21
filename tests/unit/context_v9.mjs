@@ -21,3 +21,7 @@ assert.equal(r.history.count,4);assert.equal(r.history.unmatched,0);assert(r.cha
 assert.equal(C.lastContext(),r);id='chat-b';assert.equal(C.lastContext(),null);
 const m=C.captureContext([{role:'user',content:[{type:'text',text:'Hi'},{type:'image_url',image_url:{url:'x'}}]}]);assert(m.unsupportedContent);
 console.log('context budget: protected-window previews, last-request matching, unmatched data, chat isolation and non-text warning passed');
+const oversized = [{mes:'Opening'},{mes:'Old text'},{mes:'x'.repeat(1200)},{mes:'y'.repeat(1200)}];
+assert.equal(C.historyWindowStart(oversized,{limit:250,unit:'tokens'}),2,'protect the latest two whole messages');
+assert.equal(C.historyWindowStart(oversized,{limit:800,unit:'tokens'}),1);
+assert.equal(C.historyWindowStart(oversized,{limit:2}),2);

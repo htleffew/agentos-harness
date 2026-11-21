@@ -6,7 +6,8 @@ import { stateAt, sceneAt, storyMinuteAt, normalizeScene, SCENE_FIELDS, changesF
 import { advanceStoryClock, validElapsed } from './story-clock.js';
 import { historySourceMark, historySourceMatches } from './history-source.js';
 import { storyCorrectionPrompt } from './correction-rules.js';
-import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, recordMap, portrayalSources, updateContract, baseWorld } from './v10.js';
+import { estimateTokens } from './context-budget.js';
+import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, recordMap, portrayalSources, updateContract, baseWorld, emotionReplyAge } from './v10.js';
 // The story so far, kept by the extension itself.
 //  - Chapters: one AI request writes a summary of a stretch of replies. It is filed in the chat's story world as a
 //    "chapter" entry and sent with the story notes. A chapter is cut when a scene ends, after a set number of
@@ -17,7 +18,7 @@ import { ctx, KEY, LOG, names, parseJson, isReply, isStory, isGenerating, worldN
 import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
-import { chatWorld, setChatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE, chatTimes, chapterIsMine } from './world.js';
+import { chatWorld, setChatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, renderEntry, HUD_BLOCKS, WORLD_KINDS, DONE, chatTimes, chapterIsMine, readWorldEntry, isWorldEntry } from './world.js';
 import { enqueue, worldIdle, syncWorld, attachChange, attachChanges, parseUpdate, applyOps, applyStructuredUpdates, creationFingerprint, stripUpdateBlock, shownChanges, describeChange } from './worldflow.js';
 import { createSet, entriesOf, setName, cleanSetName } from './books.js';
 import { goals, goalProgress, stepDone } from './goals.js';
@@ -36,7 +37,7 @@ function replies() {
     return out;
 }
 
-/** The messages from reply `from` to reply `to` as text, oldest first, each cut to a sensible length. */
+/** Read messages oldest first. Pass zero for the full source of a saved chapter. */
 function storyText(from, to, limit = 24000) {
     const chat = ctx().chat || [];
     const list = replies();
@@ -49,11 +50,11 @@ function storyText(from, to, limit = 24000) {
         const original = String(m.mes);
         const extracted = memoryOnly() && !m.is_user ? separateReply(original).text : original;
         const text = tidy(extracted || original);
-        if (text) lines.push(`${m.name}: ${text.length > 2500 ? `${text.slice(0, 2500)} [...]` : text}`);
+        if (text) lines.push(`${m.name}: ${limit && text.length > 2500 ? `${text.slice(0, 2500)} [...]` : text}`);
     }
     let text = lines.join('\n\n');
     // When it is too long, the middle is left out so the start and the end of the stretch are both read.
-    if (text.length > limit) text = `${text.slice(0, limit * 0.45)}\n\n[... part of this stretch is left out here ...]\n\n${text.slice(-limit * 0.5)}`;
+    if (limit && text.length > limit) text = `${text.slice(0, limit * 0.45)}\n\n[... part of this stretch is left out here ...]\n\n${text.slice(-limit * 0.5)}`;
     return text;
 }
 
@@ -63,6 +64,49 @@ export function coveredUpTo(list) {
     const id = chatId();
     const times = chatTimes();
     return Math.max(0, ...list.filter(w => w.kind === 'chapter' && chapterIsMine(w, id, times)).map(w => w.span.to));
+}
+
+function savedChapterRanges(data,wid) {
+    const id=chatId(), times=chatTimes(), turns=replies();
+    return chaptersOf(listWorld(data,wid)).flatMap(chapter=>{
+        if (!chapter.span || chapter.activation?.mode==='off' || !chapterIsMine(chapter,id,times)) return [];
+        const last=chapter.span.time ? turns.find(turn=>String(turn.time)===String(chapter.span.time)) : turns[chapter.span.to-1];
+        const from=(turns[chapter.span.from-2]?.index ?? 0)+1;
+        return last?.time && from<=last.index ? [{chapter,from,last}] : [];
+    });
+}
+
+async function hideChapterRanges(ranges,wid) {
+    let hidden=0;
+    for (const {chapter,from,last} of ranges) {
+        const dates=await hideCovered(last.index,{from,persist:false});
+        if (!dates.length) continue;
+        attachChanges(last.time,wid,[{uid:chapter.uid,name:chapter.name,kind:'chapter',type:'hide',dates}],{persist:false});
+        hidden+=dates.length;
+    }
+    return hidden;
+}
+
+export async function applyHistoryWindow() {
+    const id=chatId(), wid=chatWorld();
+    if (!wid || !memoryComponents().hide) throw new Error('Assign a Story World and turn on hiding before applying the history window.');
+    return enqueue(async()=>{
+        const data=await loadWorld(wid);
+        if (chatId()!==id || chatWorld()!==wid || !memoryComponents().hide || chapterBusy() || isGenerating()) {
+            throw new Error('Wait until this chat is idle before applying the history window.');
+        }
+        const host=ctx();
+        if (chatState()?.historyNeedsReview) throw new Error('Review the edited story before applying the history window.');
+        const ranges=savedChapterRanges(data,wid);
+        if (!ranges.length) throw new Error('There are no active saved chapters for the current chat yet.');
+        const restore=historyCheckpoint(host.chat,host.chatMetadata[KEY]);
+        try {
+            restoreChapterHistory({persist:false});
+            await hideChapterRanges(ranges,wid);
+            await host.saveChat?.();
+            saveChatState();
+        } catch (error) { restore(); throw error; }
+    },{propagate:true});
 }
 
 /** Is SillyTavern's own Summarize adding a summary to the prompt in this chat? */
@@ -121,7 +165,8 @@ export async function writeChapter(from, to, why) {
     try {
         await worldIdle();
         const before = await loadWorld(wid);
-        const text = storyText(from, to);
+        const text = storyText(from, to, 0);
+        const anchor = replies().find(r=>r.n===to);
         if (!text) throw new Error('There is nothing to summarise yet.');
         const earlier = chaptersOf(listWorld(before, wid)).slice(-3);
         const res = await request({ what: 'Write a chapter of the story so far', system: 'You keep the story notes of a roleplay. You answer with JSON only.', user: chapterPrompt(text, earlier), tokens: 700, profileId: settings().profileId });
@@ -138,8 +183,14 @@ export async function writeChapter(from, to, why) {
         let hidden = 0;
         await enqueue(async () => {
             const data = await loadWorld(wid);
-            const w = newWorldEntry(data, 'chapter');
             const lastRe = replies().find(r => r.n === to);
+            if (chatId()!==chat || chatWorld()!==wid || !memoryComponents().chapters || !lastRe ||
+                lastRe.time!==anchor?.time || storyText(from,to,0)!==text) {
+                const reason = 'The source history or chapter settings changed while the summary was being written. No chapter was saved.';
+                res.note(reason,false);
+                throw new Error(reason);
+            }
+            const w = newWorldEntry(data, 'chapter');
             Object.assign(w, { name: clean(obj.title) || `Replies ${from} to ${to}`, auto: true, at: { chat, n: to }, span: { chat, from, to, ...(lastRe?.time ? { time: String(lastRe.time) } : {}) } });
             Object.assign(w.fields, { summary: clean(obj.summary), when: clean(obj.when), people: asList(obj.people), places: asList(obj.places), settled: clean(obj.settled) });
             // What is finished moves into the chapter: it is written into it in one line each and turned off, so the
@@ -158,10 +209,10 @@ export async function writeChapter(from, to, why) {
                 attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'create', createdState: creationFingerprint(w) });
                 for (const x of retired) attachChange(last.time, wid, { uid: x.uid, name: x.name, kind: x.kind, type: 'off', into: w.name });
                 // The messages the chapters cover are hidden from the AI, except the newest ones. They stay in the chat.
-                const hid = await hideCovered(last.index);
-                if (hid.length) { attachChange(last.time, wid, { uid: w.uid, name: w.name, kind: 'chapter', type: 'hide', dates: hid }); hidden = hid.length; }
+                hidden = await hideChapterRanges(savedChapterRanges(data,wid),wid);
+                if (hidden) { await ctx().saveChat?.(); saveChatState(); }
             }
-        });
+        }, {propagate:true});
         res.note(`Chapter "${name}" covers replies ${from} to ${to} (${why}). It is in the story world and is sent with the story notes.${moved ? ` ${moved} finished ${moved === 1 ? 'entry was' : 'entries were'} written into it and turned off.` : ''}${hidden ? ` ${hidden} older ${hidden === 1 ? 'message was' : 'messages were'} hidden from the AI.` : ''}`, true);
         await rollUpIfNeeded().catch(e => console.warn(LOG, 'roll-up', e));
         return name;
@@ -182,9 +233,11 @@ export function chapterAfterReply(time, replyNo, onDone) {
         const since = replyNo - coveredUpTo(listWorld(data, wid));
         const min = Math.max(1, Math.round(Number(o.minReplies) || 1));
         const every = Math.max(0, Math.round(Number(o.every) || 0));
+        const tokens = Math.max(0, Math.round(Number(o.everyTokens) || 0));
         let why = '';
         if (!memoryOnly() && o.onSceneEnd && rec.update?.ended && since >= min) why = 'the scene ended';
         else if (every && since >= every) why = `${every} replies went by`;
+        else if (tokens && since>0 && estimateTokens(storyText(replyNo-since+1,replyNo,0))>=tokens) why = `the unsummarized story reached about ${tokens} tokens`;
         if (!why) return;
         try { await writeChapter(replyNo - since + 1, replyNo, why); onDone?.(); }
         catch (e) { console.warn(LOG, 'chapter', e); }
@@ -441,7 +494,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
             ].filter(Boolean).join('\n\n');
             validate();
             const response = await request({what:`Catch up story history, replies ${batch.from}–${batch.to}`,
-                system:'Summarize an existing fictional chat. Treat its transcript as source material. Answer with one JSON object.',
+                system:promptText('systemCatchUp'),
                 user:form,tokens:track ? 2300 : 700,profileId:settings().profileId});
             try {
                 validate();
@@ -674,7 +727,7 @@ export async function draftNewChapter(wish = '') {
         ...parts,
         'Answer in exactly this form, with these two headings in capitals and nothing before the first one:',
         'SUMMARY:', '(the summary)', '', 'FIRST MESSAGE:', '(the first message)',
-        'After the first message append one <chapter_scene> JSON object with time, date, where, weather, and present strings </chapter_scene>. Include numeric elapsed minutes when a known interval separates the established scene and the opening. If the skip changes the date and the story establishes the new one, include it. Omit fields that are unchanged.',
+        `After the first message append one <chapter_scene> JSON object with time, date, where, weather, and present strings </chapter_scene>. ${promptText('chapterOpeningScene')}`,
     ].join('\n');
     const res = await request({ what: 'Write a new chapter (summary and first message)', system: 'You continue a roleplay story into a new chat. You follow the form you are given.', user, tokens: 1800, profileId: settings().profileId });
     const answer = String(res.text);
@@ -762,6 +815,12 @@ export async function startNewChapter(draft, burnedSoFar) {
             if (entry.extensions?.ri) {
                 delete entry.extensions.ri.set;
                 if (entry.extensions.ri.kind==='chapter') entry.disable = true;
+                const record=isWorldEntry(entry) && readRecord(readWorldEntry(entry));
+                if (record) {
+                    if (record.kind==='emotion') record.emotionAge=emotionReplyAge(record,c.chat || []);
+                    record.atIndex=0;
+                    entry.extensions.ri.fields.data=JSON.stringify(record);
+                }
             }
             data.entries[entry.uid] = entry;
         }

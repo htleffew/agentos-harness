@@ -17,6 +17,8 @@ const ordinal = {date:'Day 4',time:'23:59'};
 assert.deepEqual(advanceStoryClock(ordinal,{}, {clock:30,minutes:31}).scene,{date:'Day 5',time:'00:00'});
 assert.equal(advanceStoryClock(ordinal,{date:'Day 6',time:'08:00'}, {clock:30}).minutes,1951);
 assert.equal(advanceStoryClock({date:'Day 5',time:'09:00'},{time:'09:03'}, {clock:80}).minutes,83);
+assert.deepEqual(advanceStoryClock({time:'09:00',weather:'Clear'},{time:'09:03'},{clock:80}),
+    {scene:{time:'09:03',weather:'Clear'},minutes:83,issues:[]});
 assert.equal(advanceStoryClock(ordinal,{time:'00:15'}, {clock:30}).scene.time,'23:59');
 assert.equal(advanceStoryClock(ordinal,{time:'00:15',date:'Day 3'}, {clock:30,minutes:15}).minutes,30);
 

@@ -32,7 +32,7 @@ const server = http.createServer((req, res) => {
   await page.getByRole('button', { name: 'Save state', exact: true }).click();
   const actual = await page.evaluate(async () => (await import('/src/state.js')).stateAt().hale);
   assert.equal(actual.fields.mind, 'Guard the door'); assert.equal(actual.protected.mind, true);
-  await page.locator('summary', { hasText: 'Scene' }).click();
+  await page.getByText('Scene', {exact:true}).locator('xpath=self::summary').click();
   await page.getByRole('button', { name: 'Edit scene', exact: true }).click();
   await page.locator('.ri-state-editor textarea').nth(1).fill('Tower');
   await page.getByRole('button', { name: 'Save scene', exact: true }).click();

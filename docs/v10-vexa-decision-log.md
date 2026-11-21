@@ -4,6 +4,8 @@ This is the running record for comparing ST Tavo Vexa v1.0 with Roleplay Instruc
 
 Use **Decided** for agreed direction, **Proposed** for design ideas, and **Open** for choices or checks still needed. Add a dated entry when a decision changes, then update the relevant section so the current plan stays easy to find.
 
+The [v10 verification](v10-verification.md) traces the decisions and subsequent requests to current code and tests.
+
 ## 2026-11-19 · Comparison
 
 | Area | Vexa v1.0 | Extension v9.0.1 and implications |

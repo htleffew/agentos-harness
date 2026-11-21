@@ -319,7 +319,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(await chosen(),'Off');
         await relationships.locator('button').filter({hasText:'Reset to preset setting (Off)'}).evaluate(el=>el.click());
         assert.equal(await chosen(),'Off');
-        assert.match(await relationships.textContent(),/Following the preset setting/);
+        assert.match(await relationships.textContent(),/Using this preset’s extension module default/);
         await scope('preset').evaluate(el=>el.click());
         await relationships.locator('button').filter({hasText:'Reset to extension setting (On)'}).evaluate(el=>el.click());
         assert.equal(await status(),'Default for this preset: On');

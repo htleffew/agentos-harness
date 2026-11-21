@@ -1,4 +1,5 @@
 import { memoryComponents } from './components.js';
+import { historyWindowStart } from './context-budget.js';
 // Hiding older messages from the AI once a chapter covers them, and showing them again when that chapter is undone.
 // The messages stay in the chat; SillyTavern leaves hidden messages out of what it sends.
 import { ctx, KEY } from './st.js';
@@ -11,14 +12,15 @@ export const messageMark = (m, i) => String(m?.send_date || `#${i}`);
  * Hide from the AI the messages up to chat index `upTo` (a covered reply), keeping the newest messages and the
  * opening message. Returns the marks of the messages this hid, so they can be shown again.
  */
-export async function hideCovered(upTo, { persist = true } = {}) {
+export async function hideCovered(upTo, { persist = true, from = 1 } = {}) {
     const o = settings().summary;
     if (!memoryComponents().hide) return [];
     const chat = ctx().chat || [];
-    const keep = Math.max(4, Math.round(Number(o.keepShown) || 30));
-    const end = Math.min(upTo, chat.length - 1 - keep);
+    const unit=o.historyUnit==='tokens' ? 'tokens' : 'messages';
+    const limit=unit==='tokens' ? Math.max(250,Math.round(Number(o.keepTokens) || 8000)) : Math.max(4,Math.round(Number(o.keepShown) || 30));
+    const end = Math.min(upTo,historyWindowStart(chat,{unit,limit})-1);
     const hid = [];
-    for (let i = 1; i <= end; i++) {
+    for (let i = Math.max(1,from); i <= end; i++) {
         const m = chat[i];
         if (!m || m.is_system) continue;   // already hidden, or a notice of SillyTavern's own
         m.is_system = true;

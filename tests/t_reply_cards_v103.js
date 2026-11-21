@@ -50,6 +50,13 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         assert.match(await latest.locator('.ri-reply-roast').textContent(),/light do the talking/);
         assert.match(await latest.locator('.ri-v10-console').textContent(),/Mira/);
         assert.doesNotMatch(await latest.locator('.mes_text').textContent(),/Follow the dock scene|light do the talking/);
+        await page.evaluate(async base=>{
+            const W=await import(base+'/src/worldflow.js');
+            const V=await import(base+'/src/v10.js');
+            V.prefs().emotion={persistence:1,recovery:1,baseline:3};
+            await W.saveV10Record({id:'mira-mood',kind:'emotion',subject:'Mira',text:'Guarded mood',axes:{fury:9}},{create:true});
+            await W.saveV10Record({id:'mira-rel',kind:'relationship',subject:'Mira',other:'Rowan',text:'Trusted friend'},{create:true});
+        },L.BASE);
 
         L.mode({reply:'[Time: afternoon | Location: Gate]\n\nMira walked to the gate.\n'+
             block({scene:{where:'Gate',present:'Mira'}})+'\n<roast>The gate earned its own introduction.</roast>'});
@@ -89,6 +96,8 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         assert.equal(L.requests().length,2);
         assert.match(L.text(L.requests().at(-1)),/Time: 12:02 AM\nDate: 2024-02-29/);
         assert.match(L.text(L.requests().at(-1)),/Current exact story minute: 4\./);
+        assert.match(L.text(L.requests().at(-1)),/mira-mood[^\n]*"fury":6/);
+        assert.match(L.text(L.requests().at(-1)),/mira-rel[^\n]*Trusted friend/);
         assert.equal(await header.locator('.ri-scene-header-time dd').textContent(),'12:04 AM');
         console.log('PASS V10.3 companion, actual planning and Roast requests, separate collapsed cards, weather recovery and missing-card diagnostics');
     } finally { await browser.close(); }

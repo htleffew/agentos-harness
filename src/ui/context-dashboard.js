@@ -2,8 +2,8 @@ import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { h, button, field, section, select } from './dom.js';
 import { settings, saveSettings } from '../store.js';
-import { isChatOpen, hasEvent, isGenerating, toast } from '../st.js';
-import { catchUpChatHistory, chapterBusy, historyCatchUpStatus, stopHistoryCatchUp } from '../chapters.js';
+import { isChatOpen, hasEvent, toast } from '../st.js';
+import { applyHistoryWindow, catchUpChatHistory, historyCatchUpStatus, stopHistoryCatchUp } from '../chapters.js';
 import { refreshUnderReplies } from './sent.js';
 import { promptGroup } from './prompts.js';
 import { chatWorld } from '../world.js';
@@ -22,7 +22,7 @@ function historyTools(app, components) {
         catch (error) { toast('error',error.message); }
         finally { refreshUnderReplies(); redraw(); }
     };
-    const disabled = !components.chapters || chapterBusy() || isGenerating();
+    const disabled = !components.chapters || !!status?.running;
     return section('Catch up or rebuild this chat',
         h('p',{class:'ri-help'},'Read accepted replies in order and write chapters in batches. Each batch uses an AI request. Enabled story features file supported details in this chat’s Story World. Auto-hide and the protected message window apply after chapters are saved.'),
         !components.chapters && h('p',{class:'ri-note'},'Enable Chapter summaries above to use these actions.'),
@@ -33,7 +33,7 @@ function historyTools(app, components) {
         h('details',{},h('summary',{},'Fresh rebuild options'),
             h('label',{class:'ri-row'},keep,'Keep my authored entries and state corrections'),
             button('Rebuild from all chat history',()=>run(true),{disabled})),
-        promptGroup(['chapterSummary','catchUpHistory'],'Customize catch-up and rebuild guidance'));
+        promptGroup(['chapterSummary','catchUpHistory','systemCatchUp'],'Customize catch-up and rebuild guidance'));
 }
 
 export function renderContext(body, app) {
@@ -47,40 +47,63 @@ export function renderContext(body, app) {
         }});
         return field(label, help, h('span', { class:'ri-num' }, input, h('span', {class:'ri-unit'}, unit)));
     };
-    const target = Math.max(4, Math.min(400, Number(o.keepShown) || 30));
-    const range = h('input', { type:'range', min:4, max:400, step:1, value:target, 'aria-label':'Recent messages to protect', class:'ri-context-range' });
-    const amount = h('input', { type:'number', min:4, max:400, value:target, 'aria-label':'Recent messages to protect (number)', class:'ri-input ri-input-num' });
+    const historyUnit=o.historyUnit==='tokens' ? 'tokens' : 'messages';
+    const useTokens=historyUnit==='tokens';
+    const [low,high]=useTokens ? [250,1000000] : [4,400];
+    const target=Math.max(low,Math.min(high,Number(useTokens ? o.keepTokens : o.keepShown) || (useTokens ? 8000 : 30)));
+    const label=useTokens ? 'Recent history token budget' : 'Recent messages to protect';
+    const range = h('input', { type:'range', min:low, max:high, step:useTokens ? 250 : 1, value:target, 'aria-label':label, class:'ri-context-range' });
+    const amount = h('input', { type:'number', min:low, max:high, value:target, 'aria-label':`${label} (number)`, class:'ri-input ri-input-num' });
     const preview = h('div', { class:'ri-context-preview', role:'status' });
     function show(n) {
-        const p = historyPreview(n);
+        const p = historyPreview(n,historyUnit);
         preview.textContent = isChatOpen() ? `In this chat, the newest ${p.count} story messages contain ${approx(p.tokens)} of text. The opening message is kept separately.` : 'Open a chat to estimate its recent message text.';
     }
     function setTarget(raw) {
-        const n = Math.max(4, Math.min(400, Math.round(Number(raw) || 4)));
-        range.value = amount.value = String(n); o.keepShown = n; saveSettings(); show(n);
+        const n = Math.max(low,Math.min(high,Math.round(Number(raw) || low)));
+        range.value = amount.value = String(n);
+        if (useTokens) o.keepTokens=n; else o.keepShown=n;
+        saveSettings(); show(n);
     }
     range.addEventListener('input', () => setTarget(range.value));
     amount.addEventListener('change', () => setTarget(amount.value));
     show(target);
     const hasWorld = isChatOpen() && !!chatWorld();
+    const applyWindow = button('Apply to saved chapters now',async()=>{
+        applyWindow.disabled=true;
+        try { await applyHistoryWindow();refreshUnderReplies();app.render(); }
+        catch (error) { toast('error',error.message); }
+        finally { applyWindow.disabled=false; }
+    },{kind:'ghost'});
     body.appendChild(section('Conversation and memory',
         h('div', { class:'ri-help' }, 'The preset’s Chat History includes the messages still visible to the AI. Chapters summarize older story, and the extension can hide the messages they cover. Keep Chat History enabled to include the recent conversation.'),
-        isChatOpen() && !hasWorld && !memory ? h('div', {class:'ri-note ri-note-warn'}, 'This chat has no Story World. Select or create one in Story World before automatic chapter summaries and hiding can work.') : null,
+        isChatOpen() && !hasWorld && !memory ? h('div', {class:'ri-note ri-note-warn'},
+            'Chapter settings are saved. Automatic summaries and hiding are paused until this chat has a Story World.',
+            h('div',{class:'ri-row'},button('Open Story World',()=>app.openPage('world'),{kind:'ghost'}))) : null,
         field('Keep the story so far in chapters', 'Each new chapter uses one AI request. A successful chapter is stored in the Story World.', choose(components.chapters, v => setMemoryComponent('chapters',v))),
         h('div', {class:'ri-grid2'},
             !memory && field('Write a chapter when the scene ends', 'Requires Story World updates and at least the minimum number of replies.', choose(o.onSceneEnd !== false, v => {o.onSceneEnd=v;})),
             !memory && numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),
-            numeric('Write a chapter at least every', o.every, 0, 200, 'replies', n => {o.every=n;}, memory ? '0 turns off automatic chapters in Memory only. You can still write one manually.' : '0 disables this timer. Scene-end and manual chapters still work.'),
+            numeric('Write a chapter at least every', o.every, 0, 200, 'replies', n => {o.every=n;}, 'Set 0 to disable the reply-count threshold.'),
+            numeric('Summarize at estimated tokens',o.everyTokens || 0,0,1000000,'tokens',n=>{o.everyTokens=n;},
+                'After an accepted reply, write a chapter when unsummarized text reaches this estimate. Whichever enabled threshold is reached first starts the chapter. Set 0 to disable the token threshold.'),
             field('Hide messages covered by a chapter', 'Hidden messages remain readable in the chat. Only successfully saved chapters can hide messages.', choose(components.hide, v => setMemoryComponent('hide',v)))),
         isChatOpen() && Number(o.every) > 0 ? (() => { const c = chapterPreview(Number(o.every)); return h('div', {class:'ri-help'}, `The latest ${c.replies} model replies and their surrounding messages contain about ${number(c.tokens)} tokens across ${c.messages} messages. This is a preview of recent text, not the exact next chapter.`); })() : null,
-        field('Recent messages to protect', 'The newest messages and the opening message are not hidden by this feature. This is a minimum, not a hard cap: unsummarized messages and messages added between chapter writes remain visible. Changes take effect when a later chapter is written; increasing this number does not automatically unhide older messages.',
-            h('div', {class:'ri-context-slider'}, range, amount, h('span', {class:'ri-unit'}, 'messages')), preview),
+        field('Protect recent history by','Choose how to size the full-text window for covered history. The opening and unsummarized messages stay available.',
+            select([{value:'messages',label:'Message count'},{value:'tokens',label:'Estimated tokens'}],historyUnit,
+                value=>{o.historyUnit=value;save();},{'aria-label':'Protect recent history by'})),
+        field(label, useTokens ? 'Keeps whole messages inside the estimated budget and always protects the newest two story messages.'
+            : 'Protects this many recent story messages.',
+            h('div', {class:'ri-context-slider'}, range, amount, h('span', {class:'ri-unit'},historyUnit)), preview),
+        hasWorld && components.hide && h('div',{class:'ri-row'},
+            applyWindow,
+            h('span',{class:'ri-help'},'New summaries use this window automatically. Applying it to saved chapters takes no model request.')),
         h('div', {class:'ri-grid2'},
             numeric('Story World notes budget', st.world.budget, 100, 4000, 'tokens', n => {st.world.budget=n;}, 'Approximate text budget for relevant story facts.'),
             numeric('Chapter notes budget', o.budget, 100, 6000, 'tokens', n => {o.budget=n;}, 'Approximate text budget for the story so far.'))));
     if (!isChatOpen()) return;
     body.appendChild(historyTools(app,components));
-    const p = historyPreview(target), last = lastContext();
+    const p = historyPreview(target,historyUnit), last = lastContext();
     body.appendChild(section('This chat now', h('div', {class:'ri-context-grid'},
         row('Story messages', number(p.total), 'Includes messages hidden from the AI.'),
         row('Currently visible', number(p.open), 'The host may omit more when assembling a request.'),
@@ -93,7 +116,8 @@ export function renderContext(body, app) {
         content.push(h('div', {class:'ri-context-grid'},
             row('Whole request', approx(last.total), 'All visible text in the assembled request; excludes model-specific overhead.'),
             row('Recent conversation recognized', `${number(last.history.count)} messages · ${approx(last.history.tokens)}`, last.history.unmatched ? `${number(last.history.unmatched)} visible chat messages were not matched; they may have been omitted, trimmed or reformatted.` : 'Full messages recognized in the request.'),
-            metric('Story World notes', last.notes), metric('Chapter summaries', last.chapters), metric('Story events and world orders', last.events), metric('Other extension instructions', last.other), metric('Scene, state and update instructions', last.updates)));
+            metric('Story World notes', last.notes), metric('Chapter summaries', last.chapters), metric('Recalled World Info and structured records',last.lore),
+            metric('Story events and world orders', last.events), metric('Other extension instructions', last.other), metric('Scene, state and update instructions', last.updates)));
         if (last.unsupportedContent) content.push(h('div', {class:'ri-note ri-note-warn'}, 'The request contains non-text content, which is not included in these estimates.'));
         content.push(h('div', {class:'ri-help'}, 'This is the last assembled request observed in this session, not a prediction of the next reply. Matching can miss text changed by a preset or another extension. Categories are partial and do not add up to the total. The host or provider may change the request afterward. Text is estimated at roughly four characters per token, so actual counts vary by model and language.'));
     }
