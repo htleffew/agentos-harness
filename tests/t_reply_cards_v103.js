@@ -64,6 +64,9 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         const issues = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.cardIssues);
         assert.ok(issues.some(issue=>issue.includes('no readable Roast')));
         assert.ok(issues.some(issue=>issue.includes('no readable outline')));
+        L.mode({reply:'Mira stepped off the path.\n\n<state:world>\n<time>4:15 PM</time>\n<loc>Path</loc>\n<weather>Heavy rain</weather>\n</state:world>'});
+        await L.send(page,'I step aside.');
+        assert.deepEqual(await header.locator('dd').allTextContents(),['4:15 PM','Wednesday, Day 2','Path','Heavy rain']);
         console.log('PASS V10.3 companion, actual planning and Roast requests, separate collapsed cards, weather recovery and missing-card diagnostics');
     } finally { await browser.close(); }
 })().catch(error=>{ console.error(error); process.exitCode = 1; });

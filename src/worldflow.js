@@ -4,7 +4,7 @@ import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
 import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, prefs } from './v10.js';
 import { promptText, promptStatus } from './prompts.js';
-import { trimBranchOverrides, correctionAnchor } from './state.js';
+import { trimBranchOverrides, correctionAnchor, sceneFromReplyHeader } from './state.js';
 // Keeping the story world up to date by itself.
 //  1. With each reply the extension asks the model to add one short block that records what the reply made true.
 //     The block is lifted out of the reply and filed as world entries. No extra AI request is made.
@@ -614,6 +614,7 @@ export function liftBlock(id, paired = false, modules = null) {
     const hasCards = (modules || cardsOn()) && /<(profile|roast)\b/i.test(output.text);
     if (!hasBlock && !hasCards && output.text === m.mes) return none;
     const parsed = hasBlock ? parseUpdate(output.text) : { ...none, clean:output.text };
+    if (modules?.state) parsed.legacyScene = sceneFromReplyHeader(m.mes);
     if (output.plan) parsed.plan = output.plan;
     if (hasCards) {
         const stray = parseCards(parsed.clean);

@@ -887,7 +887,7 @@ function onMessageReceived(id, type) {
             }
             if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
         }
-        const header = turn?.modules.state ? sceneFromReplyHeader(parsed.clean || m.mes) : {};
+        const header = turn?.modules.state ? parsed.legacyScene || sceneFromReplyHeader(parsed.clean || m.mes) : {};
         const acceptedScene = normalizeScene({...header,...normalizeScene(parsed.scene || {})});
         const scene = { ...(turn?.modules.state ? previousScene : {}), ...(earlier?.scene || {}), ...acceptedScene };
         if (turn?.modules.state) {

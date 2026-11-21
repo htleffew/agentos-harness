@@ -116,7 +116,8 @@ export function normalizeScene(fields = {}) {
 }
 
 export function sceneFromReplyHeader(prose) {
-    const lines = String(prose || '').trimStart().split(/\r?\n/).slice(0,6);
+    const source = String(prose || '');
+    const lines = source.trimStart().split(/\r?\n/).slice(0,6);
     const header = {};
     const symbols = { '🕰':'time', '🗓':'date', '📍':'where', '🌙':'weather', '☀':'weather', '🌦':'weather', '🌧':'weather', '⛅':'weather' };
     const map = { time:'time',date:'date',location:'where',where:'where',weather:'weather' };
@@ -134,6 +135,11 @@ export function sceneFromReplyHeader(prose) {
             else if (bracket && icon) header[symbols[icon[1]]] = text(icon[2]);
         }
         if (Object.keys(header).length && bracket) break;
+    }
+    const legacy = /(?:^|\n)\s*<state:world\b[^>]*>([\s\S]*?)<\/state:world\s*>/i.exec(source)?.[1];
+    if (legacy) for (const [,key,value] of legacy.matchAll(/<(time|date|loc|weather)>([^<>]+)<\/\1>/gi)) {
+        const field = key.toLowerCase() === 'loc' ? 'where' : key.toLowerCase();
+        if (!header[field]) header[field] = text(value);
     }
     return normalizeScene(header);
 }
