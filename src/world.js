@@ -388,7 +388,7 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
     const sections = [];
     const ids = [];
     const extra = [];
-    const prefix = memory ? '[Story memory\n' : `[Story notes. ${promptText('storyNotes')}\n`;
+    const prefix = memory ? '[Story memory\n' : `[Story notes. ${promptText('storyNotes')} ${promptText('memoryFacts')}\n`;
     let used = prefix.length + 1;
     const section = title => {
         const s = { title, lines: [] };
@@ -589,6 +589,7 @@ export async function writeWorldEntryWithAI({ kind, about, context, existing = [
         '',
         'Rules:',
         promptText('entryWriterRules'),
+        promptText('memoryFacts'),
     ];
     if (existing.length) lines.push('', `Entries that already exist (write a different one): ${existing.slice(0, 40).join(', ')}`);
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD.replace(', and still use the placeholders for names', ''), story); }

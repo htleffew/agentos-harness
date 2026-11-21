@@ -7,7 +7,7 @@ import { advanceStoryClock, validElapsed } from './story-clock.js';
 import { historySourceMark, historySourceMatches } from './history-source.js';
 import { storyCorrectionPrompt } from './correction-rules.js';
 import { estimateTokens } from './context-budget.js';
-import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, recordMap, portrayalSources, updateContract, baseWorld, emotionReplyAge } from './v10.js';
+import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, recordMap, portrayalSources, updateContract, baseWorld, emotionReplyAge, prefs, replyDiagnostics } from './v10.js';
 // The story so far, kept by the extension itself.
 //  - Chapters: one AI request writes a summary of a stretch of replies. It is filed in the chat's story world as a
 //    "chapter" entry and sent with the story notes. A chapter is cut when a scene ends, after a set number of
@@ -122,6 +122,8 @@ export function otherSummaryOn() {
 let busy = false;
 export const chapterBusy = () => busy;
 
+const summaryNotes = (text) => replyDiagnostics(text, {avoid:prefs()?.avoidPhrases});
+
 function chapterPrompt(text, earlier, { close = true } = {}) {
     const lines = [
         'Write the summary of one part of a roleplay story, for the story\'s own notes.',
@@ -132,7 +134,7 @@ function chapterPrompt(text, earlier, { close = true } = {}) {
         'Return these keys:',
         '- "title": a short plain title for this part, 3 to 6 words.',
         '- "when": when it took place in the story, in a few words. An empty string when the text does not say.',
-        `- "summary": ${promptText('chapterSummary')}`,
+        `- "summary": ${promptText('chapterSummary')} ${promptText('memoryFacts')}`,
         '- "people": a list of the names of the people who took part.',
         '- "places": a list of the names of the places.',
         '- "settled": one sentence on what was settled or came out in this part. An empty string when nothing was.');
@@ -213,7 +215,7 @@ export async function writeChapter(from, to, why) {
                 if (hidden) { await ctx().saveChat?.(); saveChatState(); }
             }
         }, {propagate:true});
-        res.note(`Chapter "${name}" covers replies ${from} to ${to} (${why}). It is in the story world and is sent with the story notes.${moved ? ` ${moved} finished ${moved === 1 ? 'entry was' : 'entries were'} written into it and turned off.` : ''}${hidden ? ` ${hidden} older ${hidden === 1 ? 'message was' : 'messages were'} hidden from the AI.` : ''}`, true);
+        res.note(`Chapter "${name}" covers replies ${from} to ${to} (${why}). It is in the story world and is sent with the story notes.${moved ? ` ${moved} finished ${moved === 1 ? 'entry was' : 'entries were'} written into it and turned off.` : ''}${hidden ? ` ${hidden} older ${hidden === 1 ? 'message was' : 'messages were'} hidden from the AI.` : ''}`, true, summaryNotes(obj.summary));
         await rollUpIfNeeded().catch(e => console.warn(LOG, 'roll-up', e));
         return name;
     } finally { busy = false; }
@@ -511,7 +513,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     stagedScene = rec.scene || stagedScene;
                     stagedClock = rec.v10Minutes ?? stagedClock;
                     status.done++;
-                    response.note(`Prepared replies ${batch.from}–${batch.to} for the replacement Story World.`);
+                    response.note(`Prepared replies ${batch.from}–${batch.to} for the replacement Story World.`,true,summaryNotes(summary.summary));
                     continue;
                 }
                 await enqueue(async () => {
@@ -548,7 +550,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     status.done++;
                     saveChatState();
                 },{propagate:true});
-                response.note(`Saved chapter and history updates for replies ${batch.from}–${batch.to}.`);
+                response.note(`Saved chapter and history updates for replies ${batch.from}–${batch.to}.`,true,summaryNotes(summary.summary));
             } catch (error) {
                 response.note(error.message,false);
                 throw error;
@@ -666,7 +668,7 @@ async function rollUpIfNeeded() {
         'Combine these summaries of the earlier parts of a roleplay story into one account of the story so far.',
         '', ...parts.map(w => `- ${renderEntry(w)}`), '',
         'Return these keys:',
-        `- "summary": ${promptText('chapterCombine')}`,
+        `- "summary": ${promptText('chapterCombine')} ${promptText('memoryFacts')}`,
         '- "people": a list of the names of the people in it.',
         '- "places": a list of the names of the places.',
         '', 'Return only a JSON object with the keys "summary", "people", "places".',
@@ -691,7 +693,7 @@ async function rollUpIfNeeded() {
         for (const w of old) { const cur = now.find(x => x.uid === w.uid); if (!cur) continue; if (cur.auto) delete d.entries[cur.uid]; else { cur.on = false; writeWorldEntry(d, cur, wid); } }
         await saveWorld(wid, d);
     });
-    res.note(`${old.length} older chapters were combined into "Before the latest chapters". The newest ${keep} stay as they are.`, true);
+    res.note(`${old.length} older chapters were combined into "Before the latest chapters". The newest ${keep} stay as they are.`, true, summaryNotes(obj.summary));
 }
 
 // ---------- New chapter: carry the story into a brand new chat ----------
@@ -718,7 +720,7 @@ export async function draftNewChapter(wish = '') {
     const user = [
         `A roleplay story is moving into a new chat. The main character is ${n.char}. The other person is ${n.user}. Write two things.`,
         '',
-        `SUMMARY: ${promptText('newChapterSummary')}`,
+        `SUMMARY: ${promptText('newChapterSummary')} ${promptText('memoryFacts')}`,
         '',
         `FIRST MESSAGE: ${promptText('newChapterFirst', { user: n.user })}`,
         clean(wish) ? `\nWhat the user wants for the new chapter: ${clean(wish)}` : '',
@@ -737,7 +739,7 @@ export async function draftNewChapter(wish = '') {
         res.note(msg, false);
         throw new Error(msg);
     }
-    res.note('A summary and a first message were read. Nothing changes until you start the new chat.', true);
+    res.note('A summary and a first message were read. Nothing changes until you start the new chat.', true, summaryNotes(m[1]));
     const block = /<chapter_scene>\s*([\s\S]*?)\s*<\/chapter_scene>\s*$/i.exec(m[2]);
     const parsed = block ? parseJson(block[1]) : null;
     const elapsed = validElapsed(parsed?.elapsed) ? parsed.elapsed : undefined;
@@ -926,7 +928,7 @@ export async function draftStarterWorld() {
         'planted: Short title | a small detail that can matter later',
         'elsewhere: Short title | who | what they are doing away from the scene',
         '',
-        `Rules: ${promptText('starterWorld', { char: n.char, user: n.user })}`,
+        `Rules: ${promptText('starterWorld', { char: n.char, user: n.user })} ${promptText('memoryFacts')}`,
         '', 'The material:', '"""', material, '"""', '',
         'Answer with the lines inside one <story_update> block and nothing else.',
     ].join('\n');

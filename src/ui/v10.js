@@ -1,3 +1,4 @@
+import { DEFAULT_NPC_AVOID } from '../npc-names.js';
 import { DEFAULT_STORY_AVOID } from '../defaults.js';
 import { presetWorkbench } from './preset-workbench.js';
 import { copyGuidelinesToInstructions } from '../books.js';
@@ -40,7 +41,7 @@ function profileEditor(local, key, label, fallback, standalone=true, list=false)
         update('Defaults added to the draft. Save list to apply.');
     }, {kind:'ghost'}) : null;
     const form = h('details',{class:'ri-card ri-tight'},h('summary',{},label,' ',badge),
-        h('p',{class:'ri-help'},list ? 'One word or phrase per line. Matches appear in reply Notes. Changes apply to this chat.' : 'Changes apply to this chat.'),box,
+        h('p',{class:'ri-help'},list ? 'One entry per line. Matches appear in reply Notes. Changes apply to this chat.' : 'Changes apply to this chat.'),box,
         h('div',{class:'ri-row'},button(list ? 'Save list' : 'Save guidance',()=>{
             local[key]=box.value.trim();
             box.value=local[key];
@@ -654,7 +655,7 @@ export function renderV10(body, app, page) {
             renderRecords(redraw,'Chat Facts',['fact'])); break;
         case 'plots': body.append(promptGroup(['autonomousEvent','optionalOpportunity','structuredSchedule','structuredOutcomes','lockedPayoff','checkPlot'],'Customize plot and event prompts'),
             renderRecords(redraw,'Plot Records',PLOT_KINDS)); break;
-        case 'portrayal': body.append(promptGroup(['structuredPortrayal','structuredKnowledge','checkKnowledge'],'Customize portrayal and knowledge prompts'),
+        case 'portrayal': body.append(profileEditor(local,'avoidNpcNames','New NPC names to avoid',DEFAULT_NPC_AVOID,true,true),promptGroup(['structuredPortrayal','structuredKnowledge','checkKnowledge'],'Customize portrayal and knowledge prompts'),
             renderRecords(redraw,'Portrayal & Knowledge',['profile','knowledge'])); break;
         case 'emotion': {
             if (modules.emotions) {

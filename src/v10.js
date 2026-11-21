@@ -670,7 +670,7 @@ export function updateContract(modules, opening = false, { fieldsOnly = false } 
     const kinds = RECORD_KINDS.filter(kind => modules[KIND_MODULE[kind]]);
     const sections = orderedSections([
         ['state', modules.state && `scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","elapsed":0,"minutes":0,"ended":false}. ${promptText('timingUpdate')}`],
-        ['state', kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). ${promptText('structuredFacts')}`],
+        ['state', kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). ${promptText('structuredFacts')} ${promptText('memoryFacts')}`],
         ['state', modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Use bodyLasting:true for a durable condition.'],
         ['state', modules.state && `${promptText('structuredPortrayal')} Use development:true for lasting growth. A fact may link to a plot record and reference a known baseEntry and baseRelation (extends or updates-present).`],
         ['relationships', modules.relationships && `For a relationship use subject and other, with optional perspective. ${promptText('structuredRelationships')}`],

@@ -244,7 +244,7 @@ export function buildAsk(list, type = 'normal') {
     const on = list.filter(w => w.on);
     const names = (kind, keep = () => true) => on.filter(w => w.kind === kind && keep(w)).map(w => clean(w.name)).filter(Boolean).slice(0, 40).join(', ') || 'none yet';
     return [
-        `[Story update. ${promptText('worldUpdate')}${promptStatus('worldUpdate').customized ? ' Output the following <story_update> block after the story text.' : ''}`,
+        `[Story update. ${promptText('worldUpdate')} ${promptText('memoryFacts')}${promptStatus('worldUpdate').customized ? ' Output the following <story_update> block after the story text.' : ''}`,
         '<story_update>',
         ...(settings().scene?.track !== false ? sceneLines() : []),
         ...FORM.map(([k, v]) => `${k}: ${v}`),
@@ -576,7 +576,7 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, 
         // A chat that was started with "New chapter" and has no story world carries its summary in the chat itself.
         const carried = clean(chatState()?.carried);
         if (!carried || !components.chapters) return null;
-        const text = memory ? `[Story memory\n${carried}]` : `[The story before this chat. These are facts already true in this story. Write the reply so that they stay true.\n${carried}]`;
+        const text = memory ? `[Story memory\n${carried}]` : `[The story before this chat. Use the established facts to continue the scene. ${promptText('memoryFacts')}\n${carried}]`;
         rememberStory(carried);
         return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, ask: '', order: null };
     }

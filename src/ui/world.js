@@ -212,7 +212,7 @@ function renderList(body, app) {
     body.appendChild(worldPicker(app));
     body.appendChild(promptGroup(['entryWriterRules', 'systemWorldEntry', 'starterWorld', 'systemStarter'], 'Customize world-writing instructions'));
     body.appendChild(promptGroup(['chapterSummary', 'systemChapter', 'chapterCombine', 'systemCombine', 'newChapterSummary', 'newChapterFirst', 'systemNewChapter','chapterOpeningScene'], 'Customize chapter instructions'));
-    body.appendChild(promptGroup(['worldUpdate', 'storyNotes', 'worldOrder', 'silentCharacter', 'threadOrder', 'seedOrder', 'activityOrder', 'secretOrder'], 'Customize world-update instructions'));
+    body.appendChild(promptGroup(['memoryFacts', 'worldUpdate', 'storyNotes', 'worldOrder', 'silentCharacter', 'threadOrder', 'seedOrder', 'activityOrder', 'secretOrder'], 'Customize world-update instructions'));
     if (!id) { body.appendChild(summarySection(app, '')); return; }
     const listBox = h('div', {}, h('div', { class: 'ri-muted' }, 'Loading...'));
     body.appendChild(listBox);

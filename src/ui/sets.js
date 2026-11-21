@@ -12,7 +12,7 @@ export function renderInstructions(body, app) {
     if (sets?.length===0) body.append(h('div',{class:'ri-note'},
         h('p',{},'Random instruction sets are optional. Add a set when you want occasional directions sent with replies.'),
         isChatOpen() && button('Set up this chat',()=>app.openSetting('v10','ri-story-workflow'),{kind:'ghost'})));
-    body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions'], 'Customize Random Instructions prompts'));
+    body.appendChild(promptGroup(['nextReplyReset', 'instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions'], 'Customize Random Instructions prompts'));
     if (app.route.view === 'set') return renderSet(body, app);
     return renderSets(body, app, sets);
 }

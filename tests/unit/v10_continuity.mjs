@@ -122,3 +122,15 @@ assert.match(replyDiagnostics('A custom marker to omit.',{avoid:prefs().avoidPhr
 const cleanTurn = prepareTurn([],{present:'Mira',where:'Dock'},'normal',modules).text;
 assert.match(cleanTurn,/Describe what characters say, do, and notice/);
 assert.doesNotMatch(cleanTurn,/custom marker to omit|Avoid these stock phrases/);
+
+const {flaggedNpcNames, DEFAULT_NPC_AVOID} = await import('../../src/npc-names.js');
+const arrival = 'Marcus Vale pushed the door open. Elara left the room. Blackwood Lane runs north.';
+const arrivalState = {
+    profiles:[{name:'Marcus Vale'},{name:'Elara'}],
+    changes:[{kind:'fact',subject:'Blackwood Lane'},{kind:'profile',subject:'Voss'}],
+};
+assert.deepEqual(flaggedNpcNames(arrival,arrivalState,{established:['elara']}),['Marcus Vale']);
+assert.deepEqual(flaggedNpcNames(arrival,arrivalState,{prior:()=> 'Marcus Vale waited outside. Elara rang the bell.'}),[]);
+assert.deepEqual(flaggedNpcNames(arrival,arrivalState,{list:''}),[]);
+assert.doesNotMatch(cleanTurn,new RegExp(DEFAULT_NPC_AVOID.split('\n').join('|')));
+assert.match(cleanTurn,/Express them in plain affirmative language/);

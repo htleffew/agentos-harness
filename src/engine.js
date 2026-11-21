@@ -1,3 +1,4 @@
+import { flaggedNpcNames } from './npc-names.js';
 import { correctedLoreEntry, characterCorrectionFields, replaceUnique, storyCorrectionPrompt } from './correction-rules.js';
 import { rememberStoryTimeline, refreshAfterReplyEdit, refreshAfterDeletion, flushStoryDeletion, refreshAfterChatOpen } from './story-refresh.js';
 import { beginBookTriggers, bookTriggerSource, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
@@ -796,6 +797,14 @@ function onScanDone(args) {
             } else askE.content += '\n'+instruction;
             plan.contextAsk = askE.content;
         }
+        const directedNote = type === 'normal' && items.findLast(item =>
+            item.modelDirection && ['system','ooc'].includes(item.sentAs));
+        if (directedNote) {
+            const order = `${promptText('nextReplyReset')} ${directedNote.version}`;
+            directedNote.text = sub(wrapText(directedNote.sentAs, order, directedNote.misses));
+            const entry = sentEntries.get(directedNote.key);
+            if (entry) entry.content = directedNote.text;
+        }
         sayUserLineOnce(items);
         gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
         if (askE && map.has(keyOf(askE))) gen.result.texts.set(keyOf(askE), askE.content);
@@ -914,6 +923,19 @@ function onMessageReceived(id, type) {
             if (!turn.modules.roast) parsed.roast = '';
             if (!turn.modules.state) { parsed.scene = null; parsed.elapsed = undefined; parsed.minutes = undefined; parsed.ops = []; parsed.profiles = []; }
             if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
+        }
+        const avoidedNames = flaggedNpcNames(m.mes, parsed, {
+            list: prefs()?.avoidNpcNames,
+            established: [
+                names().char, names().user,
+                ...String(previousScene.present || '').split(/[,;\n]/),
+                ...[...(turn?.baselines?.values() || [])].flatMap(profile => [profile.name, ...(profile.aliases || [])]),
+            ],
+            prior: () => (ctx().chat || []).slice(0,id).filter(message => !message.is_system)
+                .map(message => stripSentBlock(message.mes || '')).join('\n'),
+        });
+        if (avoidedNames.length) {
+            (rec.v10Diagnostics ||= []).push(`New NPC names on your avoid list: ${avoidedNames.join(', ')}.`);
         }
         const header = turn?.modules.state ? parsed.legacyScene || sceneFromReplyHeader(parsed.clean || m.mes) : {};
         const acceptedScene = {...header,...sceneUpdate(parsed.scene)};
