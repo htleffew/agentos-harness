@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.16
+
+- Story notes prioritize the scene and recall a few relevant threads, off-screen activities and named details within the notes budget. Chapter text has its own limit, and a rollup suppresses the chapters it already covers.
+- World Info receipts show native activation settings, distinguish Random Instructions from guidelines and identify entries delivered together in the Story notes block.
+- A managed instruction set's per-chat switch also applies when its book is attached in World Info or assigned as a reusable book.
+
 ## 10.0.15
 
 - Manage entries directly on guideline and reference book cards. Inspect full entry text, edit activation, chance, stickiness and cooldown, and delete one entry or a selection.

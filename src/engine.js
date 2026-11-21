@@ -242,14 +242,14 @@ async function onEntriesLoaded(lore) {
                 const groups = new Set(infos.filter(i => i.shared).map(i => i.group));
                 lore.chatLore.push(...Object.values(data.entries).filter(e => whole || groups.has(e.extensions?.ri?.set)).map(e => ({ ...e, world: book })));
             }
-            // A shared lorebook that World Info added by itself: its sets that are off for this chat stay out.
+            // Native book attachments must respect the per-chat switch for managed sets.
             // Entries of a story world never go out one by one: this chat's world is sent as one block of story notes.
             for (const arr of arrays) {
                 for (let i = arr.length - 1; i >= 0; i--) {
                     const id = setOfEntry(arr[i]);
                     if (!id) continue;
                     const info = setInfo(id);
-                    if (info.kind === 'world' || (info.shared && !active.has(id))) arr.splice(i, 1);
+                    if (info.kind === 'world' || !active.has(id)) arr.splice(i, 1);
                 }
             }
         }
@@ -638,7 +638,7 @@ function onScanDone(args) {
             const notesE = fired.find(isNotes) || null;
             if (notesE) {
                 const nt = plan.notes;
-                if (nt) items.push(makeItem(notesE, 'plain', nt.text, 0, 'new', false, { noCheck: true, notes: { ids: nt.ids, extra: nt.extra, present: nt.present, missing: nt.missing, place: nt.place, how: nt.how, tokens: nt.tokens } }));
+                if (nt) items.push(makeItem(notesE, 'plain', nt.text, 0, 'new', false, { noCheck: true, notes: { ids: nt.ids, fresh: nt.fresh, extra: nt.extra, present: nt.present, missing: nt.missing, place: nt.place, how: nt.how, tokens: nt.tokens } }));
                 else map.delete(keyOf(notesE));
             }
             // The character goal also stands apart: the goal line goes with every reply, and it has at most one task.
@@ -769,9 +769,13 @@ function onScanDone(args) {
         const pace = { phase: plan.phase ? { name: plan.phase.name, chance: plan.phase.chance } : null, quiet: gen.quiet || null };
         cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         if (gen.guided) { gen.guided.afterLastScan = structuredClone(cs.lastScan); gen.guided.afterOverdue = structuredClone(cs.overdue); }
+        const notesItem = items.find(item=>item.notes);
+        const receiptNotes = notesItem && { ids:notesItem.notes.ids,text:notesItem.text };
+        const notesFresh = notesItem?.notes.fresh ?? (plan.notes?.fresh || []).filter(uid=>receiptNotes?.ids?.some(id=>String(id)===uid));
+        const guidanceSelected = askE && map.has(keyOf(askE));
         pending = { items, type, states, pace, v10:plan.v10Turn,
-            recall:{book:plan.flow?.id,fresh:[...new Set([...(items.some(item=>item.notes) ? plan.notes?.fresh || [] : []),...(askE && map.has(keyOf(askE)) ? plan.v10Turn?.recallFresh || [] : [])])]}, progressTurn:replyProgress()?.turn, offer:offer?.id,
-            lore:plan.v10Turn ? loreReceipt(map.values(),plan.notes,plan.v10Rows,plan.flow?.id,plan.v10Turn.recalled) : null, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
+            recall:{book:plan.flow?.id,fresh:[...new Set([...notesFresh,...(guidanceSelected ? plan.v10Turn?.recallFresh || [] : [])])]}, progressTurn:replyProgress()?.turn, offer:offer?.id,
+            lore:plan.v10Turn ? loreReceipt(map.values(),receiptNotes,plan.v10Rows,plan.flow?.id,guidanceSelected ? plan.v10Turn.recalled : []) : null, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
         saveChatState();

@@ -63,14 +63,14 @@ function summarySection(app, id) {
     return section('Keeping the story so far',
         otherSummaryOn() && components.chapters ? h('div', { class: 'ri-note ri-note-warn' }, 'SillyTavern\'s own Summarize is also adding a summary to the prompt in this chat. Turn one of the two off, so the story so far is sent once.') : null,
         id ? [
-            field('Keep the story so far in chapters', components.chapters ? 'A chapter is a short account of a stretch of the story, written with one AI request and kept in this world under "The story so far". The newest chapters are sent in full with the story notes; older ones when their people or places come up.' : 'Off: no chapters are written or sent.',
+            field('Keep the story so far in chapters', components.chapters ? 'A chapter is a short account of a stretch of the story, written with one AI request and kept in this world under "The story so far". Recent chapters and relevant older history share a separate chapter budget.' : 'Off: no chapters are written or sent.',
                 yes(components.chapters, v => setMemoryComponent('chapters',v))),
             components.chapters ? h('div', { class: 'ri-grid2' },
                 !memory && field('Write a chapter when a scene ends', 'The update block says when the story moved to a new time or place. Needs "Keep the world up to date" on.', yes(o.onSceneEnd, v => { o.onSceneEnd = v; })),
                 !memory && field('Move what is finished into the chapter', 'Threads that were settled, secrets that came out, planted details that paid off and things elsewhere that finished are written into the chapter in one line each and turned off, so the world holds what is still open. Entries set to "keep it as I wrote it" are left alone.', yes(o.retire !== false, v => { o.retire = v; })),
                 !memory && field('Replies a chapter must cover at least', 'A scene that ends sooner is joined to the next chapter.', numberInput(o.minReplies, { min: 1, max: 100, unit: 'replies' }, (n) => { o.minReplies = n; save(); })),
                 field('Write a chapter after this many replies in any case', memory ? '0 leaves chapter writing to you.' : '0 leaves it to scene ends and to you.', numberInput(o.every, { min: 0, max: 200, unit: 'replies' }, (n) => { o.every = n; save(); })),
-                field('Newest chapters always sent in full', '', numberInput(o.keep, { min: 1, max: 10, unit: 'chapters' }, (n) => { o.keep = n; save(); })),
+                field('Recent chapters eligible for full recall', 'The chapter budget limits how much can be sent.', numberInput(o.keep, { min: 1, max: 10, unit: 'chapters' }, (n) => { o.keep = n; save(); })),
                 field('Combine the older chapters when there are more than', 'One AI request turns the older chapters into a single account. The newest ones stay as they are.', numberInput(o.roll, { min: 2, max: 50, unit: 'chapters' }, (n) => { o.roll = n; save(); })),
                 field('Hide what a chapter covers', 'On: when a chapter is written, the messages it covers are hidden from the AI, the same as the /hide command. They stay in your chat, you can still read them, and deleting the reply a chapter belongs to shows them again. This keeps a long chat short for the AI with no extra AI request, so Message Limit, SillyTavern\'s Summarize and TunnelVision\'s autohide can be turned off.', yes(components.hide, v => setMemoryComponent('hide',v))),
                 components.hide ? field('Messages never hidden this way', 'The newest messages always stay visible to the AI, whether a chapter covers them or not.', numberInput(o.keepShown ?? 30, { min: 4, max: 400, unit: 'messages' }, (n) => { o.keepShown = n; save(); })) : null,
@@ -219,9 +219,7 @@ function renderList(body, app) {
                     w.auto ? chip('Added automatically', 'ri-chip-wait') : null,
                     w.locked ? chip('Kept as you wrote it', 'ri-chip-keep') : null,
                     w.aliases.length ? chip(`Also called: ${w.aliases.join(', ')}`) : null)));
-            const tooMany = kind === 'activity' && mine.filter(w => w.on && w.status !== 'done').length > MAX_ACTIVITIES;
             out.push(section(`${def.plural} (${mine.length})`,
-                tooMany ? h('div', { class: 'ri-note ri-note-warn' }, `Only the first ${MAX_ACTIVITIES} that are still going on are sent. Mark the others as finished, or turn them off.`) : null,
                 rows.length ? h('div', { class: 'ri-list' }, rows) : h('div', { class: 'ri-muted' }, EMPTY[kind]),
                 h('div', { class: 'ri-row' }, button(def.add, () => go(app, { view: 'edit', draft: newWorldEntry(data, kind) }), { kind: mine.length || kind === 'chapter' ? '' : 'primary' }))));
         }
@@ -235,10 +233,10 @@ function renderList(body, app) {
                     kv('Read as present', notes.present.length ? `${notes.present.join(', ')} (read from ${notes.how})` : 'Nobody who has an entry'),
                     notes.place ? kv('Place', notes.place) : null,
                     notes.missing.length ? kv('Named in the scene, with no entry yet', notes.missing.join(', ')) : null,
-                    kv('Size', `about ${notes.tokens} tokens of the ${settings().world.budget} allowed, ${notes.ids.length} ${notes.ids.length === 1 ? 'entry' : 'entries'}`)),
+                    kv('Size', `about ${notes.tokens} tokens including any chapters, ${notes.ids.length} ${notes.ids.length === 1 ? 'entry' : 'entries'}`)),
                 h('div', { class: 'ri-label' }, 'Exactly what the AI would receive'),
                 h('div', { class: 'ri-preview' }, notes.text),
-            ] : h('div', { class: 'ri-muted' }, list.length ? 'Nothing right now: no entry is on, in the scene, named in the last messages, or an open thread.' : 'Nothing yet. Add an entry above.')));
+            ] : h('div', { class: 'ri-muted' }, list.length ? 'No eligible story entries would be sent right now.' : 'Nothing yet. Add an entry above.')));
     }).catch((e) => listBox.replaceChildren(h('div', { class: 'ri-empty' }, `This world could not be read: ${e.message}`)));
 }
 
@@ -249,10 +247,10 @@ const EMPTY = {
     character: 'No characters yet. Add the people of this story: who they are, what they want, what they know.',
     place: 'No places yet.',
     faction: 'No groups yet.',
-    thread: 'No open threads yet. An open thread is a matter the story has raised and not settled. Open threads are always sent.',
+    thread: 'No open threads yet. Open threads can be recalled when tied to the scene or mentioned in recent messages.',
     secret: 'No secrets yet. A secret is sent when its keeper is in the scene. While it is kept, the AI can be shown one line only.',
     seed: 'No planted details yet. A planted detail is something small the story showed that can matter later.',
-    activity: `Nothing yet. Up to ${MAX_ACTIVITIES} things that people are doing away from the scene, always sent in one line each.`,
+    activity: `Nothing yet. By default, story notes recall up to ${MAX_ACTIVITIES} off-screen activities relevant to the current scene or recent messages.`,
 };
 
 function sendSettings(app) {
@@ -260,7 +258,7 @@ function sendSettings(app) {
     const save = () => { saveSettings(); app.render(); };
     return section('How story notes are sent',
         h('div', { class: 'ri-grid2' },
-            field('Room for story notes (tokens)', 'Open threads and what is going on elsewhere go in first, then the people in the scene, the place, their secrets, and last whatever the recent messages name. People in the scene are shortened when room runs out.',
+            field('Room for story notes (tokens)', 'Estimated budget for the scene, explicit activations and relevant story entries. Chapters have a separate budget.',
                 numberInput(o.budget, { min: 100, max: 4000, unit: 'tokens' }, (n) => { o.budget = n; save(); })),
             field('Where the notes are placed', o.place === 'depth' ? 'In the chat, a few messages up from the end. Works with every preset.' : 'With the lorebook entries of the preset. The preset must have that World Info marker, or the notes are dropped.',
                 select([{ value: 'depth', label: 'In the chat, a few messages up' }, { value: 'after', label: 'With the lorebook entries after the character' }, { value: 'before', label: 'With the lorebook entries before the character' }], o.place, (v) => { o.place = v; save(); })),

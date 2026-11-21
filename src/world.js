@@ -278,13 +278,13 @@ export const HUD_BLOCKS = /<(sola_hud|scene_cast|profile|heart|roast|story_notes
 export function readScene(type = 'normal') {
     const chat = ctx().chat || [];
     let end = chat.length;
-    if (type === 'swipe' || type === 'continue') end -= 1;
+    if (['swipe','regenerate','continue'].includes(type) && !chat.at(-1)?.is_user) end -= 1;
     let reply = '';
     let own = null;
     for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.stateStale ? null : m.extra?.[KEY]?.scene || null; break; } }
     const out = { present: '', location: '', how: '' };
     // The reply's own scene lines come first: the extension asked for them, so they are there under any preset.
-    const corrected = sceneAt(type === 'swipe' ? end : Infinity, { overrides: true });
+    const corrected = sceneAt(end, { overrides: true });
     if (corrected?.present || sceneProtected('present')) return { present: corrected.present, location: corrected.where || '', how: 'the scene state' };
     if (own?.present) return { present: own.present, location: own.where || '', how: 'the scene lines of the newest reply' };
     if (!reply) return out;
@@ -316,7 +316,7 @@ export function readScene(type = 'normal') {
 function recentText(type, lookback) {
     const chat = ctx().chat || [];
     let end = chat.length;
-    if (type === 'swipe' || type === 'continue') end -= 1;
+    if (['swipe','regenerate','continue'].includes(type) && !chat.at(-1)?.is_user) end -= 1;
     const out = [];
     for (let i = end - 1; i >= 0 && out.length < lookback; i--) { const m = chat[i]; if (m && !m.is_system && m.mes) out.push(String(m.mes).replace(HUD_BLOCKS, ' ')); }
     return out.join('\n');
@@ -335,7 +335,7 @@ export function namedIn(text, w) {
 function sentLately(type, turns = 3) {
     const chat = ctx().chat || [];
     let end = chat.length;
-    if (type === 'swipe' || type === 'continue') end -= 1;
+    if (['swipe','regenerate','continue'].includes(type) && !chat.at(-1)?.is_user) end -= 1;
     const counts = new Map();
     let seen = 0;
     for (let i = end - 1; i >= 0 && seen < turns; i--) {
@@ -363,7 +363,7 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
     }));
     const on = list.filter(w => w.on && custom.get(w.uid)?.on);
     if (!on.length) return null;
-    const budget = Math.max(100, Math.round(Number(opts.budget) || 600)) * 4; // in characters
+    const budget = Math.max(100, Math.round(Number(opts.budget) || 600)) * 4; // estimated using 4 characters per token
     const scene = readScene(type);
     const recent = recentText(type, Math.max(1, Math.round(Number(opts.lookback) || 4)));
     const by = kind => on.filter(w => w.kind === kind);
@@ -386,26 +386,47 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
     const sections = [];
     const ids = [];
     const extra = [];
-    let used = 0;
-    const room = (text) => used + text.length <= budget;
-    const take = (section, w, text, isExtra = false) => {
-        if (ids.includes(w.uid)) return;
-        used += text.length + 3;
-        section.lines.push(`- ${text}`);
-        ids.push(w.uid);
-        if (isExtra) extra.push(w.uid);
+    const prefix = memory ? '[Story memory\n' : `[Story notes. ${promptText('storyNotes')}\n`;
+    let used = prefix.length + 1;
+    const section = title => {
+        const s = { title, lines: [] };
+        sections.push(s);
+        return s;
     };
-    const section = (title) => { const s = { title, lines: [] }; sections.push(s); return s; };
+    const overhead = group => 3 + (group.lines.length ? 0 : group.title.length + 2);
+    const take = (group, row, text, { isExtra = false, cap = Infinity } = {}) => {
+        if (ids.includes(row.uid)) return false;
+        const space = Math.min(cap, budget - used - overhead(group));
+        if (text.length > space) return false;
+        used += text.length + overhead(group);
+        group.lines.push(`- ${text}`);
+        ids.push(row.uid);
+        if (isExtra) extra.push(row.uid);
+        return true;
+    };
+    const short = (text, max) => text.length <= max ? text : `${text.slice(0,max - 1).replace(/\s+\S*$/, '').trimEnd()}…`;
+    const compact = (group,row) => {
+        if (take(group,row,renderEntry(row),{cap:600})) return;
+        const brief = row.kind === 'secret' && row.status !== 'out' ? { ...row, show:'shadow' } : row;
+        take(group,row,short(renderEntry(brief,{full:false}),350));
+    };
 
-    // 0. The story so far has room of its own: what came before the newer chapters, older chapters whose people or
-    //    places are in play (in short), and the newest chapters of this chat in full.
+    // The story so far has a separate budget for rollups, recent chapters, and relevant older history.
     const sum = settings().summary;
     if (chapters) {
         const chatId = String(ctx().getCurrentChatId?.() || '');
         const story = section('The story so far');
         const sRoom = Math.max(100, Math.round(Number(sum.budget) || 800)) * 4;
         let sUsed = 0;
-        const put = (w, text) => { if (sUsed + text.length > sRoom && sUsed > 0) return false; sUsed += text.length + 3; story.lines.push(`- ${text}`); ids.push(w.uid); return true; };
+        const put = (w, text) => {
+            const space = sRoom - sUsed - overhead(story);
+            if (space < 40 || (sUsed && space < text.length)) return false;
+            const excerpt = short(text,space);
+            sUsed += excerpt.length + overhead(story);
+            story.lines.push(`- ${excerpt}`);
+            ids.push(w.uid);
+            return true;
+        };
         const times = chatTimes();
         const cs = chatState();
         const invalidFrom = cs?.historyNeedsReview ? Number(cs.historyInvalidFrom) || 0 : 0;
@@ -419,37 +440,58 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
         // The combined account is titled for the chat it is read in: it is either the earlier part of this chat, or
         // everything from the chat this one carries on from.
         const rollTitle = (w) => (ROLL_NAMES.includes(w.name) ? { ...w, name: chapterIsMine(w, chatId, times) ? ROLL_NAMES[0] : ROLL_NAMES[1] } : w);
-        for (const w of chapters.filter(x => x.rollup)) put(w, renderEntry(rollTitle(w)));
+        const includedRollups = chapters.filter(w => w.rollup && put(w, renderEntry(rollTitle(w))));
+        const covered = row => includedRollups.some(roll => row.span?.chat && row.span.chat === roll.span?.chat &&
+            row.span.from >= roll.span.from && row.span.to <= roll.span.to);
+        for (const w of newest) if (!covered(w)) put(w, renderEntry(w));
         const sceneText = `${scene.present} ${scene.location} ${recent}`;
-        for (const w of chapters.filter(x => !x.rollup && !newest.includes(x))) {
+        let pickedOlderChapter = false;
+        for (const w of chapters.filter(x => !x.rollup && !newest.includes(x) && !covered(x)).reverse()) {
+            if (pickedOlderChapter && !w.activation) continue;
             const about = `${w.fields.people}, ${w.fields.places}`.split(/,|;|\band\b/i).map(clean).filter(x => x.length >= 3);
-            if (about.some(n => namedIn(sceneText, { name: n, aliases: [] }))) put(w, renderEntry(w, { full: false }));
+            const relevant = w.activation || namedIn(recent,w) ||
+                about.some(name => namedIn(sceneText,{name,aliases:[]}));
+            if (relevant && put(w,renderEntry(w,{full:false})) && !w.activation) pickedOlderChapter = true;
         }
-        for (const w of newest) put(w, renderEntry(w));
         // The AI writer can be shown the same account ("What to show the AI").
         rememberStory(story.lines.map(l => l.replace(/^- /, '')).join('\n'));
     }
 
-    // 1. Open threads and things going on elsewhere are short and always in view.
     const chosen = section('Selected World Info');
-    for (const row of on.filter(w=>w.activation && !['chapter','fact','profile','knowledge','emotion','relationship','arc','payoff','agenda','event'].includes(w.kind))) {
-        if (ids.includes(row.uid)) continue;
-        const text = renderEntry(row);
-        if (room(text)) take(chosen,row,text);
+    for (const row of on.filter(w=>w.activation && !isStructuredWorldKind(w.kind) && w.kind !== 'chapter')) {
+        compact(chosen,row);
     }
-    const threads = section('Open threads');
-    for (const w of by('thread').filter(w => w.status !== DONE.thread)) take(threads, w, renderEntry(w, { full: false }));
-    const elsewhere = section('Going on elsewhere');
-    for (const w of by('activity').filter(w => w.status !== DONE.activity).sort((a, b) => a.uid - b.uid).slice(0, MAX_ACTIVITIES)) take(elsewhere, w, renderEntry(w, { full: false }));
 
-    // 2. The people in the scene, in full while there is room, then in short.
     const here = section('In this scene');
-    for (const w of present) {
-        const full = renderEntry(w);
-        take(here, w, room(full) ? full : renderEntry(w, { full: false }));
-    }
+    // With a tight budget, reserve enough room for another scene entry by keeping profiles brief.
     const where = section('Where');
-    if (place) { const full = renderEntry(place); take(where, place, room(full) ? full : renderEntry(place, { full: false })); }
+    if (place) compact(where,place);
+    for (const w of present) {
+        if (budget <= 400) take(here,w,short(renderEntry(w,{full:false}),350));
+        else compact(here,w);
+    }
+
+    // Use the recent exchange and scene ties to pick a few default threads and activities.
+    const seenRecently = sentLately(type);
+    const plotRelevance = row => {
+        const detail = row.kind === 'thread' ? [row.fields.people,row.fields.open,row.fields.latest] :
+            [row.fields.who,row.fields.ties,row.fields.what,row.fields.step];
+        const context = detail.filter(Boolean).join(' ');
+        const explicit = namedIn(recent,row);
+        const cast = present.some(character => namedIn(context,character));
+        const location = place && namedIn(context,place);
+        return explicit + (cast ? 2 : 0) + (location ? 3 : 0);
+    };
+    for (const [kind,title] of [['thread','Open threads'],['activity','Going on elsewhere']]) {
+        const group = section(title);
+        const relevant = by(kind).filter(row => row.status !== DONE[kind] && !row.activation)
+            .map(row=>({row,score:plotRelevance(row)})).filter(({score})=>score > 0)
+            .sort((a,b)=>(b.score - (seenRecently.get(b.row.uid) || 0)) - (a.score - (seenRecently.get(a.row.uid) || 0)));
+        for (const {row} of relevant) {
+            if (group.lines.length >= MAX_ACTIVITIES) break;
+            take(group,row,short(renderEntry(row,{full:false}),350),{isExtra:true});
+        }
+    }
 
     // 3. Secrets that belong to someone in the scene, or that the last messages name.
     const secrets = section('Secrets');
@@ -459,22 +501,20 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
         // Its keeper is in the scene, its keeper or its own title is named in the last messages, or someone who knows it is in the scene.
         const tied = (about.name && (present.some(p => namedIn(about.name, p) || namedIn(presentText, about)) || namedIn(recent, about))) || namedIn(recent, w) || present.some(p => namedIn(clean(w.fields.known), p));
         if (!tied) continue;
-        const text = renderEntry(w);
-        if (room(text)) take(secrets, w, text);
+        compact(secrets,w);
     }
 
     // 4. Planted details and everything else the last messages name, best match first. These take turns when room is short.
-    const lately = sentLately(type);
-    const rest = on.filter(w => !ids.includes(w.uid) && ['seed', 'character', 'place', 'faction'].includes(w.kind) && !(w.kind === 'seed' && w.status === DONE.seed))
-        .map(w => { const named = namedIn(recent, w) + (w.kind === 'seed' ? 4 : 0); return { w, named, score: named - 5 * (lately.get(w.uid) || 0) }; })
+    const lately = seenRecently;
+    const rest = on.filter(w => !w.activation && !ids.includes(w.uid) && ['seed', 'character', 'place', 'faction'].includes(w.kind) && !(w.kind === 'seed' && w.status === DONE.seed))
+        .map(w => { const named = namedIn(recent,w); return { w, named, score: named - 5 * (lately.get(w.uid) || 0) }; })
         // Anything named stays in the running. When room is short, what was sent lately goes to the back of the line.
         .filter(x => x.named > 0).sort((a, b) => b.score - a.score);
     const planted = section('Planted earlier');
     const also = section('Also relevant');
     for (const { w } of rest) {
-        const text = renderEntry(w, { full: false });
-        if (!room(text)) continue;
-        take(w.kind === 'seed' ? planted : also, w, text, true);
+        const text = short(renderEntry(w,{full:false}),350);
+        take(w.kind === 'seed' ? planted : also,w,text,{isExtra:true});
     }
 
     if (memory) {
@@ -487,13 +527,13 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
             const title = String(entry.name || '').replace(/[-_]/g,' ');
             if (!names.length && title.length>=5) names.push(title);
             if (!entry.activation && !fact.protected && !names.some(name=>namedIn(evidence,{name,aliases:[]}))) continue;
-            if (room(fact.text)) take(facts,entry,fact.text);
+            take(facts,entry,fact.text);
         }
     }
     const body = sections.filter(s => s.lines.length).map(s => `${s.title}:\n${s.lines.join('\n')}`).join('\n');
     if (!body) return null;
-    const text = memory ? `[Story memory\n${body}]` : `[Story notes. ${promptText('storyNotes')}\n${body}]`;
-    return { text, tokens: Math.round(text.length / 4), ids, fresh:ids.filter(uid=>custom.get(uid)?.fresh).map(String), extra, present: present.map(w => w.name), missing, place: place?.name || '', location: clean(scene.location), how };
+    const text = `${prefix}${body}]`;
+    return { text, tokens: Math.ceil(text.length / 4), ids, fresh:ids.filter(uid=>custom.get(uid)?.fresh).map(String), extra, present: present.map(w => w.name), missing, place: place?.name || '', location: clean(scene.location), how };
 }
 
 export function storyRecall(list, type = 'normal', { memory = memoryOnly(), components = memoryComponents() } = {}) {

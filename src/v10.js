@@ -1,4 +1,4 @@
-import { bookTriggerSource, reusableKeywordMatch, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
+import { BOOK_TRIGGER_SOURCES, bookTriggerSource, reusableKeywordMatch, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
 import { recallPolicy } from './recall.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
@@ -6,7 +6,7 @@ import { separateReply } from './reply-format.js';
 // V10's canonical update contract and chat-local configuration.
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
-import { rollInt, createSet, cleanSetName, setInfo } from './books.js';
+import { rollInt, createSet, cleanSetName, setInfo, setOfEntry } from './books.js';
 import { chatWorld, setChatWorld, loadWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
 import { statNames, sheet } from './dice.js';
 
@@ -737,11 +737,22 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
         book.role === 'guidelines' ? 'Guidelines' : reusableBookRoles[book.role]]));
     for (const entry of entries) {
         if (!entry?.world || entry.world.startsWith('Roleplay Instructions ')) continue;
-        add({ book:entry.world, uid:entry.uid, title:entry.comment || entry.key?.[0] || `Entry ${entry.uid}`, role:entry.world === local?.base?.name ? 'Base World' : roles.get(entry.world) || 'World Info', selected:true, text:entry.content });
+        const set = setOfEntry(entry);
+        const managed = set && { instructions:'Random Instructions',events:'Random Story Events',style:'Random Writing Style' }[setInfo(set).kind];
+        const timing = managed ? null : [
+            entry.constant ? 'Always eligible' : `${entry.vectorized ? 'Vector or keyword' : 'Keyword'} · ${BOOK_TRIGGER_SOURCES[bookTriggerSource(entry)]}`,
+            entry.useProbability === false ? '100% chance' : entry.probability != null && Number.isFinite(Number(entry.probability)) ? `${entry.probability}% chance` : '',
+            entry.sticky > 0 && `sticky ${entry.sticky}`,
+            entry.cooldown > 0 && `cooldown ${entry.cooldown}`,
+        ].filter(Boolean).join(' · ');
+        const role = managed || (entry.world === local?.base?.name ? 'Base World' : roles.get(entry.world) || 'World Info');
+        add({ book:entry.world, uid:entry.uid, title:entry.comment || entry.key?.[0] || `Entry ${entry.uid}`, role,
+            ...(timing ? { timing } : {}), selected:true, text:entry.content });
     }
     for (const uid of notes?.ids || []) {
         const row = rows.find(item => item.uid === uid);
-        if (row) add({ book, uid, title:row.kind === 'secret' && row.status !== 'out' ? 'Concealed entry' : row.name, selected:true, role:'Story World', text:notes.text });
+        if (row) add({ book, uid, title:row.kind === 'secret' && row.status !== 'out' ? 'Concealed entry' : row.name,
+            selected:true, role:'Story World', delivery:'Story notes block', text:notes.text });
     }
     for (const {record,text} of recalled) add({book,uid:record.id,title:record.kind === 'knowledge' && record.private ? 'Character knowledge' : record.id,role:PLOT_KINDS.includes(record.kind) ? 'Plot Records' : 'Chat Facts',selected:true,text});
     return receipt.slice(0,120);
@@ -767,17 +778,19 @@ export async function addConfiguredBooks(lore, arrays, scene, modules, { base = 
         })));
     }
     const texts = scopedTriggerTexts(ctx().chat || [], type);
+    const managed = entry => entry.extensions?.ri?.type || entry.extensions?.ri?.set || setOfEntry(entry);
     for (const book of reusableAssignments(local)) {
         for (const list of arrays) for (let i = list.length - 1; i >= 0; i--) {
             const entry = list[i];
-            if (entry.world === book.name && !entry.extensions?.ri?.type && !entry.extensions?.ri?.set) list.splice(i, 1);
+            if (entry.world === book.name && !managed(entry)) list.splice(i, 1);
         }
         if (book.on === false || !(book.role === 'guidelines' ? guidelines : reference)) continue;
         const data = await loadBook(book.name).catch(() => null);
         for (const entry of Object.values(data?.entries || {})) {
-            if (entry.extensions?.ri?.type || entry.extensions?.ri?.set) continue;
-            if (book.role === 'guidelines' && !guidelineEligible(entry, local, scene, modules, book.name)) continue;
-            lore.chatLore.push(scopedBookEntry({ ...entry, world: book.name }, texts));
+            const candidate = { ...entry, world: book.name };
+            if (managed(candidate)) continue;
+            if (book.role === 'guidelines' && !guidelineEligible(candidate, local, scene, modules, book.name)) continue;
+            lore.chatLore.push(scopedBookEntry(candidate,texts));
         }
     }
 }

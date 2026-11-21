@@ -82,11 +82,10 @@ const worldSettings = (page, patch) => L.setSettings(page, { world: patch });
         assert(/In this scene:\n- Hale \(captain of the Gull\)\. Who they are: Proud\. Grew up poor and built his own crew\./.test(second.notes) && /What they are wrong about: He thinks Mira dislikes him\./.test(second.notes), 'present: the character named by the HUD is sent in full');
         assert(!/- Mira \(fruit seller\)/.test(second.notes) && !/Old Tom \(lighthouse/.test(second.notes), 'present: characters who are not in the scene and not named are left out');
         assert(/Where:\n- Fruit market \(A market on the east square\)\. How it is laid out: Two rows of stalls\./.test(second.notes) && !/Lighthouse/.test(second.notes), 'place: the place named by the HUD is sent, the other place is not');
-        assert(/Open threads:\n- The invitation \[stirring\]\. What is open: Hale asked you to sail and has no answer yet\./.test(second.notes) && !/ZZDONE/.test(second.notes), 'threads: an open thread is always sent with its status, a finished one is not');
-        const acts = (second.notes.match(/Going on elsewhere:\n((?:- .*\n?)*)/) || ['', ''])[1].trim().split('\n');
-        assert(acts.length === 3 && !/ZZFOURTH/.test(second.notes), 'elsewhere: at most three things going on elsewhere are sent');
+        assert(/Open threads:\n- The invitation \[stirring\]\. What is open: Hale asked you to sail and has no answer yet\./.test(second.notes) && !/ZZDONE/.test(second.notes), 'threads: an open thread tied to the scene is sent with its status');
+        assert(!/Going on elsewhere:|ZZFOURTH/.test(second.notes), 'elsewhere: activities without a connection to the scene or input stay out');
         assert(/Secrets:\n- Hale has a secret\./.test(second.notes) && !/XSECRETX/.test(second.notes) && !/YSECRETY|about the lamp/.test(second.notes), 'secrets: a kept secret of someone in the scene is sent as one line, without the secret itself; other people\'s secrets stay out');
-        assert(/Planted earlier:\n- The locked drawer \[planted\]\. The detail, as it appeared in the story: A drawer in the chart room is locked\./.test(second.notes), 'planted details are sent while there is room');
+        assert(!/The locked drawer/.test(second.notes), 'planted details stay out until recalled');
         const sys = second.messages.filter(m => /\[Story notes\./.test(typeof m.content === 'string' ? m.content : ''));
         const idx = second.messages.indexOf(sys[0]);
         assert(sys.length === 1 && sys[0].role === 'system' && second.messages.length - 1 - idx >= 3, 'placement: the notes are one system message a few messages up from the end');
@@ -94,6 +93,8 @@ const worldSettings = (page, patch) => L.setSettings(page, { world: patch });
         console.log('record:', JSON.stringify(rec));
         assert(rec && rec.name === 'Story notes' && rec.noCheck && rec.same && rec.notes.present.join() === 'Hale' && rec.notes.place === 'Fruit market' && rec.notes.how === 'the HUD', 'record: What Was Sent keeps the notes, who was read as present, the place and where that was read from');
         assert(rec.notes.missing.join() === 'a boy stacking crates', 'record: someone the scene names who has no entry is listed: ' + rec.notes.missing.join(' | '));
+        const recalled = await send(page, 'I ask about the locked drawer and Act two.');
+        assert(/Planted earlier:\n- The locked drawer \[planted\]/.test(recalled.notes) && /Going on elsewhere:\n- Act two/.test(recalled.notes), 'a named planted detail and off-screen activity are recalled');
 
         // ----- C. secrets: the whole secret with an order to keep it, and a secret that is out
         await patchEntry(page, id, 'The letter', { top: { show: 'full' } });
@@ -140,7 +141,7 @@ const worldSettings = (page, patch) => L.setSettings(page, { world: patch });
         const tight = await send(page, 'I listen.');
         console.log('--- budget 100 ---\n' + tight.notes);
         assert(/- Hale \(captain of the Gull\)\. What they want: A crew he can trust\./.test(tight.notes) && !/Who they are: Proud/.test(tight.notes) && !/Planted earlier/.test(tight.notes), 'budget: when room is short, people in the scene are sent in short form and the extras are left out');
-        assert(/Open threads:/.test(tight.notes), 'budget: open threads are still sent');
+        assert(tight.notes.length <= 400, 'budget: the complete block stays within the configured estimate');
         await worldSettings(page, { budget: 600 });
         const before = (await send(page, 'I answer him.')).notes;
         L.resetLog(); await L.swipe(page); await L.waitChecks(page);
@@ -181,7 +182,7 @@ const worldSettings = (page, patch) => L.setSettings(page, { world: patch });
         assert(!none.notes && !/\[Character\]/.test(none.text), 'other chat: a chat with no world gets no story notes');
         const id2 = await makeWorld(page, 'Mountain story', S);
         await addEntries(page, id2, [{ kind: 'character', name: 'Greta', fields: { role: 'a guide', wants: 'To reach the pass' } }, { kind: 'thread', name: 'The pass', fields: { open: 'Whether the pass is open' } }]);
-        const other = await send(page, 'I meet Greta and think of Hale.');
+        const other = await send(page, 'I ask Greta about the pass and think of Hale.');
         assert(/- Greta \(a guide\)/.test(other.notes) && /The pass/.test(other.notes) && !/Hale \(captain|The invitation|Fruit market/.test(other.notes), 'other chat: a second world in the same lorebook sends only its own entries');
 
         // ----- L. moving a world keeps it as this chat's world
@@ -240,10 +241,12 @@ const worldSettings = (page, patch) => L.setSettings(page, { world: patch });
         await click(page, 'Cancel');
         await page.waitForTimeout(400);
         // the list and the preview of what would be sent
+        await send(page, 'I ask Ilse about her bakery.');
         await click(page, 'Add an open thread');
         await page.waitForTimeout(300);
         await setField(page, 'Short title', 'The oven');
         await setField(page, 'What is open', 'Whether Ilse gets her bigger oven');
+        await setField(page, 'Who is involved', 'Ilse');
         await click(page, 'Save open thread');
         await page.waitForFunction(() => /Open threads:\n- The oven \[quiet\]/.test(document.querySelector('#ri_root .ri-preview')?.textContent || ''), null, { timeout: 8000 });
         const listUi = await page.evaluate(() => ({ titles: [...document.querySelectorAll('#ri_root .ri-section-title')].map(x => x.textContent), kept: document.querySelector('#ri_root .ri-kept')?.textContent, preview: document.querySelector('#ri_root .ri-preview').textContent, world: [...document.querySelectorAll('#ri_root .ri-field')].find(f => /World used by this chat/.test(f.textContent)).querySelector('select').selectedOptions[0].textContent }));

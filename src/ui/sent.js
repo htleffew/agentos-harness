@@ -113,7 +113,10 @@ function recordBody(id, rec, isLast, withButtons) {
         rec.v10Check ? h('div',{class:'ri-note'},checkText(rec.v10Check)) : null,
         rec.v10Offer ? h('div',{class:'ri-note'},`Optional plot opportunity offered: ${rec.v10Offer}`) : null,
         rec.v10Lore?.length ? h('details',{class:'ri-sentitem'},h('summary',{},'World Info selections'),
-            h('ul',{class:'ri-changes'},rec.v10Lore.map(entry=>h('li',{},`${entry.title} · ${entry.book || 'Story World'}${entry.role ? ` (${entry.role})` : ''} · ${entry.confirmed?'confirmed in prompt':'selected'}`)))) : null,
+            h('ul',{class:'ri-changes'},rec.v10Lore.map(entry=>h('li',{},[
+                `${entry.title} · ${entry.book || 'Story World'}${entry.role ? ` (${entry.role})` : ''}`,
+                entry.confirmed ? 'Confirmed in prompt' : 'Delivery unconfirmed', entry.delivery, entry.timing,
+            ].filter(Boolean).join(' · '))))) : null,
         rec.guided ? h('div', { class: 'ri-note' }, `Guided swipe: ${rec.guided.direction} (${rec.guided.repeatOrders ? 'previous orders repeated' : 'previous orders left out'})`) : null,
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
@@ -156,7 +159,7 @@ export function renderSent(body, app) {
     if (!isChatOpen()) return;
     const st = settings();
     if (enabledV10()) body.append(h('div',{class:'ri-note'},
-        'Expand a reply and open World Info selections to see the chosen entries and source books. Confirmed means the extension found the entry text in the assembled request. Selected means it could not confirm delivery.',
+        'Open World Info selections to see the source books and activation settings. Confirmed means the extension found the text in the assembled request. Entries marked Story notes block went through one shared block.',
         h('div',{class:'ri-row'},button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'}))));
     const waiting = overdueList();
     if (waiting.length) body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `Waiting to be sent again with the next reply: ${waiting.map(o => o.name).join(', ')}.`,
@@ -281,7 +284,8 @@ function replyLoreRows(lore) {
     return h('ul',{class:'ri-lore-receipt'},lore.map(entry=>h('li',{},
         h('div',{class:'ri-lore-receipt-title'},h('strong',{},entry.title),h('span',{},entry.book || 'Story World')),
         h('div',{class:'ri-reply-chip-rail'},entry.role && replyChip(entry.role,'indigo'),
-            replyChip(entry.confirmed ? 'Confirmed in prompt' : 'Selected',entry.confirmed ? 'mint' : 'slate')))));
+            replyChip(entry.confirmed ? 'Confirmed in prompt' : 'Delivery unconfirmed',entry.confirmed ? 'mint' : 'slate'),
+            entry.delivery && replyChip(entry.delivery,'slate')))));
 }
 
 function updateSceneHeader(mes,id,show) {

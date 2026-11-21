@@ -91,6 +91,10 @@ const L = require('./lib.js');
         assert.match(prompt, /DOCK_LORE_MARK/);
         assert.match(prompt, /PERSON_LORE_MARK/);
         assert.doesNotMatch(prompt, /MODEL_NUDGE_MARK|RANDOM_ZERO_MARK/);
+        const receipt = await page.evaluate(() => SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Lore);
+        assert.ok(receipt.some(entry => entry.title === 'User entry' && entry.confirmed &&
+            entry.timing === 'Keyword · Latest user message · 100% chance'));
+        assert.ok(receipt.every(entry => entry.title !== 'Random reminder'));
         L.mode({ reply: 'The guide went on.' });
         L.resetLog();
         await L.send(page, 'Continue.');
@@ -185,6 +189,28 @@ const L = require('./lib.js');
         await L.send(page,'And then?');
         assert.equal(L.requests().length,1);
         assert.match(L.text(L.requests()[0]),/PHRASE_FEEDBACK_MARK/);
+
+        const dedicated = `Dedicated instruction book ${Date.now()}`;
+        await L.makeSet(page,dedicated,[{name:'Managed-only instruction',versions:['M1'],chance:100}],{activate:false});
+        const toggleDedicated = active => page.evaluate(async ([base,name,on])=>{
+            const {assignReusableBook} = await import(`${base}/src/v10.js`);
+            const {chatState,saveChatState} = await import(`${base}/src/store.js`);
+            const context = SillyTavern.getContext();
+            context.chatMetadata.world_info = name;
+            assignReusableBook(name,'guidelines');
+            chatState().activeSets = on ? [name] : [];
+            saveChatState();
+        },[L.BASE,dedicated,active]);
+        await toggleDedicated(false);
+        L.resetLog();
+        await L.send(page,'What happens next?');
+        assert.doesNotMatch(L.text(L.requests()[0]),/thing M1/);
+        await toggleDedicated(true);
+        L.resetLog();
+        await L.send(page,'I step forward.');
+        assert.equal((L.text(L.requests()[0]).match(/thing M1/g) || []).length,1);
+        const managed = await page.evaluate(() => SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Lore);
+        assert.ok(managed.some(entry=>entry.title==='Managed-only instruction' && entry.role==='Random Instructions' && entry.confirmed));
         console.log('PASS multiple guideline/reference imports, editable triggers and role-specific prompt delivery');
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
