@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.29
+
+- The generating reply uses the saved cards’ layout. Character fields, scene details, emotion meters and story changes fill in as their sections arrive. Roast, planning and World Info keep their own positions. Once filing completes, the cards open into their saved details.
+- On narrow screens the handoff keeps the end of the prose in view when the host has followed the reply to the bottom.
+- [Phone-width verification and screenshots](docs/ui-audit-10.0.29.md).
+
 ## 10.0.28
 
 - Added mobile section navigation to Story World and directions for selecting the companion in a fresh host. Clarified the instruction-set chooser, actor/target choices and book origins.

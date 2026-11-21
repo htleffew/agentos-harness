@@ -1189,7 +1189,13 @@ function onPromptReady(data) {
                 pending.recall.fresh = pending.recallCandidates.filter(uid=>seen.has(uid));
             }
         }
-        if (record && gen && replyProgress()?.phase === 'context') showReplyProgress(gen,'waiting');
+        if (record && gen && replyProgress()?.phase === 'context') {
+            const lore=pending?.lore || [];
+            showReplyProgress(gen,'waiting',undefined,{
+                modules:pending?.v10?.modules,expectsPlan:pending?.v10?.expectsPlan,
+                entries:lore.length,confirmed:lore.filter(entry=>entry.confirmed).length,
+            });
+        }
         if (record) { notePromptSent(data.chat); captureContext(data.chat, { items: memory && pending?.notes ? [{notes:true,text:pending.notes}] : pending?.items || [], ask: memory ? '' : plan.contextAsk || '', lore:pending?.lore || [] }); }
     } catch (e) { console.error(LOG, 'prompt-ready', e); }
 }
@@ -1435,10 +1441,11 @@ export function init() {
         const tracker = paired && pending?.v10?.modules?.state;
         const previewNeeded = paired && (partial!==text || progress.preview!==undefined || hasReplyScaffolding(partial) ||
             /<story_update\b/i.test(partial) || tracker && /<tracker\b/i.test(partial));
-        const visible = previewNeeded ? separateReply(partial).text : text;
-        if (previewNeeded) setReplyPreview(gen,stripUpdateBlock(tracker ? stripSceneTracker(visible,{streaming:true}) : visible));
+        const separated = previewNeeded ? separateReply(partial) : null;
+        const visible = separated?.text ?? text;
+        if (previewNeeded) setReplyPreview(gen,stripUpdateBlock(tracker ? stripSceneTracker(visible,{streaming:true}) : visible),!!separated?.plan);
         if (!['context','waiting','writing','receiving'].includes(progress.phase)) return;
-        const sections = streamUpdate(visible);
+        const sections = streamUpdate(visible,names().user);
         if (sections) setReplySections(gen,sections);
         if (sections || /<story_update\b/i.test(visible)) showReplyProgress(gen,'receiving');
         else if (progress.phase !== 'writing') showReplyProgress(gen,'writing');

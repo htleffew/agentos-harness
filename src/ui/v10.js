@@ -620,7 +620,7 @@ export function renderV10(body, app, page) {
     switch (page) {
         case 'display':
             body.append(section('Reply Display',
-                chatFlag('showStreamSections','Show arriving story sections','Light up each available story section while the reply streams.',true),
+                chatFlag('showStreamSections','Show arriving story sections','Preview the reply cards as their fields arrive. Turn off for a single progress line.',true),
                 chatFlag('showPlanning','Show Reply planning','Show any emitted outline in a collapsed disclosure.',true),
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),

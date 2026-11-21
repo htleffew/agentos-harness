@@ -2,7 +2,7 @@ import { memoryOnly } from '../components.js';
 import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
-import { replyCardHeader, replyChip, replyGlance, revealReplyBody, roastCard } from './reply-cards.js';
+import { storyStateChips, loreChips, replyCardHeader, replyChip, replyGlance, revealReplyBody, roastCard } from './reply-cards.js';
 import { replyWorldTabs } from './reply-world.js';
 import { chatWorld } from '../world.js';
 import { refreshGuidedControl } from './guided.js';
@@ -462,10 +462,7 @@ function refreshV10Replies(chat) {
         if (showConsole && parts.length) {
             const tabs = replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id);
             const consoleCard = h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
-                replyCardHeader({icon:'◇',title:'Story state',chips:[
-                people.length && {text:`${people.length} ${people.length===1 ? 'character' : 'characters'}`,tone:'sky'},
-                records.length && {text:`${records.length} ${records.length===1 ? 'change' : 'changes'}`,tone:'mint'},
-                ].filter(Boolean)}),tabs.list,tabs.panels);
+                replyCardHeader({icon:'◇',title:'Story state',chips:storyStateChips(people.length,records.length)}),tabs.list,tabs.panels);
             consoleCard.addEventListener('toggle',()=>{
                 if (consoleCard.open) tabs.loadSelected();
                 else {tabs.reset();saved?.reset();}
@@ -482,10 +479,7 @@ function refreshV10Replies(chat) {
             h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)));
         if(roast) out.append(roastCard(roast,{'data-reply-fold':'roast'}));
         if(lore.length) out.append(h('details',{class:'ri-reply-card ri-v10-lore','data-reply-fold':'lore'},
-            replyCardHeader({icon:'▤',title:'World Info',chips:[
-                {text:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}`,tone:'sky'},
-                ...(lore.some(entry=>entry.confirmed) ? [{text:`${lore.filter(entry=>entry.confirmed).length} confirmed in prompt`,tone:'mint'}] : []),
-            ]}),replyLoreRows(lore)));
+            replyCardHeader({icon:'▤',title:'World Info',chips:loreChips(lore.length,lore.filter(entry=>entry.confirmed).length)}),replyLoreRows(lore)));
         if(old?.dataset.responseKey===responseKey) for(const fold of out.querySelectorAll('[data-reply-fold]')) {
             fold.open=!!old.querySelector(`[data-reply-fold="${fold.dataset.replyFold}"]`)?.open;
         }

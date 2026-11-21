@@ -5,12 +5,12 @@ const listeners = new Set();
 export const replyProgress = () => current;
 export const onReplyProgress = fn => listeners.add(fn);
 
-export function showReplyProgress(turn, phase, id) {
+export function showReplyProgress(turn, phase, id, display) {
     if (phase === 'context') {
         current = { turn, phase, id };
     } else {
         if (current?.turn !== turn || current.phase === phase) return;
-        current = { ...current, phase, id: id ?? current.id };
+        current = { ...current, phase, id: id ?? current.id, display: display ?? current.display };
     }
     for (const fn of listeners) fn();
 }
@@ -21,9 +21,9 @@ export function clearReplyProgress(turn) {
     for (const fn of listeners) fn();
 }
 
-export function setReplyPreview(turn, preview) {
-    if (current?.turn !== turn || current.preview === preview) return;
-    current = { ...current, preview };
+export function setReplyPreview(turn, preview, hasPlan=false) {
+    if (current?.turn !== turn || (current.preview === preview && current.hasPlan === hasPlan)) return;
+    current = { ...current, preview, hasPlan };
     for (const fn of listeners) fn();
 }
 

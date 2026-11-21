@@ -46,10 +46,12 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             await V.ensureWorld();
             V.queueCheck('reach the ferry','Agility',12);
         });
+        await page.setViewportSize({width:390,height:process.env.RI_CAPTURE_DIR ? 988 : 844});
         L.resetLog();
         const prelude = '<page:boot>\n1. IDENTITY: PRIVATE-PRELUDE-MARKER\n2. GROUNDING: Harbor\n\n';
         L.mode({chunkMs:320,reply:prelude+block('“I saw the ferry depart,” Seraphina said. “We just missed it,” added Mira. The ferry is gone.\n\nSeraphina thought, *We can still try the bridge.* Mira thought, *The bridge might be closed.*\n\n*No one can be sure.*',{
             scene:{where:'Dock',present:'Seraphina',time:'11:55 PM',date:'Day 1',weather:'Light rain',minutes:120},
+            characters:[{name:'Seraphina',mind:'Reach the bridge',heart:'Disappointed',body:'Ready to walk',psyche:'Still hopeful',evidence:'We just missed it'}],
             changes:[{kind:'fact',id:'ferry-gone',text:'The ferry left the dock.',evidence:'The ferry is gone.'},
                 {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart,'}],
             roast:'The dock has excellent timing, which is to say none.'
@@ -64,31 +66,52 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         },{times:1});
         const sending=L.send(page,'I run to the dock.');
         sending.catch(() => {}); // Awaited below. Preserve the original UI assertion if it fails first.
-        try { await progress.getByRole('status').filter({hasText:'Waiting for the reply'}).waitFor(); }
+        try {
+            await progress.getByRole('status').filter({hasText:'Waiting for the reply'}).waitFor();
+            const display = async changes => story(page,async({B,value})=>{
+                const {prefs}=await import(`${B}/src/v10.js`);
+                Object.assign(prefs(),value);
+                (await import(`${B}/src/ui/reply-progress.js`)).refreshReplyProgress();
+            },changes);
+            await display({showStreamSections:false});
+            assert.equal(await progress.locator('.ri-glance-card,.ri-reply-roast,.ri-v10-lore').count(),0);
+            await display({showStreamSections:true,showRoast:false,showLore:false});
+            assert.ok(await progress.locator('.ri-glance-card').count());
+            assert.equal(await progress.locator('.ri-reply-roast,.ri-v10-lore').count(),0);
+            await display({showRoast:true,showLore:true});
+            assert.ok((await progress.boundingBox()).height>0);
+        }
         finally { releaseRequest(); }
         await progress.getByRole('status').filter({hasText:'Writing the reply'}).waitFor();
-        assert.equal(await progress.locator('li[data-status="done"]').count(),1);
-        assert.equal(await progress.locator('li[data-status="done"] .ri-progress-light').textContent(),'✓');
+        if (process.env.RI_CAPTURE_DIR) await progress.screenshot({path:process.env.RI_CAPTURE_DIR+'/writing.png'});
+        assert.equal(await progress.locator('button,summary').count(),0);
+        assert.equal(await progress.locator('.ri-glance-field .ri-card-skeleton').count(),4);
+        assert.match(await progress.locator('.ri-reply-roast').textContent(),/Reader reactionWaiting/);
         await page.locator('#chat .last_mes .ri-stream-preview').waitFor({state:'attached'});
         assert.equal(await page.locator('#chat .last_mes .mes_text').isVisible(),false);
         await page.emulateMedia({reducedMotion:'reduce'});
-        assert.equal(await progress.locator('[data-status="active"] .ri-progress-light').evaluate(node=>getComputedStyle(node).animationName),'none');
+        assert.equal(await progress.locator('.ri-card-skeleton').first().evaluate(node=>getComputedStyle(node).animationName),'none');
         await progress.getByRole('status').filter({hasText:'Receiving the story update'}).waitFor();
-        assert.equal(await progress.locator('li[data-status="done"]').count(),2);
-        const received=progress.locator('.ri-progress-sections');
-        await received.locator('[data-section="scene"]').waitFor();
-        assert.match(await received.textContent(),/Dock · Day 1 · 11:55 PM · Light rain/);
-        assert.equal(await received.locator('[data-section="changes"]').count(),0);
-        assert.match(await received.locator('[data-slot="changes"]').textContent(),/Waiting/);
-        assert.equal(await received.locator('[data-section="scene"]').evaluate(node=>getComputedStyle(node).animationName),'none');
-        await received.locator('[data-section="changes"]').waitFor();
-        assert.match(await received.textContent(),/2 changes/);
-        await page.waitForFunction(()=>{
-            const ready=document.querySelector('.ri-v10-progress[data-phase="ready"]');
-            return ready?.querySelectorAll('li[data-status="done"]').length===4 && ready.textContent.includes('Story state ready');
-        });
+        await progress.locator('.ri-glance-person').getByText('Reach the bridge').waitFor();
+        assert.equal(await progress.locator('.ri-glance-person').evaluate(node=>getComputedStyle(node).animationName),'none');
+        await progress.locator('.ri-glance-changes').getByText('The ferry left the dock.').waitFor();
+        assert.equal(await progress.locator('.ri-glance-emotions meter').getAttribute('value'),'5');
+        assert.equal(await progress.locator('.ri-reply-chevron').count(),0);
+        const liveCards=await progress.locator('.ri-glance-title,.ri-reply-title').allTextContents();
+        const streamedFields=await progress.locator('.ri-glance-fields').innerText();
+        const streamedStyle=await progress.locator('.ri-glance-person').evaluate(node=>[node.offsetWidth,getComputedStyle(node).backgroundImage]);
+        if (process.env.RI_CAPTURE_DIR) await progress.screenshot({path:process.env.RI_CAPTURE_DIR+'/receiving.png'});
         await sending;
         await progress.waitFor({state:'detached'});
+        const accepted=page.locator('#chat .last_mes .ri-v10-reply');
+        assert.deepEqual(await accepted.locator('.ri-glance-title,.ri-reply-title').allTextContents(),liveCards);
+        assert.equal(await accepted.locator('.ri-glance-fields').first().innerText(),streamedFields);
+        assert.deepEqual(await accepted.locator('.ri-glance-person').first().evaluate(node=>[node.offsetWidth,getComputedStyle(node).backgroundImage]),streamedStyle);
+        await accepted.locator('.ri-glance-person').first().click();
+        assert.equal(await accepted.locator('[role=tab][aria-selected=true]').textContent(),'Seraphina');
+        await accepted.locator('.ri-v10-console > summary').click();
+        if (process.env.RI_CAPTURE_DIR) await accepted.screenshot({path:process.env.RI_CAPTURE_DIR+'/saved.png'});
+        await page.setViewportSize({width:1280,height:900});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',false).trigger('change'));
         await page.waitForFunction(async B=>(await import(`${B}/src/v10.js`)).rowsForWorld().then(rows=>rows.some(x=>x.name==='ferry-gone')),L.BASE);
         assert.equal(L.requests().length,1);
@@ -367,7 +390,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             globalThis.jQuery('#send_textarea').val('Look out at the harbor.').trigger('input');
             globalThis.jQuery('#send_but').trigger('click');
         });
-        await progress.locator('[data-section="scene"]').getByText('UNSAVED-HARBOR').waitFor();
+        await progress.locator('.ri-glance-scene').getByText('UNSAVED-HARBOR').waitFor();
         await page.locator('#mes_stop').click();
         await progress.waitFor({state:'detached'});
         assert(!(await read()).some(row=>row.id==='unsaved-harbor'));
