@@ -1,0 +1,596 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "viewport": "390 × 740, touch emulation",
+  "provider": "Local Chat Completion mock",
+  "captures": [
+    {
+      "label": "QACT-01: blank choices",
+      "requests": [
+        {
+          "at": 1795291477543,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-CYOA: cues only",
+      "requests": [
+        {
+          "at": 1795291479231,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-CYOA: free text only",
+      "requests": [
+        {
+          "at": 1795291480253,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-CYOA: cues and free text",
+      "requests": [
+        {
+          "at": 1795291482184,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-CYOA: explicit choice expansion",
+      "requests": [
+        {
+          "at": 1795291482400,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-02: bound ordinary reply",
+      "requests": [
+        {
+          "at": 1795291487158,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "assistant",
+            "system",
+            "user",
+            "system"
+          ],
+          "markers": [
+            "I point to the brass gate.",
+            "State who can see the brass gate. QAPRIVATE",
+            "Let the bell fall silent. QAVISIBLE"
+          ]
+        }
+      ],
+      "state": {
+        "pending": 0,
+        "freshRemaining": 0,
+        "messages": 3,
+        "replied": true
+      }
+    },
+    {
+      "label": "QACT-03: Fresh start on ordinary reply",
+      "requests": [
+        {
+          "at": 1795291489706,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "user",
+            "system",
+            "system"
+          ],
+          "markers": []
+        }
+      ],
+      "reusablePrefixMessages": 13,
+      "state": {
+        "pending": 0,
+        "freshRemaining": 4,
+        "messages": 5,
+        "replied": true
+      }
+    },
+    {
+      "label": "QACT-04: reply-level guided swipe",
+      "requests": [
+        {
+          "at": 1795291491880,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "system"
+          ],
+          "markers": [
+            "The indigo bell rang three times.",
+            "I point to the brass gate.",
+            "Let her consider how to open the gate. QASWIPE"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "QACT-05: guided continuation",
+      "requests": [
+        {
+          "at": 1795291494741,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "system",
+            "assistant",
+            "system"
+          ],
+          "markers": [
+            "The indigo bell rang three times.",
+            "I point to the brass gate.",
+            "Have her touch the gate. QACONTINUE"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "QACT-06: provider failure",
+      "requests": [
+        {
+          "at": 1795291496211,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": [
+            "I point to the brass gate.",
+            "Have her examine the chain. QAFAILRETRY"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "QACT-07: explicit retry and valid partial result",
+      "requests": [
+        {
+          "at": 1795291496211,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": [
+            "I point to the brass gate.",
+            "Have her examine the chain. QAFAILRETRY"
+          ]
+        },
+        {
+          "at": 1795291496619,
+          "stream": false,
+          "roles": [
+            "system",
+            "user"
+          ],
+          "markers": [
+            "I point to the brass gate.",
+            "Have her examine the chain. QAFAILRETRY"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "QACT-08: failed ordinary reply",
+      "requests": [
+        {
+          "at": 1795291498396,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "user",
+            "system",
+            "system"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-09: retry of bound outgoing message",
+      "requests": [
+        {
+          "at": 1795291498396,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "user",
+            "system",
+            "system"
+          ],
+          "markers": []
+        },
+        {
+          "at": 1795291499834,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "user",
+            "system",
+            "system"
+          ],
+          "markers": []
+        }
+      ],
+      "state": {
+        "pending": 0,
+        "freshRemaining": 3,
+        "messages": 7,
+        "replied": true
+      }
+    },
+    {
+      "label": "QACT-ROLL: Keep original roll",
+      "requests": [
+        {
+          "at": 1795291504047,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "system"
+          ],
+          "markers": [
+            "The indigo bell rang three times.",
+            "I point to the brass gate."
+          ]
+        }
+      ],
+      "roll": {
+        "id": "draw:mwqu7d590n5",
+        "kind": "d20",
+        "natural": 8,
+        "modifier": 0,
+        "total": 8,
+        "target": null,
+        "result": "partly succeeds",
+        "stat": "",
+        "who": "user",
+        "text": "The d20 rolled 8 with modifier 0, for a total of 8. The attempt partly succeeds."
+      }
+    },
+    {
+      "label": "QACT-ROLL: Reroll d20",
+      "requests": [
+        {
+          "at": 1795291507454,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "system"
+          ],
+          "markers": [
+            "The indigo bell rang three times.",
+            "I point to the brass gate."
+          ]
+        }
+      ],
+      "roll": {
+        "id": "draw:mwqu7k0v11z",
+        "kind": "d20",
+        "natural": 5,
+        "modifier": 0,
+        "total": 5,
+        "target": null,
+        "result": "fails",
+        "stat": "",
+        "who": "user",
+        "text": "The d20 rolled 5 with modifier 0, for a total of 5. The attempt fails."
+      }
+    },
+    {
+      "label": "QACT-FRESH: 2 slots remain",
+      "requests": [
+        {
+          "at": 1795291511247,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "user",
+            "system",
+            "system"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-FRESH: 1 slots remain",
+      "requests": [
+        {
+          "at": 1795291513098,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "user",
+            "system",
+            "system"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-FRESH: 0 slots remain",
+      "requests": [
+        {
+          "at": 1795291515417,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "user",
+            "system",
+            "system"
+          ],
+          "markers": []
+        }
+      ]
+    },
+    {
+      "label": "QACT-FRESH: expired on next normal reply",
+      "requests": [
+        {
+          "at": 1795291517567,
+          "stream": false,
+          "roles": [
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "system",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+            "system"
+          ],
+          "markers": [
+            "The indigo bell rang three times.",
+            "I point to the brass gate."
+          ]
+        }
+      ]
+    }
+  ],
+  "preset": "Roleplay Instructions V10",
+  "disabled": [
+    "assets",
+    "attachments",
+    "caption",
+    "connection-manager",
+    "expressions",
+    "gallery",
+    "memory",
+    "quick-reply",
+    "regex",
+    "stable-diffusion",
+    "token-counter",
+    "translate",
+    "tts",
+    "vectors"
+  ],
+  "browserErrors": [
+    "PAGEERROR Service Unavailable"
+  ]
+}

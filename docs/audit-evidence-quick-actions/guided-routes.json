@@ -1,0 +1,434 @@
+[
+  {
+    "id": "C1",
+    "preset": "Default",
+    "extensionsDisabled": 14,
+    "route": "Native impersonation",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "substituted",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291322806,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "user"
+      ],
+      "sha256": "88b674b542bb0717d7a46bac08eee35bb7f6c8840771a9d4bf99beb400d02129",
+      "observedMarkers": [
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_IMPERSONATION",
+        "DISTINCTIVE_PERSONA",
+        "UNSENT_COMPOSER_FRAGMENT",
+        "ONE_DRAFT_DIRECTION",
+        "/newchat"
+      ]
+    }
+  },
+  {
+    "id": "C2",
+    "preset": "Default",
+    "extensionsDisabled": 14,
+    "route": "Player-only helper",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "bounded",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291323362,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "user"
+      ],
+      "sha256": "c3314c58595df79a38dab0726c298c7f281f9ebd7b5e686b2a15bf954e9cf7ed",
+      "observedMarkers": [
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_IMPERSONATION",
+        "DISTINCTIVE_PERSONA",
+        "UNSENT_COMPOSER_FRAGMENT",
+        "ONE_CHOICES_DIRECTION",
+        "/newchat"
+      ]
+    }
+  },
+  {
+    "id": "C3",
+    "preset": "Default",
+    "extensionsDisabled": 14,
+    "route": "Host swipe",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "substituted",
+      "removed": 3
+    },
+    "request": {
+      "at": 1795291323833,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "system",
+        "system",
+        "system",
+        "user",
+        "system",
+        "system"
+      ],
+      "sha256": "df2383b7946ab27be65b777b1eb01a275117273733f4708c802c67273408b81e",
+      "observedMarkers": [
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_PERSONA",
+        "ONE_SWIPE_DIRECTION",
+        "Work from the facts and current direction"
+      ]
+    }
+  },
+  {
+    "id": "C4",
+    "preset": "Default",
+    "extensionsDisabled": 14,
+    "route": "Host continuation",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "substituted",
+      "removed": 3
+    },
+    "request": {
+      "at": 1795291324270,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "system",
+        "system",
+        "system",
+        "user",
+        "system",
+        "assistant",
+        "system",
+        "system"
+      ],
+      "sha256": "d52d91dba0603268fcf4207228c4619cfc5b65af14ad980c27c19db2abcb3d80",
+      "observedMarkers": [
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_PERSONA",
+        "ONE_CONTINUE_DIRECTION",
+        "Work from the facts and current direction"
+      ]
+    }
+  },
+  {
+    "id": "C7",
+    "preset": "Default",
+    "extensionsDisabled": 14,
+    "route": "Player-only helper",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "bounded",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291324689,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "user"
+      ],
+      "sha256": "8020253341a03baa5b67668d164917a182f54dcdf2ab36e54f9cda9500e53dd5",
+      "observedMarkers": [
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_IMPERSONATION",
+        "DISTINCTIVE_PERSONA",
+        "UNSENT_COMPOSER_FRAGMENT",
+        "/newchat"
+      ]
+    }
+  },
+  {
+    "id": "C5",
+    "preset": "Default",
+    "extensionsDisabled": 14,
+    "route": "Host swipe",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "retained",
+      "removed": 0
+    },
+    "request": {
+      "at": 1795291325611,
+      "endpoint": "/v1/completions",
+      "roles": [
+        "text"
+      ],
+      "sha256": "e72969cb929e3e5a8e7cd0925047974a2899a44f533a263e12b4ad10a317f426",
+      "observedMarkers": [
+        "EARLY_SWIPED_PROSE",
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_PERSONA",
+        "Work from the facts and current direction"
+      ]
+    }
+  },
+  {
+    "id": "C6",
+    "preset": "Default",
+    "extensionsDisabled": 14,
+    "route": "Bounded reply helper",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "bounded",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291325860,
+      "endpoint": "/v1/completions",
+      "roles": [
+        "text"
+      ],
+      "sha256": "b2041a9d3e6c7aa016d5947ab98e989b4f07c069c605b647120ef2bc4f0528ab",
+      "observedMarkers": [
+        "EARLY_SWIPED_PROSE",
+        "EARLY_PLAYER_INPUT"
+      ]
+    }
+  },
+  {
+    "id": "C1",
+    "preset": "Roleplay Instructions V10",
+    "extensionsDisabled": 14,
+    "route": "Native impersonation",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "substituted",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291347010,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "user"
+      ],
+      "sha256": "88b674b542bb0717d7a46bac08eee35bb7f6c8840771a9d4bf99beb400d02129",
+      "observedMarkers": [
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_IMPERSONATION",
+        "DISTINCTIVE_PERSONA",
+        "UNSENT_COMPOSER_FRAGMENT",
+        "ONE_DRAFT_DIRECTION",
+        "/newchat"
+      ]
+    }
+  },
+  {
+    "id": "C2",
+    "preset": "Roleplay Instructions V10",
+    "extensionsDisabled": 14,
+    "route": "Player-only helper",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "bounded",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291347583,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "user"
+      ],
+      "sha256": "c3314c58595df79a38dab0726c298c7f281f9ebd7b5e686b2a15bf954e9cf7ed",
+      "observedMarkers": [
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_IMPERSONATION",
+        "DISTINCTIVE_PERSONA",
+        "UNSENT_COMPOSER_FRAGMENT",
+        "ONE_CHOICES_DIRECTION",
+        "/newchat"
+      ]
+    }
+  },
+  {
+    "id": "C3",
+    "preset": "Roleplay Instructions V10",
+    "extensionsDisabled": 14,
+    "route": "Host swipe",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "substituted",
+      "removed": 3
+    },
+    "request": {
+      "at": 1795291348371,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "user",
+        "system",
+        "system"
+      ],
+      "sha256": "d5ffe066fbddf7e7d88d2545af23bf0449c02776decb185975345d051229d6ff",
+      "observedMarkers": [
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_PERSONA",
+        "ONE_SWIPE_DIRECTION",
+        "Work from the facts and current direction"
+      ]
+    }
+  },
+  {
+    "id": "C4",
+    "preset": "Roleplay Instructions V10",
+    "extensionsDisabled": 14,
+    "route": "Host continuation",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "substituted",
+      "removed": 3
+    },
+    "request": {
+      "at": 1795291349305,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "system",
+        "user",
+        "system",
+        "assistant",
+        "system",
+        "system"
+      ],
+      "sha256": "e5b8408765f0f15c25fd5c658e0ffa53cc224ff7fae854ac41b20c47b24d3d15",
+      "observedMarkers": [
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_PERSONA",
+        "ONE_CONTINUE_DIRECTION",
+        "Work from the facts and current direction"
+      ]
+    }
+  },
+  {
+    "id": "C7",
+    "preset": "Roleplay Instructions V10",
+    "extensionsDisabled": 14,
+    "route": "Player-only helper",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "bounded",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291350317,
+      "endpoint": "/v1/chat/completions",
+      "roles": [
+        "system",
+        "user"
+      ],
+      "sha256": "8020253341a03baa5b67668d164917a182f54dcdf2ab36e54f9cda9500e53dd5",
+      "observedMarkers": [
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_IMPERSONATION",
+        "DISTINCTIVE_PERSONA",
+        "UNSENT_COMPOSER_FRAGMENT",
+        "/newchat"
+      ]
+    }
+  },
+  {
+    "id": "C5",
+    "preset": "Roleplay Instructions V10",
+    "extensionsDisabled": 14,
+    "route": "Host swipe",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "retained",
+      "removed": 0
+    },
+    "request": {
+      "at": 1795291352046,
+      "endpoint": "/v1/completions",
+      "roles": [
+        "text"
+      ],
+      "sha256": "83c83960e5ba7daa9b939815aa30ae26554fb9b83018b5d6c948d223427ebfd6",
+      "observedMarkers": [
+        "EARLY_SWIPED_PROSE",
+        "EARLY_PLAYER_INPUT",
+        "CURRENT_PLAYER_INPUT",
+        "DISTINCTIVE_PERSONA",
+        "Work from the facts and current direction"
+      ]
+    }
+  },
+  {
+    "id": "C6",
+    "preset": "Roleplay Instructions V10",
+    "extensionsDisabled": 14,
+    "route": "Bounded reply helper",
+    "attempts": 1,
+    "outcome": "completed",
+    "history": {
+      "mode": "bounded",
+      "observed": true
+    },
+    "request": {
+      "at": 1795291352787,
+      "endpoint": "/v1/completions",
+      "roles": [
+        "text"
+      ],
+      "sha256": "b2041a9d3e6c7aa016d5947ab98e989b4f07c069c605b647120ef2bc4f0528ab",
+      "observedMarkers": [
+        "EARLY_SWIPED_PROSE",
+        "EARLY_PLAYER_INPUT"
+      ]
+    }
+  }
+]

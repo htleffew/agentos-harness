@@ -15,31 +15,46 @@ async function auditDisclosures(body) {
     const opened = [];
     const visited = new Set();
     for (;;) {
-        const summaries = await body.locator('details > summary:visible').all();
-        let next;
-        for (const summary of summaries) {
-            const key = await summary.evaluate(node=>{
+        const key = await body.locator('details > summary:visible').evaluateAll((summaries, seen)=>{
+            for (const node of summaries) {
                 const parts=[];
                 for (let item=node; item && item.id!=='ri_panel_page'; item=item.parentElement) {
                     parts.push([...item.parentElement.children].indexOf(item));
                 }
-                return parts.join('.');
-            });
-            if (!visited.has(key)) {visited.add(key); next=summary; break;}
-        }
-        if (!next) break;
+                const path=parts.join('.');
+                if (!seen.includes(path)) {
+                    node.dataset.riAuditDisclosure=path;
+                    return path;
+                }
+            }
+            return null;
+        },[...visited]);
+        if (key===null) break;
+        visited.add(key);
+        const match=body.locator(`summary[data-ri-audit-disclosure="${key}"]`);
+        const next=await match.elementHandle({timeout:1000}).catch(()=>null);
+        // Opening a disclosure can finish an asynchronous section refresh.
+        if (!next || !await next.isVisible()) continue;
         const title=(await next.innerText()).trim();
         if (!await next.evaluate(node=>node.parentElement.open)) {
-            await next.click();
-            assert.ok(await next.evaluate(node=>node.parentElement.open));
+            try { await next.click({timeout:2000}); }
+            catch(error) {
+                if (!await next.evaluate(node=>node.isConnected).catch(()=>false)) continue;
+                throw error;
+            }
+            assert.ok(await next.evaluate(node=>!node.isConnected || node.parentElement.open));
             opened.push({summary:next,title});
         }
     }
     // Close deepest first. Each click should return the browser's disclosure to its initial state.
     for (const {summary,title} of opened.reverse()) {
-        if (!await summary.isVisible() || !await summary.evaluate(node=>node.parentElement.open)) continue;
-        await summary.click();
-        assert.equal(await summary.evaluate(node=>node.parentElement.open),false,title);
+        if (!await summary.isVisible() || !await summary.evaluate(node=>node.parentElement?.open)) continue;
+        try { await summary.click({timeout:2000}); }
+        catch(error) {
+            if (!await summary.evaluate(node=>node.isConnected).catch(()=>false)) continue;
+            throw error;
+        }
+        assert.equal(await summary.evaluate(node=>node.parentElement?.open ?? false),false,title);
     }
     return visited.size;
 }

@@ -3,6 +3,7 @@ import { WORLD_KINDS } from '../world.js';
 import { readReplyWorld } from '../reply-world.js';
 import { button, h } from './dom.js';
 import { replyChip } from './reply-cards.js';
+import { editableReplySlots, storySlots } from '../memory-journal.js';
 
 const views = [
     ['Portrayal',['profile'],['character']],
@@ -102,6 +103,10 @@ export function replyWorldTabs(index, modules, reply) {
                 if (view!=='Plot' || modules.plots) cards.push(...rows.filter(row=>legacy.includes(row.kind) && !readRecord(row))
                     .map(row=>legacyCard(row,view)).filter(Boolean));
                 panel.replaceChildren(
+                    h('div',{class:'ri-reply-chip-rail'},
+                        replyChip(reply.update?.pending || storySlots().slice(-editableReplySlots()).some(row=>row.index===index) &&
+                            editableReplySlots() && !reply.update?.changes?.length ? 'Recent · editable' : 'Filed','slate')),
+                    reply.memoryUncertain && h('p',{class:'ri-note ri-note-warn',role:'status'},reply.memoryUncertain),
                     ...(cards.length ? [h('ul',{class:'ri-world-records'},cards)] :
                         [h('p',{class:'ri-help'},'No saved records in this section for this reply.')]),
                     ...(partial ? [h('p',{class:'ri-help'},'Showing the records that could be verified for this reply.')] : []));

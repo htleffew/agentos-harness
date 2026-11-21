@@ -595,7 +595,7 @@ export async function writeWorldEntryWithAI({ kind, about, context, existing = [
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD.replace(', and still use the placeholders for names', ''), story); }
     lines.push('', ...writerRules());
     lines.push('', `Return only a JSON object with the keys "name", "aliases", ${keys.map(k => `"${k}"`).join(', ')}.`);
-    const res = await request({ what: `Write a ${def.label.toLowerCase()} entry`, system: 'You keep the story notes of a roleplay. You answer with JSON only.', user: lines.join('\n'), tokens: 900, profileId: settings().profileId });
+    const res = await request({ operation:'writerWorld',authorization:'manual',what:`Write a ${def.label.toLowerCase()} entry`,user:lines.join('\n'),tokens:900 });
     const answer = String(res.text);
     const obj = parseJson(answer.slice(Math.max(0, answer.indexOf('{'))));
     if (!obj || typeof obj !== 'object' || Array.isArray(obj) || !Object.keys(obj).some(k => k === 'name' || keys.includes(k))) {

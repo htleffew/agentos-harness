@@ -282,6 +282,29 @@ function sentenceFor(type, parts) {
     return type === 'style' ? styleSentence(lines) : eventSentence(lines);
 }
 
+/** Inspect the same explicit story restrictions used by a manual recipe roll. */
+export function eventChoices(ri, prev, opts = {}) {
+    const blocked = new Set((ri?.type === 'style' ? [] : (opts.blockedTags || [])).map(t => String(t).trim().toLowerCase()));
+    const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory);
+    const mainBurn = cats.find(cat => cat.on && cat.burn && !cat.driver && usable(cat).length);
+    return cats.map(cat => {
+        const lock = opts.locks?.[cat.id] || (cat.mode === 'keepFixed' ? [cat.fixed || prev?.cats?.[cat.id]?.picks?.[0]].filter(Boolean) : []);
+        const allowed = new Set(usable(cat).map(item => item.id));
+        const items = cat.items.map(item => {
+            const reason = !cat.on ? 'Category disabled' : !allowed.has(item.id) ? 'Ingredient disabled or restricted'
+                : tagList(item.tags).some(tag => blocked.has(tag)) ? 'Blocked by a story rule'
+                : lock.length && !lock.includes(item.id) ? 'Another ingredient is locked'
+                : !itemFits(item, opts.scene) ? 'Requires a different scene'
+                : cat.burn && opts.burned?.has(item.id) ? 'Already happened in this chat' : '';
+            return { ...item, available: !reason, reason };
+        });
+        const secondarySpent = cat.burn && cat !== mainBurn && !lock.length &&
+            items.some(item => item.reason === 'Already happened in this chat');
+        return { id: cat.id, name: cat.name, count: cat.count, enabled: cat.on, items,
+            required: ri?.type !== 'style' && cat.on && allowed.size > 0 && !secondarySpent };
+    });
+}
+
 /**
  * Roll the dice for one event, or for one reply's writing style.
  * ri: the entry's saved data. prev: the category state stored with the last roll of this set (or null).
@@ -307,19 +330,36 @@ export function rollEvent(ri, prev, opts = {}) {
 
     // First, the categories that keep the pick they already have.
     const info = new Map();
+    const manualChoices = opts.manual ? new Map(eventChoices(ri, prev, opts).map(cat => [cat.id, cat])) : null;
+    const manualPicks = opts.explicit || {};
+    if (manualChoices && Object.keys(manualPicks).some(id => !cats.some(cat => cat.id === id))) return null;
     for (const cat of cats) {
-        const pool = usable(cat).filter(allowedItem);
+        const choices = manualChoices?.get(cat.id).items;
+        const available = choices && new Set(choices.filter(item => item.available).map(item => item.id));
+        const canCheckBurn = choices && new Set(choices.filter(item => item.reason === 'Already happened in this chat').map(item => item.id));
+        const pool = usable(cat).filter(it => allowedItem(it) && (!available || available.has(it.id) || canCheckBurn.has(it.id)));
         const byId = new Map(pool.map(it => [it.id, it]));
         const old = prev?.cats?.[cat.id] || {};
-        const valid = ids => Array.isArray(ids) && ids.length > 0 && ids.every(id => byId.has(id));
+        const valid = ids => Array.isArray(ids) && ids.length > 0 && ids.every(id => byId.has(id) && (!available || available.has(id)));
         const lock = opts.locks?.[cat.id];
         let kept = null; let left = 0; let linger = false; let pinned = false;
-        if (valid(lock)) { kept = [...lock]; pinned = true; }
-        else if (cat.mode === 'keepFixed') { const c = byId.get(cat.fixed) || byId.get((old.picks || [])[0]); if (c) { kept = [c.id]; pinned = true; } }
+        if (manualChoices && Object.hasOwn(manualPicks, cat.id)) {
+            const explicit = manualPicks[cat.id];
+            if (!valid(explicit) || explicit.length > cat.count || new Set(explicit).size !== explicit.length
+                || (valid(lock) && lock.some(id => !explicit.includes(id)))) return null;
+            kept = [...explicit];
+            pinned = true;
+        }
+        else if (valid(lock)) { kept = [...lock]; pinned = true; }
+        else if (manualChoices && lock?.length) return null;
+        else if (cat.mode === 'keepFixed') { const c = byId.get(cat.fixed) || byId.get((old.picks || [])[0]); if (c && valid([c.id])) { kept = [c.id]; pinned = true; } }
         else if (cat.mode === 'keepRandom' && Number(old.left) > 0 && valid(old.picks)) { kept = [...old.picks]; left = Number(old.left) - 1; }
         else if (cat.mode === 'keepRandom' && cat.changeChance < 100 && valid(old.picks) && rollInt(100) >= cat.changeChance) { kept = [...old.picks]; linger = true; }
         info.set(cat.id, { pool, byId, old, kept, left, linger, pinned });
-        if (kept) note(byId, kept);
+        if (kept) {
+            if (manualChoices && kept.some(id => clash(tagList(byId.get(id).tags), chosen, pairs))) return null;
+            note(byId, kept);
+        }
     }
 
     // Where the event comes from: the "Who drives it" list is rolled first, and the other lists only offer items that
@@ -329,10 +369,11 @@ export function rollEvent(ri, prev, opts = {}) {
     const fitsOrigin = (it, c, o) => c.driver || !o || !it.from || it.from === o;
     const canServe = (o) => !o || markedCats.every((c) => {
         const inf = info.get(c.id);
-        if (inf.kept) return true;
+        if (inf.kept) return !manualChoices || inf.kept.every(id => fitsOrigin(inf.byId.get(id), c, o));
         return inf.pool.some(it => fitsOrigin(it, c, o) && itemFits(it, scene) && !(c.burn && burned.has(it.id)));
     });
     for (const cat of cats.filter(c => c.driver)) { const k = info.get(cat.id).kept; if (k && !origin) origin = originOf(info.get(cat.id).byId.get(k[0]), cat); }
+    if (manualChoices && !canServe(origin)) return null;
     const partsBy = new Map();
 
     // Then the categories that are due a fresh pick, the driver first.
@@ -344,7 +385,7 @@ export function rollEvent(ri, prev, opts = {}) {
         const idle = (rest) => { state.cats[cat.id] = { picks: [], left: 0, used, recent, rest }; };
         let picks = kept;
         if (!picks) {
-            if (cat.mode !== 'keepFixed') {
+            if (cat.mode !== 'keepFixed' && !manualChoices) {
                 // The category may be resting after its last pick, or may sit this one out by chance.
                 if (Number(old.rest) > 0) { idle(Number(old.rest) - 1); continue; }
                 if (cat.chance < 100 && rollInt(100) >= cat.chance) { idle(0); continue; }
@@ -377,6 +418,11 @@ export function rollEvent(ri, prev, opts = {}) {
             if (cat.useAll) used = [...new Set([...used, ...picks])];
             if (cat.itemWait) recent = [...recent, picks].slice(-cat.itemWait);
             if (cat.mode === 'keepRandom') left = cat.keepMin + rollInt(cat.keepMax - cat.keepMin + 1) - 1;
+        }
+        if (manualChoices && picks.some(id => !fitsOrigin(byId.get(id), cat, origin))) return null;
+        if (manualChoices && manualPicks[cat.id]) {
+            if (cat.useAll) used = [...new Set([...used, ...picks])];
+            if (cat.itemWait) recent = [...recent, picks].slice(-cat.itemWait);
         }
         const lastOfItsRun = !pinned && !linger && (cat.mode === 'new' || (cat.mode === 'keepRandom' && left === 0));
         state.cats[cat.id] = { picks, left, used, recent, rest: linger ? (Number(old.rest) || 0) : lastOfItsRun ? cat.restAfter : 0 };

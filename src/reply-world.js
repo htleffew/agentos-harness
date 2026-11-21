@@ -4,9 +4,10 @@ import { chatState } from './store.js';
 import { chatWorld, listWorld, loadWorld } from './world.js';
 import { revertChanges, worldIdle } from './worldflow.js';
 import { readRecord } from './v10.js';
+import { projectStoryJournal } from './memory-journal.js';
 
 // Rewind a private copy. The reply viewer never changes the book or unhides messages.
-export function worldAtReply(data, world, chat, index, manual = [], chatId) {
+export function worldAtReply(data, world, chat, index, manual = [], chatId, root = null) {
     const matches = id => id && canonSet(id) === world;
     const anchors = new Set(['seed']);
     const recordIndices = new Map();
@@ -40,13 +41,27 @@ export function worldAtReply(data, world, chat, index, manual = [], chatId) {
         else if (before) copy.entries[uid] = structuredClone(before);
         else delete copy.entries[uid];
     }
-    const rows = listWorld(copy, world).filter(row => {
+    const effective = projectStoryJournal(copy,world,{chat,root,before:index+1});
+    const rows = listWorld(effective.data, world).filter(row => {
         if (!row.on || conflicts.has(row.uid)) return false;
+        if (row.kind==='chapter' && row.span) {
+            const terminal = recordIndices.get(String(row.span.time));
+            if (terminal !== undefined && terminal>index || row.span.chat===chatId && row.span.to>replyCount) return false;
+        }
         const source = recordIndices.get(String(readRecord(row)?.source));
         if (source !== undefined) return source <= index && !chat[source]?.extra?.[KEY]?.stateStale;
         return !row.at || row.at.chat !== chatId || row.at.n <= replyCount;
     });
-    return { rows, partial: conflicts.size > 0 };
+    return { rows, partial: conflicts.size > 0 || effective.conflicts.length > 0 };
+}
+
+export function timelineDependents(index) {
+    const later = (ctx().chat || []).slice(index+1).filter(isReply);
+    return {
+        replies:later.length,
+        cards:later.filter(message=>message.extra?.[KEY]?.scene || message.extra?.[KEY]?.update).length,
+        filed:later.filter(message=>message.extra?.[KEY]?.update?.changes?.length).length,
+    };
 }
 
 export async function readReplyWorld(index) {
@@ -61,7 +76,7 @@ export async function readReplyWorld(index) {
         chatWorld() !== world || chat?.[index] !== target || target?.extra?.[KEY] !== record) {
         throw new Error('The reply changed. Open its Story State card again.');
     }
-    if (data?.entries) return worldAtReply(data, world, chat, index, root?.manualWorldChanges, id);
+    if (data?.entries) return worldAtReply(data, world, chat, index, root?.manualWorldChanges, id, root);
     const records = new Map();
     for (const message of (chat || []).slice(0,index+1)) {
         const saved = message?.extra?.[KEY];

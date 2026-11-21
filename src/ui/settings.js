@@ -1,10 +1,11 @@
 import { promptGroup, roastVoiceEditor } from './prompts.js';
+import { executionSettings } from './execution.js';
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
 import { statNames, sheet, setStat, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../dice.js';
 import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
-import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
+import { names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
 import { ensureRegexScript, setsMoved } from '../engine.js';
 import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '../books.js';
 import { refreshUnderReplies } from './sent.js';
@@ -206,11 +207,9 @@ export function renderSettings(body, app) {
         isChatOpen() ? [pronounControl('char', app), pronounControl('user', app)] : h('div', { class: 'ri-muted' }, 'Open a chat to set pronouns for it.'),
         h('div', { class: 'ri-help' }, 'Your choice is remembered for this character and this persona in new chats.')));
 
-    const profiles = listProfiles();
-    body.appendChild(section('AI connection for writing and checking',
-        field('Which AI connection to use', profiles.length ? 'Used when you write versions with AI and when a reply is checked. A small, fast model is enough.' : 'You have no connection profiles yet, so the chat\'s own connection is used. Make one in SillyTavern\'s Connection Profiles to use a cheaper model here.',
-            select([{ value: '', label: 'Same connection as the chat' }, ...profiles.map(p => ({ value: p.id, label: `Connection profile: ${p.name}` }))], st.profileId, (v) => { st.profileId = v; save(); })),
-        field('Give the AI more room to answer', 'Turn this on for models that think before they answer (DeepSeek, GLM, Kimi and others). Without it, the thinking can use up the room and the answer comes back empty. It turns itself on when an empty answer is fixed by a second try with more room.',
+    body.appendChild(section('Model connections and automatic requests',
+        h('details',{class:'ri-card ri-tight'},h('summary',{},'Choose a connection for each function'),executionSettings()),
+        field('Give the AI more room to answer', 'Increase the answer budget for models that use part of the answer for reasoning. An empty answer leaves the next attempt up to you.',
             select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
 
     body.appendChild(whereSection(app));
@@ -243,21 +242,23 @@ export function renderSettings(body, app) {
     body.appendChild(writerSection(app));
 
     body.appendChild(section('Check that it happened',
-        field('Check each reply that was sent an instruction', 'On: after the reply, one short AI request checks whether each instruction happened, and finds the words that show it. Off: nothing is checked or sent again.',
+        field('Check each reply that was sent an instruction', 'Automatic checks also need the permission below. Each check uses one additional model request to look for evidence in the reply.',
             select([{ value: 'full', label: 'On' }, { value: 'off', label: 'Off' }], st.check.mode, (v) => { st.check.mode = v; save(); app.render(); })),
+        executionSettings({operation:'instructionCheck'}),
         st.check.mode === 'off' ? null : [
             field('Send again if it did not happen', 'How many more times an instruction is sent, with firmer wording each time, before it stops. 0 never sends it again.',
                 numberInput(st.check.maxResend, { min: 0, max: 5, unit: 'more times' }, (n) => { st.check.maxResend = n; save(); })),
             field('While one is waiting to be sent again, hold back new instructions', 'On: the overdue instruction goes alone, so the AI has one thing to do.',
                 select([{ value: 'yes', label: 'On' }, { value: 'no', label: 'Off' }], st.check.holdNew ? 'yes' : 'no', (v) => { st.check.holdNew = v === 'yes'; save(); })),
-            field('Write a new reply right away when an instruction did not happen', 'On: the reply is swiped to a new one automatically, once. Off: the instruction is sent again with your next message.',
+            field('Write a new reply right away when an instruction did not happen', 'When automatic replacement is permitted, the host makes one additional swipe request after a missed instruction.',
                 select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.check.regenOnMiss ? 'yes' : 'no', (v) => { st.check.regenOnMiss = v === 'yes'; save(); })),
+            executionSettings({operation:'automaticSwipe'}),
             field('Check that the reply did not write for you', 'Checked in the same request, only on replies that were sent an instruction.',
                 select([{ value: 'off', label: 'Off' }, { value: 'flag', label: 'Show a warning in What Was Sent' }, { value: 'regen', label: 'Show a warning and write a new reply' }], st.check.agency, (v) => { st.check.agency = v; save(); })),
         ]));
 
     body.appendChild(promptGroup(['checker', 'systemCheck'], 'Customize checking instructions'));
-    body.appendChild(promptGroup(['guided'], 'Customize guided-swipe instruction'));
+    body.appendChild(promptGroup(['guided','guidedContinue','historicalSwipe','historicalContinue','freshStart'], 'Customize guided-turn instructions'));
 
     const underHelp = {
         off: 'Nothing is added to the chat screen. What was sent is always in the What Was Sent tab.',

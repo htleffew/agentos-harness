@@ -90,6 +90,20 @@ export const app = {
     go(route) { app.route = route; app.resetScroll = true; render(); app.root?.scrollIntoView?.({ block: 'start' }); },
 };
 
+function resizeExpandedPanel() {
+    const viewport=globalThis.visualViewport;
+    const panel=document.getElementById('ri_overlay');
+    if (!viewport || !panel) return;
+    panel.style.setProperty('--ri-panel-height',`${viewport.height}px`);
+    panel.style.setProperty('--ri-panel-top',`${viewport.offsetTop}px`);
+    panel.style.setProperty('--ri-panel-left',`${viewport.offsetLeft}px`);
+    panel.style.setProperty('--ri-panel-width',`${viewport.width}px`);
+    requestAnimationFrame(()=>{
+        const active=document.activeElement;
+        if (panel.contains(active) && active.matches('input,textarea,select')) active.scrollIntoView({block:'nearest'});
+    });
+}
+
 async function setExpanded(on) {
     const st = settings();
     st.expanded = !!on;
@@ -101,11 +115,16 @@ async function setExpanded(on) {
         let overlay = document.getElementById('ri_overlay');
         if (!overlay) { overlay = h('div', { id: 'ri_overlay', class: 'ri-overlay' }); document.body.appendChild(overlay); }
         overlay.appendChild(app.root);
+        globalThis.visualViewport?.addEventListener('resize',resizeExpandedPanel);
+        globalThis.visualViewport?.addEventListener('scroll',resizeExpandedPanel);
+        resizeExpandedPanel();
         app.root.classList.add('ri-expanded');
         app.root.setAttribute('role','dialog');
         app.root.setAttribute('aria-modal','true');
         app.root.setAttribute('aria-label','Roleplay Instructions');
     } else {
+        globalThis.visualViewport?.removeEventListener('resize',resizeExpandedPanel);
+        globalThis.visualViewport?.removeEventListener('scroll',resizeExpandedPanel);
         app.home.appendChild(app.root);
         app.root.classList.remove('ri-expanded');
         for (const name of ['role','aria-modal','aria-label']) app.root.removeAttribute(name);
@@ -160,7 +179,9 @@ export function render() {
         h('div', { class: 'ri-title' }, 'Roleplay Instructions'),
         h('div', { class: 'ri-head-right' },
             h('span', { class: 'ri-onoff' }, st.enabled ? 'On' : 'Off'),
-            toggle(st.enabled, (v) => { st.enabled = v; saveSettings(); render(); }, 'Turn the whole extension on or off'),
+            toggle(st.enabled, (v) => { st.enabled = v; saveSettings(); render(); refreshUnderReplies();
+                const quickEntry=document.querySelector('.ri-quick-entry');
+                if (quickEntry) quickEntry.hidden = !v || !isChatOpen(); }, 'Turn the whole extension on or off'),
             expand));
 
     const categories = h('nav',{class:'ri-categories','aria-label':'Roleplay sections'},

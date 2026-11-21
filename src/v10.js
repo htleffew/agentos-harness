@@ -12,7 +12,8 @@ import { promptText, roastVoiceText } from './prompts.js';
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating, isReply } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
 import { rollInt, createSet, cleanSetName, setInfo, setOfEntry } from './books.js';
-import { chatWorld, setChatWorld, loadWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
+import { chatWorld, setChatWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
+import { loadEffectiveWorld, worldBeforeGeneration } from './worldflow.js';
 import { statNames, sheet } from './dice.js';
 
 export const PRESET = 'Roleplay Instructions V10';
@@ -623,9 +624,9 @@ export async function createReusableBook(name, content = '') {
 
 export const createGuidelines = createReusableBook;
 
-export async function rowsForWorld() {
+export async function rowsForWorld(type = 'normal') {
     const id = chatWorld();
-    const data = id ? await loadWorld(id) : null;
+    const data = id ? await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}) : null;
     return data ? listWorld(data,id) : [];
 }
 
@@ -1017,7 +1018,8 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
         text && `Chosen greeting:\n${text}`, direction && `Opening direction:\n${safeText(direction,2000)}`,
         updateContract(modules,true),
     ].filter(Boolean).join('\n\n');
-    const result = await request({ what:text ? 'Read greeting for story state' : 'Draft story opening', system:promptText('systemOpening'), user, tokens:text?1200:2200, profileId:settings().profileId });
+    const result = await request({ operation:'storyOpening',authorization:'manual',what:text ? 'Read greeting for story state' : 'Draft story opening',
+        system:promptText('systemOpening'),user,tokens:text ? 1200 : 2200 });
     if (prefs() !== local) throw new Error('The chat changed.');
     const output = pairedPreset() ? separateReply(result.text).text : result.text;
     const parsed = extractUpdate(output,{sourceProse:text || undefined,allowPlayerThoughts:local.openingPlayerThoughts===true});

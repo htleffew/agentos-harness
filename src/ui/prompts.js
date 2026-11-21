@@ -1,32 +1,41 @@
-import { VOICES } from '../voices.js';
-import { selectedVoice } from '../prompts.js';
+import { createVoice, exportVoice, importVoice, voiceRecords } from '../voices.js';
 // Inline prompt editors. No model calls are made by this UI.
-import { h, button } from './dom.js';
-import { PROMPTS, promptText, promptStatus, validatePrompt, savePrompt, restorePrompt } from '../prompts.js';
+import { h, button, download } from './dom.js';
+import { promptDefinition, promptStatus, selectedVoice, validatePrompt, savePrompt, restorePrompt } from '../prompts.js';
 import { settings, saveSettings } from '../store.js';
+import { promptOwner } from '../prompt-variations.js';
+import { promptComparison, variationEditor } from './prompt-variations.js';
 
 export function promptEditor(id, { saveLabel = 'Save instruction', onChange = () => {} } = {}) {
-    const def = PROMPTS[id];
+    const def = promptDefinition(id);
     if (!def) throw new Error(`Unknown instruction: ${id}`);
     const title = h('span', {}, def.label);
     const badge = h('span', { class: 'ri-prompt-badge' });
     const note = h('div', { class: 'ri-help', role: 'status' });
     const box = h('textarea', { class: 'ri-input ri-textarea', rows: Math.max(3, Math.min(10, def.text.split('\n').length + 1)), maxLength: 12000, 'aria-label': def.label });
     // Show the saved template, not rendered chat data or substituted placeholders.
-    box.value = settings().prompts?.[id]?.text ?? def.text;
+    const active = () => settings().prompts?.[id]?.text ?? def.text;
+    box.value = active();
     let savedText = box.value;
-    const defaultView = h('details', { class: 'ri-prompt-default' }, h('summary', {}, 'View current default'), h('pre', {}, def.text));
+    const defaultView = h('details', { class: 'ri-prompt-default' }, h('summary', {}, 'Compare with baseline'));
+    const original = id.startsWith('voice-') ? 'First saved voice direction' : 'Installed extension default';
     const required = def.required.length ? `Keep ${def.required.map(x => `{${x}}`).join(', ')}; the extension fills ${def.required.length === 1 ? 'it' : 'them'} in.` : 'Live story details and any required response format are supplied separately.';
     const update = () => {
         const status = promptStatus(id);
         badge.textContent = status.customized ? 'Customized' : 'Default';
-        defaultView.hidden = !status.defaultChanged;
         if (status.defaultChanged) note.textContent = 'The built-in default has changed since you saved this instruction. Your wording is still in use.';
     };
+    function assertCurrent() {
+        if (active()!==savedText) throw new Error('This instruction was changed in another editor. Reopen it to compare before saving.');
+    }
+    function commit() {
+        assertCurrent();
+        savePrompt(id,box.value);
+        savedText=box.value;
+        syncDraft(); update(); onChange();
+    }
     const save = button(saveLabel, () => {
-        const error = validatePrompt(id, box.value);
-        if (error) { note.textContent = error; return; }
-        try { savePrompt(id, box.value); savedText=box.value; syncDraft(); update(); onChange(); note.textContent = 'Saved.'; } catch (e) { note.textContent = e.message; }
+        try { commit(); note.textContent = 'Saved.'; } catch (e) { note.textContent = e.message; }
     }, { kind: 'primary' });
     const discard = button('Discard draft', () => {
         box.value=savedText;
@@ -37,23 +46,38 @@ export function promptEditor(id, { saveLabel = 'Save instruction', onChange = ()
     let undoValue = null;
     const undo = button('Undo restore', () => {
         if (!undoValue) return;
-        const st = settings(); st.prompts ||= {}; st.prompts[id] = undoValue; saveSettings();
-        box.value = savedText = undoValue.text; syncDraft(); undoValue = null; undo.hidden = true; update(); onChange(); note.textContent = 'Your previous instruction was restored.';
+        try {
+            assertCurrent(); savePrompt(id,undoValue);
+            box.value = savedText = undoValue; undoValue = null; undo.hidden = true; syncDraft(); update(); onChange();
+            note.textContent = 'Your previous instruction was restored.';
+        } catch (error) { note.textContent=error.message; }
     }, { kind: 'ghost' });
     undo.hidden = true;
-    const restore = button('Restore default', () => {
-        const previous = settings().prompts?.[id];
-        undoValue = previous ? structuredClone(previous) : null;
-        restorePrompt(id); box.value = savedText = def.text; syncDraft(); undo.hidden = !undoValue; update(); onChange(); note.textContent = 'Restored to the installed default.';
+    const restore = button(id.startsWith('voice-') ? 'Restore first saved voice' : 'Restore default', () => {
+        try {
+            assertCurrent(); undoValue = savedText === def.text ? null : savedText;
+            restorePrompt(id); box.value = savedText = def.text; syncDraft(); undo.hidden = !undoValue; update(); onChange();
+            note.textContent = `${original} restored.`;
+        } catch (error) { note.textContent=error.message; }
     }, { kind: 'ghost' });
+    const variants = variationEditor({owner:promptOwner('extension',id),readDraft:()=>box.value,readActive:active,
+        loadDraft:value=>{box.value=value;syncDraft();},applyDraft:commit,validate:value=>typeof value==='string' ? validatePrompt(id,value) : 'Choose a text instruction variation.'});
     const wrap = h('details', { class: 'ri-prompt-editor' },
         h('summary', {}, title, badge),
         h('div', { class: 'ri-prompt-body' }, h('div', { class: 'ri-help' }, [def.help, required].filter(Boolean).join(' ')), box, defaultView,
-            h('div', { class: 'ri-row ri-row-tight' }, save, discard, restore, undo), note));
+            h('div', { class: 'ri-row ri-row-tight' }, save, discard, restore, undo), variants.root, note));
+    const difference = h('div');
+    defaultView.append(difference);
+    const showDifference = () => {
+        if (defaultView.open) difference.replaceChildren(promptComparison({before:def.text,after:box.value,beforeLabel:original}));
+    };
+    defaultView.ontoggle=showDifference;
     function syncDraft() {
         const dirty = box.value!==savedText;
         wrap.toggleAttribute('data-ri-dirty',dirty);
         discard.hidden = !dirty;
+        variants.updateDraftStatus();
+        showDifference();
     }
     box.addEventListener('input',syncDraft);
     syncDraft();
@@ -83,12 +107,10 @@ export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice')
     const content = h('div');
     const picker = h('select',{class:'ri-input','aria-label':'Commentator voice'});
     const refreshLabels = () => {
-        for (const option of picker.options) {
-            option.textContent = VOICES[option.value][0] + (promptStatus(option.value).customized ? ' · Customized' : '');
-        }
+        const current=selectedVoice();
+        picker.replaceChildren(...voiceRecords().map(({id,name})=>h('option',{value:id},name+(promptStatus(id).customized ? ' · Customized' : ''))));
+        picker.value=current;
     };
-    for (const id of Object.keys(VOICES)) picker.append(h('option',{value:id}));
-    picker.value = selectedVoice();
     const editors = new Map();
     function showVoice() {
         refreshLabels();
@@ -100,8 +122,31 @@ export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice')
         saveSettings();
         showVoice();
     };
+    const name=h('input',{class:'ri-input',maxLength:80,'aria-label':'New commentator voice name'});
+    const direction=h('textarea',{class:'ri-input ri-textarea',rows:4,maxLength:12000,'aria-label':'New commentator voice direction'});
+    const note=h('p',{class:'ri-help','aria-live':'polite'});
+    const file=h('input',{type:'file',accept:'.json,application/json','aria-label':'Import voice JSON',style:{maxWidth:'100%'}});
+    file.onchange=async()=>{
+        const source=file.files?.[0];
+        if (!source) return;
+        try {
+            if (source.size>2000000) throw new Error('The voice JSON file is too large.');
+            importVoice(JSON.parse(await source.text())); showVoice(); note.textContent='Voice and variations imported.';
+        } catch (error) { note.textContent=error.message; } finally { file.value=''; }
+    };
     group.append(h('label',{class:'ri-field'},'Commentator voice',picker),
-        h('p',{class:'ri-help'},'Used for future Roast cards across chats. Each voice keeps its own edits.'),content,...otherIds.map(id=>promptEditor(id)));
+        h('p',{class:'ri-help'},'Used for future Roast cards across chats. Each voice keeps its own edits.'),content,
+        h('details',{},h('summary',{},'New commentator voice'),h('label',{class:'ri-field'},'Voice name',name),
+            h('label',{class:'ri-field'},'Voice direction',direction),button('Save new voice',()=>{
+                try { createVoice(name.value,direction.value); name.value=direction.value=''; showVoice(); note.textContent='Created and selected a voice.'; }
+                catch (error) { note.textContent=error.message; }
+            })),
+        h('details',{},h('summary',{},'Import or export a voice'),file,
+            button('Export selected voice',()=>{
+                const voice=exportVoice(selectedVoice());
+                if (download(`${voice.name.replace(/[\\/:*?"<>|]/g,'-')}.json`,JSON.stringify(voice,null,2))) note.textContent='Export started.';
+                else note.textContent='This host could not start the download.';
+            })),note,...otherIds.map(id=>promptEditor(id)));
     showVoice();
     return group;
 }

@@ -1,0 +1,67 @@
+.ri-qa-library,
+.ri-qa-library-block {
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    min-width: 0;
+}
+.ri-qa-library-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem;
+}
+.ri-qa-library-details {
+    border: 1px solid var(--SmartThemeBorderColor, currentColor);
+    border-radius: .5rem;
+    padding: 0 .55rem .35rem;
+    min-width: 0;
+}
+.ri-qa-library-details > summary {
+    cursor: pointer;
+    align-content: center;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+}
+.ri-qa-library-details > :not(summary) {
+    margin-top: .35rem;
+}
+.ri-qa-library :is(button, input, select) {
+    min-height: 44px;
+    max-width: 100%;
+}
+.ri-qa-library :is(button, p, strong, label, span) {
+    overflow-wrap: anywhere;
+}
+.ri-qa-library .ri-field,
+.ri-qa-library .ri-control {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+}
+.ri-qa-library textarea {
+    box-sizing: border-box;
+    min-height: 5.5rem;
+    width: 100%;
+}
+.ri-qa-library-check {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    gap: .45rem;
+}
+.ri-qa-library-check > input {
+    min-height: 0;
+    width: 1.2rem;
+    height: 1.2rem;
+    flex-shrink: 0;
+}
+.ri-qa-exact {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.ri-qa-library-status:empty {
+    display: none;
+}

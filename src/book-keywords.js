@@ -1,15 +1,14 @@
 import { request } from './ai.js';
 import { ctx, parseJson } from './st.js';
-import { settings } from './store.js';
 import { promptText } from './prompts.js';
 
 export async function suggestEntryKeywords({ title, text }) {
     const content=String(text || '').trim();
     if (!content) throw new Error('Enter the entry’s text first.');
     const chat=ctx().getCurrentChatId?.();
-    const result=await request({what:'Suggest lorebook trigger phrases',system:promptText('systemBookKeywords'),
+    const result=await request({operation:'bookKeywords',authorization:'manual',what:'Suggest lorebook trigger phrases',system:promptText('systemBookKeywords'),
         user:`${promptText('bookKeywords')}\nReturn a JSON object with a keywords array of strings.\n${JSON.stringify({title,text:content.slice(0,8000)})}`,
-        tokens:400,profileId:settings().profileId,retryEmpty:false});
+        tokens:400});
     if (ctx().getCurrentChatId?.()!==chat) throw new Error('The chat changed before suggestions arrived.');
     const value=parseJson(result.text,{object:true});
     if (!Array.isArray(value?.keywords)) {

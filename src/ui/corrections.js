@@ -3,8 +3,10 @@ import { promptGroup } from './prompts.js';
 import { ctx, KEY, isChatOpen, toast } from '../st.js';
 import { chatState } from '../store.js';
 import { correctionSwipeTarget, regenerateStoryCorrection } from '../engine.js';
-import { applyStoryCorrection, beginStoryCorrection, correctionExcerpt, findCorrectionSources, suggestCorrectionEdits } from '../corrections.js';
+import { applyStoryCorrection, beginStoryCorrection, correctionExcerpt, findCorrectionSources, runFactRepair, suggestCorrectionEdits, undoStoryCorrection } from '../corrections.js';
 import { replaceUnique } from '../correction-rules.js';
+import { executionPreview, executionReceipt } from '../execution.js';
+import { executionDetails, executionSettings } from './execution.js';
 
 function openMessage(index) {
     const host = ctx();
@@ -26,7 +28,7 @@ function sourceRow(source, proposal, review, target, onChange) {
     const remove = h('input',{type:'checkbox',checked:proposal?.replacement==='', 'aria-label':'Remove the quoted wording'});
     const location = [
         source.span && 'Chapter covers replies '+source.span.from+'–'+source.span.to,
-        source.kind==='world' && source.evidenceAt>=0 && 'Filed from chat message '+(source.evidenceAt+1),
+        source.kind==='world' && source.evidenceAt>=0 && (source.pending ? 'Editable · from chat message ' : 'Filed from chat message ')+(source.evidenceAt+1),
         ['lore','card'].includes(source.kind) && 'Uses a corrected copy in this chat.',
         source.user && 'Changes your original message if applied.',
         editTarget && 'Changes the selected original swipe if applied. Leave unchecked to preserve that swipe.',
@@ -74,6 +76,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     const regenerate = h('input',{type:'checkbox',checked:!!target,disabled:!target,'aria-label':'Regenerate the latest reply'});
     const auto = h('input',{type:'checkbox','aria-label':'Find and update sources with AI'});
     const cost = h('p',{class:'ri-help','aria-live':'polite'});
+    const execution = h('div');
     const manualHint = h('p',{class:'ri-help',hidden:true},'Source edits you checked will be applied. Clear those selections to use automatic source editing.');
     let review, rows=[], found=[], revision=0, busy=false;
     const configure = () => {
@@ -86,7 +89,11 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             : requests === 2 ? 'Up to 2 model requests · one to trace sources and one to generate a new swipe.'
                 : auto.checked ? 'Up to 1 model request to find and update sources.' : '1 model request to generate a new swipe.';
         save.disabled = busy || !truth.value.trim() || rows.some(row=>row.check());
-        search.disabled = trace.disabled = busy || !truth.value.trim();
+        audit.disabled = busy;
+        search.disabled = busy || (!truth.value.trim() && !wording.value.trim());
+        trace.disabled = busy || !truth.value.trim();
+        execution.replaceChildren(executionDetails(executionReceipt('factRepair') ||
+            executionPreview('factRepair',{stage:auto.checked ? 'additional' : 'code'})));
     };
     const doc = () => ({truth:truth.value,wording:wording.value,focus});
     const showRetry = (correction, requestedTarget, traceNote) => {
@@ -127,32 +134,55 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         truth.disabled=wording.disabled=regenerate.disabled=true;
         status.textContent=useModel ? 'Tracing the correction and applying source edits…' : 'Saving the correction…';
         try {
-            let current=review || beginStoryCorrection(doc());
-            let edits=rows.filter(row=>row.selected.checked).map(row=>row.edit());
+            const edits=rows.filter(row=>row.selected.checked).map(row=>row.edit());
             let traceNote='';
-            if (useModel) {
-                current=await findCorrectionSources(doc());
-                try {
-                    const drafts=await suggestCorrectionEdits(current);
-                    edits=drafts.filter(draft=>{
-                        const source=current.candidates.find(item=>item.id===draft.id);
-                        return source && !source.user && draft.replacement.trim() &&
-                            !(source.kind==='message' && source.index===requestedTarget?.index);
-                    });
-                    if (!edits.length) traceNote='No source wording was changed.';
-                } catch(error) {
-                    edits=[]; traceNote='Source tracing failed. '+error.message;
+            let correction;
+            if (edits.length) correction = await applyStoryCorrection(review || beginStoryCorrection(doc()),edits);
+            else {
+                const inspected = await runFactRepair({...doc(),useModel});
+                const evidence = h('details',{},h('summary',{},`Sources checked (${inspected.checked.length})`),
+                    h('ul',{},inspected.checked.map(source=>h('li',{},source))),
+                    inspected.protected.length ? h('p',{class:'ri-help'},'Kept the wording of '+inspected.protected.length+' story sources.') : null);
+                if (!inspected.correction) {
+                    status.textContent=inspected.unresolved.join(' ');
+                    results.replaceChildren(evidence);
+                    return;
                 }
+                correction = inspected.correction;
+                traceNote = 'Checked '+inspected.checked.length+' sources.';
+                results.replaceChildren(evidence);
             }
-            const correction = await applyStoryCorrection(current,edits);
-            results.replaceChildren(); rows=[]; review=null;
+            rows=[]; review=null;
             truth.value=''; wording.value=''; auto.checked=false; onSaved(correction);
+            results.append(button('Undo source repair',async()=>{
+                try { await undoStoryCorrection(correction.id); results.replaceChildren(); status.textContent='Source repair undone.'; onSaved(); }
+                catch (error) { status.textContent=error.message; }
+            },{kind:'ghost'}));
             await settle(correction,requestedTarget,traceNote);
             (await import('./sent.js')).refreshUnderReplies();
         } catch (error) { status.textContent=error.message; }
         finally {busy=false;truth.disabled=wording.disabled=false;regenerate.disabled=!target;configure();}
     }
     const save=button('Apply correction',()=>commit(auto.checked),{kind:'primary',disabled:true});
+    const audit=button('Repair facts only',async()=>{
+        if (busy) return;
+        busy=true; configure();
+        try {
+            const inspected = await runFactRepair(doc());
+            status.textContent=inspected.correction
+                ? `Checked ${inspected.checked.length} sources and repaired ${inspected.repaired.length}.`
+                : inspected.unresolved.join(' ');
+            results.replaceChildren(h('details',{},h('summary',{},'Sources checked'),h('ul',{},inspected.checked.map(source=>h('li',{},source)))));
+            if (inspected.correction) {
+                results.append(button('Undo source repair',async()=>{
+                    try { await undoStoryCorrection(inspected.correction.id); results.replaceChildren(); status.textContent='Source repair undone.'; onSaved(); }
+                    catch (error) { status.textContent=error.message; }
+                },{kind:'ghost'}));
+                onSaved(inspected.correction);
+            }
+        } catch (error) { status.textContent=error.message; }
+        finally {busy=false;configure();}
+    },{kind:'ghost'});
     const more = button('Show more source matches',()=>{
         for (const {source,proposal} of found.slice(rows.length,rows.length+8)) {
             const row=sourceRow(source,proposal,review,target,configure);
@@ -170,7 +200,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         status.textContent=useModel ? 'Tracing the correction…' : 'Searching story sources…';
         results.replaceChildren(); rows=[]; review=null;
         try {
-            const current=await findCorrectionSources(doc());
+            const current=await findCorrectionSources({...doc(),audit:!useModel});
             let proposals=[], traceError='';
             if (useModel) {
                 try {proposals=await suggestCorrectionEdits(current);}
@@ -185,14 +215,20 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             const count = current.sources.length;
             const matches = count ? `${count} source ${count===1 ? 'match' : 'matches'}.` : 'No source text matched.';
             status.textContent = [matches,useModel && (traceError || (proposals.length ? `${proposals.length} proposed edits to review.` : 'The model found no reliable edits.')),
-                !found.length && 'You can still save the correction.'].filter(Boolean).join(' ');
+                !truth.value.trim() && 'Enter the corrected fact before saving.',
+                truth.value.trim() && !found.length && 'You can still save the correction.'].filter(Boolean).join(' ');
         } catch(error) { if (revision===started) status.textContent=error.message; }
         finally {busy=false;configure();}
     }
     const invalidate = () => {
         revision++; review=null; rows=[]; results.replaceChildren(); status.textContent=''; configure();
     };
-    truth.addEventListener('input',invalidate);
+    truth.addEventListener('input',()=>{
+        if (!review?.wording) return invalidate();
+        review.truth=truth.value.trim();
+        status.textContent=review.truth ? 'Review the matching sources before applying the correction.' : 'Enter the corrected fact before saving.';
+        configure();
+    });
     wording.addEventListener('input',invalidate);
     regenerate.addEventListener('change',configure);
     auto.addEventListener('change',configure);
@@ -209,12 +245,14 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         manualHint,
         target && h('label',{class:'ri-row'},regenerate,' Regenerate the latest reply'),
         cost,
-        h('div',{class:'ri-row'},save),
+        h('div',{class:'ri-row'},save,audit),
+        execution,
         status,
         h('details',{class:'ri-correction-sources'},h('summary',{},'Find and edit source records'),
             h('label',{class:'ri-field'},'Wrong wording, optional',wording),
-            h('p',{class:'ri-help'},'Enter an exact phrase to narrow the search. AI tracing can propose source edits in one additional request.'),
-            h('div',{class:'ri-row'},search,trace)),
+            h('p',{class:'ri-help'},'Search by exact wording or by the corrected fact. Saving needs the corrected fact. AI tracing can propose source edits in one additional request.'),
+            h('div',{class:'ri-row'},search,trace),
+            executionSettings({operation:'factRepair'})),
         promptGroup(['traceCorrection','correctionSwipe','correctionCanon'],'Customize correction prompts'),
         results);
 }
@@ -226,7 +264,11 @@ export function renderCorrections(body) {
         const corrections = [...(chatState()?.storyCorrections || [])].reverse();
         list.replaceChildren(...corrections.map(correction=>h('details',{class:'ri-card ri-tight'},
             h('summary',{},correction.truth),
-            h('ul',{},correction.sources.map(source=>h('li',{},source.label+(['lore','card'].includes(source.kind) ? ' · this chat' : '')))))));
+            h('ul',{},correction.sources.map(source=>h('li',{},source.label+(['lore','card'].includes(source.kind) ? ' · this chat' : '')))),
+            correction.undo && button('Undo source repair',async()=>{
+                try { await undoStoryCorrection(correction.id); renderHistory(); }
+                catch (error) { toast('error',error.message); }
+            },{kind:'ghost'}))));
         list.hidden=!corrections.length;
     };
     const form = correctionEditor({onSaved:()=>{

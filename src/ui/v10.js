@@ -1,9 +1,14 @@
 import { DEFAULT_NPC_AVOID } from '../npc-names.js';
 import { DEFAULT_STORY_AVOID } from '../defaults.js';
+import { executionAction, executionDetails, functionExecution } from './execution.js';
+import { executionPreview, executionReceipt } from '../execution.js';
 import { presetWorkbench } from './preset-workbench.js';
 import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
 import { promptGroup, roastVoiceEditor } from './prompts.js';
+import { impersonationInspector } from './impersonation.js';
+import { promptComparison, variationEditor } from './prompt-variations.js';
+import { promptOwner } from '../prompt-variations.js';
 import { renderChatBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
@@ -28,6 +33,7 @@ const entryLabel = kind => ({fact:'Fact',profile:'Portrayal',knowledge:'Knowledg
 const scoped = (label, control) => h('label',{class:'ri-field'},h('span',{class:'ri-label'},label),control);
 
 function profileEditor(local, key, label, fallback, standalone=true, list=false) {
+    const chatId=ctx().getCurrentChatId?.();
     const box = textArea(local[key] ?? fallback, () => {}, {rows:5,id:standalone ? `ri-profile-${key}` : undefined,'aria-label':label});
     const badge = h('span',{class:'ri-prompt-badge'});
     const status = h('p',{class:'ri-help',role:'status'});
@@ -40,25 +46,60 @@ function profileEditor(local, key, label, fallback, standalone=true, list=false)
         box.value = avoidPhrases([box.value, fallback].join('\n')).join('\n');
         update('Defaults added to the draft. Save list to apply.');
     }, {kind:'ghost'}) : null;
+    const validate = value=> typeof value==='string' && value.length<=12000 ? '' : 'Keep the guidance within 12,000 characters.';
+    function assertScope() { if (ctx().getCurrentChatId?.()!==chatId) throw new Error('Open the originating chat to save its guidance.'); }
+    function commit() {
+        assertScope();
+        const problem=validate(box.value);
+        if (problem) throw new Error(problem);
+        local[key]=box.value.trim();
+        box.value=local[key];
+        saveChatState();
+        update('Saved for this chat.');
+    }
+    let restoreValue;
+    const undo=button('Undo restore',()=>{
+        try {
+            assertScope();
+            if (local[key]!==undefined) throw new Error('The active guidance changed after the restore.');
+            local[key]=restoreValue;
+            box.value=restoreValue;
+            saveChatState();
+            restoreValue=undefined; undo.hidden=true;
+            update('Previous guidance restored.');
+        } catch (error) { update(error.message); }
+    },{kind:'ghost'});
+    undo.hidden=true;
+    const variations = !list && variationEditor({owner:promptOwner('chat',chatId,key),readDraft:()=>box.value,
+        readActive:()=>local[key] ?? fallback,loadDraft:value=>{box.value=value;update('');},applyDraft:commit,validate});
+    const compare = h('details',{},h('summary',{},'Compare with installed default'));
+    const differences=h('div'); compare.append(differences);
+    function refreshCompare() {
+        if (compare.open) differences.replaceChildren(promptComparison({before:fallback,after:box.value,beforeLabel:'Installed default'}));
+    }
+    compare.ontoggle=refreshCompare;
     const form = h('details',{class:'ri-card ri-tight'},h('summary',{},label,' ',badge),
         h('p',{class:'ri-help'},list ? 'One entry per line. Matches appear in reply Notes. Changes apply to this chat.' : 'Changes apply to this chat.'),box,
         h('div',{class:'ri-row'},button(list ? 'Save list' : 'Save guidance',()=>{
-            local[key]=box.value.trim();
-            box.value=local[key];
-            saveChatState();
-            update('Saved for this chat.');
+            try { commit(); } catch (error) { update(error.message); }
         },{kind:'primary'}),discard,button('Restore default',()=>{
-            delete local[key];
-            box.value=fallback;
-            saveChatState();
-            update('Restored the default for this chat.');
-        },{kind:'ghost'}),addDefaults),status);
+            try {
+                assertScope();
+                restoreValue=local[key]; undo.hidden=restoreValue===undefined;
+                delete local[key];
+                box.value=fallback;
+                saveChatState();
+                update('Restored the default for this chat.');
+            } catch (error) { update(error.message); }
+        },{kind:'ghost'}),undo,addDefaults),compare,variations && variations.root,status);
     function update(message) {
         badge.textContent = Object.hasOwn(local,key) ? 'Customized' : 'Default';
         const dirty = box.value!==(local[key] ?? fallback);
         form.toggleAttribute('data-ri-dirty',dirty);
         discard.hidden=!dirty;
         status.textContent=message;
+        variations && variations.updateDraftStatus();
+        refreshCompare();
     }
     box.addEventListener('input',()=>update(''));
     update('');
@@ -68,13 +109,14 @@ function profileEditor(local, key, label, fallback, standalone=true, list=false)
 function renderOpening(local, redraw) {
     const list = greetings();
     const state = h('div',{class:'ri-note','role':'status'});
+    const execution=h('div');
     const chatId = ctx().getCurrentChatId?.();
     let draft;
     const area = textArea('',()=>{}, {rows:8, 'aria-label':'Opening preview'});
-    area.addEventListener('input',()=>{area.dataset.v10Draft='';});
+    area.addEventListener('input',()=>{area.dataset.v10Draft='';refreshExecution();});
     const direction = textArea('',()=>{}, {oninput:()=>{area.dataset.v10Draft='';},placeholder:'Optional direction for a new opening', 'aria-label':'Opening direction'});
     const card = select([{value:'new',label:'Generate a new opening'},...list.map((_,i)=>({value:String(i),label:i ? `Alternate greeting ${i}` : 'Main greeting'}))], list.length ? '0':'new',value=>{
-        draft = null; area.value = value === 'new' ? '' : list[Number(value)];
+        draft = null; area.value = value === 'new' ? '' : list[Number(value)]; refreshExecution();
     },{'aria-label':'Opening source'});
     area.value = list[0] || '';
     const run = async (event, stateOnly) => {
@@ -90,21 +132,29 @@ function renderOpening(local, redraw) {
             area.value = draft.prose;
             state.textContent = 'Review the draft before using it. Edits are checked against the proposed story facts.';
         } catch (error) { state.textContent = error.message; }
-        finally {trigger.disabled=card.disabled=accept.disabled=area.disabled=direction.disabled=false;}
+        finally {trigger.disabled=card.disabled=accept.disabled=area.disabled=direction.disabled=false;refreshExecution();}
     };
+    const needsRead=()=>!!area.value.trim() && !draft && !/<story_update[ >]/i.test(area.value);
     const accept = button('Use this opening',async () => {
         accept.disabled = true;
         try {
             if (ctx().getCurrentChatId?.() !== chatId) throw new Error('The chat changed.');
             const text = area.value;
             if (!text.trim()) throw new Error('Choose, generate, or enter an opening first.');
-            if (!draft && !/<story_update[ >]/i.test(text)) {
+            if (needsRead()) {
                 state.textContent = 'Reading opening state…';
                 draft = await draftOpening({text});
             }
             await acceptV10Opening(draft,text); redraw();
-        } catch(error) { state.textContent=error.message; accept.disabled=false; }
+        } catch(error) { state.textContent=error.message; accept.disabled=false; refreshExecution(); }
     }, {kind:'primary'});
+    function refreshExecution() {
+        accept.textContent=needsRead() ? 'Read state and use this opening' : 'Use this opening';
+        if (needsRead()) executionAction(accept);
+        else { delete accept.dataset.riModelCost; accept.removeAttribute('aria-description'); }
+        execution.replaceChildren(functionExecution('storyOpening',{receipt:executionReceipt('storyOpening')}));
+    }
+    refreshExecution();
     const available = (ctx().chat || []).length <= 1 && !ctx().chat?.[0]?.extra?.[KEY]?.v10;
     return section('Opening setup',profileEditor(local,'opening','Opening message guidance',OPENING),
         promptGroup(['systemOpening','readGreeting','openingPlayerThoughts','sceneOpening'],'Customize opening and greeting prompts'),
@@ -112,7 +162,7 @@ function renderOpening(local, redraw) {
             h('label',{class:'ri-row'},h('input',{type:'checkbox',checked:local.openingPlayerThoughts===true,onchange:event=>{
                 local.openingPlayerThoughts=event.currentTarget.checked;saveChatState();
             }}),'Allow the generated opening to write my character’s internal thoughts'),
-            h('div',{class:'ri-row'},button('Generate opening',event=>run(event,false)),button('Read state from selected greeting',event=>run(event,true))),
+            h('div',{class:'ri-row'},executionAction(button('Generate opening',event=>run(event,false))),executionAction(button('Read state from selected greeting',event=>run(event,true)))),execution,
             scoped('Review or edit opening',area), accept,state] : h('p',{class:'ri-help'},'Opening setup is available at the start of a chat.'));
 }
 
@@ -445,6 +495,7 @@ function presetDetails(preset, app) {
         isCompanionPreset(preset) ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
         prompts ? presetWorkbench(preset,app,key=>key==='style' ? profileEditor(prefs(),'style','Live writing guidance',defaultWritingGuidance(),false)
             : key==='preflight' ? profileEditor(prefs(),'preflight','Scene check guidance',PREFLIGHT,false) : null) : h('p',{class:'ri-help'},'This host connection does not expose an ordered list of preset prompt blocks.'),
+        impersonationInspector(),
         button('Review What Was Sent',()=>app.openPage('sent'),{kind:'ghost'}));
 }
 
@@ -588,6 +639,16 @@ export function renderV10(body, app, page) {
     const chatFlag = (key, label, hint, defaultOn = false) => field(label,hint,
         select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
             {id:`ri-${key}`,'aria-label':label}));
+    const replyScreening = () => section('Reply screening',
+        profileEditor(local,'avoidPhrases','Stock phrases to avoid',DEFAULT_STORY_AVOID,true,true),
+        !enabledV10() && profileEditor(local,'avoidNpcNames','New NPC names to avoid',DEFAULT_NPC_AVOID,true,true),
+        chatFlag('proseMetrics','Show turn length and dialogue share','Add word count and the approximate percentage in quotation marks to the reply’s Notes tab.'),
+        chatFlag('proseAudit','Review recent writing with the reply','Add a short review of recurring writing patterns when at least two earlier story replies are available. Notes show which revisions support each finding.'),
+        promptGroup(['proseReview'],'Customize the writing review prompt'),
+        executionDetails([
+            executionPreview('prose-screen',{stage:'code',label:'Local prose screening',trigger:'When the reply is accepted.'}),
+            executionPreview('prose-audit',{stage:'reply',label:'Review and next-turn guidance',trigger:'On an ordinary story reply when enabled or supported guidance is ready.'}),
+        ]));
     if (page === 'books') {
         if (app.loreTarget) {
             const target=app.loreTarget;
@@ -628,6 +689,10 @@ export function renderV10(body, app, page) {
         return;
     }
     if (!enabledV10()) {
+        if (page==='writing' && !memoryOnly()) {
+            body.append(replyScreening());
+            return;
+        }
         if (page==='display') body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
         body.append(h('div',{class:'ri-note'},
             h('p',{},'Choose the Structured story workflow to use this page.'),
@@ -691,8 +756,7 @@ export function renderV10(body, app, page) {
                             (local.sceneChecks ||= {})[key]=event.currentTarget.checked;saveChatState();
                         }}),label,hostChecks[key] && h('span',{class:'ri-help'},`Host preset · ${hostChecks[key]}`))),
                     promptGroup([...Object.keys(SCENE_CHECKS).map(sceneCheckId),'sceneSolo','sceneEnsemble','sceneUnknown','sceneContinue'],'Customize individual scene checks')),
-                profileEditor(local,'avoidPhrases','Stock phrases to avoid',DEFAULT_STORY_AVOID,true,true),
-                chatFlag('proseMetrics','Show turn length and dialogue share','Add word count and the approximate percentage in quotation marks to the reply’s Notes tab.'));
+                replyScreening());
             break;
         }
         case 'checks': body.append(promptGroup(['resolvedActionGuidance'],'Customize action check prompt'),

@@ -7,6 +7,7 @@ This guide describes the `roleplay-instructions-v10` branch and extension manife
 ## Contents
 
 - [Install and configure](#install-and-configure)
+- [Quick actions](#quick-actions)
 - [Interface map](#interface-map)
 - [Workflow and prompt ownership](#workflow-and-prompt-ownership)
 - [Response length and writing guidance](#response-length-and-writing-guidance)
@@ -37,6 +38,25 @@ This guide describes the `roleplay-instructions-v10` branch and extension manife
 6. Send a normal chat message. Use **Review → What Was Sent** for the reply’s receipt. Select **Setup → Reply Display** to choose what appears beneath replies. To try a scheduled direction, open **Direction → Random Instructions → Add instruction set**, add and save an instruction with at least one version, and enable the set for this chat.
 
 The extension requests and files generated story state only under the applicable workflow and modules. Installing the extension alone leaves existing replies without generated receipts. [Extension entry point](index.js) · [Memory components](src/components.js) · [Panel navigation](src/ui/panel.js)
+
+## Quick actions
+
+Open **Quick actions** beside the chat composer. The same sheet opens for a specific reply from **Guide a swipe** or **Continue this reply** below that reply. Use one active host preset. The companion and other presets enter through the same controls.
+
+| Action | What it does | Requests |
+| --- | --- | --- |
+| **Steer the next reply** | Pick a saved direction, browse or roll from sources, or enter your own. Queue private guidance, visible OOC, or a required direction. Review exact wording in **Pending directions** before sending a player message. | Uses the next ordinary reply. |
+| **Guide a swipe** | Select the reply and swipe, add optional cues or wording, and generate an alternate. **Fix world facts** checks supported source evidence. Use **Corrections** for manual edits, source history and Undo. | The latest supported reply uses a host swipe. An older reply uses one disclosed helper request. The local fact audit uses code. |
+| **Continue this reply** | Append to the selected swipe and use **Undo continuation** to recover the earlier text and effects. | The latest supported reply uses a host continuation. An older reply uses one disclosed helper request. |
+| **Draft my reply** | Inspect the impersonation prompt, draft your own contribution, or request three playable choices. Edit a result before placing it in the composer. **Recover previous composer draft** restores the prior text and selection. | One request per draft or choice batch. Expanding a choice is a separate request. Editing and using wording run in code. |
+
+Use **Browse all** for exact versions, scoped rolls, and source owners. Pin directions in a chat for quick access. **Customize** opens selection mode so a favorite can be combined with additional cues and free text. **Manage** opens button editing, ordering, named variations, import and export, restore, and Undo. A reviewed import can translate supported Keel definitions into extension actions. Other imported material remains available as data. Queue entries keep the wording chosen when queued. [Quick actions handoff](docs/quick-replies-implementation.md)
+
+**Fresh start** applies to an explicit action or the next five accepted forward story replies. Its disclosure describes whether the host replaces earlier story prose with factual context or retains it. The countdown lives in its chat and has a Stop control. **How it ran** shows route, attempts and outcome. Use **Setup → Settings → Model request settings** to save a connection for each function and opt in to any background work. An unavailable saved profile stops that step with its draft available for recovery. [Prompt assembly standard](docs/prompt-assembly-standard.md)
+
+The latest six story replies form the default editable memory window. They contribute to effective recall before their automatic changes are filed in the physical Story World. Existing filed material and manual locks survive migration. **Review → Context & Memory** shows filing state and controls. With an explicitly enabled 20-filed-reply chapter threshold, the first automatic summary qualifies at accepted reply 26 in a fresh chat. **Direction → Writing Guidance → Reply screening** controls optional same-reply findings. **Notes** shows current evidence and any one-use writing guidance without a separate screening request.
+
+Chat Completion supports observable queued delivery. Text Completion can use the guide and draft routes available on the host and explicitly reports retained prose where it lacks request-local history replacement. Native file picking and downloads depend on the browser or app. Preset restore identifies the stored source as an extension snapshot, a supplied original file, or a host default when exposed. See the verification record for device, provider and host coverage. [Quick actions verification](docs/quick-replies-verification.md)
 
 ## Interface map
 

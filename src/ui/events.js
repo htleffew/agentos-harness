@@ -283,6 +283,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
 function rewriteBox(draft, cat, ui, redraw, dirty) {
     const rw = ui.rw;
     const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, `Make the items of "${cat.name}" work anywhere`));
+    box.append(functionExecution('writerRewrite',{receipt:executionReceipt('writerRewrite')}));
     const pool = () => cat.items.filter(it => rw.which === 'all' || it.on);
     if (!rw.results) {
         box.append(
@@ -291,7 +292,7 @@ function rewriteBox(draft, cat, ui, redraw, dirty) {
             field('Which items', '', select([{ value: 'on', label: `The items that are on (${cat.items.filter(i => i.on).length})` }, { value: 'all', label: `Every item (${cat.items.length})` }], rw.which, (v) => { rw.which = v; redraw(); })));
         if (rw.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, rw.error));
         box.appendChild(h('div', { class: 'ri-row' },
-            button(rw.busy ? 'Rewriting...' : 'Rewrite the items', async () => {
+            executionAction(button(rw.busy ? 'Rewriting...' : 'Rewrite the items', async () => {
                 if (rw.busy) return;
                 const items = pool().slice(0, 60);
                 if (!items.length) { rw.error = 'There are no items to rewrite.'; redraw(); return; }
@@ -299,7 +300,7 @@ function rewriteBox(draft, cat, ui, redraw, dirty) {
                 try { rw.results = (await rewriteAnywhere({ category: cat, items, others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) })).map(x => ({ ...x, keep: x.changed })); }
                 catch (e) { rw.error = e.message; }
                 rw.busy = false; redraw();
-            }, { kind: 'primary', disabled: rw.busy }),
+            }, { kind: 'primary', disabled: rw.busy })),
             button('Cancel', () => { ui.rw = null; redraw(); }, { kind: 'ghost', disabled: rw.busy })));
         return box;
     }
@@ -325,6 +326,8 @@ function rewriteBox(draft, cat, ui, redraw, dirty) {
 function aiBox(app, draft, cat, ui, redraw, dirty) {
     const ai = ui.ai;
     const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, `Write items for "${cat.name}" with AI`));
+    const modelFunction=cfg.kind==='style' ? 'writerStyle' : 'writerItems';
+    box.append(functionExecution(modelFunction,{receipt:executionReceipt(modelFunction)}));
     if (!ai.results) {
         box.append(
             itemWriterPrompts(cat),
@@ -336,7 +339,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
             cfg.kind === 'events' ? field('Where these events come from', 'Tick the allowed origins. The writer draws one for each item. Event rolls use the saved origin to match items to the driver.', choiceList('Event origins', ORIGINS, ai.origins || [''], values => { ai.origins = values; })) : null);
         if (ai.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, ai.error));
         box.appendChild(h('div', { class: 'ri-row' },
-            button(ai.busy ? 'Writing...' : 'Write the items', async () => {
+            executionAction(button(ai.busy ? 'Writing...' : 'Write the items', async () => {
                 if (ai.busy) return;
                 if (!ai.theme.trim()) { ai.error = 'Type a few words in the first box.'; redraw(); return; }
                 ai.busy = true; ai.error = ''; redraw();
@@ -346,7 +349,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                     ai.results = list.map(x => ({ ...x, keep: x.anywhere !== false && (f => f.blocks.length === 0 && f.checks.length === 0)(itemFlags(cat, x.text)) }));
                 } catch (e) { ai.error = e.message; }
                 ai.busy = false; redraw();
-            }, { kind: 'primary', disabled: ai.busy }),
+            }, { kind: 'primary', disabled: ai.busy })),
             button('Cancel', () => { ui.ai = null; redraw(); }, { kind: 'ghost', disabled: ai.busy })));
         return box;
     }
@@ -488,3 +491,5 @@ function renderEdit(body, app) {
             else app.render();
         })));
 }
+import { executionAction, functionExecution } from './execution.js';
+import { executionReceipt } from '../execution.js';

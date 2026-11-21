@@ -20,6 +20,7 @@ const DEFAULTS = {
     check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' },
     showUnder: 'off',            // 'off' | 'display' | 'saved'
     world: {
+        editableReplies: 5,  // current reply and five earlier replies stay editable before filing
         copyOnBranch: true,   // a branch gets its own copy of the story world the first time it is opened
         budget: 600, place: 'depth', depth: 4, lookback: 4,   // story notes: room in tokens, where they go, how many messages are read for names
         update: 'all',        // keeping the world up to date from each reply: 'all' | 'auto' (only entries the extension added) | 'off'

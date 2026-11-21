@@ -1,5 +1,7 @@
 // Original reader reactions inspired by the reference presets. Gremlin keeps the v9 wording.
 import { DEFAULT_VOICE } from './defaults.js';
+import { settings, saveSettings } from './store.js';
+import { exportVariations, promptOwner, readVariationFile, saveVariation } from './prompt-variations.js';
 
 export const VOICES = {
     roastVoice: ['Gremlin (v9)', DEFAULT_VOICE],
@@ -12,3 +14,54 @@ export const VOICES = {
     voiceScreenwriter: ['Golden Age screenwriter · Deus Ex Machina', 'Watch the scene like a sharp old Hollywood screenwriter. Pick a specific entrance, line reading or reversal. Give the actor credit, or quietly steal the rug from under them. Wry, poised, economical.'],
     voiceGamer: ['Cozy gamer · Deus Ex Machina', 'React like a friend on the sofa with a controller. Read one choice in the scene as a player decision and cheer or groan at the immediate consequence. Use a gaming reference only if it fits the choice and its consequence.'],
 };
+
+const type = 'roleplay-instructions.commentator-voice';
+export const customVoices = () => Array.isArray(settings().customVoices) ? settings().customVoices : [];
+export const voiceRecords = () => [
+    ...Object.entries(VOICES).map(([id,[name,text]])=>({id,name,text,builtIn:true})),
+    ...customVoices(),
+];
+
+function validateVoice(name, text) {
+    if (typeof name!=='string' || !name.trim() || name.trim().length>80) throw new Error('Enter a voice name of up to 80 characters.');
+    if (typeof text!=='string' || !text.trim() || text.length>12000) throw new Error('Enter a voice direction of up to 12,000 characters.');
+}
+
+export function createVoice(name, text) {
+    validateVoice(name,text);
+    const id = `voice-${globalThis.crypto?.randomUUID?.() || Date.now()+'-'+Math.random().toString(36).slice(2)}`;
+    const voice = {id,name:name.trim(),text};
+    const st = settings();
+    st.customVoices = [...customVoices(),voice];
+    st.roastVoiceId = id;
+    saveSettings();
+    return voice;
+}
+
+export function exportVoice(id) {
+    const voice = voiceRecords().find(item=>item.id===id);
+    if (!voice) throw new Error('That commentator voice is unavailable.');
+    return { type,version:1,name:voice.name,original:voice.text,active:settings().prompts?.[id]?.text ?? voice.text,
+        variations:exportVariations(promptOwner('extension',id)) };
+}
+
+export function importVoice(data) {
+    if (data?.type!==type || data.version!==1 || !Array.isArray(data.variations) || data.variations.length>100) {
+        throw new Error('Choose a Roleplay Instructions commentator voice JSON file.');
+    }
+    validateVoice(data.name,data.original);
+    validateVoice(data.name,data.active);
+    const variations = data.variations.map(readVariationFile);
+    const names = new Set();
+    for (const entry of variations) {
+        validateVoice(entry.name,entry.value);
+        const name = entry.name.trim().toLowerCase();
+        if (names.has(name)) throw new Error('The voice file repeats a variation name.');
+        names.add(name);
+    }
+    const voice = createVoice(data.name,data.original);
+    if (data.active!==data.original) (settings().prompts ||= {})[voice.id] = {text:data.active,base:data.original};
+    for (const entry of variations) saveVariation(promptOwner('extension',voice.id),entry);
+    saveSettings();
+    return voice;
+}

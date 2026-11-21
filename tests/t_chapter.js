@@ -77,7 +77,7 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
         const ui = await page.evaluate(() => ({ chips: [...document.querySelectorAll('#ri_root .ri-chip')].map(c => c.textContent), fields: [...document.querySelectorAll('#ri_root .ri-field .ri-label')].map(x => x.textContent.trim()) }));
         assert(ch[1].name === 'The walk' && ch[1].span.from === 4 && ch[1].span.to === 4 && ui.chips.includes('Replies 4 to 4') && ui.fields.includes('Keep the story so far in chapters'), 'panel: "Write a chapter now" summarises everything since the last chapter, and the tab lists the chapters with the replies they cover');
         await click(page, 'Write a chapter now');
-        await page.waitForFunction(() => /already in a chapter/.test(document.querySelector('#ri_root')?.textContent || ''), null, { timeout: 8000 });
+        await page.waitForFunction(() => /No uncovered filed replies are ready for a chapter/.test(document.querySelector('#ri_root')?.textContent || ''), null, { timeout: 8000 });
         assert(true, 'panel: when every reply is already in a chapter, it says so and makes no request');
         await page.screenshot({ path: '/tmp/s54_world.png' });
 

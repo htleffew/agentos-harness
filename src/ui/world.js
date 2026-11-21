@@ -1,7 +1,8 @@
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { promptGroup } from './prompts.js';
-import { recordManualWorldChange } from '../worldflow.js';
+import { loadEffectiveWorld, recordManualWorldChange } from '../worldflow.js';
+import { storyJournalStatus } from '../memory-journal.js';
 // Story World tab: the people, places, groups, secrets, open threads, planted details and things going on
 // elsewhere of one story, and how they are sent as story notes.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, chip, download } from './dom.js';
@@ -27,6 +28,7 @@ export function renderWorld(body, app) {
 
 function worldPicker(app) {
     const id = chatWorld();
+    const filing = storyJournalStatus();
     const worlds = knownWorlds();
     const options = [{ value: '', label: 'No story world for this chat' }, ...worlds.map(w => { const i = setInfo(w); return { value: w, label: i.shared ? `${i.name} (in "${i.book}")` : i.name }; })];
     return section('The story world of this chat',
@@ -48,10 +50,12 @@ function worldPicker(app) {
             catch (e) { toast('error', e.message); }
         }, { kind: id ? '' : 'primary' }),
         id ? button('Export this world', async () => {
-            const data = await exportSet(id);
+            const data = structuredClone(await exportSet(id));
+            if (data?.extensions) delete data.extensions.riPendingWrites;
             if (!data || !download(`${setName(id)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export the lorebook from the World Info screen.');
-        }, { kind: 'ghost', title: 'Download this world as a lorebook file' }) : null,
+        }, { kind:'ghost',title:`Download the physical lorebook, filed through reply ${filing.filed}` }) : null,
         id ? deleteButton(app, id, 'Delete this world') : null),
+        id && h('p',{class:'ri-help'},`The lorebook export holds filed facts through reply ${filing.filed}. Use the host’s chat export to keep recent edits with their source replies.`),
         id && !setInfo(id).shared ? h('div', { class: 'ri-help' }, 'To remove or delete this book, choose “See this chat’s World Info books” above.') : null,
         id ? h('div', { class: 'ri-row' }, button('Fill this world from the character card', () => { app.wroute.sheet = { kind: 'starter', busy: false, error: '', result: null }; app.render(); },
             { title: 'One AI request reads the character card, its own lorebook and the opening message, and proposes entries. Nothing is added until you say so.' })) : null);
@@ -224,7 +228,7 @@ function renderList(body, app) {
         body.appendChild(element);
     }
 
-    loadWorld(id).then((data) => {
+    loadWorld(id).then(async (data) => {
         if (!data) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'The lorebook of this world could not be read. It may have been renamed or deleted.')); return; }
         const list = listWorld(data, id);
         const out = [];
@@ -255,7 +259,8 @@ function renderList(body, app) {
         listBox.replaceChildren(...out);
 
         // What the extension reads from the last reply, and what it would send now.
-        const { notes } = storyRecall(list);
+        const effective = await loadEffectiveWorld(id);
+        const { notes } = storyRecall(effective ? listWorld(effective,id) : list);
         preview.replaceChildren(section('What would be sent with the next reply',
             notes ? [
                 h('div', { class: 'ri-grid' },
@@ -426,13 +431,14 @@ function aiBox(app, draft, ui, redraw, dirty) {
     const def = WORLD_KINDS[draft.kind];
     const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, `Write this ${def.label.toLowerCase()} with AI`));
     box.append(
+        functionExecution('writerWorld',{receipt:executionReceipt('writerWorld')}),
         field('What it is about (you can leave this empty)', `A name or a few words. Left empty, the AI picks a ${def.label.toLowerCase()} from what you let it read below.`,
             textInput(ai.about, (v) => { ai.about = v; }, { placeholder: draft.kind === 'character' ? 'Example: Mira, the fruit seller' : 'A name or a few words' })),
         contextField(),
         h('div', { class: 'ri-help' }, 'The AI can only write what it is shown. Tick the character card and the recent messages for the best result.'));
     if (ai.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, ai.error));
     box.appendChild(h('div', { class: 'ri-row' },
-        button(ai.busy ? 'Writing...' : 'Write the entry', async () => {
+        executionAction(button(ai.busy ? 'Writing...' : 'Write the entry', async () => {
             if (ai.busy) return;
             ai.busy = true; ai.error = ''; redraw();
             try {
@@ -448,7 +454,9 @@ function aiBox(app, draft, ui, redraw, dirty) {
             } catch (e) { ai.error = e.message; }
             if (ui.ai) ui.ai.busy = false;
             redraw();
-        }, { kind: 'primary', disabled: ai.busy }),
+        }, { kind: 'primary', disabled: ai.busy })),
         button('Cancel', () => { ui.ai = null; redraw(); }, { kind: 'ghost', disabled: ai.busy })));
     return box;
 }
+import { executionAction, functionExecution } from './execution.js';
+import { executionReceipt } from '../execution.js';

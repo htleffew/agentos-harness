@@ -134,19 +134,20 @@ export function renderGoals(body, app) {
 function aiBox(g, ui, redraw) {
     const ai = ui.ai;
     const box = h('div', { class: 'ri-sheet-box' }, h('div', { class: 'ri-h2' }, 'Write a goal with AI'));
+    box.append(functionExecution('writerGoal',{receipt:executionReceipt('writerGoal')}));
     if (!ai.result) {
         box.append(
             field('What the goal is about (you can leave this empty)', 'A few words. Left empty, the AI chooses a goal from what you let it read below.', textInput(ai.about, v => { ai.about = v; }, { placeholder: 'Example: winning back trust after a lie' })),
             contextField());
         if (ai.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, ai.error));
         box.appendChild(h('div', { class: 'ri-row' },
-            button(ai.busy ? 'Writing...' : 'Write the goal', async () => {
+            executionAction(button(ai.busy ? 'Writing...' : 'Write the goal', async () => {
                 if (ai.busy) return;
                 ai.busy = true; ai.error = ''; redraw();
                 try { ai.result = await writeGoal({ about: ai.about.trim(), context: settings().writer.context }); }
                 catch (e) { ai.error = e.message; }
                 ai.busy = false; redraw();
-            }, { kind: 'primary', disabled: ai.busy }),
+            }, { kind: 'primary', disabled: ai.busy })),
             button('Cancel', () => { ui.ai = null; redraw(); }, { kind: 'ghost', disabled: ai.busy })));
         return box;
     }
@@ -173,3 +174,5 @@ function aiBox(g, ui, redraw) {
             button('Cancel', () => { ui.ai = null; redraw(); }, { kind: 'ghost' })));
     return box;
 }
+import { executionAction, functionExecution } from './execution.js';
+import { executionReceipt } from '../execution.js';

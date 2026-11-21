@@ -72,7 +72,9 @@ function entryTiming(entry) {
 function keywordHelp(keys, source, whenApplied = () => {}) {
     const status=h('p',{class:'ri-help',role:'status'});
     const suggestions=h('div');
-    const generate=button('Suggest trigger phrases with AI',async()=>{
+    const execution=h('div');
+    const updateExecution=()=>execution.replaceChildren(functionExecution('bookKeywords',{receipt:executionReceipt('bookKeywords')}));
+    const generate=executionAction(button('Suggest trigger phrases with AI',async()=>{
         generate.disabled=true;
         suggestions.replaceChildren();
         status.textContent='Reading this entry…';
@@ -92,11 +94,12 @@ function keywordHelp(keys, source, whenApplied = () => {}) {
                     status.textContent='Added to the draft. Save the entry to apply the changes.';
                 },{kind:'ghost'}));
         } catch(error) { status.textContent=error.message; }
-        finally { generate.disabled=false; }
-    },{kind:'ghost'});
+        finally { generate.disabled=false; updateExecution(); }
+    },{kind:'ghost'}));
+    updateExecution();
     return h('details',{},h('summary',{},'Help choosing triggers'),
         h('p',{class:'ri-help'},'One optional model request reads the entry’s title and text. Review and edit its suggestions before saving.'),
-        generate,status,suggestions,promptGroup(['bookKeywords','systemBookKeywords'],'Customize keyword suggestion prompts'));
+        execution,generate,status,suggestions,promptGroup(['bookKeywords','systemBookKeywords'],'Customize keyword suggestion prompts'));
 }
 
 function editEntry(name, entry, target, refresh, reusable, adding = false, cancel = () => target.replaceChildren()) {
@@ -425,3 +428,5 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
     root.addEventListener('toggle',()=>{if (root.open && !content.childElementCount) refresh();});
     return root;
 }
+import { executionAction, functionExecution } from './execution.js';
+import { executionReceipt } from '../execution.js';

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added a composer Quick actions sheet with saved directions, one-use next-message delivery, guided swipes and continuations, and editable player drafts and choices.
+- Added chat-local pins, source selection and rolls, standalone action editing, and reviewed library, lorebook and Keel imports. Added Fresh start for a single action or five accepted forward replies.
+- Added a six-reply memory filing window, source repair, and local prose screening with optional same-reply evidence and one-use writing guidance.
+- Added per-function model connections and execution receipts. Background model work requires a separate opt-in. Prompt and preset editors identify their restore sources and retain named variations. [Verification](docs/quick-replies-verification.md)
+
 ## 10.0.32
 
 - Added nine individually editable commentator voices, including the original v9 Gremlin. Each keeps its own default and saved wording.

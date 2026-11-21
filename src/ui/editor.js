@@ -167,13 +167,13 @@ export function renderEditor(body, app) {
             flags.node,
             h('div', { class: 'ri-row ri-row-tight' },
                 button('Edit', () => { ui.editing = i; ui.adding = false; redraw(); }, { kind: 'ghost' }),
-                button(ui.busy === i ? 'Rewriting...' : 'Rewrite with AI', async () => {
+                executionAction(button(ui.busy === i ? 'Rewriting...' : 'Rewrite with AI', async () => {
                     if (ui.busy >= 0) return;
                     ui.busy = i; redraw();
                     try { const r = await rewriteVersion({ ins: draft, text: v.text }); v.text = r.text; dirty(); }
                     catch (e) { toast('error', e.message); }
                     ui.busy = -1; redraw();
-                }, { kind: 'ghost', disabled: ui.busy >= 0, title: 'Ask the AI for a new wording of this one version' }),
+                }, { kind: 'ghost', disabled: ui.busy >= 0, title: 'Ask the AI for a new wording of this one version' })),
                 button(v.keep ? 'Stop keeping' : 'Keep', () => { v.keep = !v.keep; dirty(); redraw(); }, { kind: 'ghost', title: 'Kept versions are never replaced when you write versions with AI' }),
                 button('Delete', () => { draft.versions.splice(i, 1); ui.editing = -1; dirty(); redraw(); }, { kind: 'danger' }))));
     });
@@ -183,6 +183,7 @@ export function renderEditor(body, app) {
             versionEditor('', (t) => { draft.versions.push({ text: swapNames(t).text, keep: false }); ui.adding = false; dirty(); redraw(); }, () => { ui.adding = false; redraw(); }, actorHint)));
     }
     body.appendChild(section('Versions (one is picked at random each time it is sent)',
+        draft.versions.length > 0 && functionExecution('writerVersionRewrite',{receipt:executionReceipt('writerVersionRewrite')}),
         h('div', { class: 'ri-help' }, model
             ? 'Each version tells the model how to compose the reply. Every version is used once before any repeats.'
             : 'Each version is one way to give the order. Say what must happen. Every version is used once before any repeats.'),
@@ -241,6 +242,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
         h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Actor'), h('span', { class: 'ri-v' }, actors.map(value => ACTORS[value].label).join(' · '))),
         h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Target or subject'), h('span', { class: 'ri-v' }, targets.map(value => TARGETS[value].label).join(' · ')))));
     box.appendChild(h('div', { class: 'ri-help' }, `These come from the instruction. Close this and change them there if needed. ${isChatOpen() ? nameHint() : ''}`));
+    box.appendChild(functionExecution('writerVersions',{receipt:executionReceipt('writerVersions')}));
 
     if (!sheet.results) {
         box.appendChild(writerPrompts(actors[0]));
@@ -253,7 +255,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
             contextField()));
         if (sheet.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, sheet.error));
         box.appendChild(h('div', { class: 'ri-row' },
-            button(sheet.busy ? 'Writing...' : 'Write the versions', async () => {
+            executionAction(button(sheet.busy ? 'Writing...' : 'Write the versions', async () => {
                 if (sheet.busy) return;
                 if (!sheet.seed.trim()) { sheet.error = model ? 'Type what the model should do first.' : 'Type what should happen first.'; redraw(); return; }
                 sheet.busy = true; sheet.error = ''; redraw();
@@ -265,7 +267,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
                     sheet.results = list.map(r => ({ ...r, keep: (f => f.blocks.length === 0 && f.checks.length === 0)(validateVersion(r.text)), editing: false }));
                 } catch (e) { sheet.error = e.message; }
                 sheet.busy = false; redraw();
-            }, { kind: 'primary', disabled: sheet.busy }),
+            }, { kind: 'primary', disabled: sheet.busy })),
             button('Cancel', close, { kind: 'ghost', disabled: sheet.busy })));
         if (sheet.busy) box.appendChild(h('div', { class: 'ri-help' }, 'Waiting for the AI. This uses the connection chosen in Settings.'));
         return wrap;
@@ -307,3 +309,5 @@ function writerSheet(app, draft, ui, redraw, dirty) {
         button('Cancel', close, { kind: 'ghost' })));
     return wrap;
 }
+import { executionAction, functionExecution } from './execution.js';
+import { executionReceipt } from '../execution.js';

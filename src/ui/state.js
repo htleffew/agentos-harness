@@ -127,7 +127,9 @@ function rebuildEditor(refresh) {
     const info = h('div', { class: 'ri-help' }, 'One AI request proposes a new state from the visible story. Review and edit its update block before applying it. This does not rewrite story text; review world entries and chapter summaries too.');
     const draft = h('textarea', { class: 'ri-input ri-textarea', rows: 12, placeholder: 'The proposed story update will appear here.' });
     const status = h('div', { class: 'ri-help' });
-    const ask = button('Draft a state update with AI', async () => {
+    const execution=h('div');
+    const updateExecution=()=>execution.replaceChildren(functionExecution('editedState',{receipt:executionReceipt('editedState')}));
+    const ask = executionAction(button('Draft a state update with AI', async () => {
         ask.disabled = true; status.textContent = 'Reading the story…';
         try {
             await worldIdle();
@@ -137,15 +139,17 @@ function rebuildEditor(refresh) {
             const clipped = messages.length > 40000;
             const wid = chatWorld(), data = wid ? await loadWorld(wid) : null;
             const form = data ? buildAsk(listWorld(data, wid)) : buildSceneAsk();
-            const answer = await request({ what: 'Rebuild edited story state', system: 'Extract only facts supported by the story. Preserve uncertainty and private knowledge. Never invent an event, character, relationship or motivation. Return only the requested story_update block.', user: `Review the story as it now stands. ${clipped ? 'Only the most recent portion fits; do not infer anything missing.' : ''}\n\n${messages.slice(-40000)}\n\n${form}\nReturn only the update block.`, tokens: 1200, profileId: settings().profileId });
+            const answer = await request({ operation:'editedState',authorization:'manual',what:'Rebuild edited story state',
+                user:`Review the current story. ${clipped ? 'Use the supplied recent excerpt as the evidence.' : ''}\n\n${messages.slice(-40000)}\n\n${form}\nReturn only the update block.`,tokens:1200 });
             if (String(ctx().getCurrentChatId?.() || '') !== chatId || signature() !== originalSignature) throw new Error('The story changed while drafting; start the rebuild again.');
             preparedSignature = originalSignature;
             if (!parseUpdate(answer.text).found) throw new Error('The model did not return a readable story_update block.');
             draft.value = answer.text; answer.note('Draft ready for review; no changes applied.');
             status.textContent = clipped ? 'Draft ready. Only the most recent 40,000 characters were read; check earlier facts by hand.' : 'Draft ready. Review it before applying.';
         } catch (e) { status.textContent = `Could not draft: ${e.message}`; }
-        finally { ask.disabled = false; }
-    });
+        finally { ask.disabled = false; updateExecution(); }
+    }));
+    updateExecution();
     const apply = button('Apply reviewed update', async () => {
         if (!preparedSignature || signature() !== preparedSignature) { status.textContent = 'The story changed since this draft was prepared. Draft it again.'; return; }
         const parsed = parseUpdate(draft.value);
@@ -167,7 +171,7 @@ function rebuildEditor(refresh) {
         } catch (e) { Object.keys(rec).forEach(k => delete rec[k]); Object.assign(rec, previous); status.textContent = `Could not apply: ${e.message}`; }
         finally { apply.disabled = false; }
     });
-    box.append(info, ask, draft, status, apply, button('Close', refresh, { kind: 'ghost' }));
+    box.append(info, execution, ask, draft, status, apply, button('Close', refresh, { kind: 'ghost' }));
     return box;
 }
 
@@ -193,3 +197,5 @@ export function renderCurrentState(body, refresh) {
     if (!values.length) body.append(h('div', { class: 'ri-empty' }, 'No character state has been recorded yet.'));
     else values.forEach(p => body.append(characterStateCard(p, id, refresh)));
 }
+import { executionAction, functionExecution } from './execution.js';
+import { executionReceipt } from '../execution.js';

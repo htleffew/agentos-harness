@@ -74,11 +74,11 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         assert.match(prompt,/made of stone/);
         assert.doesNotMatch(prompt,/made of oak|mill bell broke/);
         await page.setViewportSize({width:320,height:720});
-        const guide=page.locator('#chat .last_mes .ri-guided-swipe');
-        await guide.locator(':scope > summary').click();
+        await page.locator('#chat .last_mes').getByRole('button',{name:'Guide a swipe',exact:true}).click();
+        const guide=page.getByRole('dialog',{name:'Guide a swipe'});
         assert.ok(await guide.evaluate(node=>node.scrollWidth<=node.clientWidth+1 &&
             [...node.querySelectorAll('textarea, select')].every(control=>control.getBoundingClientRect().right<=node.getBoundingClientRect().right)));
-        await guide.locator(':scope > summary').click();
+        await guide.getByRole('button',{name:'Close',exact:true}).click();
         await page.setViewportSize({width:390,height:820});
         // Select the original with the real host swipe control, then use the extension menu on mobile.
         await L.idle(page);

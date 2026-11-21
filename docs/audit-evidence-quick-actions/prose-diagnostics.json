@@ -1,0 +1,200 @@
+{
+  "fixture": "Synthetic harbor and bakery revisions",
+  "viewport": {
+    "width": 390,
+    "height": 820,
+    "hasTouch": true,
+    "isMobile": true
+  },
+  "preset": "Default",
+  "host": {
+    "name": "SillyTavern",
+    "version": "1.19.0",
+    "browser": "156.0.8078.79",
+    "provider": "OpenAI-compatible loopback mock"
+  },
+  "enabled": [
+    "Roleplay Instructions"
+  ],
+  "disabled": [
+    "assets",
+    "attachments",
+    "caption",
+    "connection-manager",
+    "expressions",
+    "gallery",
+    "memory",
+    "quick-reply",
+    "regex",
+    "stable-diffusion",
+    "token-counter",
+    "translate",
+    "tts",
+    "vectors"
+  ],
+  "requests": [
+    {
+      "id": "h4-1",
+      "answer": "The harbor watch patrols the southern pier in rain.",
+      "sha256": "41bb5eb8dca308e348b362b719fcd09e7dc9d09557ff387c456414918a892c35",
+      "sharedPrefixMessages": 0,
+      "firstChangedRole": "system",
+      "providerCacheMetrics": null,
+      "writing": []
+    },
+    {
+      "id": "h4-2",
+      "answer": "The bakery workers carry the sacks through freezing streets.",
+      "sha256": "1bca74b66ebd864b955baa8a97ca955e7a692f1e7ee90c820cc039dde76052b6",
+      "sharedPrefixMessages": 1,
+      "firstChangedRole": "system",
+      "providerCacheMetrics": null,
+      "writing": []
+    },
+    {
+      "id": "h4-3",
+      "answer": "The soldiers set their lanterns by the carriage gate.",
+      "sha256": "569f03daa55ea5760c349210485d9aa98ece414c23d53052211874ce32c3fca6",
+      "sharedPrefixMessages": 7,
+      "firstChangedRole": "assistant",
+      "providerCacheMetrics": null,
+      "writing": []
+    },
+    {
+      "id": "h4-4",
+      "answer": "Nora pinched the candle flame.\n<writing_notes>{\"findings\":[{\"pattern\":\"recap\",\"examples\":[{\"reply\":\"R2\",\"evidence\":\"The harbor watch patrols the southern pier in rain.\"},{\"reply\":\"R3\",\"evidence\":\"The bakery workers carry the sacks through freezing streets.\"},{\"reply\":\"R4\",\"evidence\":\"The soldiers set their lanterns by the carriage gate.\"}]}]}</writing_notes>",
+      "sha256": "b6bbb69efc53eb7d1e27ead6bc708a864aadbe596d263ca0fe5d52162e274007",
+      "sharedPrefixMessages": 9,
+      "firstChangedRole": "assistant",
+      "providerCacheMetrics": null,
+      "writing": [
+        "Writing review: Look at the last 4 accepted story replies in the conversation. Refer to these as R1 through R4 in chronological order. If a recurring writing choice calls for a change, place a brief writing review after the reply and story update. Cite exact words from each supporting reply."
+      ]
+    },
+    {
+      "id": "h4-5",
+      "answer": "The shop closes when the last visitor leaves.",
+      "sha256": "49316abe8577d808206e022a680c3e71ca0895b0826be6bf7bca9c8f5879e658",
+      "sharedPrefixMessages": 5,
+      "firstChangedRole": "assistant",
+      "providerCacheMetrics": null,
+      "writing": [
+        "Writing review: Look at the last 5 accepted story replies in the conversation. Refer to these as R1 through R5 in chronological order. If a recurring writing choice calls for a change, place a brief writing review after the reply and story update. Cite exact words from each supporting reply.",
+        "Current writing guidance",
+        "1 of the last 5 story replies restated details the scene had already established. This reply: Start from what the characters know and move their situation forward."
+      ]
+    },
+    {
+      "id": "h4-6",
+      "answer": "The market stalls fold against the wind.",
+      "sha256": "76876f37e2ed11cb1aa63f2cf55ece6404c21dd4c9cf43c44e5ad8dac1618e5c",
+      "sharedPrefixMessages": 13,
+      "firstChangedRole": "assistant",
+      "providerCacheMetrics": null,
+      "writing": [
+        "Writing review: Look at the last 5 accepted story replies in the conversation. Refer to these as R1 through R5 in chronological order. If a recurring writing choice calls for a change, place a brief writing review after the reply and story update. Cite exact words from each supporting reply."
+      ]
+    }
+  ],
+  "observed": [
+    "Notes opened by touch before and after edits",
+    "Host historical swipe switched through native swipe.to",
+    "Older source changed through message edit controls"
+  ],
+  "state": {
+    "earlier": {
+      "story": true,
+      "source": {
+        "turn": "2026-11-21T19:49:39.110Z",
+        "swipe": 0,
+        "fingerprint": "79:1272807561"
+      },
+      "notes": [],
+      "audits": [
+        {
+          "kind": "recap",
+          "evidence": [
+            {
+              "source": {
+                "turn": "2026-11-21T19:49:34.312Z",
+                "swipe": 0,
+                "fingerprint": "100:1859087607"
+              },
+              "text": "The harbor watch patrols the southern pier in rain.",
+              "label": "R2"
+            },
+            {
+              "source": {
+                "turn": "2026-11-21T19:49:35.594Z",
+                "swipe": 0,
+                "fingerprint": "109:2058564559"
+              },
+              "text": "The bakery workers carry the sacks through freezing streets.",
+              "label": "R3"
+            },
+            {
+              "source": {
+                "turn": "2026-11-21T19:49:36.860Z",
+                "swipe": 0,
+                "fingerprint": "102:1635878402"
+              },
+              "text": "The soldiers set their lanterns by the carriage gate.",
+              "label": "R4"
+            }
+          ]
+        }
+      ],
+      "delivery": null,
+      "auditRequested": true,
+      "auditConfirmed": true,
+      "connection": "Main API (openai · custom · mock-model)",
+      "metrics": {
+        "words": 5,
+        "dialogue": 0
+      }
+    },
+    "next": {
+      "story": true,
+      "source": {
+        "turn": "2026-11-21T19:49:40.998Z",
+        "swipe": 0,
+        "fingerprint": "94:3419245710"
+      },
+      "notes": [],
+      "audits": [],
+      "delivery": {
+        "owner": {
+          "turn": "2026-11-21T19:49:39.110Z",
+          "swipe": 0,
+          "fingerprint": "79:1272807561"
+        },
+        "outcome": "confirmed",
+        "findings": [
+          {
+            "kind": "recap",
+            "count": 1,
+            "window": 5,
+            "sources": [
+              {
+                "turn": "2026-11-21T19:49:36.860Z",
+                "swipe": 0,
+                "fingerprint": "102:1635878402"
+              }
+            ]
+          }
+        ]
+      },
+      "auditRequested": true,
+      "auditConfirmed": true,
+      "connection": "Main API (openai · custom · mock-model)",
+      "metrics": {
+        "words": 8,
+        "dialogue": 0
+      }
+    },
+    "spent": [
+      "[\"2026-11-21T19:49:39.110Z\",0,\"79:1272807561\"]"
+    ]
+  },
+  "errors": []
+}

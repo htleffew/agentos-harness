@@ -22,11 +22,15 @@ export const DEFAULT_WORDS = [
     'palpable', 'tapestry', 'unspoken',
 ].join(', ');
 
-// One entry per line in Direction → Writing Guidance. Matches are shown locally in Notes.
-export const DEFAULT_STORY_AVOID = [
+export const STORY_BOOKKEEPING_WORDS = [
     'archive', 'archives', 'archived', 'archiving', 'ledger', 'ledgers',
     'bill', 'bills', 'billed', 'billing', 'invoice', 'invoices', 'invoiced', 'invoicing',
     'cost', 'costs', 'costing', 'costly', 'file', 'files', 'filed', 'filing',
+];
+
+// One entry per line in Direction → Writing Guidance. Matches are shown locally in Notes.
+export const DEFAULT_STORY_AVOID = [
+    ...STORY_BOOKKEEPING_WORDS,
     'words landed', 'words land', 'question landed', 'question lands', 'it landed like',
     'landed like', 'words hung', 'question hung', 'word hung', 'the silence hung',
     'struck harder than a physical blow', 'like a physical blow', 'the words sank in',

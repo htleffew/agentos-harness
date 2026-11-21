@@ -2,9 +2,10 @@
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/npm-tools/node_modules/playwright')); }
 const BASE = process.env.RI_HOST_URL || 'http://127.0.0.1:8123';
-async function open({ width = 1280, height = 900 } = {}) {
+async function open({ width = 1280, height = 900, hasTouch = false, isMobile = false, setupPage } = {}) {
     const browser = await chromium.launch({ executablePath: process.env.RI_CHROME || '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] });
-    const page = await browser.newPage({ viewport: { width, height } });
+    const page = await browser.newPage({ viewport: { width, height }, hasTouch, isMobile });
+    await setupPage?.(page);
     const errors = [];
     page.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
     page.on('console', m => { const t = m.text(); if (m.type() === 'error' && !/favicon|Failed to load resource|^AbortReason/.test(t)) errors.push('CONSOLE ' + t.slice(0, 300)); });
@@ -24,15 +25,15 @@ async function open({ width = 1280, height = 900 } = {}) {
     return { browser, page, errors };
 }
 async function setupApi(page) {
-    await page.evaluate(async () => {
+    await page.evaluate(async (mockPort) => {
         const $ = globalThis.jQuery;
         $('#main_api').val('openai').trigger('change');
         $('#chat_completion_source').val('custom').trigger('change');
-        $('#custom_api_url_text').val('http://127.0.0.1:8124/v1').trigger('input');
+        $('#custom_api_url_text').val(`http://127.0.0.1:${mockPort}/v1`).trigger('input');
         $('#custom_model_id').val('mock-model').trigger('input');
         if ($('#stream_toggle').prop('checked')) $('#stream_toggle').prop('checked', false).trigger('change');
         $('#api_button_openai').trigger('click');
-    });
+    }, Number(process.env.RI_MOCK_PORT || 8124));
     await page.waitForFunction(() => globalThis.SillyTavern.getContext().onlineStatus && globalThis.SillyTavern.getContext().onlineStatus !== 'no_connection', null, { timeout: 20000 }).catch(() => {});
     await page.waitForTimeout(1500);
 }

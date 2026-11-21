@@ -1,7 +1,7 @@
 // Editable instruction text. Runtime data and response formats are assembled by
 // their feature; only the behavioral wording below is customized.
 import { settings, saveSettings } from './store.js';
-import { VOICES } from './voices.js';
+import { VOICES, customVoices } from './voices.js';
 
 const define = (label, text, required = [], help = '') => ({ label, text, required, help });
 export const PROMPTS = {
@@ -17,6 +17,14 @@ export const PROMPTS = {
     goalOrder: define('Goal task wording', '{{char}} must {task}. How it happens is up to you; it must happen.', ['task']),
     goalOngoing: define('Ongoing goal wording', '{{char}} keeps working toward this goal in what {{char.they}} says and does.'),
     guided: define('Guided swipe framing', 'Direction for this replacement reply only: {direction}\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user\'s agency.', ['direction']),
+    guidedContinue: define('Guided continuation framing', 'Continue from the exact end of the current character reply. Write the new passage only. Direction for this continuation: {direction}', ['direction']),
+    historicalSwipe: define('Historical replacement framing', 'Write the replacement character reply at the point in the story supplied here. Follow the established scene and the current direction. Leave the player’s decisions to the player.'),
+    historicalContinue: define('Historical continuation framing', 'Continue at the supplied point in the story. Carry forward the exact accepted passage and return the new passage alone.'),
+    freshStart: define('Fresh start guidance', 'Work from the facts and current direction. Choose new phrasing, reactions and scene movement that fit this moment.'),
+    proseReview: define('Same-reply writing review', 'Writing review: Look at the last {count} accepted story replies in the conversation. Refer to these as R1 through R{count} in chronological order. If a recurring writing choice calls for a change, place a brief writing review after the reply and story update. Cite exact words from each supporting reply.', ['count']),
+    playerDraft: define('Player draft instruction', 'Write the player’s next action and dialogue in first person. Use what the player knows and can perceive in this scene. Give the player a playable action. Leave other characters’ reactions and the outcome open.'),
+    playerChoices: define('Player choices instruction', 'Offer {count} distinct and immediately playable choices for the player. Write each choice in first person and ground it in what the player knows and can perceive. Leave other characters’ reactions and the outcome open.', ['count']),
+    playerExpansion: define('Expand a player choice', 'Expand the selected choice into the player’s next action and dialogue in first person. Use what the player knows and can perceive. Leave other characters’ reactions and the outcome open.'),
     checker: define('Instruction checker guidance', 'Below is one reply from a roleplay and a list of instructions that were given for that reply. Decide for each instruction whether the reply carried it out.', [], 'The reply, IDs and required JSON response are supplied separately.'),
     versionRules: define('Writing instruction versions', ['- It is an order for the next reply. Use the word "must". State it as certain: it happens.', '- One or two plain sentences with literal wording. Describe a concrete change in the scene and leave the manner open.', '- When the order starts from a feeling, state the visible action that the feeling forces.', '- Positive wording throughout: every clause says what happens.', '- If the instruction names an actor, start with that actor.'].join('\n')),
     modelVersionRules: define('Writing model-directed versions', [
@@ -110,8 +118,14 @@ export const PROMPTS = {
     systemCheck: define('Checker: system message', 'You check whether instructions were carried out in a roleplay reply. You answer with JSON only.'),
 };
 
+export function promptDefinition(id) {
+    if (Object.hasOwn(PROMPTS,id)) return PROMPTS[id];
+    const voice = customVoices().find(voice=>voice.id===id);
+    return voice ? define(voice.name,voice.text,[],'This voice has its own original direction and variations.') : null;
+}
+
 export function promptText(id, values = {}) {
-    const def = PROMPTS[id];
+    const def = promptDefinition(id);
     if (!def) throw new Error(`Unknown prompt: ${id}`);
     const saved = settings().prompts?.[id];
     const template = typeof saved?.text === 'string' && !validatePrompt(id, saved.text) ? saved.text : def.text;
@@ -122,7 +136,7 @@ export function promptText(id, values = {}) {
     });
 }
 export function validatePrompt(id, value) {
-    const def = PROMPTS[id];
+    const def = promptDefinition(id);
     if (!def) return 'Unknown instruction.';
     if (!String(value || '').trim()) return 'The instruction cannot be empty.';
     if (String(value).length > 12000) return 'The instruction must be at most 12,000 characters.';
@@ -132,18 +146,22 @@ export function validatePrompt(id, value) {
 export function savePrompt(id, value) {
     const error = validatePrompt(id, value); if (error) throw new Error(error);
     const st = settings(); st.prompts ||= {};
-    if (String(value) === PROMPTS[id].text) delete st.prompts[id];
-    else st.prompts[id] = { text: String(value), base: PROMPTS[id].text };
+    const baseline = promptDefinition(id).text;
+    if (String(value) === baseline) delete st.prompts[id];
+    else st.prompts[id] = { text: String(value), base: baseline };
     saveSettings();
 }
 export function restorePrompt(id) {
-    if (!PROMPTS[id]) throw new Error('Unknown instruction.');
+    if (!promptDefinition(id)) throw new Error('Unknown instruction.');
     const st = settings(); if (st.prompts) delete st.prompts[id]; saveSettings();
 }
 export function promptStatus(id) {
     const saved = settings().prompts?.[id];
-    return { customized: typeof saved?.text === 'string', defaultChanged: !!saved && typeof saved.base === 'string' && saved.base !== PROMPTS[id].text };
+    return { customized: typeof saved?.text === 'string', defaultChanged: !!saved && typeof saved.base === 'string' && saved.base !== promptDefinition(id)?.text };
 }
 
-export const selectedVoice = () => Object.hasOwn(VOICES,settings().roastVoiceId) ? settings().roastVoiceId : 'roastVoice';
+export const selectedVoice = () => {
+    const id = settings().roastVoiceId;
+    return Object.hasOwn(VOICES,id) || customVoices().some(voice=>voice.id===id) ? id : 'roastVoice';
+};
 export const roastVoiceText = () => promptText(selectedVoice());

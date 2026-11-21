@@ -3,6 +3,7 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
 (async()=>{
     L.sync();
     const {browser,page,errors}=await L.open();
+    page.on('pageerror',error=>console.error(error.stack));
     const preset=JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instructions%20V10.json',`file://${__filename}`)));
     preset.name='Roleplay Instructions V10.432';
     preset.prompts.push({identifier:'review-relationships',name:'Internal States Template',role:'system',content:'HOST_REL_432',system_prompt:false});
@@ -40,14 +41,14 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
             assert.equal(request.includes('HOST_EDIT_432'),['both','preset'].includes(mode),'host '+mode);
             assert.equal(request.includes('For a relationship use subject and other'),['both','extension'].includes(mode),'extension '+mode);
         }
-        await click(block.getByRole('button',{name:'Restore original preset block'}));await waitMessage('Original preset block restored');
+        await click(block.getByRole('button',{name:'Restore before extension edits'}));await waitMessage('Before extension edits restored');
         assert.equal(await block.getByLabel('Preset instruction',{exact:true}).inputValue(),'HOST_REL_432');
         assert.deepEqual(await order(),before);
         const add=wb.locator('details').filter({has:page.getByText('Add a preset block',{exact:true})}).last();
         await open(add);await input(add.getByLabel('New block name'),'Live addition');await input(add.getByLabel('New instruction'),'ADDED_432');
         await click(add.getByRole('button',{name:'Add to end of preset'}));await waitMessage('Added an enabled');
         const added=wb.locator('details[data-preset-block]').filter({has:page.getByText('Live addition · On · Edited',{exact:true})});
-        await open(added);await click(added.getByRole('button',{name:'Restore original preset block'}));await waitMessage('Original preset block restored');
+        await open(added);await click(added.getByRole('button',{name:'Restore before extension edits'}));await waitMessage('Before extension edits restored');
         assert.equal(await added.count(),0);
         const compare=wb.locator('details').filter({has:page.getByText('Compare preset and extension with AI',{exact:true})}).last();
         await open(compare);
@@ -63,7 +64,7 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         await click(block.getByRole('button',{name:'Save preset block',exact:true}));await waitMessage('Preset wording saved');
         const saved=await page.evaluate(()=>SillyTavern.getContext().chatCompletionSettings.prompts.find(p=>p.identifier==='review-relationships'));
         assert.equal(saved.injection_depth,2);assert.equal(saved.injection_order,42);assert.deepEqual(saved.injection_trigger,['swipe']);
-        await click(block.getByRole('button',{name:'Restore original preset block'}));await waitMessage('Original preset block restored');
+        await click(block.getByRole('button',{name:'Restore before extension edits'}));await waitMessage('Before extension edits restored');
         const extOrder=wb.locator('details').filter({has:page.getByText('Extension instruction order',{exact:true})}).last();
         await open(extOrder);
         const colorSection=extOrder.locator(':scope > details').filter({has:page.getByText('Dialogue colors',{exact:true})});
@@ -88,7 +89,7 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         await pick(picker,previousVoice);
         // Wait for the host's debounced settings write before switching presets or closing the browser.
         if(process.env.RI_ST_DIR) {
-            const settingsPath=require('node:path').join(process.env.RI_ST_DIR,'data/default-user/settings.json');
+            const settingsPath=require('node:path').join(process.env.RI_ST_DATA || require('node:path').join(process.env.RI_ST_DIR,'data'),'default-user/settings.json');
             await require('node:timers/promises').setTimeout(1250);
             const savedVoice=JSON.parse(fs.readFileSync(settingsPath)).extension_settings.roleplay_instructions;
             assert.equal(savedVoice.roastVoiceId,previousVoice);

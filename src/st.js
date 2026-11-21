@@ -119,6 +119,12 @@ export function listProfiles() {
     } catch { return []; }
 }
 
+export function canUseProfiles() {
+    const host = ctx();
+    return typeof host.ConnectionManagerRequestService?.sendRequest === 'function' &&
+        !host.extensionSettings?.disabledExtensions?.includes('connection-manager');
+}
+
 function stripThinking(text) {
     // Closed thinking blocks, then a thinking block that was cut off before it closed.
     return String(text ?? '').replace(/<\s*(think|thinking|reasoning)\s*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '').replace(/<\s*(think|thinking|reasoning)\s*>[\s\S]*$/i, '').trim();
@@ -128,17 +134,23 @@ function stripThinking(text) {
  * Send one background request and return the text of the answer.
  * With a connection profile: ConnectionManagerRequestService. Otherwise generateRaw on the chat's own connection.
  */
-export async function askFull({ system = '', user = '', tokens = 600, profileId = '' }) {
+export async function askFull({ system = '', user = '', tokens = 600, profileId = '', signal, useProfilePreset = true }) {
     const c = ctx();
     const messages = [{ role: 'user', content: String(user) }];
     let raw = '';
     let reasoning = '';
-    if (profileId && listProfiles().some(p => p.id === String(profileId))) {
+    if (profileId) {
+        if (!canUseProfiles() || !listProfiles().some(p => p.id === String(profileId))) {
+            throw new Error('The saved connection profile is unavailable on this host. Choose an available connection in Execution settings.');
+        }
         const msgs = [...(system ? [{ role: 'system', content: String(system) }] : []), ...messages];
-        const r = await c.ConnectionManagerRequestService.sendRequest(String(profileId), msgs, tokens, { stream: false, extractData: true, includePreset: true, includeInstruct: true });
+        const r = await c.ConnectionManagerRequestService.sendRequest(String(profileId), msgs, tokens, {
+            stream: false, extractData: true, includePreset: useProfilePreset, includeInstruct: true, signal,
+        });
         raw = String(typeof r === 'string' ? r : (r?.content ?? ''));
         reasoning = String((r && typeof r === 'object' && r.reasoning) || '');
     } else {
+        if (typeof c.generateRaw !== 'function') throw new Error('This host does not expose direct generation on Main API.');
         raw = String(await c.generateRaw({ prompt: messages, systemPrompt: String(system), responseLength: tokens, trimNames: false }) ?? '');
     }
     const text = stripThinking(raw);
@@ -207,12 +219,135 @@ export async function triggerSwipe({ append = false } = {}) {
         await c.swipe.to(null,'right',{message,forceSwipeId:message.swipes.length});
         return true;
     }
+    if (typeof c.swipe?.right === 'function') { await c.swipe.right(); return true; }
     try {
-        if (typeof c.swipe?.right === 'function') { await c.swipe.right(); return true; }
-    } catch (e) { console.warn(LOG, 'swipe.right failed', e); }
-    try { globalThis.jQuery?.('#chat .last_mes .swipe_right').trigger('click'); return true; } catch { return false; }
+        const button = globalThis.document?.querySelector('#chat .last_mes .swipe_right');
+        if (!button) return false;
+        button.click();
+        return true;
+    } catch { return false; }
 }
 
 export function isGenerating() {
-    return document.body?.dataset?.generating === 'true';
+    return globalThis.document?.body?.dataset?.generating === 'true';
+}
+
+/** A guided request reserves one generation. Host autoretry settings stay in force for ordinary sends. */
+export async function withSingleHostRequest(action) {
+    const prefs = ctx().powerUserSettings;
+    const continuing = prefs?.auto_continue;
+    const disableSwipe = prefs?.auto_swipe === true;
+    const disableContinue = continuing?.enabled === true;
+    if (disableSwipe) prefs.auto_swipe = false;
+    if (disableContinue) continuing.enabled = false;
+    try { return await action(); }
+    finally {
+        if (disableSwipe && prefs.auto_swipe === false) prefs.auto_swipe = true;
+        if (disableContinue && continuing.enabled === false) continuing.enabled = true;
+    }
+}
+
+export function readComposer() {
+    const input = globalThis.document?.querySelector('#send_textarea');
+    return input ? { text: input.value, start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection } : null;
+}
+
+export function writeComposer(snapshot) {
+    const input = globalThis.document?.querySelector('#send_textarea');
+    if (!input || !snapshot) return false;
+    input.value = snapshot.text;
+    if (snapshot.start != null) input.setSelectionRange(snapshot.start, snapshot.end ?? snapshot.start, snapshot.direction ?? 'none');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+}
+
+export async function triggerContinuation() {
+    const host = ctx();
+    if (typeof host.generate !== 'function') return false;
+    if (!host.groupId) {
+        // SillyTavern's depth flag keeps the composer out of a continuation.
+        await host.generate('continue', { depth: 1 });
+        return true;
+    }
+    // Group generation invokes the host command a second time without the depth
+    // option. Temporarily clear the composer and restore only in this same chat.
+    const draft = readComposer(), chat = host.chat;
+    if (draft?.text) writeComposer({ text: '' });
+    try { await host.generate('continue'); }
+    finally {
+        if (ctx().chat === chat && draft && readComposer()?.text === '') writeComposer(draft);
+    }
+    return true;
+}
+
+const swipeSnapshot = message => ({
+    send_date: message.send_date, gen_started: message.gen_started, gen_finished: message.gen_finished,
+    extra: structuredClone(message.extra || {}),
+});
+
+/** Apply a generated historical version to the chosen host message only. */
+export function setReplyVersion(index, text, { append = false } = {}) {
+    const message = ctx().chat?.[index];
+    if (!message || !isReply(message) || message.is_system) throw new Error('The selected reply is unavailable.');
+    const before = structuredClone(message);
+    message.swipes = Array.isArray(message.swipes) ? [...message.swipes] : [];
+    message.swipe_info = Array.isArray(message.swipe_info) ? structuredClone(message.swipe_info) : [];
+    const original = Number(message.swipe_id ?? 0);
+    message.swipes[original] = message.mes;
+    message.swipe_info[original] = swipeSnapshot(message);
+    const swipe = append ? original : message.swipes.length;
+    message.swipe_id = swipe;
+    message.mes = text;
+    const extra = structuredClone(message.extra || {});
+    delete extra.display_text;
+    if (!append) for (const field of [KEY, 'api', 'model', 'reasoning', 'reasoning_signature', 'reasoning_duration', 'token_count']) delete extra[field];
+    message.extra = extra;
+    message.swipes[swipe] = text;
+    message.swipe_info[swipe] = swipeSnapshot(message);
+    return { message, before };
+}
+
+export function selectReplyVersion(index, swipe) {
+    const message = ctx().chat?.[index];
+    if (!message || typeof message.swipes?.[swipe] !== 'string') throw new Error('That swipe is no longer available.');
+    const original = Number(message.swipe_id ?? 0);
+    if (original === swipe) return message;
+    message.swipe_info ??= [];
+    message.swipes[original] = message.mes;
+    message.swipe_info[original] = swipeSnapshot(message);
+    const chosen = message.swipe_info[swipe];
+    message.swipe_id = swipe;
+    message.mes = message.swipes[swipe];
+    if (chosen) {
+        for (const key of ['send_date', 'gen_started', 'gen_finished']) message[key] = chosen[key];
+        message.extra = structuredClone(chosen.extra || {});
+    } else {
+        message.extra = structuredClone(message.extra || {});
+        delete message.extra[KEY];
+    }
+    updateReplyVersion(index);
+    return message;
+}
+
+export function updateReplyVersion(index) {
+    const host = ctx(), message = host.chat?.[index];
+    if (!message) return;
+    if (message.swipes?.[message.swipe_id] !== undefined) {
+        message.swipes[message.swipe_id] = message.mes;
+        message.swipe_info ??= [];
+        message.swipe_info[message.swipe_id] = swipeSnapshot(message);
+    }
+    host.updateMessageBlock?.(index, message);
+    host.swipe?.refresh?.(true, false);
+}
+
+export function restoreReplySnapshot(index, before, expected = ctx().chat?.[index]) {
+    const message = ctx().chat?.[index];
+    if (!message || message !== expected || !before) return false;
+    for (const key of Object.keys(message)) delete message[key];
+    Object.assign(message, structuredClone(before));
+    const host = ctx();
+    host.updateMessageBlock?.(index, message);
+    host.swipe?.refresh?.(true, false);
+    return true;
 }

@@ -1,16 +1,23 @@
 import { h, button, select } from './dom.js';
 import { promptEditor, promptGroup, roastVoiceEditor } from './prompts.js';
+import { promptComparison, variationEditor } from './prompt-variations.js';
+import { promptOwner } from '../prompt-variations.js';
+import { executionAction, functionExecution } from './execution.js';
+import { executionReceipt } from '../execution.js';
 import { ctx } from '../st.js';
 import { saveChatState } from '../store.js';
 import { moduleOrder, MODULE_PROMPTS } from '../module-layout.js';
 import { activePreset, prefs, MODULES, enabledV10, blockCompanions, effectiveModules, setModuleOwner } from '../v10.js';
-import { presetRows, hasPresetEdit, editPresetBlock, savePair, evaluateParity } from '../preset-workbench.js';
+import { presetRows, hasPresetEdit, editPresetBlock, savePair, evaluateParity, presetBlockRevision, presetBlockVariation,
+    validateBlockVariation, presetRestoreBaselines, presetRestoreFileName, presetRestoreUndo, linkPresetRestoreFile } from '../preset-workbench.js';
 
 const hint = text=>h('p',{class:'ri-help'},text);
 const label = (name,input)=>h('label',{class:'ri-field'},h('span',{class:'ri-label'},name),input);
 const btns = (...items)=>h('div',{class:'ri-row ri-row-tight'},items);
 const choices = pairs=>pairs.map(([value,label])=>({value,label}));
 const keyFor = () => JSON.stringify([ctx().getCurrentChatId?.(),activePreset()]);
+const blockFields = {name:'Name',content:'Wording',role:'Message role',absolute:'Fixed depth',depth:'Depth',priority:'Priority',
+    triggers:'Generation triggers',listed:'Listed in prompt order',enabled:'Enabled',preceding:'Earlier blocks',following:'Later blocks'};
 function expandOnce(details, render) {
     let built=false;
     const show=()=>{if (details.open && !built) {built=true;details.append(render());}};
@@ -45,11 +52,11 @@ export function presetWorkbench(preset,app,profile) {
     };
     function message(text) { ui.message=text; status.textContent=text; }
     async function run(action, success) {
-        if (ui.busy || keyFor()!==context) return;
+        if (ui.busy || keyFor()!==context) return false;
         const origin=document.activeElement;
         ui.busy=true; body.inert=true;
-        try { await action(); message(success); }
-        catch (error) { message(error.message || String(error)); }
+        try { await action(); message(success); return true; }
+        catch (error) { message(error.message || String(error)); return false; }
         finally { ui.busy=false; body.inert=false; redraw(origin); }
     }
     const modes=choices([['none','Both off'],['preset','Preset only'],['extension','Extension only'],['both','Both on']]);
@@ -58,7 +65,7 @@ export function presetWorkbench(preset,app,profile) {
         const current=block.enabled ? ext ? 'both' : 'preset' : ext ? 'extension' : 'none';
         const control=select(modes,current,value=>run(async()=>{
             const host=['preset','both'].includes(value), extension=['extension','both'].includes(value);
-            if (host!==block.enabled) await editPresetBlock(preset,block.id,{type:'enabled',value:host});
+            if (host!==block.enabled) await editPresetBlock(preset,block.id,{type:'enabled',value:host,expected:block.revision});
             if (keyFor()!==context) throw new Error('The chat changed while saving the preset. Reopen the original chat to change its module.');
             (prefs().modules ||= {})[key]=extension;
             setModuleOwner(preset,key,extension ? 'both' : 'preset');
@@ -74,6 +81,9 @@ export function presetWorkbench(preset,app,profile) {
     }
     function editable(block,card) {
         const id=block.id, draft=ui.drafts.get(id) || block;
+        const current = presetBlockVariation(block);
+        const revision = draft.revision || block.revision;
+        let variant = draft.variant || null;
         const name=h('input',{class:'ri-input',value:draft.name});
         const content=h('textarea',{class:'ri-input ri-textarea',rows:7,value:draft.content});
         const role=select(choices([['system','System'],['user','User'],['assistant','Assistant']]),draft.role,mark,{'aria-label':'Preset message role'});
@@ -81,21 +91,41 @@ export function presetWorkbench(preset,app,profile) {
         const placement=select(choices([['relative','In preset order'],['absolute','At a fixed chat depth']]),draft.absolute ? 'absolute' : 'relative',()=>{depthBox.hidden=placement.value!=='absolute';mark();});
         const depth=number(draft.depth), priority=number(draft.priority);
         const depthBox=h('div',{hidden:!draft.absolute},label('Messages from the end',depth),label('Priority at this depth',priority));
-        const triggers=[...new Set(['normal','continue','impersonate','swipe','regenerate','quiet',...draft.triggers])].map(value=>h('input',{type:'checkbox',value,checked:draft.triggers.includes(value),onchange:mark}));
+        const triggerField=h('fieldset',{},h('legend',{},'Use for these generation types'),hint('Leave all unchecked to allow every type.'));
+        const triggerList=h('div'); triggerField.append(triggerList);
+        let triggers=[];
+        function showTriggers(selected) {
+            triggers=[...new Set(['normal','continue','impersonate','swipe','regenerate','quiet',...selected])]
+                .map(value=>h('input',{type:'checkbox',value,checked:selected.includes(value),onchange:mark}));
+            triggerList.replaceChildren(...triggers.map(box=>h('label',{class:'ri-vpick'},box,box.value)));
+        }
+        showTriggers(draft.triggers);
         function values() {
             return {name:name.value,content:content.value,role:role.value,absolute:placement.value==='absolute',depth:depth.valueAsNumber,priority:priority.valueAsNumber,triggers:triggers.filter(box=>box.checked).map(box=>box.value)};
         }
-        function mark() { ui.drafts.set(id,values());card.dataset.riDirty=''; }
+        function mark() { ui.drafts.set(id,{...values(),variant,revision});card.dataset.riDirty=''; variations.updateDraftStatus(); }
+        async function apply() {
+            const success = await run(async()=>{
+                if (variant) await editPresetBlock(preset,id,{type:'variation',value:{...variant,...values()},expected:revision});
+                else await editPresetBlock(preset,id,{type:'text',...values(),placement:values(),expected:revision});
+                ui.drafts.delete(id);
+            },variant ? 'Preset variation applied in SillyTavern.' : 'Preset wording saved in SillyTavern.');
+            if (!success) throw new Error(ui.message || 'The preset could not be saved.');
+        }
+        const variations=variationEditor({owner:promptOwner('preset',preset,id),readDraft:()=>({...current,...variant,...values()}),
+            readActive:()=>current,validate:validateBlockVariation,fields:blockFields,applyLabel:`Apply to ${preset}`,applyDraft:apply,
+            loadDraft:value=>{
+                variant=value; name.value=value.name; content.value=value.content; role.value=value.role;
+                placement.value=value.absolute ? 'absolute' : 'relative'; depthBox.hidden=!value.absolute;
+                depth.value=value.depth; priority.value=value.priority; showTriggers(value.triggers); mark();
+            }});
         name.oninput=content.oninput=mark;
         if (ui.drafts.has(id)) card.dataset.riDirty='';
         return h('div',{},label('Preset block name',name),label('Preset instruction',content),label('Message role',role),
             h('details',{},h('summary',{},'Placement and generation triggers'),label('Prompt placement',placement),depthBox,
-                h('fieldset',{},h('legend',{},'Use for these generation types'),hint('Leave all unchecked to allow every type.'),triggers.map(box=>h('label',{class:'ri-vpick'},box,box.value)))),
+                triggerField),
 
-            btns(button('Save preset block',()=>run(async()=>{
-                await editPresetBlock(preset,id,{type:'text',name:name.value,content:content.value,role:role.value,placement:values()});
-                ui.drafts.delete(id);
-            },'Preset wording saved in SillyTavern.'),{kind:'primary'}),button('Discard draft',()=>{ui.drafts.delete(id); redraw();})));
+            btns(button('Save preset block',()=>apply().catch(()=>{}),{kind:'primary'}),button('Discard draft',()=>{ui.drafts.delete(id); redraw();})),variations.root);
     }
     function row(block, index, total) {
         const id=block.id, customized=hasPresetEdit(preset,id), keys=blockCompanions(block,preset);
@@ -105,15 +135,25 @@ export function presetWorkbench(preset,app,profile) {
         const panel=h('div'); card.append(panel);
         function expand() {
             if (panel.childNodes.length) return;
-            const move=delta=>run(()=>editPresetBlock(preset,id,{type:'move',delta}),'Preset order saved.');
-            panel.append(btns(button(block.enabled ? 'Turn preset block off' : 'Turn preset block on',()=>run(()=>editPresetBlock(preset,id,{type:'enabled',value:!block.enabled}),'Preset activation saved.')),
+            const move=delta=>run(()=>editPresetBlock(preset,id,{type:'move',delta,expected:block.revision}),'Preset order saved.');
+            panel.append(btns(button(block.enabled ? 'Turn preset block off' : 'Turn preset block on',()=>run(()=>editPresetBlock(preset,id,{type:'enabled',value:!block.enabled,expected:block.revision}),'Preset activation saved.')),
                 button('Move up',()=>move(-1),{disabled:!block.listed || index===0}),
                 button('Move down',()=>move(1),{disabled:!block.listed || index===total-1})));
             if (block.absolute) panel.append(hint('This block uses a fixed chat depth. SillyTavern applies its depth and priority when assembling the request.'));
             panel.append(block.marker ? hint('SillyTavern or TauriTavern fills this section from the current chat, card, or World Info.') : editable(block,card));
-            if (customized) panel.append(button('Restore original preset block',()=>run(async()=>{
-                await editPresetBlock(preset,id,{type:'restore'});ui.drafts.delete(id);
-            },'Original preset block restored.')),hint('Restores its wording, activation and place before your first extension edit. Restoring a newly added block removes it.'));
+            const sources=presetRestoreBaselines(preset,id);
+            for (const [key,source] of Object.entries(sources).filter(([,source])=>source)) {
+                const snapshot=source.snapshot;
+                const preview=h('details',{},h('summary',{},`Compare with ${source.label}`),
+                    source.captured && hint(`Captured ${new Date(source.captured).toLocaleString()}.`),
+                    snapshot.block ? promptComparison({before:snapshot.block.content || '',after:block.content,beforeLabel:source.label,afterLabel:'Current preset block'})
+                        : hint('This block was added in the workbench. Restoring this baseline removes it.'));
+                const caption=key==='file' ? 'Restore from original preset file' : 'Restore before extension edits';
+                panel.append(preview,button(caption,()=>run(async()=>{
+                    await editPresetBlock(preset,id,{type:'restore',from:key,expected:block.revision});ui.drafts.delete(id);
+                },`${source.label} restored.`)));
+            }
+            if (presetRestoreUndo(preset)?.id===id) panel.append(button('Undo restore',()=>run(()=>editPresetBlock(preset,id,{type:'undo'}),'Previous preset block restored.')));
             for (const key of keys) panel.append(companion(block,key));
             if (!keys.length) panel.append(hint('Choose a matching module below to compare its instructions and pick which source runs.'));
             const mapping=h('details',{},h('summary',{},'Choose matching extension modules'));
@@ -155,7 +195,7 @@ export function presetWorkbench(preset,app,profile) {
         return editor;
     }
     function build() {
-        const rows=presetRows(), listed=rows.filter(row=>row.listed).length;
+        const rows=presetRows().map(row=>({...row,revision:presetBlockRevision(row.id)})), listed=rows.filter(row=>row.listed).length;
         const list=h('div'), filter=h('input',{type:'search',class:'ri-input',value:ui.query || '',placeholder:'Filter by block or module'});
         function showRows() {
             ui.query=filter.value;
@@ -171,8 +211,9 @@ export function presetWorkbench(preset,app,profile) {
         const text=h('textarea',{class:'ri-input ri-textarea',value:ui.newText || ''});
         title.oninput=()=>{ui.newName=title.value;};text.oninput=()=>{ui.newText=text.value;};
         const compare=h('details',{open:ui.compare},h('summary',{},'Compare preset and extension with AI'),
-            hint('One optional request sends preset names, instruction excerpts and extension guidance to the current connection. Suggestions change settings only when you accept a match.'),
+            hint('One optional request sends preset names, instruction excerpts and extension guidance to the saved connection. Suggestions change settings when you accept a match.'),
             promptGroup(['parityEvaluation'],'Edit comparison instructions'),
+            functionExecution('presetParity',{receipt:executionReceipt('presetParity')}),
             button('Compare with one model call',()=>run(async()=>{ui.matches=await evaluateParity(rows);ui.compare=true;},'Comparison complete.')));
         compare.ontoggle=()=>ui.compare=compare.open;
         for(const item of ui.matches) {
@@ -182,7 +223,22 @@ export function presetWorkbench(preset,app,profile) {
                 button(keys.includes(item.module) ? 'Already matched' : 'Use this match',()=>{savePair(preset,item.id,[...keys,item.module]);redraw();},{disabled:keys.includes(item.module)})));
         }
         if(ui.message==='Comparison complete.' && !ui.matches.length) compare.append(hint('No matching functions were suggested.'));
+        const file=h('input',{type:'file',accept:'.json,application/json','aria-label':'Original preset JSON',style:{maxWidth:'100%',minHeight:'44px'}});
+        const originalFileName=presetRestoreFileName(preset);
+        const restoreFile=h('details',{},h('summary',{},'Attach an original preset file'),
+            hint(originalFileName ? `Restore source for ${preset}: ${originalFileName}.` : `Attach the original JSON for ${preset} to make its matching blocks available as restore sources.`),file);
+        file.onchange=()=>{
+            const source=file.files?.[0];
+            if (!source) return;
+            run(async()=>{
+                if (source.size>4000000) throw new Error('The preset JSON file is too large.');
+                const parsed=JSON.parse(await source.text());
+                linkPresetRestoreFile(preset,source.name,parsed);
+            },'Original preset file linked.');
+        };
+        const undo=presetRestoreUndo(preset);
         body.replaceChildren(hint('Preset changes apply to every chat using this saved preset. Extension activation applies to this chat. A source choice controls the displayed preset block and the entire paired extension module. Other preset blocks keep their own settings.'),
+            restoreFile,undo && !rows.some(row=>row.id===undo.id) && button('Undo last preset restore',()=>run(()=>editPresetBlock(preset,undo.id,{type:'undo'}),'Previous preset block restored.')),
             h('details',{},h('summary',{},'Add a preset block'),label('New block name',title),label('New instruction',text),
                 button('Add to end of preset',()=>run(async()=>{
                     const id=crypto.randomUUID?.() || 'ri-'+Date.now().toString(36)+Math.random().toString(36).slice(2);

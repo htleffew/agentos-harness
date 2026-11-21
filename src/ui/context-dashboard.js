@@ -8,6 +8,10 @@ import { refreshUnderReplies } from './sent.js';
 import { promptGroup } from './prompts.js';
 import { chatWorld } from '../world.js';
 import { historyPreview, chapterPreview, lastContext } from '../context-budget.js';
+import { editableReplySlots, storyJournalStatus } from '../memory-journal.js';
+import { syncWorld } from '../worldflow.js';
+import { executionPreview, executionReceipt } from '../execution.js';
+import { executionDetails, executionSettings } from './execution.js';
 
 const number = n => Number(n || 0).toLocaleString();
 const approx = n => `~${number(n)} tokens`;
@@ -30,6 +34,7 @@ function historyTools(app, components) {
         status?.running ? button(status.installing ? 'Saving…' : status.stop ? 'Stopping…' : 'Stop after the current request',()=>{stopHistoryCatchUp();redraw();},{disabled:status.stop || status.installing}) :
             h('div',{class:'ri-row'},button('Catch up this chat',()=>run(false),{kind:'primary',disabled})),
         h('p',{class:'ri-help'},'Catch-up fills uncovered history and resumes from saved chapters. A fresh rebuild reads the entire chat and switches to a new managed Story World after all chapters are ready. The previous book stays available as a backup.'),
+        executionDetails(executionReceipt('historyCatchUp') || executionPreview('historyCatchUp',{expected:'1 per batch'})),
         h('details',{},h('summary',{},'Fresh rebuild options'),
             h('label',{class:'ri-row'},keep,'Keep my authored entries and state corrections'),
             button('Rebuild from all chat history',()=>run(true),{disabled})),
@@ -69,6 +74,13 @@ export function renderContext(body, app) {
     amount.addEventListener('change', () => setTarget(amount.value));
     show(target);
     const hasWorld = isChatOpen() && !!chatWorld();
+    const filing = storyJournalStatus();
+    const retryFiling = button('Retry filing',async()=>{
+        retryFiling.disabled=true;
+        try { await syncWorld(); refreshUnderReplies(); app.render(); }
+        catch (error) { toast('error',error.message); }
+        finally { retryFiling.disabled=false; }
+    },{kind:'ghost'});
     const applyWindow = button('Apply to saved chapters now',async()=>{
         applyWindow.disabled=true;
         try { await applyHistoryWindow();refreshUnderReplies();app.render(); }
@@ -81,6 +93,20 @@ export function renderContext(body, app) {
             'Chapter settings are saved. Automatic summaries and hiding are paused until this chat has a Story World.',
             h('div',{class:'ri-row'},button('Open Story World',()=>app.openPage('world'),{kind:'ghost'}))) : null,
         field('Keep the story so far in chapters', 'Each new chapter uses one AI request. A successful chapter is stored in the Story World.', choose(components.chapters, v => setMemoryComponent('chapters',v))),
+        !memory && field('Earlier replies kept editable',
+            editableReplySlots() ? `The current reply is kept separately · ${editableReplySlots()} total editable slots. The Story World book holds filed facts. Recent changes appear in reply cards and extension recall.`
+                : 'Automatic Story World changes file as soon as a reply is accepted.',
+            select([{value:'-1',label:'File immediately'},...Array.from({length:21},(_,n)=>({value:String(n),label:String(n)}))],
+                String(editableReplySlots()-1), value=>{st.world.editableReplies=Number(value);save();},
+                {'aria-label':'Earlier replies kept editable'})),
+        hasWorld && h('p',{class:'ri-help',role:'status'},
+            `Filed through reply ${filing.filed} · ${filing.pending} editable records with changes · ${filing.uncertain} replies need review.`),
+        filing.error && h('div',{class:'ri-note ri-note-warn',role:'status'},filing.error,retryFiling),
+        h('details',{},h('summary',{},'Automatic chapter model requests'),
+            executionDetails(executionReceipt('chapterSummary') || executionPreview('chapterSummary')),
+            executionSettings({operation:'chapterSummary'}),
+            executionDetails(executionReceipt('chapterCombine') || executionPreview('chapterCombine')),
+            executionSettings({operation:'chapterCombine'})),
         h('div', {class:'ri-grid2'},
             !memory && field('Write a chapter when the scene ends', 'Requires Story World updates and at least the minimum number of replies.', choose(o.onSceneEnd !== false, v => {o.onSceneEnd=v;})),
             !memory && numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),

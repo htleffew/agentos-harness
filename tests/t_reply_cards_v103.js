@@ -42,16 +42,16 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         L.resetLog();
         await L.send(page,'I look for Mira.');
         const prompt = L.text(L.requests()[0]);
-        assert.match(prompt,/put a brief outline of intended beats/i);
+        assert.match(prompt,/put a brief outline of intended actions and character focus/i);
         assert.match(prompt,/Include this string even when no story facts changed/);
         assert.match(prompt,/ok so hi call me gremlin n yes im alwys online/);
         assert.match(prompt,/LOL wut\?!\? babbbbbbay!/);
         const latest = page.locator('#chat .last_mes');
         const header = latest.locator('.ri-scene-header');
         assert.deepEqual(await header.locator('dd').allTextContents(),['morning','Wednesday, Day 2','Dock','grey clouds rolling in']);
-        assert.equal(await latest.locator('.ri-v10-plan').evaluate(el=>el.open),false);
-        assert.equal(await latest.locator('.ri-reply-roast').evaluate(el=>el.open),false);
-        assert.match(await latest.locator('.ri-reply-roast').textContent(),/light do the talking/);
+        assert.equal(await latest.locator('.ri-v10-reply .ri-v10-plan').evaluate(el=>el.open),false);
+        assert.equal(await latest.locator('.ri-v10-reply .ri-reply-roast').evaluate(el=>el.open),false);
+        assert.match(await latest.locator('.ri-v10-reply .ri-reply-roast').textContent(),/light do the talking/);
         const tr = latest.locator('.ri-v10-reply');
         assert.ok(await tr.evaluate(node=>node.nextElementSibling?.classList.contains('ri-guided')));
         const consoleCard = tr.locator('.ri-v10-console');
@@ -113,14 +113,14 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         await page.locator('#chat .mes[mesid="2"] .ri-reply-glance').waitFor({state:'detached'});
         assert.deepEqual(await header.locator('dd').allTextContents(),['afternoon','Wednesday, Day 2','Gate','grey clouds rolling in']);
         assert.equal(await header.locator('.ri-scene-header-weather dd').getAttribute('title'),'Last established weather');
-        assert.match(await latest.locator('.ri-reply-roast').textContent(),/earned its own introduction/);
-        assert.equal(await latest.locator('.ri-reply-roast').evaluate(el=>el.open),false);
+        assert.match(await latest.locator('.ri-v10-reply .ri-reply-roast').textContent(),/earned its own introduction/);
+        assert.equal(await latest.locator('.ri-v10-reply .ri-reply-roast').evaluate(el=>el.open),false);
 
         L.mode({reply:'Mira looked up.\n'+block({scene:{where:'Gate',weather:'Steady rain'}})});
         await L.send(page,'I look up too.');
         assert.match(L.text(L.requests().at(-1)),/i got dat manic motion/);
         assert.equal(await header.locator('.ri-scene-header-weather dd').textContent(),'Steady rain');
-        assert.equal(await latest.locator('.ri-reply-roast').count(),0);
+        assert.equal(await latest.locator('.ri-v10-reply .ri-reply-roast').count(),0);
         const issues = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.cardIssues);
         assert.ok(issues.some(issue=>issue.includes('no readable Roast')));
         assert.ok(issues.some(issue=>issue.includes('no readable outline')));

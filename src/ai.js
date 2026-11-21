@@ -1,90 +1,64 @@
 import { promptText } from './prompts.js';
-// One place for every background request to the AI. Each request is written to the log,
-// and a failure comes back with a plain reason instead of an empty result.
-import { askFull, listProfiles } from './st.js';
-import { settings, saveSettings } from './store.js';
+import { askFull } from './st.js';
+import { settings } from './store.js';
 import { addLog, updateLog } from './log.js';
+import { amendExecutionReceipt, executionScope, EXECUTION_OPERATIONS, runAdditional } from './execution.js';
 
-// The texts of this extension's own requests while they are on their way, so the count of what a chat reply sends is
-// not taken from one of them.
-const inFlight = new Set();
-/** Is this finished prompt one of this extension's own requests? */
-export const isOwnPrompt = messages => Array.isArray(messages) && messages.some(m => typeof m?.content === 'string' && [...inFlight].some(t => m.content.includes(t)));
+// Exclude helper prompts from the ordinary reply recorder, including overlapping requests.
+const inFlight = new Map();
+export const isOwnPrompt = messages => Array.isArray(messages) && messages.some(message =>
+    typeof message?.content === 'string' && [...inFlight.values()].some(mark=>message.content.includes(mark)));
 
-const MORE_ROOM = (tokens) => Math.min(8000, tokens * 3 + 1500);
+const MORE_ROOM = tokens => Math.min(8000, tokens * 3 + 1500);
+const errorText = error => String(error?.cause?.message || error?.message || error || 'unknown error').slice(0, 400);
 
-function connectionName(profileId) {
-    const p = profileId ? listProfiles().find(x => x.id === String(profileId)) : null;
-    return p ? `connection profile "${p.name}"` : "the chat's own connection";
-}
+const systemPrompts = Object.freeze({
+    writerVersions:'systemVersions',writerVersionRewrite:'systemVersions',writerItems:'systemItems',writerStyle:'systemStyleItems',
+    writerRewrite:'systemRewrite',writerGoal:'systemGoal',writerWorld:'systemWorldEntry',chapterSummary:'systemChapter',
+    chapterCombine:'systemCombine',newChapter:'systemNewChapter',starterWorld:'systemStarter',instructionCheck:'systemCheck',editedState:'rebuild',
+});
 
-const errorText = (e) => String(e?.cause?.message || e?.message || e || 'unknown error').slice(0, 400);
-
-/**
- * Ask the AI and return { text, note }.
- * note(result, ok, details) writes how the answer was used into the same log entry.
- * Throws an Error whose message says in plain words what went wrong.
- */
-export async function request({ what, system = '', user = '', tokens = 600, profileId = '', promptSystemId = '', retryEmpty = true }) {
-    const st = settings();
-    const systemId = promptSystemId || (/^Write \d+ versions? for /.test(what) ? 'systemVersions'
-        : /^Write \d+ items for the list /.test(what) ? 'systemItems'
-        : /^Rewrite \d+ items of /.test(what) ? 'systemRewrite'
-        : what === 'Write a goal' ? 'systemGoal'
-        : /^Write a .+ entry$/.test(what) ? 'systemWorldEntry'
-        : what === 'Write a chapter of the story so far' ? 'systemChapter'
-        : what === 'Combine the older chapters into one' ? 'systemCombine'
-        : what === 'Write a new chapter (summary and first message)' ? 'systemNewChapter'
-        : what === 'Fill a story world from the character card' ? 'systemStarter'
-        : what === 'Check that it happened' ? 'systemCheck'
-        : what === 'Rebuild edited story state' ? 'rebuild' : '');
+/** Return the accepted transport text, its execution receipt and a note writer for parsing results. */
+export async function request({ operation, what, system = '', user = '', tokens = 600, promptSystemId = '', authorization, onReceipt, target, useProfilePreset = true, signal }) {
+    const systemId = promptSystemId || (Object.hasOwn(systemPrompts,operation) ? systemPrompts[operation] : '');
     if (systemId) system = promptText(systemId);
-    const via = connectionName(profileId);
-    let room = st.writer.moreRoom ? MORE_ROOM(tokens) : tokens;
-    let last = null;
-    const attempts = retryEmpty ? 2 : 1;
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-        const entry = addLog({
-            what: attempt === 1 ? what : `${what} (second try, more room)`,
-            details: [`Sent through ${via}.`, `Room for the answer: ${room} tokens.`, `Size of what was sent: about ${Math.round((system.length + user.length) / 4)} tokens.`],
-            sent: system ? `${system}\n\n${user}` : user,
-        });
+    const room = settings().writer.moreRoom ? MORE_ROOM(tokens) : tokens;
+    const preserveDraft=EXECUTION_OPERATIONS[operation]?.preserveDraft===true;
+    const { value, receipt } = await runAdditional(operation,{authorization,onReceipt,target,label:what,requireRaw:true,signal,record:false,preserveDraft},async ({profileId,receipt})=>{
+        const entry = addLog({ what,
+            details:[`Additional model request · attempt ${receipt.attempts} of ${receipt.expected}.`, `Sent through ${receipt.connection}.`,
+                `Room for the answer: ${room} tokens.`, `Size of what was sent: about ${Math.round((system.length + user.length) / 4)} tokens.`],
+            sent:system ? `${system}\n\n${user}` : user });
         const started = Date.now();
-        let res;
         try {
-            const mark = String(user).slice(0, 80);
-            inFlight.add(mark);
-            try { res = await askFull({ system, user, tokens: room, profileId }); } finally { inFlight.delete(mark); }
-        } catch (e) {
-            // SillyTavern reports an answer with no text in it as the error "No message generated".
-            if (/no message generated/i.test(errorText(e))) {
-                res = { text: '', raw: '', thinking: 0 };
-                updateLog(entry, { details: ['SillyTavern reported "No message generated": the AI sent back an answer with no text in it.'] });
-            } else {
-                const reason = `The AI connection gave an error: ${errorText(e)}`;
-                updateLog(entry, { ok: false, result: reason, details: [`Took ${((Date.now() - started) / 1000).toFixed(1)} seconds.`] });
-                throw new Error(`${reason} The Log tab has the details.`);
+            const mark = String(user).trim().slice(-180);
+            if (mark) inFlight.set(receipt.id,mark);
+            let res;
+            try { res = await askFull({system,user,tokens:room,profileId,useProfilePreset,signal}); }
+            finally { inFlight.delete(receipt.id); }
+            if (!preserveDraft && receipt.scope!==executionScope()) {
+                throw Object.assign(new Error('The chat changed while this request was running.'),{name:'AbortError',partialText:res.text});
             }
-        }
-        const secs = ((Date.now() - started) / 1000).toFixed(1);
-        updateLog(entry, { got: res.raw || '', details: [`Took ${secs} seconds.`, `Size of what came back: ${res.raw.length} characters${res.thinking ? `, of which ${res.thinking} were the model thinking` : ''}.`] });
-        if (res.text.trim()) {
-            if (attempt === 2 && !st.writer.moreRoom) {
-                st.writer.moreRoom = true;
-                saveSettings();
-                updateLog(entry, { details: ['The second try worked, so "Give the AI more room to answer" was turned on in Settings.'] });
+            const thinking = res.thinking ? `, of which ${res.thinking} were the model thinking` : '';
+            updateLog(entry,{got:res.raw || '',details:[`Size of what came back: ${res.raw.length} characters${thinking}.`]});
+            if (!res.text.trim()) {
+                const reason = res.thinking ? `The model used its ${room} answer tokens on thinking.` : 'The model returned an empty answer.';
+                throw new Error(`${reason} Run the action again to retry.`);
             }
-            return {
-                text: res.text,
-                note(result, ok = true, details = []) { updateLog(entry, { ok, result, details }); },
-            };
+            updateLog(entry,{ok:true,result:'Received an answer.'});
+            return { text:res.text, entry };
+        } catch (error) {
+            const aborted = error?.name==='AbortError';
+            const message = /no message generated/i.test(errorText(error)) ? 'The model returned an empty answer. Run the action again to retry.' : errorText(error);
+            const partial = error?.partialText ?? error?.partial ?? error?.responseText;
+            updateLog(entry,{ok:false,status:aborted ? 'Cancelled' : 'Failed',result:message,...(typeof partial==='string' ? {got:partial} : {})});
+            throw Object.assign(new Error(message),{name:aborted ? 'AbortError' : 'Error',partialText:partial});
+        } finally {
+            updateLog(entry,{details:[`Took ${((Date.now() - started) / 1000).toFixed(1)} seconds.`]});
         }
-        last = res.thinking
-            ? `The model spent its whole room for the answer (${room} tokens) on thinking and wrote no answer.`
-            : `The AI connection returned an empty answer. A model that thinks before it answers can use up the whole room for the answer (${room} tokens) on thinking.`;
-        updateLog(entry, { ok: false, result: last });
-        if (room >= 8000) break;
-        room = MORE_ROOM(room);
-    }
-    throw new Error(`${last}${retryEmpty ? ' A retry with more room could not produce an answer.' : ''} See the Log tab for details.`);
+    });
+    return { text:value.text, receipt, note(result,ok = true,details = []) {
+        updateLog(value.entry,{ok,result,details});
+        amendExecutionReceipt(receipt,{result:result || 'Received a result.',outcome:ok ? 'completed' : 'failed'},onReceipt);
+    } };
 }

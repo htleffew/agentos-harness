@@ -168,12 +168,12 @@ function whyNone(kind, answer, read, dropped) {
 }
 
 /** Ask the model for versions. Returns [{ text, swaps }]. Throws with a plain message when it fails. */
-export async function writeVersions({ ins, seed, count, context }) {
-    const st = settings();
+export async function writeVersions({ ins, seed, count, context, operation = 'writerVersions' }) {
     const existing = ins.versions.map(v => v.text);
     const draws = drawParticipants(instructionActors(ins), instructionTargets(ins), count);
     const prompt = buildWriterPrompt({ ins, seed, count, context, existing, draws });
-    const res = await request({ what: `Write ${count} ${count === 1 ? 'version' : 'versions'} for "${ins.name || 'an instruction'}"`, system: 'You write short instructions that are sent to a roleplay AI model during a chat. You answer with JSON only.', user: prompt, tokens: Math.min(4000, 300 + count * 150), profileId: st.profileId });
+    const res = await request({ operation,authorization:'manual',what:`Write ${count} ${count === 1 ? 'version' : 'versions'} for "${ins.name || 'an instruction'}"`,
+        user:prompt,tokens:Math.min(4000,300+count*150) });
     const answer = res.text;
     const read = readDrawnList(res, 15, draws.length, 'versions');
     const seen = new Set(existing.map(v => v.toLowerCase()));
@@ -263,7 +263,8 @@ export async function writeItems({ category, theme, count, context, existing, ot
     { const story = contextText(seen0); if (story) lines.push('', style || st.writer.eventScene ? STORY_LEAD : EVENT_LEAD, story); }
     lines.push('', ...writerRules());
     lines.push('', style ? 'Return only a JSON list of strings, for example ["first item", "second item"].' : ANYWHERE_FORM);
-    const res = await request({ promptSystemId: style ? 'systemStyleItems' : 'systemItems', what: `Write ${count} items for the list "${category.name}"`, system: 'You write short story ingredients for a roleplay. You answer with JSON only.', user: brackets(lines.filter(l => l !== null && l !== undefined).join('\n')), tokens: Math.min(4000, 300 + count * 80), profileId: st.profileId });
+    const res = await request({ operation:style ? 'writerStyle' : 'writerItems',authorization:'manual',what:`Write ${count} items for the list "${category.name}"`,
+        user:brackets(lines.filter(l=>l!==null && l!==undefined).join('\n')),tokens:Math.min(4000,300+count*80) });
     const answer = res.text;
     const read = readDrawnList(res, 3, draws.length, 'items');
     const seen = new Set(existing.map(v => v.toLowerCase()));
@@ -311,7 +312,8 @@ export async function rewriteAnywhere({ category, items, others = [] }) {
         '',
         `Return only a JSON list of ${items.length} strings, the rewritten items in the same order as the numbered list.`,
     ];
-    const res = await request({ what: `Rewrite ${items.length} items of "${category.name}" to work in any setting`, system: 'You edit short story ingredients for a roleplay. You answer with JSON only.', user: lines.filter(l => l !== null).join('\n'), tokens: Math.min(2400, 120 + items.length * 40) });
+    const res = await request({ operation:'writerRewrite',authorization:'manual',what:`Rewrite ${items.length} items of "${category.name}" to work in any setting`,
+        user:lines.filter(l=>l!==null).join('\n'),tokens:Math.min(2400,120+items.length*40) });
     const read = readList(res.text, 3);
     // Rewrites are matched to items by their place in the list, so only a real JSON list is used.
     if (read.how !== 'Read as a JSON list.') {
@@ -337,7 +339,6 @@ export async function rewriteAnywhere({ category, items, others = [] }) {
  * Returns { goal, actions: [text], steps: [text] }.
  */
 export async function writeGoal({ about, context }) {
-    const st = settings();
     const lines = [
         'Write one goal for the main character of a roleplay, with small tasks that serve it.',
         '',
@@ -356,7 +357,7 @@ export async function writeGoal({ about, context }) {
     { const story = contextText(context); if (story) lines.push('', STORY_LEAD, story); }
     lines.push('', ...writerRules());
     lines.push('', 'Return only a JSON object with the keys "goal", "actions" and "steps".');
-    const res = await request({ what: 'Write a goal', system: 'You plan goals for a character in a roleplay. You answer with JSON only.', user: brackets(lines.join('\n')), tokens: 1100, profileId: st.profileId });
+    const res = await request({ operation:'writerGoal',authorization:'manual',what:'Write a goal',user:brackets(lines.join('\n')),tokens:1100 });
     const answer = res.text;
     const obj = parseJson(String(answer).slice(Math.max(0, String(answer).indexOf('{'))));
     const fix = t => swapNames(tidy(String(t ?? '')).replace(/[.]+$/, '')).text;
@@ -377,7 +378,7 @@ export async function rewriteVersion({ ins, text }) {
     const targets = instructionTargets(ins);
     const direction = actors[0] === 'model' ? 'Rewrite this direction without changing what it asks for' : 'Reword this version and keep the same participants and action';
     const fixed = { ...ins, actors: actors.length === 1 ? actors : ['unspecified'], targets: targets.length === 1 ? targets : ['unspecified'] };
-    const res = await writeVersions({ ins: fixed, seed: `${direction}: ${text}`, count: 1, context: settings().writer.context });
+    const res = await writeVersions({ ins:fixed,seed:`${direction}: ${text}`,count:1,context:settings().writer.context,operation:'writerVersionRewrite' });
     return res[0];
 }
 

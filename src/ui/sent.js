@@ -1,6 +1,8 @@
 import { memoryOnly } from '../components.js';
 import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
+import { proseDiagnosticsNotes } from '../prose-diagnostics.js';
+import { executionDetails } from './execution.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
 import { storyStateChips, loreChips, replyCardHeader, replyChip, replyGlance, revealReplyBody, roastCard } from './reply-cards.js';
 import { replyWorldTabs } from './reply-world.js';
@@ -410,21 +412,24 @@ function refreshV10Replies(chat) {
         if (!block) continue;
         const old=block.querySelector(':scope > .ri-v10-reply');
         const showHeader = enabled && !memoryOnly() && (native || rec?.v10) && isReply(msg);
-        const show = showHeader && !!rec;
+        const diagnostics = enabled && !memoryOnly() && isReply(msg)
+            ? proseDiagnosticsNotes(chat,id,{avoid:local.avoidPhrases,metrics:local.proseMetrics===true}) : null;
+        const hasDiagnostics = !!(diagnostics?.notes.length || diagnostics?.details.length || diagnostics?.metrics || diagnostics?.auditRequested);
+        const show = (showHeader || hasDiagnostics) && !!rec;
         const snapshot=showHeader ? snapshotScene(id) : null;
         updateSceneHeader(mes,id,snapshot);
         if (!show) {old?.remove();continue;}
-        const showConsole=settings().scene?.card !== 'off';
+        const showConsole=showHeader && settings().scene?.card !== 'off';
         const showState=showConsole && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
         const sc=showState && modules.state ? snapshot : {};
         const people=showState && modules.state ? Object.values(snapshotState(id)).filter(p=>!sc.present || sc.present.toLowerCase().includes(p.name.toLowerCase())) : [];
         const records=(rec.v10Changes || []).filter(record=>modules[KIND_MODULE[record.kind]]);
         const profiles=showState && modules.state ? rec.v10Profiles || [] : [];
-        const planning=local.showPlanning !== false ? rec.v10Plan : '';
-        const roast=local.showRoast!==false ? rec.roast : '';
-        const lore=local.showLore!==false ? rec.v10Lore || [] : [];
+        const planning=showHeader && local.showPlanning !== false ? rec.v10Plan : '';
+        const roast=showHeader && local.showRoast!==false ? rec.roast : '';
+        const lore=showHeader && local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
-        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,id===latestReply,sc,people,profiles,records,planning,roast,lore,
+        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,id===latestReply,sc,people,profiles,records,planning,roast,lore,diagnostics,
             rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
         const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});
@@ -450,15 +455,28 @@ function refreshV10Replies(chat) {
         if (records.length) parts.push(['Changes',h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
             h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
             replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))]);
-        if (rec.v10Check || rec.v10Offer || rec.v10Invalid || rec.v10Issues?.length || rec.stateOutdated || rec.v10Diagnostics?.length || rec.cardIssues?.length) parts.push(['Notes',[
+        const notes = [
             rec.v10Check && h('p',{},checkText(rec.v10Check)),
             rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
             rec.v10Invalid && h('p',{},'Some structured changes could not be applied.'),
             rec.stateOutdated && h('p',{},'This reply was edited. Its previous state is out of date.'),
             (rec.v10Issues || []).map(note=>h('p',{},note)),
-            (rec.v10Diagnostics || []).map(note=>h('p',{},note)),
+            ...((diagnostics?.notes || rec.v10Diagnostics || []).map(note=>h('p',{},note))),
+            ...(diagnostics?.details || []).map(({heading,items})=>
+                h('div',{},h('p',{},heading),h('ul',{},items.map(text=>h('li',{},text))))),
+            diagnostics?.metrics && h('p',{},`${diagnostics.metrics.words} words · about ${diagnostics.metrics.dialogue}% in quotation marks.`),
+            diagnostics?.auditRequested && !diagnostics.details.length && h('p',{},diagnostics.auditConfirmed===false
+                ? 'The host omitted the writing review prompt.' : 'The reply supplied no supported writing review findings.'),
+            hasDiagnostics && executionDetails([
+                {stage:'code',label:'Local prose screening',trigger:'When the reply is accepted.',attempts:0,outcome:'Complete'},
+                ...(diagnostics.usedReply ? [{stage:'reply',label:'Writing review and next-turn guidance',trigger:'On the ordinary story reply.',connection:diagnostics.connection,attempts:0,outcome:
+                    diagnostics.auditConfirmed===false ? 'Host omitted part of the requested guidance' : diagnostics.auditConfirmed===true ? 'Confirmed in the assembled request' : 'Selected for the reply request'}] : []),
+            ]),
             (rec.cardIssues || []).map(note=>h('p',{},note)),
-        ]]);
+        ].flat().filter(Boolean);
+        if (notes.length) parts.push(['Notes',notes]);
+        if (!showConsole && hasDiagnostics) out.append(h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'notes'},
+            replyCardHeader({icon:'◇',title:'Notes'}),h('div',{class:'ri-v10-panels'},notes)));
         if (showConsole && parts.length) {
             const tabs = replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id);
             const consoleCard = h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},

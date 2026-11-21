@@ -60,7 +60,9 @@ export function roastCard(text, attrs = {}, status) {
     const paragraphs = text.trim().split(/\r?\n\s*/).filter(Boolean);
     return h(status ? 'div' : 'details', {class:'ri-roast ri-reply-card ri-reply-roast',...attrs},
         replyCardHeader({icon:'“',title:'Roast',subtitle:'Reader reaction',status}),
-        !status && h('blockquote',{class:'ri-roast-v ri-reply-quote'},paragraphs.map(line=>h('p',{},roastEmphasis(line)))));
+        !status && h('blockquote',{class:'ri-roast-v ri-reply-quote'},paragraphs.map(line=>h('p',{},roastEmphasis(line)))),
+        !status && executionDetails({label:'Reader reaction',stage:'reply',connection:'Original reply connection',attempts:0,
+            outcome:'completed',result:'Generated in the character reply.'}));
 }
 
 export function replyGlance({scene,people,profiles,records,changed,hasSavedTabs,pending = {}}, openTab) {
@@ -110,3 +112,4 @@ export function replyGlance({scene,people,profiles,records,changed,hasSavedTabs,
         castCards.length>0 && h('div',{class:'ri-glance-cast'},castCards),
         contextCards.length>0 && h('div',{class:'ri-glance-context'},contextCards)) : null;
 }
+import { executionDetails } from './execution.js';
