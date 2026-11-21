@@ -94,11 +94,12 @@ export function characterStateCard(person, id, refresh, { historical = false, re
 
 export function sceneEditor(scene, refresh, { historicalId = null } = {}) {
     const form = h('div', { class: 'ri-state-editor' }), inputs = {}, locks = {};
+    const advances = key => key==='time' || key==='date' || key==='when';
     for (const [key, label] of SCENE_FIELDS) {
         const input = h('textarea', { class: 'ri-input ri-textarea', rows: 2 }); input.value = scene[key] || '';
         const lock = h('input', { type: 'checkbox', checked: sceneProtected(key) });
         inputs[key] = input; locks[key] = lock;
-        input.addEventListener('input', () => { lock.checked = true; });
+        if (!advances(key)) input.addEventListener('input', () => { lock.checked = true; });
         form.append(h('label', { class: 'ri-label' }, label), input);
         if (historicalId === null) form.append(h('label', { class: 'ri-state-lock' }, lock, ' Protect from automatic changes'));
     }
@@ -106,7 +107,7 @@ export function sceneEditor(scene, refresh, { historicalId = null } = {}) {
         const save = apply => {
             for (const [key] of SCENE_FIELDS) if (inputs[key].value.trim() !== (scene[key] || '')) {
                 editSceneSnapshot(historicalId, key, inputs[key].value);
-                if (apply) editScene(key, inputs[key].value, true);
+                if (apply) editScene(key, inputs[key].value, !advances(key));
             }
             refresh();
         };

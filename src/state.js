@@ -147,13 +147,31 @@ export function sceneFromReplyHeader(prose) {
 export function sceneAt(before = Infinity, { overrides = before === Infinity } = {}) {
     const chat = ctx().chat || [];
     let scene = { ...(metadata()?.sceneSeed || {}) };
+    let legacy;
+    let checked=0;
     for (let i = Math.min(before, chat.length) - 1; i >= 0; i--) {
-        if (!chat[i]?.is_user && !chat[i]?.extra?.[KEY]?.stateStale && chat[i]?.extra?.[KEY]?.scene) { scene = { ...chat[i].extra[KEY].scene }; break; }
+        const message = chat[i], record = message?.extra?.[KEY];
+        if (!message || message.is_user || record?.stateStale) continue;
+        if (record?.scene) { scene = {...record.scene}; break; }
+        if (!legacy && !message.is_system && checked < 12 && !Object.keys(scene).length) {
+            checked++;
+            const candidate = sceneFromReplyHeader(message.mes);
+            if (Object.keys(candidate).length) legacy=candidate;
+        }
     }
+    if (!Object.keys(scene).length && legacy) scene=legacy;
     if (overrides) for (const [key, entry] of Object.entries(metadata()?.sceneOverrides || {})) {
         if (SCENE_FIELDS.some(([field]) => field === key)) scene[key] = entry.value;
     }
     return normalizeScene(scene);
+}
+export function storyMinuteAt(before = Infinity) {
+    const chat = ctx().chat || [];
+    for (let i = Math.min(before,chat.length)-1; i >= 0; i--) {
+        const record = chat[i]?.extra?.[KEY];
+        if (!chat[i]?.is_user && !record?.stateStale && Number.isSafeInteger(record?.v10Minutes)) return record.v10Minutes;
+    }
+    return metadata()?.v10ClockSeed;
 }
 export function currentState(type = 'normal') {
     const chat = ctx().chat || [];
@@ -161,7 +179,7 @@ export function currentState(type = 'normal') {
 }
 export function statePrompt(type = 'normal', limit = 1400, { includeCharacters = true, excludeTargetOverrides = false } = {}) {
     const chat = ctx().chat || [];
-    const end = type === 'swipe' && chat.length && !chat[chat.length - 1]?.is_user ? chat.length - 1 : Infinity;
+    const end = ['swipe','regenerate'].includes(type) && chat.length && !chat[chat.length - 1]?.is_user ? chat.length - 1 : Infinity;
     const state = stateAt(end, { overrides: !excludeTargetOverrides });
     const scene = sceneAt(end, { overrides: !excludeTargetOverrides });
     if (excludeTargetOverrides) {
@@ -185,7 +203,10 @@ export function statePrompt(type = 'normal', limit = 1400, { includeCharacters =
     const rows = [];
     let used = 0;
     const add = line => { if (used + line.length + 1 > limit) return; rows.push(line); used += line.length + 1; };
-    const sceneLine = SCENE_FIELDS.filter(([k]) => scene[k]).map(([k, label]) => `${label}: ${scene[k]}`).join(' | ');
+    const temporal = [['time','Time'],['date','Date'],['when','When']];
+    const sceneLine = SCENE_FIELDS.filter(([k]) => !temporal.some(([key])=>key===k) && scene[k]).map(([k, label]) => `${label}: ${scene[k]}`).join(' | ');
+    for (const [key,label] of temporal) if (scene[key] && (key!=='when' || !scene.time)) add(`${label}: ${String(scene[key]).slice(0,100)}`);
+    if (!scene.date && scene.lastKnownDate) add(`The new date is unconfirmed. Last established date: ${String(scene.lastKnownDate).slice(0,100)}. Supply the new date if the calendar establishes it.`);
     if (sceneLine) add(`Scene: ${sceneLine}`);
     // Preserve complete fields rather than dropping an entire character when a long
     // field does not fit; physical conditions and goals take precedence.
@@ -307,7 +328,7 @@ export function editScene(field, value, locked = true) {
         delete root.sceneOverrides[field];
         const chat = ctx().chat || [];
         const m = [...chat].reverse().find(x => !x?.is_user && x?.extra?.[KEY]);
-        if (m) { const rec = m.extra[KEY]; rec.scene ||= {}; rec.scene[field] = text(value); const info = m.swipe_info?.[m.swipe_id]; if (info) { info.extra ||= {}; info.extra[KEY] = clone(rec); } }
+        if (m) { const rec = m.extra[KEY]; rec.scene ||= sceneAt(Infinity,{overrides:false}); rec.scene[field] = text(value); const info = m.swipe_info?.[m.swipe_id]; if (info) { info.extra ||= {}; info.extra[KEY] = clone(rec); } }
         else { root.sceneSeed ||= {}; root.sceneSeed[field] = text(value); }
     }
     save(); return true;

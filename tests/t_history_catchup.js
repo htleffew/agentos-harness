@@ -28,7 +28,7 @@ const L = require('./lib.js');
             places:['Dock'],people:['Mira'],world:[{line:'place: Dock | The harborside landing',evidence:'Grey clouds covered the dock.'},
                 {line:'person: Mira | keeper | The keeper carries a blue lantern',evidence:'Mira held up the blue lantern.'},
                 {line:'place: Invented palace | An unsupported place',evidence:'This never appeared.'}],
-            scene:{where:'Dock',when:'the day, morning, grey clouds rolling in',date:'Day 2',present:'Mira'},
+            scene:{where:'Dock',when:'the day, morning, grey clouds rolling in',time:'06:00',date:'Day 2',present:'Mira'},
             sceneEvidence:'Grey clouds covered the dock.',
             characters:[{name:'Mira',mind:'Watching the dock',evidence:'Mira held up the blue lantern.'}],
             changes:[{id:'blue-lantern',kind:'fact',subject:'Mira',text:'Mira carried a blue lantern.',evidence:'Mira held up the blue lantern.'}]});
@@ -63,6 +63,8 @@ const L = require('./lib.js');
         assert.deepEqual(first.hidden,[1,2,3,4,5,6,7,8]);
         assert.equal(first.last.scene.weather,'grey clouds rolling in');
         assert.equal(first.last.scene.date,'Day 2');
+        assert.equal(first.last.scene.time,'06:00');
+        assert.equal(first.last.v10Minutes,0);
         assert.equal(L.requests().length,3);
         for (let turn = 1; turn <= 6; turn++) assert.equal(L.requests().filter(req=>L.text(req).includes(`INPUT-${turn}`)).length,1);
         assert.equal((await run()).total,0);
@@ -95,6 +97,8 @@ const L = require('./lib.js');
         assert.ok(rebuilt.rows.some(row=>row.name==='Authored Island'));
         assert.deepEqual(rebuilt.prose,edited.prose);
         assert.deepEqual(rebuilt.hidden,first.hidden);
+        assert.equal(rebuilt.last.scene.time,'06:00');
+        assert.equal(rebuilt.last.v10Minutes,0);
         assert.ok(await story(async ({base,value})=>{
             const W = await import(`${base}/src/world.js`);
             return W.listWorld(await W.loadWorld(value),value).some(row=>row.name==='Authored Island');

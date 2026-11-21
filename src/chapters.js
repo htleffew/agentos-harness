@@ -2,7 +2,8 @@ import { readActivation } from './recall.js';
 import { separateReply } from './reply-format.js';
 import { memoryComponents, memoryOnly } from './components.js';
 import { promptText } from './prompts.js';
-import { stateAt, sceneAt, normalizeScene, SCENE_FIELDS, changesFromProfiles } from './state.js';
+import { stateAt, sceneAt, storyMinuteAt, normalizeScene, SCENE_FIELDS, changesFromProfiles } from './state.js';
+import { advanceStoryClock, validElapsed } from './story-clock.js';
 import { historySourceMark, historySourceMatches } from './history-source.js';
 import { storyCorrectionPrompt } from './correction-rules.js';
 import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, recordMap, portrayalSources, updateContract, baseWorld } from './v10.js';
@@ -291,18 +292,19 @@ function keepAuthoredEntries(rows, data, world) {
 
 function fileHistoryBatch(data, wid, meta, batch, payload, rec, config) {
     const {summary, parsed, ops} = payload;
-    const {track,structured,modules,previous,base,keepChapter = true} = config;
+    const {track,structured,modules,previous,previousClock,base,keepChapter = true} = config;
     const prior = listWorld(data,wid);
     const changes = track ? applyOps(data,wid,ops,meta,'history',35) : [];
     if (parsed && modules.state && (!rec.scene || rec.stateStale)) {
         const scene = normalizeScene(parsed.scene);
-        rec.scene = normalizeScene({...previous,...scene});
-        if (scene.when !== undefined && scene.time === undefined) delete rec.scene.time;
+        const timeline = advanceStoryClock(previous,scene,{clock:previousClock,minutes:parsed.minutes,elapsed:parsed.elapsed});
+        rec.scene = timeline.scene;
         rec.stateChanges = changesFromProfiles(parsed.profiles);
         rec.stateStale = false;
         rec.stateOutdated = false;
         if (rec.scene.weather && scene.weather===undefined) rec.weatherInherited = true;
-        if (Number.isInteger(parsed.minutes)) rec.v10Minutes = parsed.minutes;
+        rec.v10Minutes = timeline.minutes;
+        if (timeline.issues.length) (rec.v10Issues ||= []).push(...timeline.issues);
         if (structured) rec.v10SceneId = rec.time;
     }
     if (structured) {
@@ -387,7 +389,10 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
         const oldRows = wid ? listWorld(old,wid) : [];
         const stagingBook = rebuild ? {entries:{}} : null;
         const stagedBatches = [];
-        let stagedScene = {};
+        const openingScene = rebuild ? sceneAt(1,{overrides:false}) : null;
+        const openingClock = rebuild ? storyMinuteAt(1) : undefined;
+        let stagedScene = openingScene;
+        let stagedClock = openingClock;
         if (rebuild) {
             const base = `${cleanSetName(names().char).slice(0,45)} — Story World (rebuilt)`;
             wid = base;
@@ -408,6 +413,8 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
             report(`Reading replies ${batch.from}–${batch.to} · batch ${status.done + 1} of ${status.total}…`);
             const before = listWorld(rebuild ? stagingBook : await loadWorld(wid),wid);
             const catalog = before.filter(row=>row.on && row.kind!=='chapter').slice(-45).map(row=>row.name).join(', ');
+            const previous = rebuild ? stagedScene : sceneAt(batch.start,{overrides:false});
+            const previousClock = rebuild ? stagedClock : storyMinuteAt(batch.start);
             const form = [
                 chapterPrompt(batch.text,chaptersOf(before).filter(row=>row.span?.chat!==id || row.span.to<batch.from).slice(-3),{close:false}),
                 track && promptText('catchUpHistory'),
@@ -428,6 +435,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     'elsewhere: Title | person | activity',
                 ].join('\n'),
                 track && 'If the final scene is established, add "scene" with known where, time, date, weather, present (comma-separated), and environment strings, and "sceneEvidence" with an exact supporting quote from this batch. Omit uncertain details.',
+                structured && modules.state && `Scene before this batch: ${JSON.stringify(previous)}. ${Number.isSafeInteger(previousClock) ? `Relative story minute before this batch: ${previousClock}. ` : ''}Report elapsed only when the whole interval from that scene to the end of this batch is established.`,
                 structured && `Also include "changes" and "characters" arrays using the applicable fields from this guide. Use [] for either empty list. Retain the chapter keys above.\n${updateContract(modules,false,{fieldsOnly:true})}`,
                 'Return one JSON object containing the requested keys. Keep all fields in this object, without XML or Markdown fences.',
             ].filter(Boolean).join('\n\n');
@@ -441,13 +449,14 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                 const {summary, parsed, ops} = catchUpPayload(response.text,batch,track,structured);
                 const payload = {summary,parsed,ops};
                 const meta = {chat:id,n:batch.to};
-                const config = {track,structured,modules,base:baseWorld(root.v10),keepChapter:!repair || batch.to<=chapterThrough};
+                const config = {track,structured,modules,previous,previousClock,base:baseWorld(root.v10),keepChapter:!repair || batch.to<=chapterThrough};
                 const existing = chat[batch.end].extra?.[KEY];
                 if (rebuild) {
                     const rec = savedHistoryRecord(existing) || {v:1,items:[],type:'history',time:++timestamp};
-                    const staged = fileHistoryBatch(stagingBook,wid,meta,batch,payload,rec,{...config,previous:stagedScene});
+                    const staged = fileHistoryBatch(stagingBook,wid,meta,batch,payload,rec,config);
                     stagedBatches.push({batch,staged});
                     stagedScene = rec.scene || stagedScene;
+                    stagedClock = rec.v10Minutes ?? stagedClock;
                     status.done++;
                     response.note(`Prepared replies ${batch.from}–${batch.to} for the replacement Story World.`);
                     continue;
@@ -462,7 +471,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     if (live?.update?.world && live.update.world!==wid && !live.update.undone) throw new Error('This reply already belongs to a different Story World.');
                     const rec = live ? structuredClone(live) : {v:1,items:[],type:'history',time:++timestamp};
                     if (live?.update?.undone || live?.stateStale) rec.time = ++timestamp;
-                    const staged = fileHistoryBatch(data,wid,meta,batch,payload,rec,{...config,previous:sceneAt(batch.end,{overrides:false})});
+                    const staged = fileHistoryBatch(data,wid,meta,batch,payload,rec,config);
                     await saveWorld(wid,data);
                     if (!current() || chatWorld() !== wid) {
                         await saveWorld(wid,originalBook);
@@ -516,6 +525,8 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     delete root.sceneSeed;
                     delete root.stateSeed;
                     delete root.v10ClockSeed;
+                    if (Object.keys(openingScene).length) root.sceneSeed = openingScene;
+                    if (Number.isSafeInteger(openingClock)) root.v10ClockSeed = openingClock;
                     for (const message of chat) {
                         for (const holder of [message,...(message.swipe_info || [])]) {
                             if (holder.extra?.[KEY]) holder.extra[KEY] = savedHistoryRecord(holder.extra[KEY]);
@@ -663,7 +674,7 @@ export async function draftNewChapter(wish = '') {
         ...parts,
         'Answer in exactly this form, with these two headings in capitals and nothing before the first one:',
         'SUMMARY:', '(the summary)', '', 'FIRST MESSAGE:', '(the first message)',
-        'After the first message append one <chapter_scene> JSON object with time, date, where, weather, and present strings </chapter_scene>. Use only what is established in the new opening. For a field made uncertain by a scene change, give an empty string.',
+        'After the first message append one <chapter_scene> JSON object with time, date, where, weather, and present strings </chapter_scene>. Include numeric elapsed minutes when a known interval separates the established scene and the opening. If the skip changes the date and the story establishes the new one, include it. Omit fields that are unchanged.',
     ].join('\n');
     const res = await request({ what: 'Write a new chapter (summary and first message)', system: 'You continue a roleplay story into a new chat. You follow the form you are given.', user, tokens: 1800, profileId: settings().profileId });
     const answer = String(res.text);
@@ -676,8 +687,10 @@ export async function draftNewChapter(wish = '') {
     res.note('A summary and a first message were read. Nothing changes until you start the new chat.', true);
     const block = /<chapter_scene>\s*([\s\S]*?)\s*<\/chapter_scene>\s*$/i.exec(m[2]);
     const parsed = block ? parseJson(block[1]) : null;
-    const scene = normalizeScene({...currentScene,...chapterSceneFields(parsed)});
-    return {summary:m[1].trim(),first:(block ? m[2].slice(0,block.index) : m[2]).trim(),scene};
+    const elapsed = validElapsed(parsed?.elapsed) ? parsed.elapsed : undefined;
+    const { scene } = advanceStoryClock(currentScene,normalizeScene(chapterSceneFields(parsed)),{elapsed});
+    return {summary:m[1].trim(),first:(block ? m[2].slice(0,block.index) : m[2]).trim(),scene,
+        elapsed,previewTime:scene.time,previewDate:scene.date};
 }
 
 function chapterSceneFields(scene) {
@@ -713,10 +726,11 @@ export async function startNewChapter(draft, burnedSoFar) {
     const p = goalProgress('normal');
     const v10 = cs.v10 ? structuredClone(cs.v10) : undefined;
     if (v10) delete v10.check;
-    const v10ClockSeed = [...(c.chat || [])].reverse().find(message=>!message.extra?.[KEY]?.stateStale &&
-        Number.isInteger(message.extra?.[KEY]?.v10Minutes))?.extra[KEY].v10Minutes ?? cs.v10ClockSeed;
     const reviewedScene = chapterSceneFields(draft.scene);
-    const openingScene = normalizeScene({...sceneAt(),...reviewedScene});
+    const elapsed = draft.scene?.time===draft.previewTime && draft.scene?.date===draft.previewDate ? draft.elapsed : undefined;
+    if (!reviewedScene.date && draft.scene?.lastKnownDate) delete reviewedScene.date;
+    const { scene:openingScene,minutes:v10ClockSeed } = advanceStoryClock(sceneAt(),normalizeScene(reviewedScene),
+        {clock:storyMinuteAt(),elapsed});
     const carry = {
         storyCorrections:(cs.storyCorrections || []).map(item=>({...structuredClone(item),anchor:'seed',replyNo:0})),
         v10, v10ClockSeed, components:cs.components ? structuredClone(cs.components) : undefined,
@@ -797,7 +811,7 @@ export async function startNewChapter(draft, burnedSoFar) {
     const opening = chat[0];
     if (opening) {
         opening.extra ||= {};
-        opening.extra[KEY] = { v:1,time:Date.now(),items:[],type:'chapter-opening',scene:carry.sceneSeed };
+        opening.extra[KEY] = { v:1,time:Date.now(),items:[],type:'chapter-opening',scene:carry.sceneSeed,v10Minutes:v10ClockSeed };
     }
     try { await c.saveChat?.(); } catch { /* saved with the next change */ }
     try { await c.reloadCurrentChat?.(); } catch { /* the chat is redrawn the next time it is opened */ }

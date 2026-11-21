@@ -4,6 +4,7 @@ import { recallPolicy } from './recall.js';
 import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
+import { validStoryMinute, validElapsed } from './story-clock.js';
 // V10's canonical update contract and chat-local configuration.
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
@@ -176,8 +177,8 @@ export function extractUpdate(raw, { sourceProse, allowPlayerThoughts = false } 
         else issues.push(`Invalid scene field: ${key}.`);
     }
     const elapsed = inputScene.elapsed;
-    const minutes = Number.isSafeInteger(inputScene.minutes) && inputScene.minutes >= 0 ? inputScene.minutes : undefined;
-    for (const [key,valid] of [['minutes',minutes!==undefined],['elapsed',Number.isInteger(elapsed) && elapsed>=0 && elapsed<=5256000],
+    const minutes = validStoryMinute(inputScene.minutes) ? inputScene.minutes : undefined;
+    for (const [key,valid] of [['minutes',minutes!==undefined],['elapsed',validElapsed(elapsed)],
         ['ended',typeof inputScene.ended==='boolean']]) if (Object.hasOwn(inputScene,key) && !valid) issues.push(`Invalid scene field: ${key}.`);
     if (value.characters !== undefined && !Array.isArray(value.characters)) issues.push('Characters must be an array.');
     const profiles = (Array.isArray(value.characters) ? value.characters : []).slice(0,8).flatMap(item => {
@@ -199,7 +200,7 @@ export function extractUpdate(raw, { sourceProse, allowPlayerThoughts = false } 
     if (Object.hasOwn(value,'roast') && typeof value.roast!=='string') issues.push('Roast must be text.');
     if (Object.hasOwn(value,'repair') && !Number.isSafeInteger(value.repair)) issues.push('Repair must reference an accepted reply.');
     return {
-        clean: cleanText, found:true, scene, profiles, issues, minutes, elapsed: Number.isInteger(elapsed) && elapsed >= 0 && elapsed <= 5256000 ? elapsed : undefined,
+        clean: cleanText, found:true, scene, profiles, issues, minutes, elapsed:validElapsed(elapsed) ? elapsed : undefined,
         ended: inputScene.ended === true, legacyOutcome:safeText(value.legacyOutcome,400), roast: safeText(value.roast,1000), changes:(value.changes || []).slice(0,12),
         repairChanges: (value.repairChanges || []).slice(0,4), repair: Number.isSafeInteger(value.repair) ? value.repair : null,
     };
@@ -605,7 +606,7 @@ export function previousV10(type) {
 export function updateContract(modules, opening = false, { fieldsOnly = false } = {}) {
     const kinds = RECORD_KINDS.filter(kind => modules[KIND_MODULE[kind]]);
     const sections = [
-        modules.state && 'scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","minutes":0,"elapsed":0,"ended":false}. Use separate fields for time, date, location (where), and weather whenever the story establishes them. Put approximate timing in when. Put cloud cover, precipitation, wind and temperature in weather. Omit unknown or unchanged values. Use an empty environment string when a condition resolves. minutes is an exact absolute story minute; elapsed adds minutes to a known clock.',
+        modules.state && 'scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","elapsed":0,"minutes":0,"ended":false}. Use time for the clock, for example "11:58 PM" or "23:58", date for the calendar, and when for approximate timing. Omit unknown or unchanged fields. Use an empty environment string when a condition resolves. Report elapsed story minutes when the accepted action establishes them, measured from the supplied scene, or since the saved part when continuing. Keep minutes for an exact position on the relative story clock. Follow explicit player time skips, linger during consequential beats, and compress routine travel, waiting or sleep. If a skip crosses midnight on a fictional calendar, include the resulting date when its rules establish it.',
         kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). Record meaningful changes, not repetition.`,
         modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Set bodyLasting:true only for an established durable condition. Omit unsupported dimensions and leave the player’s private state to the player.',
         modules.state && 'For profiles include voice, aliases or current facet when applicable. Set development:true only for lasting character growth that the reply establishes. Preserve card canon and player edits. Keep transient setbacks out of durable facts. A fact may link to the plot record that established it and reference a known baseEntry and baseRelation (extends or updates-present).',

@@ -49,7 +49,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         L.resetLog();
         const prelude = '<page:boot>\n1. IDENTITY: PRIVATE-PRELUDE-MARKER\n2. GROUNDING: Harbor\n\n';
         L.mode({chunkMs:320,reply:prelude+block('“I saw the ferry depart,” Seraphina said. “We just missed it,” added Mira. The ferry is gone.\n\nSeraphina thought, *We can still try the bridge.* Mira thought, *The bridge might be closed.*\n\n*No one can be sure.*',{
-            scene:{where:'Dock',present:'Seraphina',time:'Late morning',date:'Day 1',weather:'Light rain',minutes:120},
+            scene:{where:'Dock',present:'Seraphina',time:'11:55 PM',date:'Day 1',weather:'Light rain',minutes:120},
             changes:[{kind:'fact',id:'ferry-gone',text:'The ferry left the dock.',evidence:'The ferry is gone.'},
                 {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart,'}],
             roast:'The dock has excellent timing, which is to say none.'
@@ -76,7 +76,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(await progress.locator('li[data-status="done"]').count(),2);
         const received=progress.locator('.ri-progress-sections');
         await received.locator('[data-section="scene"]').waitFor();
-        assert.match(await received.textContent(),/Dock · Late morning · Light rain/);
+        assert.match(await received.textContent(),/Dock · 11:55 PM · Light rain/);
         assert.equal(await received.locator('[data-section="changes"]').count(),0);
         assert.equal(await received.locator('[data-section="scene"]').evaluate(node=>getComputedStyle(node).animationName),'none');
         await received.locator('[data-section="changes"]').waitFor();
@@ -118,7 +118,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         const latest=page.locator('#chat .last_mes');
         const header=latest.locator('.ri-scene-header');
         assert.deepEqual(await header.locator('dt').allTextContents(),['Time','Date','Location','Weather']);
-        assert.deepEqual(await header.locator('dd').allTextContents(),['Late morning','Day 1','Dock','Light rain']);
+        assert.deepEqual(await header.locator('dd').allTextContents(),['11:55 PM','Day 1','Dock','Light rain']);
         assert.equal(await header.evaluate(node=>node.nextElementSibling?.classList.contains('mes_text')),true);
         for (const name of ['Viewpoint & player agency','Cast, motives & voice','Scene beats & pacing','Prose & dialogue craft','Consequences, combat & payoffs']) {
             const marker=preset.prompts.find(prompt=>prompt.name===name).content.split('. ')[0];
@@ -180,6 +180,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         L.mode({reply:'[Seraphina] “The lamp lights up.”\n<story_update v="2">{invalid</story_update>'});
         await L.send(page,'Wait by the lamp.');
         const lamp = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).mes);
+        assert.match(L.text(L.requests().at(-1)),/Time: 11:55 PM\nDate: Day 1/);
         assert.match(lamp,/Seraphina said, “The lamp lights up.”/);
         assert.doesNotMatch(lamp,/\[Seraphina\]/);
         assert.match(L.text(L.requests().at(-1)),/Out-of-story voice feedback/);
@@ -216,6 +217,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await L.send(page,'Watch the street.');
         await idle();
         const next=L.text(L.requests().at(-1));
+        assert.match(next,/Time: 11:58 PM\nDate: Day 1/);
+        assert.deepEqual(await latest.locator('.ri-scene-header dd').allTextContents(),['12:02 AM','Day 2','Dock','Light rain']);
         assert.match(next,/bell \[seed, open, prerequisites pending\]/);
         assert.doesNotMatch(next,/LOCKED-BELL-PAYOFF|REACTION-GUIDE|Resolved action check|recover a missing state change/);
         assert.equal((await read()).find(x=>x.id==='bell').status,'open');
@@ -230,11 +233,14 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert(records.some(x=>x.id==='rain'));
         assert(records.some(x=>x.id==='lamp-lit'));
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Minutes),125);
+        assert.deepEqual(await latest.locator('.ri-scene-header dd').allTextContents(),['12:00 AM','Day 2','Dock','Light rain']);
+        assert.match(L.text(L.requests().at(-1)),/Time: 11:58 PM\nDate: Day 1/);
         assert.equal(L.requests().length,5);
         await page.evaluate(()=>SillyTavern.getContext().swipe.left());
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('The snow falls'));
         await idle();
         assert((await read()).some(x=>x.id==='snow'));
+        assert.deepEqual(await latest.locator('.ri-scene-header dd').allTextContents(),['12:02 AM','Day 2','Dock','Light rain']);
         assert(!(await read()).some(x=>x.id==='rain'));
         await page.evaluate(()=>SillyTavern.getContext().swipe.right());
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('Rain falls'));
@@ -255,6 +261,11 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         const branch=await read();
         assert(branch.some(x=>x.id==='ferry-gone'));
         assert(!branch.some(x=>['rain','snow','wind-drops','lamp-lit','bell'].includes(x.id)));
+        const branchClock=await story(page,async({B})=>{
+            const {sceneAt,storyMinuteAt}=await import(`${B}/src/state.js`);
+            return [sceneAt().time,sceneAt().date,storyMinuteAt()];
+        });
+        assert.deepEqual(branchClock,['11:55 PM','Day 1',120]);
         assert.equal(L.requests().length,5);
         await L.openChat(page);
         L.mode({reply:block('[Seraphina] “The brass key is yours.”',{scene:{where:'Gate',present:'Seraphina',minutes:10},

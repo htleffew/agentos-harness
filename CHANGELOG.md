@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.22
+
+- Advance the scene header and relative story clock from the same accepted timing. ISO dates and numbered days roll over automatically. A fictional date that cannot be calculated is marked unconfirmed until the story establishes it.
+- Include the accepted clock and date in subsequent reply requests. New chapters and history rebuilds carry the clock through established intervals, and swipes use the timeline of the selected reply.
+- Time and date edits can advance with the story by default. The scene editor still lets you protect a value from automatic changes.
+
 ## 10.0.21
 
 - Apply a correction from one button. AI source tracing is optional, and the form counts the requests needed for the selected options. A successful streamed correction stays selected as the new swipe.

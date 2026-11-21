@@ -71,6 +71,25 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         L.mode({reply:'Mira stepped off the path.\n\n<state:world>\n<time>4:15 PM</time>\n<loc>Path</loc>\n<weather>Heavy rain</weather>\n</state:world>'});
         await L.send(page,'I step aside.');
         assert.deepEqual(await header.locator('dd').allTextContents(),['4:15 PM','Wednesday, Day 2','Path','Heavy rain']);
+        L.mode({reply:'Mira read the dated register.\n'+block({scene:{date:'2024-02-28',time:'11:58 PM'}})});
+        await L.send(page,'I wait at the path until just before midnight.');
+        L.mode({reply:'SUMMARY:\nMira waited with the register.\n\nFIRST MESSAGE:\nMira closed the register.\n<chapter_scene>{"elapsed":4}</chapter_scene>'});
+        L.resetLog();
+        await page.evaluate(async base=>{
+            const C=await import(base+'/src/chapters.js');
+            const E=await import(base+'/src/engine.js');
+            const draft=await C.draftNewChapter('Four minutes later.');
+            if (draft.scene.time!=='12:02 AM' || draft.scene.date!=='2024-02-29') throw new Error(JSON.stringify(draft.scene));
+            await C.startNewChapter(draft,E.burnedSoFar);
+        },L.BASE);
+        const opening=page.locator('#chat .mes[mesid="0"] .ri-scene-header');
+        assert.deepEqual(await opening.locator('dd').allTextContents(),['12:02 AM','2024-02-29','Path','Heavy rain']);
+        L.mode({reply:'Mira held the door.\n'+block({scene:{elapsed:2}})});
+        await L.send(page,'I follow her.');
+        assert.equal(L.requests().length,2);
+        assert.match(L.text(L.requests().at(-1)),/Time: 12:02 AM\nDate: 2024-02-29/);
+        assert.match(L.text(L.requests().at(-1)),/Current exact story minute: 4\./);
+        assert.equal(await header.locator('.ri-scene-header-time dd').textContent(),'12:04 AM');
         console.log('PASS V10.3 companion, actual planning and Roast requests, separate collapsed cards, weather recovery and missing-card diagnostics');
     } finally { await browser.close(); }
 })().catch(error=>{ console.error(error); process.exitCode = 1; });

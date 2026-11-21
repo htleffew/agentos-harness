@@ -9,6 +9,7 @@ import { separateReply, hasReplyScaffolding, trimPartialReplyTag } from './reply
 import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview, setReplySections } from './reply-progress.js';
 import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate, baseWorld } from './v10.js';
 import { captureContext } from './context-budget.js';
+import { advanceStoryClock } from './story-clock.js';
 import { promptText } from './prompts.js';
 import { changesFromProfiles, normalizeScene, sceneFromReplyHeader, sceneAt, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
@@ -899,24 +900,20 @@ function onMessageReceived(id, type) {
             if (turn.modules.colors) registerSpeakers(parsed.clean || m.mes,turn.records);
             if (!turn.modules.roast) parsed.roast = '';
             if (!turn.modules.state) { parsed.scene = null; parsed.elapsed = undefined; parsed.minutes = undefined; parsed.ops = []; parsed.profiles = []; }
-            if (Number.isInteger(parsed.minutes) && (!Number.isInteger(turn.clock) || parsed.minutes >= turn.clock)) rec.v10Minutes = parsed.minutes;
-            else if (Number.isInteger(turn.clock)) {
-                rec.v10Minutes = turn.clock + (parsed.elapsed ?? 0);
-                if (Number.isInteger(parsed.minutes) && parsed.minutes<turn.clock) {
-                    rec.v10Invalid = true;
-                    (rec.v10Issues ||= []).push('Story time cannot move backwards within the current scene.');
-                }
-            }
             if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
         }
         const header = turn?.modules.state ? parsed.legacyScene || sceneFromReplyHeader(parsed.clean || m.mes) : {};
         const acceptedScene = normalizeScene({...header,...normalizeScene(parsed.scene || {})});
-        const scene = { ...(turn?.modules.state ? previousScene : {}), ...(earlier?.scene || {}), ...acceptedScene };
+        let scene = { ...(earlier?.scene || {}), ...acceptedScene };
         if (turn?.modules.state) {
+            const timeline = advanceStoryClock({...previousScene,...earlier?.scene},acceptedScene,
+                {clock:turn.clock,minutes:parsed.minutes,elapsed:parsed.elapsed});
+            scene = timeline.scene;
+            rec.v10Minutes=timeline.minutes;
+            if (timeline.issues.length) (rec.v10Issues ||= []).push(...timeline.issues);
             const moved = parsed.scene?.where && previousScene.where && parsed.scene.where.toLowerCase()!==previousScene.where.toLowerCase();
             rec.v10SceneId = earlier?.v10SceneId ?? (moved || previousRecord?.v10SceneEnded ? rec.time : previousRecord?.v10SceneId ?? previousRecord?.time ?? rec.time);
             rec.v10SceneEnded = parsed.ended === true || (earlier?.v10SceneEnded && !parsed.scene?.where);
-            if (acceptedScene.when!==undefined && acceptedScene.time===undefined) delete scene.time;
             if (scene.weather && acceptedScene.weather===undefined) rec.weatherInherited = true;
             if ((moved || previousRecord?.v10SceneEnded || parsed.ended) && parsed.scene?.environment===undefined) delete scene.environment;
         }
@@ -1516,8 +1513,10 @@ export async function acceptV10Opening(draft, prose) {
     m.swipe_info = [{ send_date:m.send_date, extra:{} }];
     const newMessage = !chat.length;
     if (newMessage) chat.push(m);
-    const rec = { v:2, v10:true, items:[], time:Date.now(), type:'opening', stateChanges:modules.state ? changesFromProfiles(parsed.profiles || []) : [], scene:modules.state ? parsed.scene : null,
-        v10Minutes:modules.state ? parsed.minutes : undefined, roast:modules.roast ? parsed.roast : '' };
+    const timeline = modules.state ? advanceStoryClock({},normalizeScene({...sceneFromReplyHeader(prose),...parsed.scene}),
+        {minutes:parsed.minutes}) : null;
+    const rec = { v:2, v10:true, items:[], time:Date.now(), type:'opening', stateChanges:modules.state ? changesFromProfiles(parsed.profiles || []) : [], scene:timeline?.scene ?? null,
+        v10Minutes:timeline?.minutes, roast:modules.roast ? parsed.roast : '' };
     rec.v10SceneId = rec.time;
     attach(m,rec);
     if (modules.colors) registerSpeakers(prose,recordMap(rows));

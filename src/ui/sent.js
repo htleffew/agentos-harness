@@ -373,15 +373,16 @@ function updateSceneHeader(mes,id,show) {
     const existing = area.parentElement.querySelector(':scope > .ri-scene-header');
     if (!show) { existing?.remove(); return; }
     const scene = snapshotScene(id);
-    const fields = [['Time',scene.time ?? scene.when],['Date',scene.date],['Location',scene.where],['Weather',scene.weather]];
+    const fields = [['Time',scene.time ?? scene.when],['Date',scene.date || (scene.lastKnownDate ? 'Unconfirmed' : '')],['Location',scene.where],['Weather',scene.weather]];
     const record = ctx().chat?.[id]?.extra?.[KEY];
     if (id===0 && !record && !fields.some(([,value])=>value)) { existing?.remove(); return; }
     const inherited = !!record?.weatherInherited && !Object.hasOwn(record?.sceneSnapshotEdits || {},'weather');
-    const stamp = JSON.stringify([fields,inherited]);
+    const stamp = JSON.stringify([fields,inherited,scene.lastKnownDate]);
     if (existing?.dataset.scene === stamp) return;
     const header = h('div',{class:'ri-scene-header','aria-label':'Scene details','data-scene':stamp},
         h('dl',{},fields.map(([label,value])=>h('div',{class:`ri-scene-header-${label.toLowerCase()}`},
-            h('dt',{},label),h('dd',{title:label==='Weather' && inherited ? 'Last established weather' : undefined},
+            h('dt',{},label),h('dd',{title:label==='Weather' && inherited ? 'Last established weather' :
+                label==='Date' && !scene.date && scene.lastKnownDate ? `Last established date: ${scene.lastKnownDate}` : undefined},
                 value || h('span',{class:'ri-scene-header-empty','aria-label':'Unspecified'},'—'))))));
     if (existing) existing.replaceWith(header);
     else area.before(header);
@@ -442,7 +443,7 @@ function refreshV10Replies(chat) {
         if (records.length) parts.push(['Changes',h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
             h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
             replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))]);
-        if (rec.v10Check || rec.v10Offer || rec.v10Invalid || rec.stateOutdated || rec.v10Diagnostics?.length || rec.cardIssues?.length) parts.push(['Notes',[
+        if (rec.v10Check || rec.v10Offer || rec.v10Invalid || rec.v10Issues?.length || rec.stateOutdated || rec.v10Diagnostics?.length || rec.cardIssues?.length) parts.push(['Notes',[
             rec.v10Check && h('p',{},checkText(rec.v10Check)),
             rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
             rec.v10Invalid && h('p',{},'Some structured changes could not be applied.'),

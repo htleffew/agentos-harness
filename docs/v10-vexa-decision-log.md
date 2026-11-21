@@ -276,6 +276,8 @@ Storage options to decide: four separate native books per story, four logical co
 - Apply clock changes with the accepted reply. Restore time and related scheduling state on swipe or branch rollback, and avoid counting the same interval twice. A skip can make events eligible without inventing what happened during the interval.
 - Verify a slow exchange, a brief action beat, an overnight skip, a user-directed skip, an uncertain deadline, and rollback of a time-changing swipe.
 
+**Implementation in extension 10.0.22.** The accepted date and time go into subsequent reply requests in Structured workflow. Elapsed minutes advance an established wall clock and update ISO dates or labels such as Day 14 at midnight. When a fictional calendar cannot be calculated, the extension keeps the last established date as context and asks for the new date in the normal reply. A time skip can make scheduled records eligible. Completion still requires evidence in the story.
+
 ## 2026-11-19 · Decision 10 · World events and explicit Random Instructions
 
 **Decided.** Use configurable extension checks for whether an autonomous world event is eligible, with the model deciding how it unfolds. Preserve a genuine quiet outcome, scene pacing, and existing or scheduled consequences. Independently retain the existing **Random Instructions** feature so the player can enable sets that issue explicit, required directions or events.
