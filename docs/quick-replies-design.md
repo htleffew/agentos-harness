@@ -165,6 +165,10 @@ Count accepted character replies in the surviving story timeline, including thei
 
 **Implementation dependencies.** First centralize the correction operation now coordinated in the UI. Then put all automatic world-change producers behind one staged write path and make extension consumers read the effective state. Add promotion, invalidation, branch and chapter handoff before enabling the setting. Attach the same correction operation to both entry points and feed it the effective view. Delaying a save with a timer would not satisfy this design.
 
+## Cache preservation and prompt ordering
+
+Apply the [prompt assembly standard](prompt-assembly-standard.md) to all four guided families and existing request paths. Keep stable instructions and schemas reusable, preserve the accepted history prefix where practical, and group current cues, relevant evidence and the immediate ask toward the end within the host’s role and placement rules. Compare actual outgoing requests across ordinary and guided turns, and verify provider-reported reuse where available.
+
 ## How it ran and which connection it used
 
 Apply the [programmatic execution guideline](../AGENTS.md#prefer-programmatic-execution) to every workflow. Examine code, scripts, macros, native host features and existing structured data before using model output. If the task needs model output, prefer an existing authorized request when it can deliver the result at the right time. Justify any separate request by the specific remaining work it performs.
