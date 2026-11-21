@@ -1,0 +1,89 @@
+# Quick replies and guided turns — discussion draft
+
+**Status:** proposed for discussion, 2026-11-21. Existing behavior and six input files are described in the [source audit](quick-replies-audit.md). The user has requested the capabilities below. The suggested defaults, data structures and milestones are open decisions. Implementation begins after review.
+
+## User experience
+
+From a phone chat, open **Quick actions** beside the composer. Pins occupy one compact row, with overflow available through the launcher. A user can hide the row, reorder pins or search the full list. Suggested starting views are **Pinned**, **From this chat**, and **My actions**. Keep a separate **Manage** entry for authoring, import, and restore. All flows work by tap and keyboard, including reordering. Show the source, destination, affected turn and extra model-call count before execution.
+
+**Example:** Select *Reanchor personality*. Its sheet shows the source book, the proposed version with character substitutions, **Choose version**, **Roll another**, and **Queue for next character reply**. Queuing adds a removable chip beside the composer. The user can still write their own message. Generating the next eligible character reply delivers one instruction. Its receipt records which version was used. Later edits to the source update the catalog immediately. A change after queuing leaves the previewed text intact and offers “Refresh from source.”
+
+### Actions and costs
+
+| Action | Proposed result | Additional model requests |
+| --- | --- | ---: |
+| Insert my text | Insert at the selection in the user's draft, with undo. Explicit **Send now** uses native send. | 0 for insertion; sending starts the ordinary reply |
+| Direct next reply | Queue, inspect, change or cancel hidden guidance. Optional visible OOC uses an explicitly selected destination. | 0 beyond ordinary generation |
+| Choose or roll from a set | Pick an entry/version or recipe ingredients, lock desired choices, roll remaining choices and preview exact text. Show unavailable reasons and linked source. | 0 |
+| Use seed, secret, thread or twist | Select a particular record, choose among eligible records, or roll. Choose how the story may use it. For secrets default to foreshadowing. Explicit reveal names who may learn it. A standalone twist can exist without a lorebook record. | 0 |
+| Roll an action outcome | Optionally attach one code-generated outcome and a short instruction to honor it. Display die, modifier, target when applicable and total. Reuse the existing action-check rules. Roll-once versus reroll is explicit on a swipe. | 0 |
+| Draft my reply | Give direction or select an idea, choose the user's perspective, generate a candidate, edit it, request another round or insert it into the composer. Preserve the original draft and each candidate until dismissed. Sending the chosen draft is a separate action. | 1 per requested drafting round |
+| Suggest directions | Give the model a direction and request several choices in one response. Edit, choose or roll from the returned set locally. | 1 per requested batch |
+| Force a story event | Select an existing event, enter your own, or explicitly commission one. Preview and append it to the **next character request** as a required order. A separate **Revise this reply** action uses a guided replacement. | 0 for existing or authored text; 1 optional authoring call; a replacement uses the normal swipe request |
+| Guide a swipe or revise wording | Choose the eligible reply, provide direction, decide which prior orders and rolls to retain, request one replacement and inspect its effects. A proposed text-only revision offers an original/revised view and an explicit accept operation. | 1 ordinary generation per guided swipe; 1 per explicitly requested rewrite pass |
+
+Spell out the distinction between a required direction and a verified event. The extension can verify inclusion in an observable outbound prompt; a model can still omit the event. Offer the existing checker when appropriate and preserve its visible cost. Advance the story record only on accepted evidence. Browsing, pinning, resetting, choosing and rolling need no model connection.
+
+## Library, variables and reversibility
+
+1. **Built-in actions** have stable IDs, installed template revisions and independent overrides. Show Default, Customized and Updated default available. Each has restore, preview of the change and undo. Voice, preset, and other quick actions keep their own overrides.
+2. **Linked actions** reference extension sets or world records. The catalog is generated from available sources; only pinned or customized records need durable shortcuts. Track physical book identity, logical set, entry UID and a content/identity check. Track category/item IDs where available; instruction versions lacking stable IDs need explicit reconciliation after a reorder. Never silently rebind a shortcut by title. Offer **Relink**, **Follow source**, **Edit source** with scope visible, and **Make standalone copy**.
+3. **Standalone actions** support create, rename, duplicate, edit, delete/undo, order, enable, export and import using extension JSON. Save a creation or import baseline and label that restore target explicitly. Retain edits across upgrades. Optional per-chat overrides and library defaults show which value wins.
+4. **Variable picker** separates current character/user and card fields, live book/record references, user-supplied parameters, and a roll result. Proposed typed slots include selected seed, secret, twist, instruction/version, style recipe and event recipe. Show availability, owning book, visibility, resolved text and empty-state behavior. Reuse supported host substitutions where available; show unresolved tokens and ask for a replacement or allow literal text explicitly. Treat standalone text as data. Native QR scripting is a separately chosen interoperability action.
+5. **Originals and history** distinguish Restore built-in, Restore imported, Follow live source, Cancel pending, Undo last library edit and Undo an accepted story change. Restoring an action definition must preserve unrelated library edits, external books, other chats and accepted story history. Keep exportable backups and revision references so a deliberate shared-source modification can be reversed independently. Show the extent and limits of undo before bulk changes.
+6. **Native QR import** first inventories visible and hidden entries, automatic triggers, commands, model calls, writes and dependencies. For Keel offer mappings for one-shot nudges, prompts and status links. Expose remaining entries as requiring native execution or a specific unmapped dependency. Keep preserved script text exportable. Import alone performs zero script execution, automatic registrations, worldbook writes or model requests. Round-trip IDs and unknown metadata for native exports where supported. Arbitrary native scripts can have side effects outside extension undo; label this before linking a native execution button.
+
+## Preset independence and prompt visibility
+
+The standalone composer, library, local rolls, native-QR inspection and draft generation should have no companion-preset-name check. Resolve feature availability using the active host API, chat, current target and available records. A user choosing Memory only can separately opt into explicit quick directions while keeping ordinary automatic writing modules off. Without an eligible story book, offer standalone actions and show where a linked action can be connected. A missing host hook disables the affected destination with a reason; preserve the draft and queue.
+
+Pair editable quick-action prompts with known preset blocks in the existing workbench. Include provenance, affected turn, role/placement where supported, lifetime and estimated size. For other extensions distinguish observed active hooks/registered injections, user-declared overlaps and unavailable information. A similarly named block is a candidate, not proof of duplicate delivery. Expose independent choices for the quick action and any editable preset block. Cross-extension ownership relies on the other tool's published controls. Keep user-initiated comparisons optional. Restoring our settings should reverse only changes whose origin is known. An uninspectable preset still permits supported actions and shows the visibility limit.
+
+## Implementation sequence
+
+| Milestone | Proposed implementation and boundary | Exit evidence |
+| --- | --- | --- |
+| 1. Catalog and source adapters | Add a versioned action library alongside extension settings, plus per-chat pins, overrides, queue and turn references in chat metadata. Normalize native books using existing book/event/world readers. Read from a shared physical book once per revision. Invalidate on edits, chat changes and imports. Export definitions without private resolved chat data by default. | Six fixture inventories, source rename/move/delete tests, migration and round-trip results |
+| 2. Pure resolution | Extract a side-effect-free version draw from the current mutating picker. Evaluate recipes through existing category, lock, burn, weight, pacing and no-repeat logic on a copy. Resolve typed arguments and optional physical dice in code. Return selected source IDs, exact text, draw and proposed state changes. | Preview/cancel causes zero writes. Selected and rolled results reproduce the displayed instruction. |
+| 3. Chat UI and one-shot delivery | Add launcher, catalog, inspector, pending chips and manager. Attach a one-shot directive to an eligible generation identified by chat, target message, swipe and attempt. Reserve a stable selection, deduplicate the same automatic/manual source, then commit once on accepted completion. Release on failure or cancellation. Keep quiet, impersonation and dry-run requests ineligible. | Request captures, receipt, abort/retry and double-tap checks |
+| 4. Guided drafting and replacement | Reuse logged AI request transport with explicit profile, bounded context and one-call mode. Preserve persona, speaking perspective, draft selection and prior candidates. For recorded replies call the existing guided transaction. Add a host-only path for an unrecorded reply that first inventories any extension-owned state requiring reconciliation. Make a new swipe or revision only after an explicit action. | Output stays in the intended chat; selected swipe, world facts, dice and chapters reconcile |
+| 5. Interoperability and restoration | Capability-detect native QR enumeration and named execution. Add the import report, ownership inspection, per-item comparison and restore. Delayed surprises and multi-pass revisions are optional candidates with separate enabling and budgets. | Keel import with native QR enabled/disabled; opaque-host and concurrent-extension tests |
+| 6. Validation | Use an isolated SillyTavern user, a request-recording endpoint and synthetic books with the uploaded shapes. Run a cold usability review on phone width and desktop. A live provider comparison can separately assess writing quality. | Durable audit listing actual clicks, requests, side effects, failures and fixes |
+
+**Turn lifecycle.** Draft → queued → reserved by one eligible generation → accepted or released. Anchor records to the originating chat and selected swipe, including a content fingerprint so stale drafts can be recognized. A failed or empty generation returns the same reserved choice to pending. A retry should show whether the original request may already have reached a provider. A branch inherits accepted history through its fork point; pending parent directions require explicit copying. Batch deletion or editing invalidates stale receipts/effects through existing history reconciliation. An in-flight draft that finishes after a chat switch goes back to its originating draft store. It must never populate another chat’s composer.
+
+## Acceptance criteria
+
+| ID | Exercise | Expected observation |
+| --- | --- | --- |
+| A1 | Open the launcher with a companion preset, unrelated Chat Completion preset, and a supported Text Completion connection | Supported destinations work without renaming the preset. Missing inspection or delivery capability is named precisely. |
+| A2 | Load the five books, including a shared-book arrangement | Eight instruction entries across three sets, one event recipe, one style recipe. Six desire entries include a disabled one. Only the enabled style category participates by default. |
+| A3 | Choose Reanchor version 3; preview, cancel, roll twice and queue once | Preview spends no versions. The user can identify and edit the exact wording. Only the accepted attempt advances the applicable history once. |
+| A4 | Pick a specific shocking-arc ingredient and roll the rest | Locked selections hold; constraints and unavailable reasons are visible. A zero-eligible result keeps the queue and source intact. |
+| A5 | Queue two directions, edit one, cancel one, trigger a prompt preview and then send | The user can see exactly what remains pending. The single eligible generation receives the remaining direction once. Any automatic match of the same source is accounted for. |
+| A6 | Attach a die, retry after network failure, swipe keeping it, then explicitly reroll | The original recorded draw survives retry/reuse. Reroll produces a new draw record even if the same number occurs. |
+| A7 | Create a standalone action, customize two built-ins, edit a linked source and restore only one | Correct status and restore target on each item. Unrelated changes survive, including after reload and export/import. |
+| A8 | Draft twice from a partially written user reply, reject one, switch chats during the other | Exactly two helper requests, zero added chat messages, original draft recoverable, candidates confined to their originating chat. |
+| A9 | Force an event on a new turn, then replace the reply with a guided swipe that removes it | Receipt distinguishes requested event from established fact. Superseded world entries, summaries and accepted-state effects follow the chosen swipe. |
+| A10 | Edit five messages back, delete a batch, branch earlier, start a chapter and reopen | Accepted history follows the surviving timeline. No stale queue, projected dice effect, secret reveal or hidden direction crosses chats. |
+| A11 | Import Keel and inspect all 23 entries | One visible launcher, two automatic hooks identified, no execution on import. Show required native/preset dependencies and all unmapped operations. |
+| A12 | Inspect a matching preset block, accept a pairing, change ownership and restore the prior state | Evidence identifies the source, lifetime, and shared versus chat-local effect. No automatic edits to another extension. |
+| A13 | Open the launcher on a narrow phone screen with the keyboard up, close it, and repeat using keyboard navigation | Composer text, selection and focus survive; content fits, buttons have accessible names, and each action makes its destination and cost apparent. |
+| A14 | Test a disconnected model, disabled source, missing book, malformed macro and unsupported host hook | Local authoring works offline. Errors identify the affected action, retain drafts and avoid partial writes. |
+| A15 | Run with Pathweaver, Roadway, Guided Generations, native Keel and Recast separately, then with two integrations together | Capture observed duplicate generators/injections, composer conflicts and late edits. Demonstrate that this extension does not consume its own queued directions on helper calls. |
+
+## Decision log for discussion
+
+These defaults remain proposals until chosen. Record each answer here before the build. Start with D1 because it determines what a tap in the chat can do.
+
+| Decision | Proposed starting point | Other choices to compare |
+| --- | --- | --- |
+| D1. What a tap does | Per-action destination. Known nudges queue on tap with Undo; player drafts go to the composer; actions that call a model clearly say so. Long press is optional; a visible Edit/Preview control is always available. | Always preview first; always insert into composer |
+| D2. Manual vs automatic eligibility | Explicit selection bypasses scheduling chance/cooldown once, preserves disabled entries, protected facts, constraints and user locks. Show that it was manually invoked. | Enforce all automatic eligibility; offer a per-action override |
+| D3. Multiple pending directions | Visible ordered list; collapse exact duplicates. A user can replace an earlier action explicitly. | One shared slot like Keel; independent slots by category |
+| D4. Dice and forced events | Separate choosing content from resolving an action. Default to a single fixed draw per requested turn. | Roll only on commitment; reroll on every swipe |
+| D5. Guided drafts, costs and duration | Optional one-call candidates with editable direction and perspective. User sends the final draft. | Immediate impersonated send; optional multi-round or multi-pass chains |
+| D6. Source management and restore | Live links by default, standalone copies on demand; show baseline and history scope. | Snapshot on pin; user chooses link or copy for each import |
+| D7. Interoperability | Translate recognized actions, inventory all others, offer explicit native delegation when supported. | Extension-native library only; broad native script execution as a separate advanced mode |
+| D8. Visibility and layout | One launcher plus user pins; show the pending count and destination. | Persistent category bar; message-level actions only |
+| D9. Later features | Discuss delayed surprises, persistent guides and optional prose-revision passes independently. | Include each at first release, defer, or leave it to its existing tool |

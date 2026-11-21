@@ -1,0 +1,64 @@
+# Quick replies and guided turns — investigation
+
+Working evidence for the design discussion, 2026-11-21. The baseline is Roleplay Instructions 10.0.32, commit ccd863a. The review covered the six supplied JSON files, the current extension, the native Quick Reply API in the available SillyTavern checkout, and source from four external extensions. Findings below come from reading data and code. Runtime coexistence and phone interaction belong to the acceptance plan. The uploaded books and scripts were treated as examples and inspected without executing them.
+
+## What the uploaded books actually contain
+
+All five books have an `entries` map and a book-level `extensions.ri.kind`. Individual entries have native World Info properties alongside extension metadata. All ten physical entries have empty primary keys and constant eligibility in these exports. Probability, disabled status, the set limit and extension rules still affect automatic selection. A quick-reply catalog can enumerate their definitions regardless of whether they fired this turn.
+
+| File | What a picker should expose | Detail that affects behavior |
+| --- | --- | --- |
+| Reanchor.json | One instruction, **Reanchor personality**, with 21 saved versions | Exported chance 20%. Some wording is character-specific. Selecting a different character card cannot make literal names generic. Show the actual resolved version. |
+| Emotionality.json | One instruction, **Emotional Tone**, with five versions | Exported chance 10%. A manual request to use this instruction raises a choice about bypassing automatic timing. |
+| desire_randomizer.json | Six instructions with 10, 1, 20, 8, 6 and 7 versions respectively | One entry is disabled. Some have allowed actor and target arrays alongside older scalar fields. At least one version has a malformed character placeholder. Preview should identify unresolved text and preserve the user's original. |
+| shocking arc.json | One event recipe with Situation (14 items), Complication (17), Who drives it (25), Tone (24) | All four categories enabled. The driver and burn settings affect selection. The exported entry has 10% probability and native cooldown 51. A preview roll must preserve the pool for the actual turn. |
+| random_writing.json | One style recipe with eight categories | Only **Prose style** is enabled, with 29 choices and keep-random behavior. The seven inactive categories include an empty author list. Its 100% chance describes automatic eligibility; it does not require sending every category. |
+
+The books contain rendered content as well as structured metadata. Use the definitions and established resolvers to produce one addressed instruction or recipe result. Copying the entire entry content into the prompt would lose those semantics. Host cooldown values above are stored values; the extension also translates certain host-message timing values for its reply-based UI. [Instruction normalization and timing](../src/books.js) · [Recipe evaluation](../src/events.js)
+
+## Keel v1.9
+
+The file identifies itself as native quick-reply **format version 2**. There are 23 entries. Its one visible anchor opens a menu. The other 22 entries are hidden, including two automatic scripts. The menu, one-shot injections, local variables, global handoff data and generation hooks serve different purposes.
+
+| Entry IDs | Observed behavior | Design candidate |
+| --- | --- | --- |
+| 10 | A single visible menu dispatches other commands | One compact phone launcher with optional favorites |
+| 1, 2, 12, 13, 16 | Five immediate one-turn directions covering a twist, slower pacing and three intensity variants | Individually editable one-shot templates |
+| 14, 9, 17, 15 | Skip time, direct the scene, introduce the scene, describe an outfit. These collect direction, with blank input or cancellation handled by individual scripts | Shared input sheet with explicit blank/default and cancel behavior |
+| 3, 21 | Cancel the pending nudge or clear pending twist state | Visible pending actions and per-action cancellation |
+| 22, 23 | Read objective status and mind notes from Keel variables | Read-only shortcuts to actual extension records, with an empty state |
+| 18 | Reset local state, globals and pending injection after a confirmation | Distinguish resetting a shortcut from resetting a story |
+| 11, 5, 6, 7, 8 | Chapter menu, generate dossier, generate opening, load into another chat, copy dossier. Writing the dossier and opening are separate generation operations | Link to the existing chapter flow. Show the call count and identity of the destination chat |
+| 4 | Select a message range, generate a summary and write a lorebook entry | Reuse chapter coverage, provenance and existing archive controls |
+| 19, 20 | After-reply and before-generation hooks use snapshots and `keel_*` variables for objectives, pacing, twists and replacement turns | Reuse the extension’s accepted-reply record and rollback. Expose an explicit owner when Keel is also active |
+
+Several commands address the same ephemeral injection ID, `keel_oneshot`. Treating each button as an independent queued event would change that behavior. The dossier and opening use global handoff variables. An extension-native chapter transfer can bind the transfer to a particular source and destination. Keel's status buttons read state that its other components expect to populate. Importing a label and its text alone cannot recreate that functionality. A native QR interoperability layer and a standalone shortcut builder are distinct features.
+
+## Four upstream designs
+
+| Source and pinned implementation | What the code actually does | Candidate and interaction to resolve |
+| --- | --- | --- |
+| [Roadway, 8bd72bd](https://github.com/bmen25124/SillyTavern-Roadway/blob/8bd72bdbfecf707ebf2d15f0dd11d9fd886644ed/src/index.ts) | Can ask which prompt preset to use, request suggestions through a connection profile, extract options, store them against a target chat message, edit an option, use it, or invoke impersonation. Use-action auto-submit is configurable. | Separate “use this idea” from “draft my response from this idea.” Keep generated candidates attached to their source turn; avoid adding them to ordinary visible history by default. |
+| [Pathweaver, f8eaded](https://github.com/mattjaybe/SillyTavern-Pathweaver/blob/f8eadedb124d41a54d84a40d1f84d1332ec4d2f0/index.js) | Offers director input, scene or story beats, category and genre suggestions, copy/insert/send, cached suggestions and a persisted surprise queue with scheduling and prompt cleanup. | A batch of ideas can use one call. Pick, roll or schedule locally afterward. Invalidate candidates after an edit, swipe or branch. A future surprise needs its own timing and visibility controls. |
+| [Guided Generations, 64456d4](https://github.com/Samueras/GuidedGenerations-Extension/tree/64456d429bb67fd7a3f49e0bc4d88a7be53b51fb/scripts) | Separate guided response, continue and swipe paths; first-, second- and third-person impersonation; prompt customization, composer recovery and persistent guides. Its swipe path takes account of existing swipes and awaits the host swipe lifecycle. | Offer perspective and repeated draft rounds. Preserve the composer and selection. Route replacement replies through our existing story rollback transaction. Persistent directions need an explicit lifetime. |
+| [Recast, a7ac25a](https://github.com/closuretxt/recast-post-processing/blob/a7ac25a2478798a404a8a8dacbe2ae8ed6eba781/index.js) | Runs configurable transformation passes, supports separate profiles and per-pass context, accepts or rejects changes, and can start from the received-message hook. Each model pass can add a call. | Borrow the before/after review for guided revisions. Distinguish a local prose change from a story correction, which can invalidate world facts. Test coexistence with an installed postprocessor editing the just-received reply. |
+
+Roadway and Pathweaver carry MIT licenses, Guided Generations GPLv3 and Recast AGPLv3. The proposal uses behavior observed in those projects and the extension’s own implementation. Any later decision to reuse upstream code needs a separate license review.
+
+## What already exists in Roleplay Instructions
+
+| Current path | Useful behavior | Integration gap |
+| --- | --- | --- |
+| [Books](../src/books.js), [events and styles](../src/events.js) | Set discovery, shared physical books, native entry IDs, metadata normalization, weighted selection, recipe settings, locks, burn lists, category rerolls | A stable manual reference must survive display-name changes and identify missing or ambiguous sources after move, import or deletion. |
+| [Turn engine](../src/engine.js) | `versionsOf` reads structured versions with a content fallback. `pickVersion` updates the chat’s no-repeat history. `makeItem` wraps and substitutes final text. The normal path arbitrates chance, limits, held orders and receipts. | Calling the existing picker while browsing would spend a version. Split preview/reservation from accepted-turn accounting and reconcile duplicate manual/automatic selections. |
+| [Random source](../src/books.js), [action checks](../src/v10.js) | `rollInt` uses bounded platform RNG with rejection sampling and a fallback. A queued action check already has its own resolution and swipe rules. | Randomly choosing a direction, rolling an outcome for an action, and telling a model to invent a roll produce different results. Expose the first two explicitly. |
+| [Guided swipe](../src/engine.js), [world transaction](../src/worldflow.js) | `guideSwipe` supports direction, previous orders, protected edits, corrections and a dice reroll choice. It currently requires a latest recorded character response and excludes memory-only. | Specify how a user guides an ordinary external-preset reply with no extension record. Adding a button alone cannot deliver that capability. |
+| [Workflow components](../src/components.js), [structured preset detection](../src/v10.js) | The structured workflow can be selected explicitly. Following a preset can choose Legacy. The turn engine intentionally skips quiet and impersonation calls for ordinary story processing. | Give quick actions their own opt-in and capabilities. An impersonation helper request must never spend a queued character-turn direction or file a chapter. |
+| [World records](../src/world.js), [structured records](../src/v10.js), [corrections](../src/corrections.js) | Existing sources for planted seeds, secrets, threads, plot records and accepted facts | Show the selected source and distinguish “foreshadow,” “reveal” and “mark resolved.” Only accepted story evidence may advance the record. |
+| [Preset workbench](../src/preset-workbench.js), [prompt editors](../src/ui/prompts.js), [AI requests](../src/ai.js) | Native preset inspection and baselines, manual/optional AI pairing, individual prompt restores, request logging and optional retries | Reuse the UI vocabulary. Preset inspection currently targets the exposed Chat Completion order. Providers with opaque prompts need an explicit “unavailable” state. One-call buttons must disable automatic empty-answer retries. |
+
+SillyTavern's native QuickReplyApi in the available host exposes listSets, listGlobalSets, listChatSets and named execution. Enumeration and execution are different permissions from the user's perspective. The proposed core can run with native Quick Replies disabled. Detect a compatible API separately for optional interoperability.
+
+## Evidence still needed before release
+
+Exercise source moves and collisions, input recovery on a phone, group and solo chats, native QR absence, opaque Text Completion configurations, and change-of-chat during each asynchronous operation. Compare the assembled request on supported hosts. Use a separate first-time reviewer for discoverability. Optional integrations need coexistence tests with actual installed extensions; the source audit alone cannot establish their hook ordering.
