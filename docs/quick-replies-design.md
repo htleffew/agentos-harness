@@ -29,6 +29,23 @@ All four are reachable from **Quick actions**. Guided regeneration uses the same
 
 **Guided actions are single-use (decided).** A cue, checked modifier or free-text direction belongs to the operation the user invokes. Clear the active selections after successful use. Keep reusable button definitions, named variations and saved drafts. A queued nudge waits for its intended turn, then retires. A failed attempt may be explicitly retried against the same target. Regular sends, unrelated swipes, reopens and subsequent drafting rounds never automatically reapply a spent cue. A user can deliberately reuse a button or expand a chosen CYOA option with its original direction. Accepted story facts and source corrections have their own lifetimes. Existing automatic book rules retain their separately configured timing.
 
+### Fresh start across the four guided families
+
+**User decision.** Put **Fresh start** in Quick actions and expose it from each guided family. Use it when prose starts echoing itself, after changing how the extension writes, or after switching presets. The user explicitly invokes it. The dedicated appended-nudge action can select it by default and show the selection before sending. Ordinary Random Instructions and normal preset changes do not arm it.
+
+Assemble established facts about the cast, place, current situation, character knowledge and active commitments from existing state, recall and summaries. Apply the current preset, enabled extension instructions and the user’s guidance. Where the host supports request-local history control, use that factual context in place of earlier narrative examples and omit expired turn directives and prior writing feedback. Preserve the chat transcript, active facts and stored swipes. Keep the stable request prefix where compatible with the reset. When the host still requires prose history, disclose that in the execution receipt and give the model the same direction. The reset uses the request already required by the guided action.
+
+| Family | Preserve for the selected action |
+| --- | --- |
+| Guided generation | Current user contribution and established state. |
+| Guided regeneration | Facts through the point before the targeted reply, plus the current direction and any accepted corrections. |
+| Guided continuation | The exact passage being extended. Use only the necessary boundary context and preserve the accepted prefix verbatim. |
+| Guided impersonation | The player’s current draft if supplied, their first-person perspective, and the facts they could know. CYOA choices use the same restrictions. |
+
+Suggested editable wording: “Use earlier material as evidence of established facts. Follow the instructions active for this request. Compose a fresh opening, sentence structure and progression for the current situation.”
+
+**Duration recommendation.** Default to **This action**. An optional **Next 5 story replies** can help after a preset or writing overhaul, while fresh prose establishes a new pattern. That option carries only the reset treatment, while the triggering cue, text, dice and required event expire with their one intended use. Show a chat-local countdown with a tap to stop. Count distinct accepted forward story replies. Failed or cancelled attempts, CYOA, drafts, swipes and continuations spend no slots. They may use Fresh start for their own invocation. The countdown stays in its originating chat and expires after five accepted slots. This longer window is a proposal pending confirmation.
+
 ### Guide a swipe
 
 The starter shelf contains **More emotional**, **More romantic**, **Bring in conflict**, **Add a plot twist**, **Back to character**, and **Fix world facts**. Each has an editable full prompt, a customization indicator and its own Restore. The same cue can have different wording for the player and NPC destinations. Assemble selected prompts once in display order, then append the user's free text as the most specific direction. Preserve literal user input and make the resolved wording inspectable. Compatible presets require no special tags or extra planning call.
@@ -48,8 +65,6 @@ Each queued item specifies its treatment: **Nudge** for a preference, **Required
 ### Continue this reply
 
 Offer the same editable buttons and optional free text as a guided swipe. Preserve the accepted prefix verbatim on the targeted message and swipe. Store the append boundary and the new scene and book effects. **Undo continuation** restores the preceding revision and reconciles just the appended passage’s effects. Verify the target revision before applying a delayed result or undoing across a later manual edit. Appending starts one ordinary continuation request and keeps the same story-turn slot.
-
-**Fresh direction is the default for an appended nudge.** Apply the editable **Fresh direction for the next reply** instruction once to the intended normal character turn, alongside the user’s selected guidance. Prior replies supply established facts about the place, cast and current situation. Active instructions supply this reply’s direction. The model builds its prose independently of earlier replies’ phrasing, structures and expired directions. Keep the reset with the current instruction and preserve the preset’s active instructions and canonical facts. The existing model-directed system notes and OOCs use this framing in ordinary generation. The dedicated next-message queue will use the same template when implemented.
 
 ### Draft my reply
 
@@ -264,7 +279,7 @@ These defaults remain proposals until chosen. Record each answer here before the
 | D8. Visibility and layout | One launcher plus user pins; show the pending count and destination. | Persistent category bar; message-level actions only |
 | D9. CYOA in player impersonation (decided) | First-class player choices, explicitly triggered, with independently optional cues and free text. | The existing scene context and combined cues support single-scene direction. An explicit ordered-beat authoring view could map beats to existing arc milestones and prerequisites. |
 | D10. Delayed directions | Reuse existing plot opportunities, the story clock, prerequisites, spacing and phase-adjusted chance. Ordinary autonomous developments already work without a Random Story Events set or a background surprise-writing call. | Separate authoring choices: compose and conceal exact wording now; request delivery a fixed or random number of replies later. Each delayed direction would expire on use. None is needed to keep the story moving. |
-| D11. Lifetime of guided actions (decided) | Each invocation applies once. The button remains available to use again. | No duration picker, repeat-until-cancelled guide or automatic rearming for quick actions. |
+| D11. Lifetime of guided actions (decided) | Each invocation applies once. The button remains available to use again. | Fresh start may have its own explicitly selected five-reply window. All other quick guidance applies once. |
 | D12. Guided continuation (decided) | Append to the selected reply with the original text preserved and an undo boundary. | Routine prose screening feeds next-turn guidance as specified in D17. |
 | D13. Historical context | Resolve historical suggestions and revisions against the chosen swipe and its prior timeline. Show included lore and what the player character can know. | Deliberate retrospective mode; selected extra sources; user-specified context window |
 | D14. NPC respondent (decided) | The model uses the scene and the previous five replies. A specific speaker can be directed in free text. | Provide the same workflow in solo and group chats. |
@@ -351,3 +366,11 @@ These are proposed release checks for the corresponding capability if selected. 
 | A51 | Exercise a blank reply, a provider error, a manual retry and a multi-batch catch-up. | Preview shows the expected count or range. Receipts show each actual attempt and outcome. A one-call action requires another user invocation to retry. |
 | A52 | On a narrow phone viewport with the keyboard open, open and close execution details in chat, Setup and Review. Then reach secondary editor actions and reorder a list using touch. Repeat the disclosure with keyboard and screen reader. | The same icons and counts expose the same information from every surface. Controls fit, preserve the active draft and require zero hover interactions. Inspecting details makes zero model requests. |
 | A53 | Give a cold touch reviewer an unlabelled task goal, then exercise code-only, same-reply and extra-call paths with reduced motion and color cues unavailable. | They can tell which action makes an extra request before tapping it and open details without dispatching. The resting view has one indication per shared path and all execution states remain understandable. |
+
+
+## Acceptance checks for Fresh start
+
+| ID | Exercise | Required observation |
+| --- | --- | --- |
+| A54 | Use Fresh start in all four families after switching a preset. Put a distinctive repeated opening and an expired cue in earlier replies. Compare against an ordinary model-directed random instruction. | Capture shows current guidance and established facts. Supported routes omit the stale narrative examples and directives. Continuation preserves the reply being extended. A normal random instruction receives no reset. |
+| A55 | If the longer window is selected for implementation, arm five replies and send, fail, retry, draft, swipe, continue, switch chats and return. | Each accepted forward reply spends one slot. The original action cue appears once. Remaining slots and Stop are visible, and the reset expires after five without additional model requests. |

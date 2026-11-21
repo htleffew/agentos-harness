@@ -108,10 +108,8 @@ async function openPrompt(page, groupLabel, promptLabel) {
         const item = await page.evaluate(() => SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.items[0]);
         assert.equal(item.noCheck, true);
         assert.equal(item.modelDirection, true);
-        const reset = 'Treat earlier replies as evidence of established facts only';
-        assert.equal(L.text(requests[0]).split(reset).length - 1,1);
-        assert.match(item.text,/Treat earlier replies as evidence of established facts only/);
-        assert.doesNotMatch(item.version,/Treat earlier replies as evidence of established facts only/);
+        assert.doesNotMatch(L.text(requests[0]),/Treat earlier replies as evidence of established facts only/);
+        assert.doesNotMatch(item.text,/Treat earlier replies as evidence of established facts only/);
 
         L.resetLog();
         L.mode({});

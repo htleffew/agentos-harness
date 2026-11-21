@@ -797,14 +797,6 @@ function onScanDone(args) {
             } else askE.content += '\n'+instruction;
             plan.contextAsk = askE.content;
         }
-        const directedNote = type === 'normal' && items.findLast(item =>
-            item.modelDirection && ['system','ooc'].includes(item.sentAs));
-        if (directedNote) {
-            const order = `${promptText('nextReplyReset')} ${directedNote.version}`;
-            directedNote.text = sub(wrapText(directedNote.sentAs, order, directedNote.misses));
-            const entry = sentEntries.get(directedNote.key);
-            if (entry) entry.content = directedNote.text;
-        }
         sayUserLineOnce(items);
         gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
         if (askE && map.has(keyOf(askE))) gen.result.texts.set(keyOf(askE), askE.content);
