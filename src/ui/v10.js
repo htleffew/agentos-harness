@@ -1,3 +1,4 @@
+import { DEFAULT_STORY_AVOID } from '../defaults.js';
 import { presetWorkbench } from './preset-workbench.js';
 import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
@@ -13,7 +14,7 @@ import { acceptV10Opening, guideSwipe } from '../engine.js';
 import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
-    MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES, writingProfileText, SCENE_CHECKS, sceneCheckId, hostSceneChecks,
+    MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES, writingProfileText, SCENE_CHECKS, sceneCheckId, hostSceneChecks, avoidPhrases,
     isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText, rowsForWorld,
     readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor, baseWorld,
 } from '../v10.js';
@@ -25,7 +26,7 @@ const problem = error => toast('error', error.message || String(error));
 const entryLabel = kind => ({fact:'Fact',profile:'Portrayal',knowledge:'Knowledge',emotion:'Emotion',relationship:'Relationship',arc:'Arc milestone',seed:'Seed',agenda:'Agenda',event:'Event'})[kind];
 const scoped = (label, control) => h('label',{class:'ri-field'},h('span',{class:'ri-label'},label),control);
 
-function profileEditor(local, key, label, fallback, standalone=true) {
+function profileEditor(local, key, label, fallback, standalone=true, list=false) {
     const box = textArea(local[key] ?? fallback, () => {}, {rows:5,id:standalone ? `ri-profile-${key}` : undefined,'aria-label':label});
     const badge = h('span',{class:'ri-prompt-badge'});
     const status = h('p',{class:'ri-help',role:'status'});
@@ -34,9 +35,13 @@ function profileEditor(local, key, label, fallback, standalone=true) {
         update('Draft discarded.');
         box.focus();
     },{kind:'ghost'});
+    const addDefaults = list ? button('Add missing defaults to draft', () => {
+        box.value = avoidPhrases([box.value, fallback].join('\n')).join('\n');
+        update('Defaults added to the draft. Save list to apply.');
+    }, {kind:'ghost'}) : null;
     const form = h('details',{class:'ri-card ri-tight'},h('summary',{},label,' ',badge),
-        h('p',{class:'ri-help'},'Changes apply to this chat.'),box,
-        h('div',{class:'ri-row'},button('Save guidance',()=>{
+        h('p',{class:'ri-help'},list ? 'One word or phrase per line. Matches appear in reply Notes. Changes apply to this chat.' : 'Changes apply to this chat.'),box,
+        h('div',{class:'ri-row'},button(list ? 'Save list' : 'Save guidance',()=>{
             local[key]=box.value.trim();
             box.value=local[key];
             saveChatState();
@@ -46,7 +51,7 @@ function profileEditor(local, key, label, fallback, standalone=true) {
             box.value=fallback;
             saveChatState();
             update('Restored the default for this chat.');
-        },{kind:'ghost'})),status);
+        },{kind:'ghost'}),addDefaults),status);
     function update(message) {
         badge.textContent = Object.hasOwn(local,key) ? 'Customized' : 'Default';
         const dirty = box.value!==(local[key] ?? fallback);
@@ -685,7 +690,7 @@ export function renderV10(body, app, page) {
                             (local.sceneChecks ||= {})[key]=event.currentTarget.checked;saveChatState();
                         }}),label,hostChecks[key] && h('span',{class:'ri-help'},`Host preset · ${hostChecks[key]}`))),
                     promptGroup([...Object.keys(SCENE_CHECKS).map(sceneCheckId),'sceneSolo','sceneEnsemble','sceneUnknown','sceneContinue'],'Customize individual scene checks')),
-                profileEditor(local,'avoidPhrases','Stock phrases to avoid',''),
+                profileEditor(local,'avoidPhrases','Stock phrases to avoid',DEFAULT_STORY_AVOID,true,true),
                 chatFlag('proseMetrics','Show turn length and dialogue share','Add word count and the approximate percentage in quotation marks to the reply’s Notes tab.'));
             break;
         }

@@ -908,7 +908,7 @@ function onMessageReceived(id, type) {
             const recent = (ctx().chat || []).slice(Math.max(0,id-10),id).filter(isReply)
                 .slice(-4).map(reply=>String(reply.mes || ''));
             rec.v10Diagnostics = replyDiagnostics(parsed.clean || m.mes,{
-                recent,avoid:turn.modules.style ? prefs()?.avoidPhrases : '',metrics:prefs()?.proseMetrics===true,
+                recent,avoid:prefs()?.avoidPhrases,metrics:prefs()?.proseMetrics===true,
             });
             if (turn.modules.colors) registerSpeakers(parsed.clean || m.mes,turn.records);
             if (!turn.modules.roast) parsed.roast = '';

@@ -1,3 +1,4 @@
+import { DEFAULT_STORY_AVOID } from './defaults.js';
 import { orderedSections } from './module-layout.js';
 import { correctedLoreEntry, characterCorrectionFields, isRejectedStoryClaim } from './correction-rules.js';
 import { BOOK_TRIGGER_SOURCES, bookTriggerSource, reusableKeywordMatch } from './book-triggers.js';
@@ -441,19 +442,30 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
     return record;
 }
 
-function avoidPhrases(value) {
-    return [...new Set(clean(value).split(/\r?\n/).map(line=>safeText(line,70)).filter(Boolean))].slice(0,15);
+const normalizeAvoid = value => normalize(value).replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+
+export function avoidPhrases(value = DEFAULT_STORY_AVOID) {
+    const byWording = new Map();
+    for (const line of clean(value).split(/\r?\n/)) {
+        const phrase = line.trim();
+        const key = normalizeAvoid(phrase);
+        if (key && !byWording.has(key)) byWording.set(key, phrase);
+    }
+    return [...byWording.values()];
 }
+
+const DIRECT_PROSE = 'Describe what characters say, do, and notice. Show a remark’s effect through a consequential choice, action, or answer. Respond to the player’s meaning in the character’s own words. Preserve an absence or refusal when it changes the scene.';
 
 const proseWords = value => value.match(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu) || [];
 const firstWords = value => proseWords(normalize(value)).slice(0,7).join(' ');
 const questionEnding = value => /\?[”"'’*]*\s*$/.test(value);
 
-export function replyDiagnostics(prose, {recent = [], avoid = '', metrics = false} = {}) {
+export function replyDiagnostics(prose, {recent = [], avoid = DEFAULT_STORY_AVOID, metrics = false} = {}) {
     const lines = prose.split(/(?<=[.!?])\s+/).map(normalize).filter(x => x.length >= 24);
     const repeats = [...new Set(lines.filter((line,i) => lines.indexOf(line) < i))];
     const malformed = prose.split('\n').filter(line => /^\[[^\]\n]{1,64}\][ \t]*[“"]/.test(line) && !/(?:“[^”]+”|"[^"]+")/.test(line)).length;
-    const marked = avoidPhrases(avoid).filter(phrase=>mentions(prose,phrase));
+    const wording = ` ${normalizeAvoid(prose)} `;
+    const marked = avoidPhrases(avoid).filter(phrase=>wording.includes(` ${normalizeAvoid(phrase)} `));
     const opening = firstWords(prose);
     const repeatedOpening = proseWords(opening).length===7 && recent.some(text=>firstWords(text)===opening);
     const repeatedQuestions = questionEnding(prose) && recent.filter(questionEnding).length>=2;
@@ -767,7 +779,6 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         ? { id:latest.record.time, text:safeText(latest.message.mes,1600) } : null;
     const feedback = modules.roastFeedback ? history.filter(x => x.record.roast).slice(-2).map(x => safeText(x.record.roast,300)) : [];
     const style = local.style ?? defaultWritingGuidance();
-    const avoid = modules.style ? avoidPhrases(local.avoidPhrases) : [];
     const baseline = [...baselines.values()].filter(source=>
         (normalize(source.name)===normalize(names().char) || [source.name,...source.aliases].some(matches)) &&
         !recalled.some(item=>item.record.kind==='profile' && baselineFor(baselines,item.record.subject,item.record.aliases)===source))
@@ -779,7 +790,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const opportunitySlot = Symbol();
     const guidance = orderedSections([
         ['style', modules.style && style], ['style', modules.style && writingProfileText(local.writingProfile)],
-        ['style', avoid.length && `Avoid these stock phrases when composing the scene: ${JSON.stringify(avoid)}.`],
+        ['style', modules.style && DIRECT_PROSE],
         ['preflight', sceneCheckPrompt(scene,{modules,type,preflight:local.preflight})],
         ['colors', formatSpeaker(modules)],
         ['emotions', modules.emotions && promptText('emotionSensitivity',{sensitivity:local.emotion?.sensitivity || 'flexible'})],
@@ -999,8 +1010,7 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
     const openingPermission = local.openingPlayerThoughts === true
         ? promptText('openingPlayerThoughts')
         : 'The player supplies their own thoughts, dialogue, and choices.';
-    const avoid = modules.style ? avoidPhrases(local.avoidPhrases) : [];
-    const format = [avoid.length && `Avoid these stock phrases in the opening: ${JSON.stringify(avoid)}.`,companionWriting,local.opening ?? OPENING,writing,modules.style && writingProfileText(local.writingProfile),sceneCheckPrompt({present:names().char},{modules,preflight:local.preflight,opening:true}),formatSpeaker(modules),openingPermission].filter(Boolean).join('\n');
+    const format = [modules.style && DIRECT_PROSE,companionWriting,local.opening ?? OPENING,writing,modules.style && writingProfileText(local.writingProfile),sceneCheckPrompt({present:names().char},{modules,preflight:local.preflight,opening:true}),formatSpeaker(modules),openingPermission].filter(Boolean).join('\n');
     const user = [
         text ? `${promptText('readGreeting')} Return only the update block.` : format,
         `Character: ${names().char}. Player: ${names().user}.`, source && `Source material:\n${source}`,

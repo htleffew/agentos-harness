@@ -9,7 +9,7 @@ const context = {
 globalThis.SillyTavern = {getContext:()=>context};
 
 const {
-    activePreset, sceneCheckPrompt, replyDiagnostics, extractUpdate, normalizeRecord, DEFAULT_MODULES:modules, gate, prepareTurn, prefs,
+    activePreset, sceneCheckPrompt, replyDiagnostics, avoidPhrases, extractUpdate, normalizeRecord, DEFAULT_MODULES:modules, gate, prepareTurn, prefs,
     portrayalSources, baselineFor, effectivePortrayal, guidelineEligible,
 } = await import('../../src/v10.js');
 const {stateAt, changesFromProfiles} = await import('../../src/state.js');
@@ -107,3 +107,18 @@ assert.deepEqual(replyDiagnostics('“Are we there yet?”',{recent:['Did it sta
     'This and at least two recent replies end in a question.',
     '4 words · about 100% in quotation marks.',
 ]);
+
+const stockProse = 'Her jaw locked. He looked at her — really looked. Let the words sit for a beat. She filed the invoice.';
+const stockNotes = replyDiagnostics(stockProse).join('\n');
+for (const phrase of ['jaw locked', 'looked at her really looked', 'let the words sit', 'for a beat', 'filed', 'invoice']) {
+    assert.ok(stockNotes.includes(phrase), phrase);
+}
+assert.deepEqual(replyDiagnostics(stockProse,{avoid:''}),[]);
+assert.deepEqual(replyDiagnostics('They reached the coastline and unpacked.'),[]);
+assert.deepEqual(avoidPhrases('Keep this\nkeep this.\nNext entry'),['Keep this','Next entry']);
+assert.ok(avoidPhrases().length > 15);
+prefs().avoidPhrases = 'custom marker to omit';
+assert.match(replyDiagnostics('A custom marker to omit.',{avoid:prefs().avoidPhrases}).join(' '),/custom marker to omit/);
+const cleanTurn = prepareTurn([],{present:'Mira',where:'Dock'},'normal',modules).text;
+assert.match(cleanTurn,/Describe what characters say, do, and notice/);
+assert.doesNotMatch(cleanTurn,/custom marker to omit|Avoid these stock phrases/);

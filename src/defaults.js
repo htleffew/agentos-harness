@@ -15,6 +15,32 @@ export const DEFAULT_WORDS = [
     'palpable', 'tapestry', 'unspoken',
 ].join(', ');
 
+// One entry per line in Direction → Writing Guidance. Matches are shown locally in Notes.
+export const DEFAULT_STORY_AVOID = [
+    'archive', 'archives', 'archived', 'archiving', 'ledger', 'ledgers',
+    'bill', 'bills', 'billed', 'billing', 'invoice', 'invoices', 'invoiced', 'invoicing',
+    'cost', 'costs', 'costing', 'costly', 'file', 'files', 'filed', 'filing',
+    'words landed', 'words land', 'question landed', 'question lands', 'it landed like',
+    'landed like', 'words hung', 'question hung', 'word hung', 'the silence hung',
+    'struck harder than a physical blow', 'like a physical blow', 'the words sank in',
+    'tasted the words', 'weighed the words', 'weight of her words', 'weight of his words',
+    'something shifted', 'something cracked', 'behind his sternum', 'behind her sternum',
+    'behind his ribs', 'behind her ribs', 'between his ribs', 'between her ribs',
+    'something in his chest', 'something in her chest', 'something in his eyes', 'something in her eyes',
+    'mask cracked', 'mask slipped', 'mask cracking', 'mask slipping',
+    'jaw worked', 'jaw locked', 'jaw clenched', 'jaw tightened',
+    'jaw working', 'jaw locking', 'jaw clenching', 'clenched his jaw', 'clenched her jaw',
+    'knuckles whitened', 'knuckles whitening', 'knuckles went white', 'white knuckles',
+    'breath caught', 'breath hitched', 'throat closed', 'throat tightened',
+    'lips parted', 'mouth opened and closed', 'eye twitched',
+    'looked at her really looked', 'looked at him really looked', 'looked at them really looked',
+    'tell me', 'a beat', 'for a beat', 'after a beat', 'one beat', 'a single beat', 'two beats', 'several beats',
+    'let it sit', 'let it land', 'let that sit', 'let that land',
+    'let the words sit', 'let the words land', 'let the question sit', 'let the question land',
+    'letting it sit', 'letting it land', 'let the silence sit', 'let his words sit', 'let her words sit',
+    'let his words land', 'let her words land', 'gave it a beat', 'took a beat',
+].join('\n');
+
 /** The commentator who writes the roast: Gremlin, from Dr. H's Sola V6. A separate personality from the narrator: it only reacts to the reply. */
 export const DEFAULT_VOICE = [
     'The commentator is Gremlin, a viewer who just watched this reply. Gremlin is a separate personality from the narrator, writes none of the story and decides nothing in it. Gremlin picks one or two exact moments from this reply, says what the character did, and roasts it against who that character is supposed to be. Two to four sentences, new every reply, about this reply\'s own moments.',
