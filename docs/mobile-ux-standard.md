@@ -26,6 +26,7 @@ An idle badge is static. If motion helps convey that a request has actually star
 - Start with observed tasks and the user’s expected outcome. For a repair, reproduce the reported problem before the change when possible. After the change, exercise the same path and adjacent actions that could regress.
 - Give a cold reviewer a goal and a phone-width touch interface. Record where they tap, what they expect, where they hesitate, and how they recover. Ask them to identify which action will call the model, what happens when they tap the indicator, and where they can change a saved connection. Reveal the intended path after the first attempt.
 - Exercise the keyboard-open state, long or translated labels, small viewports, accessibility settings, and failed or missing connections. Check at least one code-only action, one same-reply operation, one extra-call action and one opted-in background trigger. Use fixtures or a request recorder to verify actual call counts and saved routes.
+- Apply the [programmatic execution guideline](../AGENTS.md#prefer-programmatic-execution) to changed or audited flows. Verify that code-only steps make zero requests and that any separate request performs only work the programmatic or existing reply path cannot deliver.
 - Compare the default view against the prior design using task completion, first-tap accuracy, accidental calls and need for explanation. Record the tested host and viewport, actual observations, fixes and verification gaps in the audit. Mark any untested device or assistive technology explicitly.
 
 ## References

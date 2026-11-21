@@ -167,6 +167,8 @@ Count accepted character replies in the surviving story timeline, including thei
 
 ## How it ran and which connection it used
 
+Apply the [programmatic execution guideline](../AGENTS.md#prefer-programmatic-execution) to every workflow. Examine code, scripts, macros, native host features and existing structured data before using model output. If the task needs model output, prefer an existing authorized request when it can deliver the result at the right time. Justify any separate request by the specific remaining work it performs.
+
 Every extension output uses the same **How it ran** component, vocabulary and field order. Use a shared compact execution indicator on actions, cards, results, receipts and status messages. Show an extra-call count on the action that starts it, such as **1 model call**. Group execution details at the result level when related items share one path. Use the same icons for code, the reply request and an additional request in every location. Tap the separate execution disclosure to open details with the meaning, trigger, count and connection. Use an accessible disclosure button with expanded state, and make the information reachable by touch, keyboard and screen reader. Opening or closing it preserves the draft, focus and scroll position and makes zero requests. Use the same component in preview mode on controls before they run. List stages individually when an operation mixes code and model work. For example, source matching can run in code, a model can audit the selected excerpts, and a guided swipe can use the ordinary reply request.
 
 | Label | Count | Example |
