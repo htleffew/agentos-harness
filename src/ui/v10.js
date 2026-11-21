@@ -450,25 +450,36 @@ function presetDetails(preset, app) {
         button('Review What Was Sent',()=>app.openPage('sent'),{kind:'ghost'}));
 }
 
-function hostOverlap(key, owner, preset, redraw) {
+function hostOverlap(key, owner, preset, enabled, redraw) {
     const id = `ri-owner-${key}`;
+    const active = owner.blocks.some(block=>block.enabled===true);
+    const unknown = owner.blocks.some(block=>block.enabled===null);
+    let status;
+    if (owner.usesExtension) {
+        status=enabled ? 'The extension runs this module in this chat.' : 'The extension is selected. Turn the module on to use it in this chat.';
+    } else if (owner.choice==='extension') {
+        status=active ? 'The host preset still has a matching block on. Turn off the matching blocks in the host Prompt Manager, then recheck them here. The extension waits until all matching blocks are off.'
+            : 'The host has not reported the status of every matching block. The extension waits until it can verify that they are off.';
+    } else {
+        status=active ? 'The host preset has a matching block on. The extension skips this module.'
+            : unknown ? 'The host preset is selected. Block status is unavailable. The extension skips this module.'
+                : 'All matching host blocks are off. To use this feature, enable a block in the host Prompt Manager or select the extension here.';
+    }
     return h('div',{class:'ri-module-overlap'},
-        h('label',{htmlFor:id},'Instruction source'),
+        h('label',{htmlFor:id},'Preferred instruction source'),
         select([{value:'preset',label:'Host preset'}, {value:'extension',label:'Roleplay Instructions extension'}],owner.choice,value=>{
             setModuleOwner(preset,key,value);
             redraw();
             document.getElementById(id)?.focus({preventScroll:true});
         },{id,'aria-describedby':`${id}-status`}),
-        h('p',{class:'ri-help',id:`${id}-status`},owner.usesExtension
-            ? 'The Roleplay Instructions extension supplies this feature here.'
-            : owner.choice === 'extension'
-                ? 'Roleplay Instructions is waiting for these blocks to be off in the host preset editor.'
-                : owner.blocks.some(block=>block.enabled===true)
-                    ? 'Enabled host preset blocks supply these instructions. The extension module is off in this chat.'
-                    : 'The extension is off for this feature. See the host block status below.'),
+        h('p',{class:'ri-help',id:`${id}-status`},status),
+        owner.choice==='extension' && owner.blocked && button('Recheck these host blocks',()=>{
+            redraw();
+            document.getElementById(id)?.focus({preventScroll:true});
+        },{kind:'ghost'}),
         h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in host preset`,
             block.blocks.filter(entry=>entry.content).map(entry=>h('details',{class:'ri-card ri-tight'},
-                h('summary',{},'View host preset prompt'),h('pre',{class:'ri-v10-prompt-text'},entry.content)))))));;
+                h('summary',{},'View host preset prompt'),h('pre',{class:'ri-v10-prompt-text'},entry.content)))))));
 }
 const onOff = value => value ? 'On' : 'Off';
 
@@ -490,7 +501,7 @@ function moduleSettings(local, app, preset, modules, redraw) {
         const defaultOn = presetValue ?? DEFAULT_MODULES[key];
         const value = editingPreset ? presetValue : override;
         const fallback = editingPreset ? DEFAULT_MODULES[key] : defaultOn;
-        const parent = editingPreset || !canEditPreset ? 'extension' : 'preset';
+        const resetLabel = editingPreset || !canEditPreset ? 'Use extension factory default' : 'Use extension default for this preset';
         const blocked = !editingPreset && owner && !owner.usesExtension;
         const controlId = `ri-module-${key}`;
         const update = next => {
@@ -508,31 +519,32 @@ function moduleSettings(local, app, preset, modules, redraw) {
         };
         const control = select([{value:'on',label:'On'}, {value:'off',label:'Off'}],(blocked ? false : value ?? fallback) ? 'on' : 'off',
             selected=>update(selected==='on'),{id:controlId,disabled:blocked,'aria-describedby':`${controlId}-help ${controlId}-status`});
+        const hostBlockOn = blocked && owner.blocks.some(block=>block.enabled===true);
         const message = editingPreset
-            ? `Default for this preset: ${onOff(value ?? fallback)}`
-            : blocked ? 'Extension off in this chat' : `${onOff(modules[key])} in this chat`;
+            ? `Extension default for this preset: ${onOff(value ?? fallback)}`
+            : hostBlockOn ? 'Host block on · Extension off' : blocked ? 'Extension off in this chat' : `${onOff(modules[key])} in this chat`;
         return h('div',{class:'ri-module-row','data-module':key},
             h('div',{class:'ri-module-heading'},
-                h('label',{htmlFor:controlId},label),
+                blocked ? h('strong',{},label) : h('label',{htmlFor:controlId},label),
                 h('span',{class:'ri-module-status',id:`${controlId}-status`,'data-enabled':String(editingPreset ? value ?? fallback : modules[key])},message)),
             h('p',{class:'ri-help',id:`${controlId}-help`},MODULE_HELP[key]),
-            h('div',{class:'ri-row ri-module-actions'},control,value!==undefined && !blocked
-                ? button(`Reset to ${parent} setting (${onOff(fallback)})`,()=>update(undefined),{kind:'ghost'}) : null),
+            owner && !editingPreset ? hostOverlap(key,owner,preset,modules[key],redraw) : null,
+            !blocked && h('div',{class:'ri-row ri-module-actions'},control,value!==undefined
+                ? button(`${resetLabel} (${onOff(fallback)})`,()=>update(undefined),{kind:'ghost'}) : null),
             !blocked && h('p',{class:'ri-help'},value===undefined
-                ? editingPreset || !canEditPreset ? 'Using the extension’s factory default.' : 'Using this preset’s extension module default.'
+                ? editingPreset || !canEditPreset ? 'Using the extension’s factory default.' : presetValue===undefined ? 'Following the extension factory default for this preset.' : 'Following the extension default saved for this preset.'
                 : editingPreset ? (override===undefined ? 'Applies to chats that follow this preset.' : `This chat keeps its own setting (${onOff(override)}).`)
-                    : 'Saved for this chat.'),
-            owner && !editingPreset ? hostOverlap(key,owner,preset,redraw) : null);
+                    : 'Saved for this chat.'));
     });
     return section('Extension modules',
         h('div',{class:'ri-module-scopes',role:'group','aria-label':'Settings scope'},
             h('button',{type:'button',class:'ri-btn ri-btn-ghost','data-module-scope':'chat','aria-pressed':String(controlScope==='chat'),
                 onclick:()=>changeScope('chat')},'This chat'),
             h('button',{type:'button',class:'ri-btn ri-btn-ghost','data-module-scope':'preset','aria-pressed':String(controlScope==='preset'),
-                disabled:!canEditPreset,onclick:()=>changeScope('preset')},'Module defaults by preset')),
+                disabled:!canEditPreset,onclick:()=>changeScope('preset')},'Extension defaults for this preset')),
         h('p',{class:'ri-help'},editingPreset
             ? `Set extension module defaults for chats that use “${preset}”. Chats with their own settings keep them.`
-            : canEditPreset ? `Changes here apply only to this chat. Reset a changed setting to follow “${preset}” again.`
+            : canEditPreset ? `Changes here apply only to this chat. Use the extension default to follow the settings saved for “${preset}”.`
             : 'Changes here apply only to this chat. Reset a changed setting to follow the extension again.'),
         !editingPreset && Object.keys(ownership).length ? h('div',{class:'ri-note'},'Instruction source is saved for this chat and preset. Related blocks are managed in the host preset editor. The extension yields while those blocks are on or their status is unavailable.',
             h('div',{class:'ri-row'},button('Refresh source status',redraw,{kind:'ghost'}))) : null,
@@ -608,7 +620,9 @@ export function renderV10(body, app, page) {
         body.append(presetDetails(preset,app));
         if (!enabledV10()) return;
         body.append(moduleSettings(local,app,preset,modules,redraw),
-            chatFlag('generatePlan','Request a reply plan','The Roleplay Instructions V10 companion presets request a brief outline before the prose. Reply Display controls its card.'));
+            isCompanionPreset(preset)
+                ? chatFlag('generatePlan','Request a reply plan','The extension asks for a brief outline before the prose. Show Reply planning in Reply Display controls its card.')
+                : h('p',{class:'ri-help'},'To request a reply plan from the extension, select the Roleplay Instructions V10 companion preset in AI Response Configuration.'));
         return;
     }
     if (!enabledV10()) {

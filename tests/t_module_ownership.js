@@ -48,21 +48,23 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         await scope('preset');
         assert.deepEqual(await setting.locator('option').allTextContents(),['On','Off']);
         await set('off');
-        assert.match(await row.textContent(),/Default for this preset: Off/);
+        assert.match(await row.textContent(),/Extension default for this preset: Off/);
         await scope('chat');
         assert.match(await row.textContent(),/Off in this chat/);
-        assert.match(await row.textContent(),/Using this preset’s extension module default/);
+        assert.match(await row.textContent(),/Following the extension default saved for this preset/);
         L.resetLog();
         assert.equal(n(await send('Is anyone at the door?'),extensionRule),0);
         await set('on');
         assert.match(await row.textContent(),/On in this chat/);
         assert.equal(n(await send('I listen.'),extensionRule),1);
-        await row.locator('button').filter({hasText:'Reset to preset setting (Off)'}).evaluate(el=>el.click());
+        await row.locator('button').filter({hasText:'Use extension default for this preset (Off)'}).evaluate(el=>el.click());
         assert.equal(n(await send('I wait.'),extensionRule),0);
+        await setting.evaluate(el=>el.focus());
         await switchTo(imported);
-        await openModules();
+        await page.locator('#ri_root').getByText('Active preset: '+imported.name,{exact:true}).waitFor({state:'attached'});
         assert.match(await row.textContent(),/Internal States Template · On in host preset/);
-        assert.equal(await row.locator('#ri-module-relationships').isDisabled(),true);
+        assert.equal(await page.locator('#ri_root').getByLabel('Request a reply plan',{exact:true}).count(),0);
+        assert.equal(await row.locator('#ri-module-relationships').count(),0);
         assert.equal(await row.locator('#ri-owner-relationships').inputValue(),'preset');
         let text = await send('I knock.');
         assert.match(text,/HOST-ANTITHESIS-FIXTURE/);
@@ -72,7 +74,8 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         await row.locator('#ri-owner-relationships').evaluate(input=>{
             input.value='extension';input.dispatchEvent(new Event('change',{bubbles:true}));
         });
-        assert.match(await row.textContent(),/waiting for these blocks to be off/);
+        assert.match(await row.textContent(),/host preset still has a matching block on/);
+        assert.equal(await row.locator('.ri-module-status').textContent(),'Host block on · Extension off');
         text = await send('I knock again.');
         assert.equal(n(text,hostRule),1);
         assert.equal(n(text,extensionRule),0);
@@ -81,7 +84,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
             const order=SillyTavern.getContext().chatCompletionSettings.prompt_order.find(row=>row.character_id===100001);
             for (const id of ids) order.order.find(row=>row.identifier===id).enabled=false;
         },[prompt.identifier,route.identifier]);
-        await page.locator('#ri_root button').filter({hasText:'Refresh source status'}).evaluate(button=>button.click());
+        await row.getByText('Recheck these host blocks',{exact:true}).evaluate(button=>button.click());
         assert.match(await row.textContent(),/Internal States Template · Off in host preset/);
         assert.equal(await row.locator('#ri-module-relationships').isDisabled(),false);
         text = await send('I take one step inside.');
@@ -89,12 +92,17 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.match(text,/Scene and character checks:/);
         assert.equal(n(text,hostRule),0);
         assert.equal(n(text,extensionRule),1);
+        await set('off');
+        assert.match(await row.textContent(),/The extension is selected. Turn the module on/);
+        text=await send('I pause.');
+        assert.equal(n(text,hostRule),0);
+        assert.equal(n(text,extensionRule),0);
         await switchTo(companion);
         assert.equal(n(await send('I close the door.'),extensionRule),0);
         await openModules();
         await scope('preset');
-        await row.locator('button').filter({hasText:'Reset to extension setting (On)'}).evaluate(el=>el.click());
-        assert.match(await row.textContent(),/Default for this preset: On/);
+        await row.locator('button').filter({hasText:'Use extension factory default (On)'}).evaluate(el=>el.click());
+        assert.match(await row.textContent(),/Extension default for this preset: On/);
         await page.evaluate(()=>{
             const order=SillyTavern.getContext().chatCompletionSettings.prompt_order.find(row=>row.character_id===100001);
             order.order.find(row=>row.identifier==='ri-check-physical').enabled=true;
@@ -105,7 +113,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.match(text,/Give NPCs practical aims of their own/);
         await ext(async({B})=>(await import(`${B}/src/ui/panel.js`)).app.openPage('writing'));
         await page.locator('#ri_root').getByText('Host preset · Physical realism',{exact:true}).waitFor({state:'attached'});
-        assert.equal(L.requests().length,8);
+        assert.equal(L.requests().length,9);
         assert.deepEqual(errors,[]);
         console.log('PASS module ownership: inherited preset values, chat override and reset, separate preset blocks and exclusive instructions on the wire.');
     } finally { await browser.close(); }

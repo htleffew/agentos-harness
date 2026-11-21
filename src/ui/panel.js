@@ -222,6 +222,12 @@ export function mount(missing) {
     onChange((what) => {
         if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.wroute = { view: 'list' }; app.cache = {}; app.loreTarget = null; }
         refreshUnderReplies();
+        // Setup controls save immediately and their handlers belong to the displayed preset.
+        if (what === 'preset' && app.tab === 'v10') {
+            clearTimeout(timer);
+            render();
+            return;
+        }
         // Keep unsaved wording in an open prompt editor during background updates.
         if (what !== 'chat' && app.root?.querySelector('.ri-prompt-editor[open]')) return;
         if (what !== 'chat' && app.tab === 'corrections') return;

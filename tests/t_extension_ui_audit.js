@@ -94,13 +94,13 @@ async function auditDisclosures(body) {
                 const opposite=original==='on'?'off':'on';
                 await select.selectOption(opposite);
                 assert.equal(await select.inputValue(),opposite,key);
-                await row.getByRole('button',{name:/^Reset to /}).click();
+                await row.getByRole('button',{name:/^Use extension /}).click();
                 assert.equal(await select.inputValue(),original,key);
             }
         };
         await exerciseModules();
-        await click('Module defaults by preset');
-        assert.equal(await root.getByRole('button',{name:'Module defaults by preset'}).getAttribute('aria-pressed'),'true');
+        await click('Extension defaults for this preset');
+        assert.equal(await root.getByRole('button',{name:'Extension defaults for this preset'}).getAttribute('aria-pressed'),'true');
         await exerciseModules();
         await click('This chat');
         await group('Direction').click();

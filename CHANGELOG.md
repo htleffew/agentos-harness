@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.0.30
+
+- Clarified which extension default a chat follows and which setting a reset restores in **Setup → Preset & Extension**.
+- Setup refreshes when the host changes presets, including while a module selector has focus. The reply-plan control appears with the companion preset.
+- Show the source selector before the extension module switch. A module managed by host prompt blocks shows their status and text. The extension switch appears when the extension can run the module. The source description now accounts for a module switched off in the chat.
+- [Setup audit and phone screenshots](docs/ui-audit-10.0.30.md).
+
 ## 10.0.29
 
 - The generating reply uses the saved cards’ layout. Character fields, scene details, emotion meters and story changes fill in as their sections arrive. Roast, planning and World Info keep their own positions. Once filing completes, the cards open into their saved details.
