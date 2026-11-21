@@ -92,21 +92,50 @@ export function snapshotState(id) {
     for (const edit of ctx().chat?.[id]?.extra?.[KEY]?.snapshotEdits || []) applyEdit(state, edit);
     return state;
 }
-/** Older updates sometimes put the date and weather in the same time field. */
+const calendarDate = /^(?:day\s+\d+\b|month\s+\d+\b|year\s+\d+\b|(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b|\d{4}-\d{2}-\d{2}\b|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d+\b)/i;
+const weatherPhrase = /^(?:(?:(?:light|heavy|steady|thick|dense|scattered|low|high|grey|gray|dark|white|cold|warm|freezing|partly|mostly)\s+)*(?:clear(?:\s+sk(?:y|ies))?|sunny|rain(?:ing|y|fall| showers)?|drizzle|snow(?:ing|y|fall)?|cloud(?:s|y| cover)?|fog(?:gy)?|mist(?:y)?|wind(?:y|s)?|overcast|storm(?:y|s)?|thunderstorms?|sleet|hail|blizzard)\b|-?\d+\s*°\s*[FC]\b)/i;
+
+/** Recover separate header fields from labelled or combined legacy scene values. */
 export function normalizeScene(fields = {}) {
     const out = {...fields};
-    const combined = String(out.time ?? out.when ?? '');
-    const clock = /\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s*[AP]\.?M\.?)?/i.exec(combined);
-    if (!clock) return out;
-    const before = combined.slice(0,clock.index).trim().replace(/[,;|·–— -]+$/u,'').trim();
-    const after = combined.slice(clock.index+clock[0].length).trim().replace(/^[,;|·–— -]+/u,'').trim();
-    const date = /\b(?:day|month|year)\s+\d+|\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b|\b\d{4}-\d{2}-\d{2}\b/i.test(before);
-    const weather = /(?:\b(?:clear|sunny|rain\w*|snow\w*|cloud\w*|fog\w*|wind\w*|overcast|storm\w*)\b|\d\s*°\s*[FC])/i.test(after);
-    if (!date && !weather) return out;
-    out.time = clock[0].trim();
-    if (date && !Object.hasOwn(out,'date')) out.date = before;
-    if (weather && !Object.hasOwn(out,'weather')) out.weather = after;
+    for (const key of ['time','when']) {
+        const combined = String(out[key] ?? '');
+        const chunks = combined.split(/\s*(?:[,;|·]+|\s+[-–—]\s+)\s*/u).filter(Boolean);
+        if (chunks.length < 2) continue;
+        const dates = chunks.filter(part=>calendarDate.test(part));
+        const weather = chunks.filter(part=>weatherPhrase.test(part));
+        if (!dates.length && !weather.length) continue;
+        if (!out.date && dates.length) out.date = dates.join(', ');
+        if (!out.weather && weather.length) out.weather = weather.join(', ');
+        const time = chunks.filter(part=>!dates.includes(part) && !weather.includes(part)).join(', ');
+        if (time) out[key] = time;
+        else delete out[key];
+        if (time && key === 'when' && !out.time && /\b\d{1,2}:\d{2}\b/.test(time)) out.time = time;
+    }
     return out;
+}
+
+export function sceneFromReplyHeader(prose) {
+    const lines = String(prose || '').trimStart().split(/\r?\n/).slice(0,6);
+    const header = {};
+    const symbols = { '🕰':'time', '🗓':'date', '📍':'where', '🌙':'weather', '☀':'weather', '🌦':'weather', '🌧':'weather', '⛅':'weather' };
+    const map = { time:'time',date:'date',location:'where',where:'where',weather:'weather' };
+    for (const line of lines) {
+        if (/^\s*<(?:mobile_header|scene_header)\b/i.test(line)) {
+            for (const [,key,value] of line.matchAll(/\b(time|date|location|where|weather)\s*=\s*["']([^"']+)["']/gi)) header[map[key.toLowerCase()]] = text(value);
+            break;
+        }
+        const bracket = /^\s*\[([^\]]+)\]\s*$/.exec(line);
+        const parts = bracket ? bracket[1].split('|') : [line];
+        for (const part of parts) {
+            const label = /^\s*(time|date|location|where|weather)\s*:\s*(.+)\s*$/i.exec(part);
+            const icon = /^\s*(🕰|🗓|📍|🌙|☀|🌦|🌧|⛅)\uFE0F?\s*([^|]+)\s*$/u.exec(part);
+            if (label) header[map[label[1].toLowerCase()]] = text(label[2]);
+            else if (bracket && icon) header[symbols[icon[1]]] = text(icon[2]);
+        }
+        if (Object.keys(header).length && bracket) break;
+    }
+    return normalizeScene(header);
 }
 
 export function sceneAt(before = Infinity, { overrides = before === Infinity } = {}) {
@@ -271,8 +300,10 @@ export function editScene(field, value, locked = true) {
 export function sceneProtected(field) { return !!metadata()?.sceneOverrides?.[field]; }
 export function snapshotScene(id) {
     const scene = sceneAt(id + 1, { overrides: false });
-    const edits = ctx().chat?.[id]?.extra?.[KEY]?.sceneSnapshotEdits || {};
-    return normalizeScene({ ...scene, ...edits });
+    const message = ctx().chat?.[id];
+    const edits = message?.extra?.[KEY]?.sceneSnapshotEdits || {};
+    const stored = message?.extra?.[KEY];
+    return normalizeScene({ ...scene, ...sceneFromReplyHeader(message?.mes), ...(!stored?.stateStale ? stored?.scene : {}), ...edits });
 }
 export function editSceneSnapshot(id, field, value) {
     if (!SCENE_FIELDS.some(([k]) => k === field)) return false;

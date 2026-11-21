@@ -11,7 +11,7 @@ export const messageMark = (m, i) => String(m?.send_date || `#${i}`);
  * Hide from the AI the messages up to chat index `upTo` (a covered reply), keeping the newest messages and the
  * opening message. Returns the marks of the messages this hid, so they can be shown again.
  */
-export async function hideCovered(upTo) {
+export async function hideCovered(upTo, { persist = true } = {}) {
     const o = settings().summary;
     if (!memoryComponents().hide) return [];
     const chat = ctx().chat || [];
@@ -25,12 +25,12 @@ export async function hideCovered(upTo) {
         try { globalThis.$?.(`.mes[mesid="${i}"]`)?.attr('is_system', 'true'); } catch { /* the screen catches up on reload */ }
         hid.push(messageMark(m, i));
     }
-    if (hid.length) await ctx().saveChat?.();
+    if (hid.length && persist) await ctx().saveChat?.();
     return hid;
 }
 
 /** Show again the messages a chapter hid. marks: what hideCovered returned. */
-export function showAgain(marks) {
+export function showAgain(marks, { persist = true } = {}) {
     const want = new Set(marks || []);
     const chat = ctx().chat || [];
     let n = 0;
@@ -40,13 +40,13 @@ export function showAgain(marks) {
         try { globalThis.$?.(`.mes[mesid="${i}"]`)?.attr('is_system', 'false'); } catch { /* the screen catches up on reload */ }
         n++;
     });
-    if (n) Promise.resolve(ctx().saveChat?.()).catch(() => {});
+    if (n && persist) Promise.resolve(ctx().saveChat?.()).catch(() => {});
     return n;
 }
 
 
 /** Restore only messages previously hidden by this extension. */
-export function restoreChapterHistory() {
+export function restoreChapterHistory({ persist = true } = {}) {
     const updates = (ctx().chat || []).flatMap(message=>[
         message.extra?.[KEY]?.update,
         ...(message.swipe_info || []).map(swipe=>swipe.extra?.[KEY]?.update),
@@ -60,9 +60,11 @@ export function restoreChapterHistory() {
         if (receipt.changes?.some(change=>change.type==='hide')) receipt.changes = receipt.changes.filter(change=>change.type!=='hide');
     }
     if (!marks.size) return 0;
-    const restored = showAgain(marks);
-    if (!restored) Promise.resolve(ctx().saveChat?.()).catch(()=>{});
-    saveChatState();
+    const restored = showAgain(marks,{persist});
+    if (persist) {
+        if (!restored) Promise.resolve(ctx().saveChat?.()).catch(()=>{});
+        saveChatState();
+    }
     return restored;
 }
 

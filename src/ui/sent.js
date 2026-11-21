@@ -110,6 +110,7 @@ function recordBody(id, rec, isLast, withButtons) {
     return [
         rec.v10Request ? h('details',{class:'ri-sentitem'},h('summary',{},'Story guidance sent'),
             h('pre',{class:'ri-v10-prompt-text'},rec.v10Request)) : null,
+        rec.cardIssues?.length ? h('div',{class:'ri-note ri-note-warn'},rec.cardIssues.map(issue=>h('p',{},issue))) : null,
         rec.v10Check ? h('div',{class:'ri-note'},checkText(rec.v10Check)) : null,
         rec.v10Offer ? h('div',{class:'ri-note'},`Optional plot opportunity offered: ${rec.v10Offer}`) : null,
         rec.v10Lore?.length ? h('details',{class:'ri-sentitem'},h('summary',{},'World Info selections'),
@@ -295,11 +296,14 @@ function updateSceneHeader(mes,id,show) {
     if (!show) { existing?.remove(); return; }
     const scene = snapshotScene(id);
     const fields = [['Time',scene.time ?? scene.when],['Date',scene.date],['Location',scene.where],['Weather',scene.weather]];
-    const stamp = JSON.stringify(fields);
+    const record = ctx().chat?.[id]?.extra?.[KEY];
+    const inherited = !!record?.weatherInherited && !Object.hasOwn(record?.sceneSnapshotEdits || {},'weather');
+    const stamp = JSON.stringify([fields,inherited]);
     if (existing?.dataset.scene === stamp) return;
     const header = h('div',{class:'ri-scene-header','aria-label':'Scene details','data-scene':stamp},
         h('dl',{},fields.map(([label,value])=>h('div',{class:`ri-scene-header-${label.toLowerCase()}`},
-            h('dt',{},label),h('dd',{},value || h('span',{class:'ri-scene-header-empty','aria-label':'Unspecified'},'—'))))));
+            h('dt',{},label),h('dd',{title:label==='Weather' && inherited ? 'Last established weather' : undefined},
+                value || h('span',{class:'ri-scene-header-empty','aria-label':'Unspecified'},'—'))))));
     if (existing) existing.replaceWith(header);
     else area.before(header);
 }

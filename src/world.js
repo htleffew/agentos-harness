@@ -432,7 +432,10 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
         const invalidFrom = cs?.historyNeedsReview ? Number(cs.historyInvalidFrom) || 0 : 0;
         // Keep the user's edited chapter in the world, but do not send it until
         // they have reviewed a chapter that overlaps the altered story.
-        const chapters = by('chapter').filter(w => !(invalidFrom && w.span && chapterIsMine(w, chatId, times) && Number(w.span.to) >= invalidFrom)).sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
+        const regenerated = new Set((ctx().chat || []).map(message=>message?.extra?.[KEY])
+            .filter(record=>record?.historySource?.length && !record.stateStale).map(record=>String(record.time)));
+        const chapters = by('chapter').filter(w => !(invalidFrom && w.span && chapterIsMine(w, chatId, times) &&
+            Number(w.span.to) >= invalidFrom && !regenerated.has(w.span.time))).sort((a, b) => (a.span?.to || 0) - (b.span?.to || 0) || a.uid - b.uid);
         // A combined account of this chat already holds the chapters up to where it ends; those count as older ones.
         const ownRoll = chapters.find(w => w.rollup && chapterIsMine(w, chatId, times));
         const mine = chapters.filter(w => !w.rollup && chapterIsMine(w, chatId, times) && !(ownRoll && w.span.to <= ownRoll.span.to));

@@ -12,7 +12,7 @@ import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES,
-    PRESET, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText, rowsForWorld,
+    isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText, rowsForWorld,
     readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor,
 } from '../v10.js';
 
@@ -381,7 +381,7 @@ const MODULE_HELP = {
     worldEvents: 'Uses an automatic chance check to offer an optional development. Random Instructions are controlled separately.',
     dice: 'Rolls once when you queue an action in Direction → Action Checks. Regular replies proceed without a roll.',
     colors: 'Colors dialogue and italic thoughts when the prose identifies the character.',
-    roast: 'Asks the model for optional commentary in the same reply.',
+    roast: 'Requests a brief commentary in the same model reply. Reply Display controls the collapsed Roast card.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
 function hostPrompt(block) {
@@ -396,7 +396,7 @@ function presetDetails(preset, app) {
     const prompts = activeHostPrompts();
     return section('Host preset',
         h('p',{},preset ? `Active preset: ${preset}` : 'The host has no active Chat Completion preset.'),
-        preset===PRESET ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
+        isCompanionPreset(preset) ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
         prompts?.length ? h('details',{class:'ri-card'},h('summary',{},'View host preset prompt blocks'),
             h('p',{class:'ri-help'},'On means the block is enabled in the host preset. The host may fill or omit individual blocks when it assembles a reply. Edit these blocks in the host preset editor.'),
             prompts.map(hostPrompt)) : h('p',{class:'ri-help'},'This host connection does not expose an ordered list of preset prompt blocks.'),
@@ -537,7 +537,7 @@ export function renderV10(body, app, page) {
         body.append(presetDetails(preset,app));
         body.append(section('Roleplay Instructions extension',field('Story workflow for this chat',
             'Memory only leaves writing, planning, checks, and reply rendering to the host preset. The structured and legacy workflows also run their enabled story features.',
-            select([{value:'inherit',label:`Automatic (${preset===PRESET ? 'structured' : 'legacy'})`},
+            select([{value:'inherit',label:`Automatic (${isCompanionPreset(preset) ? 'structured' : 'legacy'})`},
                 {value:'memory',label:'Memory only'}, {value:'on',label:'Structured story workflow'},
                 {value:'off',label:'Legacy story workflow'}],memoryOnly() ? 'memory' : mode(local.enabled),value=>{
                 const cs = chatState();
@@ -552,7 +552,7 @@ export function renderV10(body, app, page) {
         body.append(memorySettings(app,redraw));
         if (!enabledV10()) return;
         body.append(moduleSettings(local,app,preset,modules,redraw),
-            chatFlag('generatePlan','Request a reply plan','The extension adds an instruction for a brief optional outline before the prose when the companion preset is active.'));
+            chatFlag('generatePlan','Request a reply plan','The Roleplay Instructions V10 companion presets request a brief outline before the prose. Reply Display controls its card.'));
         return;
     }
     if (!enabledV10()) {
@@ -567,6 +567,10 @@ export function renderV10(body, app, page) {
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
                 chatFlag('showRoast','Show Roast cards','Control Roast display independently of generation and feedback.',true),
+                field('Story state under replies','The collapsed console holds the scene, character tabs, and recorded changes.',
+                    select([{value:'auto',label:'Auto'},{value:'always',label:'Always'},{value:'off',label:'Off'}],settings().scene.card,value=>{
+                        settings().scene.card=value;saveSettings();redraw();
+                    },{'aria-label':'Story state under replies'})),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.')));
             break;
         case 'opening': body.append(renderOpening(local,redraw)); break;

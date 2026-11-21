@@ -1,3 +1,4 @@
+import { historySourceMatches } from './history-source.js';
 import { recallPolicy } from './recall.js';
 import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
@@ -342,8 +343,9 @@ export function applyOps(data, id, ops, meta, mode = 'all', maxNew = MAX_NEW) {
     const changes = [];
     const dirty = new Set();
     let made = 0;
-    const may = (w, field) => !w.locked && (w.auto || (mode === 'all' && (LIVE[w.kind] || []).includes(field)));
-    const mayStatus = (w) => !w.locked && (w.auto || mode === 'all');
+    const editable = w => !w.locked && (mode !== 'history' || w.auto && w.on && !(w.at?.chat === meta.chat && w.at.n > meta.n));
+    const may = (w, field) => editable(w) && (w.auto || (mode === 'all' && (LIVE[w.kind] || []).includes(field)));
+    const mayStatus = (w) => editable(w) && (w.auto || mode === 'all');
     const set = (w, field, value) => {
         const after = clean(value);
         const before = clean(w.fields[field]);
@@ -378,7 +380,7 @@ export function applyOps(data, id, ops, meta, mode = 'all', maxNew = MAX_NEW) {
             // Who a person is: a new person gets an entry, and an entry gets the lines it does not have yet.
             const w = findEntry(list, 'character', a);
             if (!w) { create('character', a, op.f || {}); continue; }
-            if (w.locked) continue;
+            if (!editable(w)) continue;
             for (const [field, value] of Object.entries(op.f || {})) {
                 const after = clean(value);
                 if (!after || clean(w.fields[field]) || !WORLD_KINDS.character.fields.some(x => x.key === field)) continue;
@@ -456,11 +458,11 @@ export function creationFingerprint(w) {
 export function revertChanges(data, id, changes) {
     let done = 0;
     for (const c of [...changes].reverse()) {
+        if (c.type === 'hide') { if (showAgain(c.dates)) done++; continue; }
         const entry = data.entries?.[c.uid];
         if (!entry) continue;
         const w = listWorld(data, id).find(x => x.uid === c.uid);
         if (!w) continue;
-        if (c.type === 'hide') { if (showAgain(c.dates)) done++; continue; }
         if (c.type === 'create') { if (w.auto && (!c.createdState || c.createdState === creationFingerprint(w))) { delete data.entries[c.uid]; done++; } continue; }
         if (c.type === 'set' && (c.field === 'data' ? w.fields.data : clean(w.fields[c.field])) === c.after) { w.fields[c.field] = c.before; writeWorldEntry(data, w, id); done++; }
         if (c.type === 'status' && w.status === c.after && (!Object.hasOwn(c, 'afterAt') || JSON.stringify(w.at) === JSON.stringify(c.afterAt))) { w.status = c.before; if (Object.hasOwn(c, 'beforeAt')) w.at = c.beforeAt; writeWorldEntry(data, w, id); done++; }
@@ -601,7 +603,7 @@ function worldLog(cs) {
 }
 
 /** Take the block out of a reply, on the message and on its swipe. Returns what parseUpdate found. */
-export function liftBlock(id, paired = false) {
+export function liftBlock(id, paired = false, modules = null) {
     const c = ctx();
     const m = c.chat?.[id];
     const none = { found: false, ops: [], ended: false, block: '', scene: null, profiles: [], roast: '' };
@@ -609,13 +611,13 @@ export function liftBlock(id, paired = false) {
     const output = paired ? separateReply(m.mes) : {text:m.mes,plan:''};
     const hasBlock = /<story_update\b/i.test(output.text);
     // A profile or roast written outside the block (some models put it after the block) is taken too.
-    const hasCards = cardsOn() && /<(profile|roast)\b/i.test(output.text);
+    const hasCards = (modules || cardsOn()) && /<(profile|roast)\b/i.test(output.text);
     if (!hasBlock && !hasCards && output.text === m.mes) return none;
     const parsed = hasBlock ? parseUpdate(output.text) : { ...none, clean:output.text };
     if (output.plan) parsed.plan = output.plan;
     if (hasCards) {
         const stray = parseCards(parsed.clean);
-        if (stray.profiles.length || stray.roast) {
+        if (stray.rest !== parsed.clean) {
             parsed.clean = stray.rest.replace(/\n{3,}/g, '\n\n').trimEnd();
             for (const p of stray.profiles) {
                 const same = parsed.profiles.find(x => norm(x.name) === norm(p.name));
@@ -634,6 +636,63 @@ export function liftBlock(id, paired = false) {
     return parsed;
 }
 
+/** Apply validated, evidence-backed records to a working copy of the story book. */
+export function applyStructuredUpdates(data, wid, meta, id, rec, parsed, turn, { historical = false } = {}) {
+    const changes = [];
+    const previous = listWorld(data,wid);
+    const records = recordMap(previous);
+    const offer = turn.legacyOffer;
+    const quote = clean(parsed.legacyOutcome);
+    const established = offer && previous.find(row=>row.uid===offer.uid && row.kind===offer.kind && row.on && !row.locked);
+    if (established && quote.length >= 4 && clean(parsed.clean).toLowerCase().includes(quote.toLowerCase())) {
+        const before = established.status, beforeAt = established.at;
+        if (before !== offer.to && before !== DONE[offer.kind]) {
+            established.status = offer.to;
+            established.at = { chat:meta.chat, n:meta.n };
+            writeWorldEntry(data,established,wid);
+            changes.push({uid:established.uid,name:established.name,kind:established.kind,type:'status',
+                before,after:established.status,beforeAt,afterAt:established.at,legacyV10:true});
+        }
+    }
+    const repair = parsed.repair && parsed.repair === turn.repair?.id;
+    const updates = [
+        ...(parsed.changes || []).map(input=>({input,evidence:parsed.clean,source:rec.time})),
+        ...(repair ? parsed.repairChanges || [] : []).map(input=>({input,evidence:turn.repair.text,source:parsed.repair})),
+    ];
+    if (parsed.repairChanges?.length && !repair) rec.v10Invalid = true;
+    const updated = new Set();
+    for (const {input,evidence,source} of updates) {
+        const existing = previous.find(row => readRecord(row)?.id === input?.id);
+        if (existing?.locked || existing?.on === false || updated.has(input?.id)) continue;
+        const old = records.get(input?.id);
+        if (historical && (old?.protected || old?.source === 'user' || old?.atIndex > id)) continue;
+        if (source !== rec.time && (old?.source === 'user' || Number(old?.source) > source)) continue;
+        const record = normalizeRecord(input,{ modules:turn.modules, rows:records, snapshot:turn.records, evidence, clock:rec.v10Minutes, scene:rec.scene, sceneId:rec.v10SceneId,
+            baseline:baselineFor(turn.baselines,input?.subject ?? old?.subject,input?.aliases ?? old?.aliases), base:turn.base });
+        if (!record) { rec.v10Invalid = true; continue; }
+        record.atIndex = id;
+        record.source = source;
+        const kind = record.kind === 'seed' ? 'payoff' : record.kind;
+        updated.add(record.id);
+        const w = existing || newWorldEntry(data,kind);
+        const before = w.fields.data || '';
+        w.name = w.name && existing ? w.name : record.id;
+        w.fields.data = JSON.stringify(record);
+        if (!existing) { w.auto = true; w.at = { chat:meta.chat, n:meta.n }; }
+        writeWorldEntry(data,w,wid);
+        records.set(record.id,record);
+        (rec.v10Changes ||= []).push(record);
+        if (record.realized && PLOT_KINDS.includes(record.kind) && !old?.realized && old?.status!=='done') {
+            const audit = rec.v10Plot?.find(row=>row.id===record.id);
+            if (audit) audit.realized = true;
+            else (rec.v10Plot ||= []).push({id:record.id,eligible:true,recalled:false,realized:true});
+        }
+        changes.push(existing ? { uid:w.uid, name:w.name, kind, type:'set', field:'data', before, after:w.fields.data } :
+            {uid:w.uid, name:w.name, kind, type:'create', createdState:creationFingerprint(w), entry:structuredClone(w)});
+    }
+    return changes;
+}
+
 /** File what a reply established. parsed: from liftBlock. rec: the record on that reply. effects: world orders that count as done. */
 export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
     return enqueue(async () => {
@@ -650,56 +709,7 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
         const ooc = options.rebuild ? false : isOocTurn();
         const changes = [];
         if (options.v10 && !ooc && parsed.modern && !parsed.invalid) {
-            const previous = listWorld(data,wid);
-            const records = recordMap(previous);
-            const offer = options.v10.legacyOffer;
-            const quote = clean(parsed.legacyOutcome);
-            const established = offer && previous.find(row=>row.uid===offer.uid && row.kind===offer.kind && row.on && !row.locked);
-            if (established && quote.length >= 4 && clean(parsed.clean).toLowerCase().includes(quote.toLowerCase())) {
-                const before = established.status, beforeAt = established.at;
-                if (before !== offer.to && before !== DONE[offer.kind]) {
-                    established.status = offer.to;
-                    established.at = { chat:meta.chat, n:meta.n };
-                    writeWorldEntry(data,established,wid);
-                    changes.push({uid:established.uid,name:established.name,kind:established.kind,type:'status',
-                        before,after:established.status,beforeAt,afterAt:established.at,legacyV10:true});
-                }
-            }
-            const repair = parsed.repair && parsed.repair === options.v10.repair?.id;
-            const updates = [
-                ...(parsed.changes || []).map(input=>({input,evidence:parsed.clean,source:rec.time})),
-                ...(repair ? parsed.repairChanges || [] : []).map(input=>({input,evidence:options.v10.repair.text,source:parsed.repair})),
-            ];
-            if (parsed.repairChanges?.length && !repair) rec.v10Invalid = true;
-            const updated = new Set();
-            for (const {input,evidence,source} of updates) {
-                const existing = previous.find(row => readRecord(row)?.id === input?.id);
-                if (existing?.locked || existing?.on === false || updated.has(input?.id)) continue;
-                const old = records.get(input?.id);
-                if (source !== rec.time && (old?.source === 'user' || Number(old?.source) > source)) continue;
-                const record = normalizeRecord(input,{ modules:options.v10.modules, rows:records, snapshot:options.v10.records, evidence, clock:rec.v10Minutes, scene:rec.scene, sceneId:rec.v10SceneId,
-                    baseline:baselineFor(options.v10.baselines,input?.subject ?? old?.subject,input?.aliases ?? old?.aliases), base:options.v10.base });
-                if (!record) { rec.v10Invalid = true; continue; }
-                record.atIndex = id;
-                record.source = source;
-                const kind = record.kind === 'seed' ? 'payoff' : record.kind;
-                updated.add(record.id);
-                const w = existing || newWorldEntry(data,kind);
-                const before = w.fields.data || '';
-                w.name = w.name && existing ? w.name : record.id;
-                w.fields.data = JSON.stringify(record);
-                if (!existing) { w.auto = true; w.at = { chat:meta.chat, n:meta.n }; }
-                writeWorldEntry(data,w,wid);
-                records.set(record.id,record);
-                (rec.v10Changes ||= []).push(record);
-                if (record.realized && PLOT_KINDS.includes(record.kind) && !old?.realized && old?.status!=='done') {
-                    const audit = rec.v10Plot?.find(row=>row.id===record.id);
-                    if (audit) audit.realized = true;
-                    else (rec.v10Plot ||= []).push({id:record.id,eligible:true,recalled:false,realized:true});
-                }
-                changes.push(existing ? { uid:w.uid, name:w.name, kind, type:'set', field:'data', before, after:w.fields.data } :
-                    {uid:w.uid, name:w.name, kind, type:'create', createdState:creationFingerprint(w), entry:structuredClone(w)});
-            }
+            changes.push(...applyStructuredUpdates(data, wid, meta, id, rec, parsed, options.v10));
         }
         if ((parsed.found || parsed.ops?.length) && o.update !== 'off' && !ooc) changes.push(...applyOps(data, wid, parsed.ops, meta, o.update));
         // The cards under the reply show who each person is as the story world has it.
@@ -777,17 +787,23 @@ export function applyEffect(rec, effect, onDone) {
 
 /** Store one more change with the reply whose record has this time, so it is undone with that reply. Call inside enqueue. */
 export function attachChange(time, wid, change) {
+    return attachChanges(time,wid,[change]);
+}
+
+export function attachChanges(time, wid, changes, { persist = true } = {}) {
     const cs = chatState();
     if (!cs) return false;
     const rec = (ctx().chat || []).map(m => m?.extra?.[KEY]).find(r => r && String(r.time) === String(time));
     if (!rec) return false;
     if (!rec.update) rec.update = { world: wid, ops: [], ended: false, changes: [] };
-    rec.update.changes.push(change);
+    rec.update.changes.push(...changes);
     const log = worldLog(cs);
     const item = log.items[String(time)] || (log.items[String(time)] = { world: wid, changes: rec.update.changes });
-    if (item.changes !== rec.update.changes) item.changes.push(change);
-    saveChatState();
-    try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+    if (item.changes !== rec.update.changes) item.changes.push(...changes);
+    if (persist) {
+        saveChatState();
+        try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+    }
     return true;
 }
 
@@ -802,36 +818,48 @@ async function revertItem(item) {
 
 /** An edited reply invalidates generated state and automatic world changes from
  * that point onward. Manual/protected corrections are retained. */
-export function invalidateAfterEdit(id, onDone) {
-    return enqueue(async () => {
-        const c = ctx(), chatId = String(c.getCurrentChatId?.() || '');
-        const cs = chatState(), chat = c.chat || [];
-        if (!cs || id < 0 || id >= chat.length || chat[id]?.is_user) return;
-        const affected = chat.slice(id).filter(m => !m?.is_user && m?.extra?.[KEY]);
-        const waitingForBranch = !!cs.branchPendingWorld;
-        let undone = 0;
-        for (const m of [...affected].reverse()) {
-            const rec = m.extra[KEY];
-            if (rec.update && !rec.update.undone) {
-                if (!waitingForBranch) undone += await revertItem({ world: rec.update.world, changes: rec.update.changes });
-                rec.update.undone = true;
-                const log = worldLog(cs);
-                if (!waitingForBranch && rec.time && log.items[String(rec.time)]) log.items[String(rec.time)].changes = [];
-            }
-            rec.stateStale = true;
-            rec.stateOutdated = true;
-            const info = m.swipe_info?.[m.swipe_id];
-            if (info) { info.extra ||= {}; info.extra[KEY] = JSON.parse(JSON.stringify(rec)); }
+function staleHistoryStart(chat = ctx().chat || []) {
+    for (let end = 0; end < chat.length; end++) {
+        const rec = chat[end]?.extra?.[KEY];
+        if (rec?.historySource?.length && !rec.update?.undone && !historySourceMatches(chat,end,rec.historySource)) {
+            return Math.max(0,end + 1 - rec.historySource.length);
         }
-        if (String(ctx().getCurrentChatId?.() || '') !== chatId) return;
-        const firstReply = Math.max(1, chat.slice(1, id + 1).filter(isReply).length);
-        cs.historyInvalidFrom = Math.min(Number(cs.historyInvalidFrom) || firstReply, firstReply);
-        cs.historyNeedsReview = true;
-        saveChatState();
-        try { await c.saveChat?.(); } catch { /* saved on the next change */ }
-        addLog({ what: 'Edited story', ok: null, result: `An earlier reply changed. ${affected.length} replies have stale state; ${undone} automatic world changes were undone. Review current state, world entries and any manually edited chapter summaries.`, details: [], got: '' });
-        onDone?.();
-    });
+    }
+    return Infinity;
+}
+
+export function invalidateAfterEdit(id, onDone) {
+    return enqueue(() => invalidateFrom(Math.min(id,staleHistoryStart()),onDone));
+}
+
+async function invalidateFrom(id, onDone) {
+    const c = ctx(), chatId = String(c.getCurrentChatId?.() || '');
+    const cs = chatState(), chat = c.chat || [];
+    if (!cs || id < 0 || id >= chat.length) return;
+    const affected = chat.slice(id).filter(m => !m?.is_user && m?.extra?.[KEY]);
+    const waitingForBranch = !!cs.branchPendingWorld;
+    let undone = 0;
+    for (const m of [...affected].reverse()) {
+        const rec = m.extra[KEY];
+        if (rec.update && !rec.update.undone) {
+            if (!waitingForBranch) undone += await revertItem({ world: rec.update.world, changes: rec.update.changes });
+            rec.update.undone = true;
+            const log = worldLog(cs);
+            if (!waitingForBranch && rec.time && log.items[String(rec.time)]) log.items[String(rec.time)].changes = [];
+        }
+        rec.stateStale = true;
+        rec.stateOutdated = true;
+        const info = m.swipe_info?.[m.swipe_id];
+        if (info) { info.extra ||= {}; info.extra[KEY] = JSON.parse(JSON.stringify(rec)); }
+    }
+    if (String(ctx().getCurrentChatId?.() || '') !== chatId) return;
+    const firstReply = Math.max(1, chat.slice(1, id + 1).filter(isReply).length);
+    cs.historyInvalidFrom = Math.min(Number(cs.historyInvalidFrom) || firstReply, firstReply);
+    cs.historyNeedsReview = true;
+    saveChatState();
+    try { await c.saveChat?.(); } catch { /* saved on the next change */ }
+    addLog({ what: 'Edited story', ok: null, result: `An earlier reply changed. ${affected.length} replies have stale state; ${undone} automatic world changes were undone. Review current state, world entries and any manually edited chapter summaries.`, details: [], got: '' });
+    onDone?.();
 }
 
 /** Bring the world in line with the replies that are in the chat now. */
@@ -911,6 +939,7 @@ export const syncWorld = (onDone) => enqueue(async () => {
         addLog({ what: 'Branch world', ok: false, result: `Could not create the branch world: ${e.message}. The parent world is disconnected until retry.`, details: [], got: '' });
         onDone?.(); return;
     }
+    await invalidateFrom(staleHistoryStart());
     await syncNow(); onDone?.();
 });
 

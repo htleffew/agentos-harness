@@ -1,14 +1,40 @@
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
-import { h, field, section, select } from './dom.js';
+import { h, button, field, section, select } from './dom.js';
 import { settings, saveSettings } from '../store.js';
-import { isChatOpen, hasEvent } from '../st.js';
+import { isChatOpen, hasEvent, isGenerating, toast } from '../st.js';
+import { catchUpChatHistory, chapterBusy, historyCatchUpStatus, stopHistoryCatchUp } from '../chapters.js';
+import { refreshUnderReplies } from './sent.js';
+import { promptGroup } from './prompts.js';
 import { chatWorld } from '../world.js';
 import { historyPreview, chapterPreview, lastContext } from '../context-budget.js';
 
 const number = n => Number(n || 0).toLocaleString();
 const approx = n => `~${number(n)} tokens`;
 const row = (name, value, help = '') => h('div', { class: 'ri-context-metric' }, h('div', { class: 'ri-context-metric-label' }, name), h('strong', {}, value), help ? h('div', { class: 'ri-help' }, help) : null);
+
+function historyTools(app, components) {
+    const status = historyCatchUpStatus();
+    const keep = h('input',{type:'checkbox',checked:true});
+    const redraw = () => { if (app.tab==='context') app.render(); };
+    const run = async rebuild => {
+        try { await catchUpChatHistory(redraw,{rebuild,keepAuthored:keep.checked}); }
+        catch (error) { toast('error',error.message); }
+        finally { refreshUnderReplies(); redraw(); }
+    };
+    const disabled = !components.chapters || chapterBusy() || isGenerating();
+    return section('Catch up or rebuild this chat',
+        h('p',{class:'ri-help'},'Read accepted replies in order and write chapters in batches. Each batch uses an AI request. Enabled story features file supported details in this chat’s Story World. Auto-hide and the protected message window apply after chapters are saved.'),
+        !components.chapters && h('p',{class:'ri-note'},'Enable Chapter summaries above to use these actions.'),
+        status && h('p',{class:'ri-note',role:'status'},status.text),
+        status?.running ? button(status.installing ? 'Saving…' : status.stop ? 'Stopping…' : 'Stop after the current request',()=>{stopHistoryCatchUp();redraw();},{disabled:status.stop || status.installing}) :
+            h('div',{class:'ri-row'},button('Catch up this chat',()=>run(false),{kind:'primary',disabled})),
+        h('p',{class:'ri-help'},'Catch-up fills uncovered history and resumes from saved chapters. A fresh rebuild reads the entire chat and switches to a new managed Story World after all chapters are ready. The previous book stays available as a backup.'),
+        h('details',{},h('summary',{},'Fresh rebuild options'),
+            h('label',{class:'ri-row'},keep,'Keep my authored entries and state corrections'),
+            button('Rebuild from all chat history',()=>run(true),{disabled})),
+        promptGroup(['chapterSummary','catchUpHistory'],'Customize catch-up and rebuild guidance'));
+}
 
 export function renderContext(body, app) {
     const st = settings(), o = st.summary;
@@ -53,6 +79,7 @@ export function renderContext(body, app) {
             numeric('Story World notes budget', st.world.budget, 100, 4000, 'tokens', n => {st.world.budget=n;}, 'Approximate text budget for relevant story facts.'),
             numeric('Chapter notes budget', o.budget, 100, 6000, 'tokens', n => {o.budget=n;}, 'Approximate text budget for the story so far.'))));
     if (!isChatOpen()) return;
+    body.appendChild(historyTools(app,components));
     const p = historyPreview(target), last = lastContext();
     body.appendChild(section('This chat now', h('div', {class:'ri-context-grid'},
         row('Story messages', number(p.total), 'Includes messages hidden from the AI.'),

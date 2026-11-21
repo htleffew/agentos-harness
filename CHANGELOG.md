@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.17
+
+- Catch up unprocessed chat history or rebuild the full chat into a new Story World. Both use batches to write chapters and file supported story records. Rebuild keeps the previous book available and can carry authored entries and corrections into the replacement.
+- Recognize versioned V10 companion preset names such as V10.3. Request the Roast in each structured story reply when enabled and report missing planning and commentary in What Was Sent.
+- Recover time, date and weather from explicit legacy headers and combined fields. Carry the last established weather across location changes until the story supplies new conditions.
+
 ## 10.0.16
 
 - Story notes prioritize the scene and recall a few relevant threads, off-screen activities and named details within the notes budget. Chapter text has its own limit, and a rollup suppresses the chapters it already covers.

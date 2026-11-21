@@ -11,7 +11,8 @@ import { chatWorld, setChatWorld, loadWorld, listWorld, newWorldEntry, writeWorl
 import { statNames, sheet } from './dice.js';
 
 export const PRESET = 'Roleplay Instructions V10';
-export const pairedPreset = () => enabledV10() && activePreset() === PRESET;
+export const isCompanionPreset = name => /^Roleplay Instructions V10(?:\.\d+)*$/i.test(String(name || '').trim());
+export const pairedPreset = () => enabledV10() && isCompanionPreset(activePreset());
 export const MODULES = {
     style: 'Live writing guidance', preflight: 'Scene and character checks', state: 'Story, scene and character state', knowledge: 'Character knowledge', emotions: 'NPC emotion scales',
     relationships: 'Relationships', plots: 'Arcs, seeds and off-screen agendas', worldEvents: 'Autonomous world events',
@@ -59,7 +60,7 @@ export function activePreset() {
 export function prefs() { return chatState() && (chatState().v10 ||= {}); }
 export function enabledV10() {
     const local = chatState()?.v10?.enabled;
-    return settings().enabled && !memoryOnly() && (local ?? (activePreset() === PRESET));
+    return settings().enabled && !memoryOnly() && (local ?? isCompanionPreset(activePreset()));
 }
 const HOST_OVERLAPS = {
     style: ['Prose Rules','Realistic Bold NPCs','HQ NPC Creation','NPC Voice','Prose Lint Functions','Output Length','Card Fidelity','🎭 Card Fidelity 🃏','Gemini Pacing Nerf'],
@@ -157,7 +158,7 @@ export function extractUpdate(raw, { sourceProse, allowPlayerThoughts = false } 
     const remainder = end ? tail.slice(end.index + end[0].length) : '';
     const cleanText = (text.slice(0,start.index) + remainder.replace(/<story_update\b[^>]*>[\s\S]*?(?:<\/story_update\s*>|$)/gi,'')).trimEnd();
     let value;
-    try { value = end && JSON.parse(tail.slice(0,end.index)); } catch { /* captured below */ }
+    try { value = end && JSON.parse(tail.slice(0,end.index).trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i,'$1')); } catch { /* captured below */ }
     if (!VERSION.test(start[1]) || TAG.test(remainder) || !value || Array.isArray(value) || value.v !== 2 || ['changes','repairChanges'].some(key => value[key] !== undefined && !Array.isArray(value[key]))) {
         return { clean: cleanText, invalid:true, found:true };
     }
@@ -585,10 +586,10 @@ export function previousV10(type) {
     return chat.slice(0,end).filter(m => !m.is_user && !m.extra?.[KEY]?.stateStale).map(m => ({ message:m, record:m.extra?.[KEY] })).filter(x => x.record);
 }
 
-export function updateContract(modules, opening = false) {
+export function updateContract(modules, opening = false, { fieldsOnly = false } = {}) {
     const kinds = RECORD_KINDS.filter(kind => modules[KIND_MODULE[kind]]);
     const sections = [
-        modules.state && 'scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","minutes":0,"elapsed":0,"ended":false}. Use time, date, location (where), and weather only when the story establishes them. Use when for approximate timing. Use an empty environment string when a condition resolves. minutes is an exact absolute story minute; elapsed adds minutes to a known clock. Use approximate when if timing is uncertain.',
+        modules.state && 'scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","minutes":0,"elapsed":0,"ended":false}. Use separate fields for time, date, location (where), and weather whenever the story establishes them. Put approximate timing in when. Put cloud cover, precipitation, wind and temperature in weather. Omit unknown or unchanged values. Use an empty environment string when a condition resolves. minutes is an exact absolute story minute; elapsed adds minutes to a known clock.',
         kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). Record meaningful changes, not repetition.`,
         modules.state && 'characters: optional array of present characters with name and an exact evidence quote, plus changed mind (focus), heart (felt emotion), body (current physical condition, or null on recovery), or psyche (salient internal tension). Set bodyLasting:true only for an established durable condition. Omit unsupported dimensions and leave the player’s private state to the player.',
         modules.state && 'For profiles include voice, aliases or current facet when applicable. Set development:true only for lasting character growth that the reply establishes. Preserve card canon and player edits. Keep transient setbacks out of durable facts. A fact may link to the plot record that established it and reference a known baseEntry and baseRelation (extends or updates-present).',
@@ -598,10 +599,10 @@ export function updateContract(modules, opening = false) {
         (modules.plots || modules.worldEvents) && 'For plot and event records use status open or done. Record an outcome only on completion. An offer or deadline alone does not establish completion.',
         modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts and a travel object with from, to, departed (exact story minute), and minutes (minimum duration), when timing and travel are established.',
         modules.plots && modules.worldEvents && 'Use schedule:true with optional weight and spacing in replies only when a future opportunity should be surfaced.',
-        modules.roast && 'roast: optional short out-of-story voice critique when it adds value.',
+        modules.roast && !opening && 'roast: write one brief out-of-story reaction about this reply, focusing on character voice, variety, or pacing. Include this string even when no story facts changed.',
     ].filter(Boolean);
-    if (!sections.length) return '';
-    return `After the visible prose, ${opening ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;
+    if (fieldsOnly || !sections.length) return sections.join('\n');
+    return `After the visible prose, ${opening || modules.roast ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;
 }
 
 export function sceneCheckPrompt(scene, {modules, type, preflight = PREFLIGHT, opening = false} = {}) {
@@ -705,7 +706,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const paired = pairedPreset();
     const format = paired
         ? (local.generatePlan
-            ? 'If useful, put a brief outline of intended beats, character focus, and continuity checks in one <reply_plan> block before the story prose. Use up to five short bullets, then close it with </reply_plan>. Use the story update for established state.'
+            ? 'Put a brief outline of intended beats and character focus in one <reply_plan> block before the story prose. Use up to five short bullets, then close it with </reply_plan>. Use the story update for established state.'
             : 'Begin with the story prose. Keep planning outside the visible reply. Follow the story update format below when applicable.')
         : '';
     const text = [
@@ -722,7 +723,7 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         repair && `If supported, recover a missing state change from accepted reply ${repair.id}, using exact evidence and placing it in repairChanges alongside "repair":${repair.id}. Keep new changes in changes. Respect newer facts. Prior prose: ${JSON.stringify(repair.text)}`,
         updateContract(modules),
     ].filter(Boolean).join('\n');
-    return { text, offer, repair, records, clock, check, modules, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base:local?.base, plotAudit };
+    return { text, offer, repair, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base:local?.base, plotAudit };
 }
 
 export function loreReceipt(entries, notes, rows, book, recalled = []) {

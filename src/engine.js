@@ -8,7 +8,7 @@ import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview, 
 import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, addConfiguredBooks, loreReceipt, prefs, resolveCheck, replyDiagnostics, ensureWorld, registerSpeakers, recordMap, portrayalSources, extractUpdate } from './v10.js';
 import { captureContext } from './context-budget.js';
 import { promptText } from './prompts.js';
-import { changesFromProfiles, normalizeScene, sceneAt, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
+import { changesFromProfiles, normalizeScene, sceneFromReplyHeader, sceneAt, statePrompt, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
 import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen, parseJson, names, triggerSwipe, loadBook, isGenerating, toast } from './st.js';
@@ -828,10 +828,10 @@ function onMessageReceived(id, type) {
             return;
         }
         // The update block is taken out of the reply first, so it is never shown, checked or sent back.
-        const parsed = settings().enabled ? liftBlock(id, type !== 'first_message' && pairedPreset()) : { found: false, ops: [], ended: false, block: '' };
-        if (!pending || type === 'first_message') return;
         const m = ctx().chat?.[id];
         if (!m || m.is_user || m.is_system) return;
+        const parsed = settings().enabled ? liftBlock(id, type !== 'first_message' && pairedPreset(), pending?.v10?.modules) : { found: false, ops: [], ended: false, block: '' };
+        if (!pending || type === 'first_message') return;
         // A continued reply keeps the time of its record, so what its first part filed in the story world still belongs to it.
         const earlier = pending.type === 'continue' ? m.extra?.[KEY] || null : null;
         const rec = { v: 1, recall:pending.recall, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
@@ -860,6 +860,11 @@ function onMessageReceived(id, type) {
             if (pending.offer && !rec.v10Plot?.some(row=>row.id===pending.offer)) (rec.v10Plot ||= []).push({id:pending.offer,eligible:true,recalled:false});
             rec.v10Lore = pending.lore?.map(({text, ...entry})=>entry);
             if (pending.v10Request) rec.v10Request = pending.v10Request;
+            const cardIssues = [];
+            if (pending.guidanceConfirmed === false) cardIssues.push('The extension could not find its story guidance in the assembled request.');
+            if (turn.expectsPlan && !parsed.plan && !earlier?.v10Plan) cardIssues.push('Reply planning was enabled. The reply contained no readable outline.');
+            if (turn.modules.roast && !parsed.roast && !earlier?.roast) cardIssues.push('Roast generation was enabled. The reply contained no readable Roast.');
+            if (cardIssues.length) rec.cardIssues = cardIssues;
             rec.v10Invalid = parsed.invalid === true || !!parsed.issues?.length;
             if (parsed.issues?.length) rec.v10Issues = parsed.issues;
             rec.v10RepairAttempt = !!turn.repair;
@@ -882,14 +887,15 @@ function onMessageReceived(id, type) {
             }
             if (prefs()?.check === turn.check) { delete prefs().check; saveChatState(); }
         }
-        const acceptedScene = normalizeScene(parsed.scene || {});
+        const header = turn?.modules.state ? sceneFromReplyHeader(parsed.clean || m.mes) : {};
+        const acceptedScene = normalizeScene({...header,...normalizeScene(parsed.scene || {})});
         const scene = { ...(turn?.modules.state ? previousScene : {}), ...(earlier?.scene || {}), ...acceptedScene };
         if (turn?.modules.state) {
             const moved = parsed.scene?.where && previousScene.where && parsed.scene.where.toLowerCase()!==previousScene.where.toLowerCase();
             rec.v10SceneId = earlier?.v10SceneId ?? (moved || previousRecord?.v10SceneEnded ? rec.time : previousRecord?.v10SceneId ?? previousRecord?.time ?? rec.time);
             rec.v10SceneEnded = parsed.ended === true || (earlier?.v10SceneEnded && !parsed.scene?.where);
-            if (moved && acceptedScene.weather===undefined) delete scene.weather;
-            if (parsed.scene?.when!==undefined && acceptedScene.time===undefined) delete scene.time;
+            if (acceptedScene.when!==undefined && acceptedScene.time===undefined) delete scene.time;
+            if (scene.weather && acceptedScene.weather===undefined) rec.weatherInherited = true;
             if ((moved || previousRecord?.v10SceneEnded || parsed.ended) && parsed.scene?.environment===undefined) delete scene.environment;
         }
         if (!turn?.modules.state && !parsed.ended && scene.environment === undefined && (!scene.where || scene.where === previousScene.where)) scene.environment = previousScene.environment || '';
@@ -1116,7 +1122,10 @@ function onPromptReady(data) {
         if (record && pending?.lore) {
             const full = data.chat.flatMap(({content})=>Array.isArray(content) ? content.map(part=>part?.text || '') : typeof content === 'string' ? [content] : []).join('\n');
             const instructions = !memory && plan.contextAsk && sub(plan.contextAsk).trim();
-            if (prefs()?.keepTurnGuidance && instructions && full.includes(instructions)) pending.v10Request = instructions;
+            if (pending.v10 && instructions) {
+                pending.guidanceConfirmed = full.includes(instructions);
+                if (prefs()?.keepTurnGuidance && pending.guidanceConfirmed) pending.v10Request = instructions;
+            }
             for (const entry of pending.lore) {
                 const expanded = typeof entry.text === 'string' ? sub(entry.text).trim() : '';
                 entry.confirmed = !!expanded && full.includes(expanded);
@@ -1153,7 +1162,7 @@ export function recentRecords(limit = 30) {
     const out = [];
     for (let i = chat.length - 1; i >= 0 && out.length < limit; i--) {
         const rec = chat[i]?.extra?.[KEY];
-        if (rec?.items?.length || rec?.v10Lore?.length || rec?.v10Request || rec?.v10Offer || rec?.v10Check || shownChanges(rec?.update?.changes).length || rec?.pace?.quiet) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
+        if (rec?.items?.length || rec?.v10Lore?.length || rec?.v10Request || rec?.v10Offer || rec?.v10Check || rec?.cardIssues?.length || shownChanges(rec?.update?.changes).length || rec?.pace?.quiet) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
     }
     return out;
 }
@@ -1363,6 +1372,7 @@ export function init() {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);
         if (settings().enabled && ctx().chat?.[id] && !ctx().chat[id].is_user) invalidateAfterEdit(id, () => { toast('warning', 'The edited reply and later story state need review. Open Current State to review or rebuild them.'); changed('messages'); });
+        else if (settings().enabled && ctx().chat?.[id]?.is_user) syncWorld(() => changed('messages'));
         if (!memoryOnly() && settings().enabled && id === (ctx().chat || []).length - 1 && !isGenerating()) checkAgain(id);
         changed('messages');
     });
