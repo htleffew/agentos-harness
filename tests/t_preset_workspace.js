@@ -76,7 +76,8 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         await open(moved);await click(moved.getByRole('button',{name:'Restore module position'}));
         await pageTab('display');
         const voices=root.locator('details').filter({has:page.getByText('Roast commentator voice and feedback',{exact:true})}).last();
-        await open(voices);const picker=voices.getByLabel('Commentator voice',{exact:true});await pick(picker,'voiceDetective');
+        await open(voices);const picker=voices.getByLabel('Commentator voice',{exact:true});
+        const previousVoice=await picker.inputValue();await pick(picker,'voiceDetective');
         const voice=voices.locator('.ri-prompt-editor').first();await open(voice);await input(voice.locator('textarea'),'DETECTIVE_TEST_432');
         await click(voice.getByRole('button',{name:'Save instruction'}));
         assert.match(await picker.locator('option:checked').textContent(),/Customized/);
@@ -84,6 +85,15 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         L.resetLog();await L.send(page,'What happened?');assert.match(L.text(L.requests()[0]),/DETECTIVE_TEST_432/);
         await pageTab('display');await open(voices);await open(voice);await click(voice.getByRole('button',{name:'Restore default'}));
         assert.doesNotMatch(await picker.locator('option:checked').textContent(),/Customized/);
+        await pick(picker,previousVoice);
+        // Wait for the host's debounced settings write before switching presets or closing the browser.
+        if(process.env.RI_ST_DIR) {
+            const settingsPath=require('node:path').join(process.env.RI_ST_DIR,'data/default-user/settings.json');
+            await require('node:timers/promises').setTimeout(1250);
+            const savedVoice=JSON.parse(fs.readFileSync(settingsPath)).extension_settings.roleplay_instructions;
+            assert.equal(savedVoice.roastVoiceId,previousVoice);
+            assert.equal(savedVoice.prompts?.voiceDetective,undefined);
+        }
         if(process.env.RI_REFERENCE_DIR){
             const path=require('node:path'), dir=process.env.RI_REFERENCE_DIR;
             for(const file of fs.readdirSync(dir,{recursive:true}).filter(f=>f.endsWith('.json'))){

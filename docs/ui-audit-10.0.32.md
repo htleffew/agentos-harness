@@ -37,3 +37,5 @@ The review found three misleading labels or missing cues. The Random Instruction
 - During verification, the Legacy card run exposed a duplicate local declaration in the preset-manager fallback. Corrected the declaration and checked the syntax of every changed JavaScript file. The independent-restore test also caught an ordering error after restoring a neighboring block. Restoration now considers all surviving neighbors on either side.
 
 [Navigation audit](../tests/t_extension_ui_audit.js) · [Persistence tests](../tests/unit/preset_workbench.mjs)
+
+The voice regression restored the prior commentator selection and checked the host’s saved settings file after its debounced write. This also isolates subsequent Legacy tests that expect the factory Gremlin voice.
