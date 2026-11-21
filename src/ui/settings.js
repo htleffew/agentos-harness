@@ -1,4 +1,4 @@
-import { promptGroup, roastVoiceEditor } from './prompts.js';
+import { promptGroup } from './prompts.js';
 import { executionSettings } from './execution.js';
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
@@ -119,10 +119,8 @@ function cardsSection(app) {
                 select([{ value: '1', label: `1: only ${ch}` }, { value: '2', label: '2' }, { value: '3', label: '3' }], String(o.most || 2), (v) => { o.most = Number(v); save(); })),
             field('The roast', o.roast !== false ? "On: every reply also gets one reaction from the commentator, a separate personality who only reacts to the reply and writes none of the story. It is drawn at the bottom of the cards. You can separately include the previous roast in the next request." : 'Off: no roast is asked for or drawn.',
                 onOff(o.roast !== false, (v) => { o.roast = v; save(); app.render(); })),
-            o.roast !== false ? [
-                field('Include the previous roast in the next request', 'Optional continuity for the commentator; this uses prompt tokens.', onOff(o.previousRoast === true, (v) => { o.previousRoast = v; save(); })),
-                roastVoiceEditor(),
-            ] : null,
+            o.roast !== false ? field('Include the previous roast in the next request','Optional continuity for the commentator. This uses prompt tokens.',
+                onOff(o.previousRoast===true,v=>{o.previousRoast=v;save();})) : null,
         ] : null);
 }
 
@@ -199,18 +197,38 @@ function writerSection(app) {
         ] : null);
 }
 
+export function renderReplyDisplayOptions(body, app, { legacy=false } = {}) {
+    const st=settings(), save=()=>saveSettings();
+    if (legacy) body.append(sceneSection(app),cardsSection(app),
+        promptGroup(['scene','profile','stateContext'],'Customize legacy scene and character prompts'));
+    const underHelp = {
+        off: 'Nothing is added to the chat screen. What was sent is always in the What Was Sent tab.',
+        display: 'A closed section is drawn under each reply that was sent an instruction. The message text is unchanged and the AI never sees it. It is gone if the extension is turned off.',
+        saved: 'The section is written into the message text inside <sent_instructions> tags. The extension removes it from every prompt, and a regex script is added so it stays out of prompts even without the extension.',
+    };
+    body.appendChild(section('Show what was sent under each reply',
+        field('Under each reply', underHelp[st.showUnder],
+            select([{ value: 'off', label: 'Off' }, { value: 'display', label: 'Show it (display only)' }, { value: 'saved', label: 'Show it and save it in the message' }], st.showUnder, (v) => {
+                st.showUnder = v; save();
+                if (v === 'saved' && ensureRegexScript()) toast('info', 'A regex script was added that keeps this section out of prompts.');
+                refreshUnderReplies(); app.render();
+            }))));
+
+}
+
 export function renderSettings(body, app) {
     const st = settings();
     const save = () => { saveSettings(); };
 
+    body.appendChild(section('Model connections and automatic requests',
+        h('p',{class:'ri-help'},'Extension-wide · connection settings take effect when you select them.'),
+        h('details',{id:'ri-model-request-settings',class:'ri-card ri-tight'},h('summary',{},'Model request settings'),executionSettings()),
+        field('Give the AI more room to answer', 'Increase the answer budget for models that use part of the answer for reasoning. An empty answer leaves the next attempt up to you.',
+            select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
+
     body.appendChild(section('Pronouns for this chat',
         isChatOpen() ? [pronounControl('char', app), pronounControl('user', app)] : h('div', { class: 'ri-muted' }, 'Open a chat to set pronouns for it.'),
         h('div', { class: 'ri-help' }, 'Your choice is remembered for this character and this persona in new chats.')));
-
-    body.appendChild(section('Model connections and automatic requests',
-        h('details',{class:'ri-card ri-tight'},h('summary',{},'Choose a connection for each function'),executionSettings()),
-        field('Give the AI more room to answer', 'Increase the answer budget for models that use part of the answer for reasoning. An empty answer leaves the next attempt up to you.',
-            select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
 
     body.appendChild(whereSection(app));
 
@@ -219,9 +237,7 @@ export function renderSettings(body, app) {
             numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
 
     const native = enabledV10();
-    const legacy = [sceneSection(app),promptGroup(['scene'],'Customize scene instruction'),cardsSection(app),
-        promptGroup(native ? ['profile'] : ['profile','stateContext'],'Customize character-state instructions'),
-        diceSection(app),promptGroup(['dice'],'Customize dice instruction')];
+    const legacy = [diceSection(app),promptGroup(['dice'],'Customize dice instruction')];
     if (native || memoryOnly()) {
         body.append(section(native ? 'Structured reply controls' : 'Memory only workflow',
             h('p',{class:'ri-help'},native
@@ -235,9 +251,10 @@ export function renderSettings(body, app) {
                 numberInput(st.cards.stateBudget || 350,{min:100,max:1000,unit:'tokens'},value=>{st.cards.stateBudget=value;save();})),
             native && promptGroup(['stateContext'],'Customize current-state guidance')));
         body.append(h('details',{class:'ri-section',open:!!app.legacyControlsOpen,
-            ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},h('summary',{},'Legacy scene, character cards and dice'),
-            h('p',{class:'ri-help'},'These defaults include the old reply cards, Roast and automatic rolls for Legacy chats. The named stats are shared with Action Checks.'),legacy));
-    } else body.append(...legacy);
+            ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},h('summary',{},'Legacy dice defaults'),
+            h('p',{class:'ri-help'},'The named stats are shared with Action Checks. Open Reply Display for legacy scene and card settings.'),legacy));
+    } else body.append(...legacy,
+        section('Reply cards and receipts',button('Reply Display',()=>app.openPage('display'),{kind:'ghost'})));
     body.appendChild(paceSection(app));
     body.appendChild(writerSection(app));
 
@@ -260,26 +277,13 @@ export function renderSettings(body, app) {
     body.appendChild(promptGroup(['checker', 'systemCheck'], 'Customize checking instructions'));
     body.appendChild(promptGroup(['guided','guidedContinue','historicalSwipe','historicalContinue','freshStart'], 'Customize guided-turn instructions'));
 
-    const underHelp = {
-        off: 'Nothing is added to the chat screen. What was sent is always in the What Was Sent tab.',
-        display: 'A closed section is drawn under each reply that was sent an instruction. The message text is unchanged and the AI never sees it. It is gone if the extension is turned off.',
-        saved: 'The section is written into the message text inside <sent_instructions> tags. The extension removes it from every prompt, and a regex script is added so it stays out of prompts even without the extension.',
-    };
-    body.appendChild(section('Show what was sent under each reply',
-        field('Under each reply', underHelp[st.showUnder],
-            select([{ value: 'off', label: 'Off' }, { value: 'display', label: 'Show it (display only)' }, { value: 'saved', label: 'Show it and save it in the message' }], st.showUnder, (v) => {
-                st.showUnder = v; save();
-                if (v === 'saved' && ensureRegexScript()) toast('info', 'A regex script was added that keeps this section out of prompts.');
-                refreshUnderReplies(); app.render();
-            }))));
-
     body.appendChild(section('Look',
         field('Accent colour', 'The colour of buttons and highlights in this panel.',
             select([{ value: 'auto', label: 'Blues and greens, a different one for each tab' }, { value: 'cyan', label: 'Cyan' }, { value: 'sky', label: 'Sky blue' }, { value: 'blue', label: 'Blue' }, { value: 'green', label: 'Green' }, { value: 'yellow', label: 'Yellow' }, { value: 'violet', label: 'Violet' }, { value: 'magenta', label: 'Pink' }], st.accent || 'auto', (v) => { st.accent = v; save(); app.render(); }))));
 
     if (isChatOpen()) body.appendChild(section('Conversation and memory',
         h('div', { class: 'ri-help' }, 'See recent history, chapter settings, and the last observed request in Context & Memory.'),
-        button('Open Context & Memory', () => { app.tab = 'context'; app.render(); }, { kind: 'ghost' })));
+        button('Context & Memory',()=>app.openPage('context',{anchor:'#ri-memory-status',focusPage:true}),{kind:'ghost'})));
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',

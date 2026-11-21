@@ -35,12 +35,12 @@ async function verifyCastMatrix(page, type, preset) {
         h.mode({ reply: scenario.reply });
         await page.getByRole('button', { name: 'Quick actions', exact: true }).tap();
         const sheet = page.locator('.ri-quick-sheet');
-        await sheet.getByRole('button', { name: 'Guide a swipe', exact: true }).tap();
+        await sheet.getByRole('button', { name: 'Generate an alternate reply', exact: true }).tap();
         const exactDirection = `${scenario.direction} CAST_CURRENT_${scenario.id.toUpperCase()}`;
         await sheet.getByRole('textbox', { name: 'Your direction', exact: true }).fill(exactDirection);
         assert.equal(h.requests().length, 0);
         assert.equal(await sheet.getByRole('combobox', { name: /speaker/i }).count(), 0);
-        await sheet.getByRole('button', { name: 'Generate swipe', exact: true }).tap();
+        await sheet.getByRole('button', { name: 'Generate alternate reply', exact: true }).tap();
         await sheet.getByText('Reply updated.', { exact: true }).waitFor({ timeout: 20000 });
         const request = h.requests()[0];
         assert.equal(h.requests().length, 1);

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Unified chat and panel navigation with Find a tool, page headings, contextual links and return focus. Added exact-reply review and scoped recovery for interrupted panel edits.
+- Updated model settings and reply display destinations, grouped chapter controls in Context & Memory, and added searchable story records and request logs. Shared controls have larger touch targets and clearer focus.
 - Added a composer Quick actions sheet with saved directions, one-use next-message delivery, guided swipes and continuations, and editable player drafts and choices.
 - Added queue delivery on hosts with Chat Completion or Text Completion prompt hooks, draft-safe retries and per-swipe evidence for required directions. Phone-width editors include visible JSON file pickers and touch reordering.
 - Added chat-local pins, source selection and rolls, standalone action editing, and reviewed library, lorebook and Keel imports. Added Fresh start for a single action or five accepted forward replies.

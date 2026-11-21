@@ -1,5 +1,5 @@
+import { writeChapterControl } from './context-dashboard.js';
 import { memoryOnly, memoryComponents } from '../components.js';
-import { setMemoryComponent } from '../hide.js';
 import { promptGroup } from './prompts.js';
 import { loadEffectiveWorld, recordManualWorldChange } from '../worldflow.js';
 import { reserveStoryUids, storyJournalStatus } from '../memory-journal.js';
@@ -12,7 +12,7 @@ import { WORLD_KINDS, KIND_ORDER, isStructuredWorldKind, MAX_ACTIVITIES, chatWor
 import { toast, confirmBox, inputBox, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
 import { keptIn, deleteButton } from './sets.js';
-import { writeChapterNow, chapterBusy, draftNewChapter, startNewChapter, draftStarterWorld, addStarterWorld, otherSummaryOn } from '../chapters.js';
+import { draftNewChapter, startNewChapter, draftStarterWorld, addStarterWorld, otherSummaryOn } from '../chapters.js';
 import { burnedSoFar } from '../engine.js';
 
 const go = (app, route) => { app.wroute = route; app.resetScroll = true; app.render(); app.root?.scrollIntoView?.({ block: 'start' }); };
@@ -64,36 +64,14 @@ function worldPicker(app) {
 // ---------- the story so far, and a new chapter ----------
 
 function summarySection(app, id) {
-    const o = settings().summary;
-    const memory = memoryOnly(), components = memoryComponents();
-    const save = () => { saveSettings(); app.render(); };
-    const yes = (v, set) => select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], v ? 'on' : 'off', (x) => { set(x === 'on'); save(); });
-    const ui = app.wroute.sum || (app.wroute.sum = { busy: false, error: '' });
-    return section('Keeping the story so far',
-        otherSummaryOn() && components.chapters ? h('div', { class: 'ri-note ri-note-warn' }, 'SillyTavern\'s own Summarize is also adding a summary to the prompt in this chat. Turn one of the two off, so the story so far is sent once.') : null,
-        id ? [
-            field('Keep the story so far in chapters', components.chapters ? 'A chapter is a short account of a stretch of the story, written with one AI request and kept in this world under "The story so far". Recent chapters and relevant older history share a separate chapter budget.' : 'Off: no chapters are written or sent.',
-                yes(components.chapters, v => setMemoryComponent('chapters',v))),
-            components.chapters ? h('div', { class: 'ri-grid2' },
-                !memory && field('Write a chapter when a scene ends', 'The update block says when the story moved to a new time or place. Needs "Keep the world up to date" on.', yes(o.onSceneEnd, v => { o.onSceneEnd = v; })),
-                !memory && field('Move what is finished into the chapter', 'Threads that were settled, secrets that came out, planted details that paid off and things elsewhere that finished are written into the chapter in one line each and turned off, so the world holds what is still open. Entries set to "keep it as I wrote it" are left alone.', yes(o.retire !== false, v => { o.retire = v; })),
-                !memory && field('Replies a chapter must cover at least', 'A scene that ends sooner is joined to the next chapter.', numberInput(o.minReplies, { min: 1, max: 100, unit: 'replies' }, (n) => { o.minReplies = n; save(); })),
-                field('Write a chapter after this many replies in any case', memory ? '0 leaves chapter writing to you.' : '0 leaves it to scene ends and to you.', numberInput(o.every, { min: 0, max: 200, unit: 'replies' }, (n) => { o.every = n; save(); })),
-                field('Recent chapters eligible for full recall', 'The chapter budget limits how much can be sent.', numberInput(o.keep, { min: 1, max: 10, unit: 'chapters' }, (n) => { o.keep = n; save(); })),
-                field('Combine the older chapters when there are more than', 'One AI request turns the older chapters into a single account. The newest ones stay as they are.', numberInput(o.roll, { min: 2, max: 50, unit: 'chapters' }, (n) => { o.roll = n; save(); })),
-                field('Hide what a chapter covers', 'On: when a chapter is written, the messages it covers are hidden from the AI, the same as the /hide command. They stay in your chat, you can still read them, and deleting the reply a chapter belongs to shows them again. This keeps a long chat short for the AI with no extra AI request, so Message Limit, SillyTavern\'s Summarize and TunnelVision\'s autohide can be turned off.', yes(components.hide, v => setMemoryComponent('hide',v))),
-                components.hide ? field('Messages never hidden this way', 'The newest messages always stay visible to the AI, whether a chapter covers them or not.', numberInput(o.keepShown ?? 30, { min: 4, max: 400, unit: 'messages' }, (n) => { o.keepShown = n; save(); })) : null,
-                field('Room for the story so far (tokens)', 'Separate from the room for the rest of the story notes.', numberInput(o.budget, { min: 100, max: 6000, unit: 'tokens' }, (n) => { o.budget = n; save(); }))) : null,
-            ui.error ? h('div', { class: 'ri-note ri-note-warn' }, ui.error) : null,
-            components.chapters ? h('div', { class: 'ri-row' }, executionAction(button(ui.busy || chapterBusy() ? 'Writing the chapter...' : 'Write a chapter now', async () => {
-                if (ui.busy) return;
-                ui.busy = true; ui.error = ''; app.render();
-                try { const name = await writeChapterNow(); toast('success', `Chapter "${name}" was written.`); }
-                catch (e) { ui.error = e.message; }
-                ui.busy = false; app.render();
-            }, { disabled: ui.busy || chapterBusy(), title: 'Summarise the filed replies since the last chapter' }))) : null,
-            components.chapters && functionExecution('chapterSummary',{receipt:executionReceipt('chapterSummary')}),
-        ] : h('div', { class: 'ri-muted' }, 'Chapters are kept in a story world. Choose or make one above to have the story so far written as you play.'),
+    const components=memoryComponents();
+    return section('Chapters and transfer',
+        otherSummaryOn() && components.chapters && h('p',{class:'ri-note ri-note-warn'},
+            'SillyTavern’s own Summarize is also adding a summary to the prompt in this chat. Choose which summary source to use.'),
+        h('p',{class:'ri-help'},'Chapter schedules and history controls are in Context & Memory.'),
+        button('Context & Memory',()=>app.openPage('context',{anchor:'#ri-memory-status',focusPage:true}),{kind:'ghost'}),
+        id ? components.chapters && writeChapterControl(()=>app.render())
+            : h('div',{class:'ri-muted'},'Choose or create a Story World to store chapters.'),
         h('div', { class: 'ri-label' }, 'A new chapter in a new chat'),
         h('div', { class: 'ri-help' }, 'When a chat has grown long, carry the story into a brand new chat. One AI request writes a very detailed summary and a first message, which you can change. The new chat has its own Story World book with the approved summary and a copy of this world’s records. The active reusable books, sets, goal and pronouns carry forward.'),
         h('div', { class: 'ri-row' }, button('Start a new chapter in a new chat', () => { app.wroute.sheet = { kind: 'chapter', wish: '', busy: false, error: '', draft: null }; app.render(); }, { kind: 'primary' })));

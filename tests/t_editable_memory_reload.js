@@ -31,10 +31,10 @@ const answer = (prose,...lines)=>prose+'\n<story_update>\n'+lines.join('\n')+'\n
             if (index===1) {
                 const replacement = 'A blue ribbon hangs above the gate.';
                 H.mode({reply:answer(replacement,place('Revised Gate',replacement))});
-                await page.locator('#chat .last_mes').getByRole('button',{name:'Guide a swipe',exact:true}).tap();
-                const sheet = page.getByRole('dialog',{name:'Guide a swipe'});
+                await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+                const sheet = page.getByRole('dialog',{name:'Generate an alternate reply'});
                 await sheet.getByLabel('Your direction',{exact:true}).fill('Replace the red seal with a blue ribbon.');
-                await sheet.getByRole('button',{name:'Generate swipe',exact:true}).tap();
+                await sheet.getByRole('button',{name:'Generate alternate reply',exact:true}).tap();
                 await H.result(sheet,'Reply updated.');
                 assert.equal(H.fact((await H.memory(page)).effective,'Revised Gate'),replacement);
                 await H.closeSheet(sheet);

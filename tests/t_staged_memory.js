@@ -95,7 +95,7 @@ const L = require('./lib.js');
         await repair.getByText('Edit this source',{exact:true}).tap();
         await repair.getByRole('button',{name:'Use my correction text',exact:true}).tap();
         await repair.getByRole('checkbox',{name:/Apply edit/}).tap();
-        await editor.getByRole('button',{name:'Apply correction',exact:true}).tap();
+        await editor.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/}).tap();
         await editor.getByRole('status').filter({hasText:'Saved 1 source edit'}).waitFor();
         const repaired = (await read()).durable.find(row=>row.name==='Pier');
         assert.equal(repaired.fields.what,afterFact);

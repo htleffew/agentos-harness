@@ -1,3 +1,4 @@
+import { taskLabels } from './destinations.js';
 import {
     actionLibrary, applyQuickActionVariation, editQuickActionSource, linkedQuickAction, listQuickActions, loadQuickActionSources, moveQuickAction,
     QUICK_ACTION_FAMILIES, QUICK_ACTION_VARIABLES, quickActionOwner, quickActionRestorePreview, quickActionScope, readQuickAction, recoverQuickAction,
@@ -95,7 +96,7 @@ export function renderQuickActionLibrary(host, {
         Object.assign(ui, { family, root: initial, page: initial, search: '', preview: null, error: '' });
         if (initial === 'editor') ui.edit = { ...actionOptions({ family: sourceFamily }), text: initialDirection };
     }
-    const tab = name => button(name === 'manage' ? 'Manage' : 'Browse all', () => next(name));
+    const tab = name => button(name === 'manage' ? taskLabels.manage : taskLabels.browse, () => next(name));
     const back = (page = ui.root === 'editor' ? 'manage' : ui.root) => button('Back to library', () => next(page));
     const addButtons = () => (family ? [family] : Object.keys(QUICK_ACTION_FAMILIES)).map(destination =>
         button(QUICK_ACTION_FAMILIES[destination].add, () => edit({ family: destination, text: initialDirection })));

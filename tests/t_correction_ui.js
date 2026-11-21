@@ -44,7 +44,7 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         await record.getByText('Edit this source',{exact:true}).click();
         assert.equal(await record.getByLabel('Exact source quotation').inputValue(),wrong);
         await record.getByRole('checkbox',{name:/Apply edit/}).check();
-        const save=opener.getByRole('button',{name:'Apply correction',exact:true});
+        const save=opener.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/});
         assert.equal(await save.isDisabled(),true);
         await record.getByRole('button',{name:'Use my correction text',exact:true}).click();
         assert.equal(await save.isEnabled(),true);
@@ -74,8 +74,8 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         assert.match(prompt,/made of stone/);
         assert.doesNotMatch(prompt,/made of oak|mill bell broke/);
         await page.setViewportSize({width:320,height:720});
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Guide a swipe',exact:true}).click();
-        const guide=page.getByRole('dialog',{name:'Guide a swipe'});
+        await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).click();
+        const guide=page.getByRole('dialog',{name:'Generate an alternate reply'});
         assert.ok(await guide.evaluate(node=>node.scrollWidth<=node.clientWidth+1 &&
             [...node.querySelectorAll('textarea, select')].every(control=>control.getBoundingClientRect().right<=node.getBoundingClientRect().right)));
         await guide.getByRole('button',{name:'Close',exact:true}).click();
@@ -93,7 +93,7 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         const editor=root.locator('#ri_panel_page');
         await editor.getByLabel('Correct story fact',{exact:true}).fill('The parapet is waist high.');
         await page.route('**/api/backends/chat-completions/generate',route=>route.abort(),{times:1});
-        await editor.getByRole('button',{name:'Apply correction',exact:true}).click();
+        await editor.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/}).click();
         await editor.getByRole('button',{name:'Retry guided regeneration',exact:true}).waitFor({timeout:30000});
         const failed=await state();
         assert.equal(failed.swipe,0);
@@ -111,7 +111,7 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         await editor.getByLabel('Regenerate the latest reply').uncheck();
         L.resetLog();
         await editor.getByText(/No model requests/).waitFor();
-        await editor.getByRole('button',{name:'Apply correction',exact:true}).click();
+        await editor.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/}).click();
         await editor.getByRole('status').filter({hasText:'Saved the correction.'}).waitFor();
         assert.equal(L.requests().length,0);
         const bridge = (await state()).rows.find(row=>row.name==='bridge');
@@ -120,7 +120,7 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         L.mode({reply:JSON.stringify({edits:[{id:`world:${bridge.uid}:text`,quote:stone,replacement:marble}]})});
         await editor.getByLabel('Find and update sources with AI').check();
         await editor.getByText(/1 model request to find and update sources/).waitFor();
-        await editor.getByRole('button',{name:'Apply correction',exact:true}).click();
+        await editor.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/}).click();
         await editor.getByRole('status').filter({hasText:/Saved 1 source edit/}).waitFor();
         assert.equal(JSON.parse((await state()).rows.find(row=>row.name==='bridge').fields.data).text,marble);
         assert.equal(L.requests().length,1);
@@ -140,7 +140,7 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         L.mode({reply:granite});
         await editor.getByLabel('Find and update sources with AI').check();
         await editor.getByText(/2 model requests/).waitFor();
-        await editor.getByRole('button',{name:'Apply correction',exact:true}).click();
+        await editor.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/}).click();
         await editor.getByRole('status').filter({hasText:'The revised reply is ready.'}).waitFor();
         assert.equal(modelRequests.length,2);
         assert.match(modelRequests[0],/sourceExcerpts/);
@@ -152,7 +152,7 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         const prior=(await state()).swipes.length;
         L.mode({chunkMs:140,reply:block(slate,[{id:'bridge',kind:'fact',subject:'Mira',text:slate,evidence:slate}])});
         await editor.getByLabel('Correct story fact',{exact:true}).fill(slate);
-        await editor.getByRole('button',{name:'Apply correction',exact:true}).click();
+        await editor.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/}).click();
         await editor.getByRole('status').filter({hasText:'The revised reply is ready.'}).waitFor();
         await L.idle(page);
         const streamed=await state();

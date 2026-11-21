@@ -1,6 +1,6 @@
 import { renderV10 } from './v10.js';
 // The panel: one drawer in the Extensions menu, with an Expand button that shows the same panel full screen.
-import { h, clear, toggle, button } from './dom.js';
+import { h, clear, toggle, button, captureView, restoreView, textInput } from './dom.js';
 import { settings, saveSettings } from '../store.js';
 import { onChange } from '../engine.js';
 import { renderInstructions } from './sets.js';
@@ -16,49 +16,176 @@ import { renderLog } from './log.js';
 import { onLog } from '../log.js';
 import { ctx, confirmBox, isChatOpen } from '../st.js';
 
-const GROUPS = [
-    { id:'story', label:'Story', accent:'green', tabs:[
-        ['opening','Opening'],['state','Current State'],['corrections','Corrections'],['books','Reusable Lorebooks'],['facts','Chat Facts'],['plots','Plot Records'],['world','Story World'],
-    ] },
-    { id:'characters', label:'Characters', accent:'sky', tabs:[
-        ['portrayal','Portrayal & Knowledge'],['emotion','Emotions & Relationships'],['goals','Character Goals'],['speakers','Dialogue Colors'],
-    ] },
-    { id:'direction', label:'Direction', accent:'cyan', tabs:[
-        ['instructions','Random Instructions'],['events','Random Story Events'],['style','Random Writing Style'],['writing','Writing Guidance'],['checks','Action Checks'],
-    ] },
-    { id:'review', label:'Review', accent:'blue', tabs:[
-        ['sent','What Was Sent'],['context','Context & Memory'],['log','Log'],
-    ] },
-    { id:'setup', label:'Setup', accent:'sky', tabs:[
-        ['v10','Preset & Extension'],['display','Reply Display'],['settings','Settings'],
-    ] },
-];
+import { destination, findDestinations, groups, startingPage } from './destinations.js';
+import { executionScope } from '../execution.js';
+import { guidedTarget } from '../guided-context.js';
+import { activePreset } from '../v10.js';
+
 const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','portrayal','emotion','speakers','writing','checks']);
 
+const editorRoutes = {instructions:'route',events:'eroute',style:'sroute',world:'wroute'};
+const draftScope=()=>JSON.stringify([executionScope(),activePreset()]);
+
+function keepInterruptedDraft() {
+    if (!app.displayScope || app.displayScope===draftScope()) return;
+    const key=editorRoutes[app.tab];
+    const editor=app[key]?.dirty && structuredClone(app[key]);
+    const fields=[...app.body?.querySelectorAll('[data-ri-dirty] textarea, [data-ri-dirty] input, [data-ri-dirty] select, [data-ri-dirty]:is(input,textarea,select)') || []]
+        .filter(node=>!node.readOnly && !['file','hidden'].includes(node.type)).map(node=>({
+            label:node.getAttribute('aria-label') || node.labels?.[0]?.innerText || 'Draft wording',
+            value:['checkbox','radio'].includes(node.type) ? (node.checked ? 'Selected' : 'Clear') : node.value,
+        }));
+    if (!editor && !fields.length) return;
+    app.interruptedDrafts.set(app.displayScope,{key,editor,fields,page:app.tab});
+    if (app.interruptedDrafts.size>20) app.interruptedDrafts.delete(app.interruptedDrafts.keys().next().value);
+}
+
+function interruptedDraft() {
+    const scope=draftScope(), draft=app.interruptedDrafts.get(scope);
+    if (!draft) return null;
+    const page=destination(draft.page);
+    return h('details',{class:'ri-card ri-tight',open:true},h('summary',{},`Unsaved work from ${page.label}`),
+        h('p',{class:'ri-help'},draft.editor ? 'Review and save the reopened draft when ready.' : 'Copy the wording you want back into its editor.'),
+        draft.fields.map(field=>h('label',{class:'ri-field'},`Recovered ${field.label.toLowerCase()}`,
+            h('textarea',{class:'ri-input',readOnly:true,rows:2,value:field.value}))),
+        h('div',{class:'ri-row'},
+            button(draft.editor ? 'Reopen draft' : `Open ${page.label}`,async()=>{
+                if (scope!==draftScope()) return;
+                if (await navigate(draft.page,{editor:draft.editor || undefined,focusPage:true}) && draft.editor) {
+                    app.interruptedDrafts.delete(scope);
+                    render();
+                }
+            }),
+            button('Dismiss recovered draft',()=>{app.interruptedDrafts.delete(scope);render();},{kind:'ghost'})));
+}
+
 async function canLeaveDraft() {
-    const routeKey = {instructions:'route',events:'eroute',style:'sroute',world:'wroute'}[app.tab];
+    const routeKey = editorRoutes[app.tab];
     const route = app[routeKey];
     if (!route?.dirty && !app.root?.querySelector('[data-ri-dirty]')) return true;
-    const chat = ctx().getCurrentChatId?.();
-    if (!await confirmBox('Discard your unsaved changes?') || ctx().getCurrentChatId?.()!==chat) return false;
-    if (route?.dirty) app[routeKey] = routeKey==='route' ? {view:'set',name:route.name} : {view:'list'};
+    if (app.confirmingDraft) return false;
+    const scope = executionScope();
+    app.confirmingDraft=true;
+    try {
+        if (!await confirmBox('Discard your unsaved changes?') || executionScope()!==scope) return false;
+        if (route?.dirty) app[routeKey] = routeKey==='route' ? {view:'set',name:route.name} : {view:'list'};
+        return true;
+    } finally { app.confirmingDraft=false; }
+}
+
+function panelLocation(view = captureView(app.body)) {
+    const key=editorRoutes[app.tab];
+    return {id:app.tab,view,lore:app.loreTarget,reply:app.replyTarget,anchor:app.anchor,
+        ...(key && {editor:app[key]}),scope:executionScope()};
+}
+
+function applyLocation(location) {
+    app.tab=location.id;
+    app.loreTarget=location.lore ?? null;
+    app.replyTarget=location.reply ?? null;
+    app.anchor=location.anchor ?? '';
+    const key=editorRoutes[location.id];
+    if (key && location.editor) app[key]=location.editor;
+    app.resetScroll=true;
+    render();
+}
+
+function focusTarget(selector) {
+    let control=selector && app.root.querySelector(selector);
+    if (!control) return false;
+    if (control.matches('details')) {
+        control.open=true;
+        control=control.querySelector(':scope > summary') || control;
+    }
+    for (let section=control.parentElement?.closest('details'); section; section=section.parentElement?.closest('details')) section.open=true;
+    control.scrollIntoView({block:'center'});
+    if (control.tabIndex<0) control.tabIndex=-1;
+    control.focus({preventScroll:true});
     return true;
 }
 
-async function navigate(id, groupId, loreTarget = null) {
-    if (app.tab !== id || app.loreTarget !== loreTarget) {
-        if (!await canLeaveDraft()) return false;
-        app.tab = id;
-        app.loreTarget = loreTarget;
-        app.resetScroll = true;
-        render();
+async function navigate(id, {group, lore, reply, anchor = '', external, editor, focusPage = false} = {}) {
+    if (!destination(id) || !app.root) return false;
+    const view=captureView(app.body), scope=executionScope();
+    if (app.tab!==id || app.loreTarget!== (lore ?? null) || app.replyTarget!== (reply ?? null) ||
+        anchor!==app.anchor || external || editor) {
+        if (!await canLeaveDraft() || executionScope()!==scope) return false;
+        const previous=panelLocation(view);
+        if (external) {
+            app.history=[];
+            app.external={...external,scope};
+        } else {
+            app.history.push(previous);
+            if (app.history.length>24) app.history.shift();
+        }
+        app.userNavigated=true;
+        applyLocation({id,lore,reply,anchor,editor});
     }
-    app.root?.querySelector(groupId ? `[data-ri-group="${groupId}"]` : `[data-ri-page="${id}"]`)?.focus({preventScroll:true});
+    const focus=group ? `[data-ri-group="${group}"]`
+        : focusPage ? '[data-ri-heading]' : `[data-ri-page="${id}"]`;
+    if (!focusTarget(anchor)) app.root.querySelector(focus)?.focus({preventScroll:true});
     return true;
+}
+
+async function back() {
+    const previous=app.history.at(-1);
+    if (!previous) return app.external && setExpanded(false);
+    if (previous.scope!==executionScope() || !await canLeaveDraft() || previous.scope!==executionScope()) return false;
+    app.history.pop();
+    applyLocation(previous);
+    restoreView(app.body,previous.view,app.body.querySelector('[data-ri-heading]'));
+    return true;
+}
+
+function toolFinder() {
+    const results=h('div',{class:'ri-tool-results'});
+    const announcement=h('p',{class:'ri-help',role:'status'});
+    const search=textInput(app.toolQuery || '',value=>{
+        app.toolQuery=value;
+        update();
+    },{type:'search','aria-label':'Find a tool',placeholder:'Search for a task'});
+    search.id='ri-find-tool';
+    function update() {
+        const query=search.value.trim();
+        const matches=findDestinations(query);
+        announcement.textContent=query ? (matches.length ? `${matches.length} matching tools.` :
+            'No matching tools. Browse the groups above or try a different word.') : 'Try “fix a fact” or “connection”.';
+        results.replaceChildren(...matches.map(page=>{
+            const unavailable=(!page.withoutChat && !isChatOpen()) || !!(page.family && !settings().enabled);
+            return h('div',{class:'ri-tool-result'},
+                button(`${page.label} · ${page.section}`,event=>page.family
+                    ? openChatTool(page.family,event.currentTarget) : navigate(page.page || page.id,{anchor:page.anchor,focusPage:true}),{disabled:unavailable}),
+                h('p',{class:'ri-help'},unavailable ? `${page.help} ${isChatOpen()?'Enable Roleplay Instructions first.':'Open a chat to use it.'}` : page.help));
+        }));
+    }
+    update();
+    return h('details',{class:'ri-tool-finder'},h('summary',{},'Find a tool'),search,announcement,results);
+}
+
+async function openChatTool(family,trigger) {
+    const scope=executionScope(), view=captureView(app.body);
+    const {openQuickActions}=await import('./quick-actions.js');
+    if (scope!==executionScope() || !await canLeaveDraft()) return;
+    const expanded=app.root.classList.contains('ri-expanded');
+    const returnToDrawer=app.restoreDrawer;
+    const drawer=document.querySelector('#extensions-settings-button > .drawer-toggle');
+    if (expanded) await setExpanded(false,{handoff:true});
+    const restoreDrawer=!!app.home.getClientRects().length;
+    if (restoreDrawer) drawer?.click();
+    openQuickActions(family,undefined,trigger,undefined,async()=>{
+        if (scope!==executionScope()) return;
+        if (expanded) { await setExpanded(true); app.restoreDrawer=returnToDrawer; }
+        else if (restoreDrawer && !app.home.getClientRects().length) drawer?.click();
+        restoreView(app.body,view,app.body.querySelector('[data-ri-heading]'));
+    });
 }
 
 export const app = {
-    tab: 'instructions',
+    tab: null,
+    history: [],
+    anchor: '',
+    external: null,
+    interruptedDrafts: new Map(),
     route: { view: 'sets' },   // inside Random Instructions: sets | set | edit
     eroute: { view: 'list' },  // inside Random Story Events: list | edit
     sroute: { view: 'list' },  // inside Random Writing Style: list | edit
@@ -72,20 +199,33 @@ export const app = {
     render,
     setExpanded,
     openPage: navigate,
+    focusTarget,
+    back,
     async openSetting(page, controlId, moduleScope) {
-        if (!await navigate(page)) return;
+        const anchor=controlId ? `#${CSS.escape(controlId)}` : '';
+        if (!await navigate(page,{anchor})) return false;
         if (moduleScope && app.moduleScope!==moduleScope) {
             app.moduleScope=moduleScope;
             render();
+            focusTarget(anchor);
         }
-        const control = controlId && document.getElementById(controlId);
-        const disclosure = control?.closest('details');
-        if (disclosure) disclosure.open=true;
-        control?.scrollIntoView({block:'center'});
-        control?.focus({preventScroll:true});
+        return true;
     },
-    async openLoreEntry(entry) {
-        if (await navigate('books',null,entry) && !app.root?.classList.contains('ri-expanded')) await setExpanded(true);
+    async openLoreEntry(entry, trigger) {
+        const outside=!app.root?.contains(trigger || document.activeElement);
+        const external=outside && {label:'Back to chat',returnFocus:trigger || document.activeElement};
+        if (!await navigate('books',{lore:entry,external,focusPage:true})) return false;
+        if (!app.root.classList.contains('ri-expanded')) await setExpanded(true);
+        return true;
+    },
+    async openReplyTask(page,index,trigger,anchor = '') {
+        const reply=guidedTarget(index);
+        if (!reply) return false;
+        const external={label:'Back to chat',returnFocus:trigger};
+        if (!await navigate(page,{reply,anchor,external,focusPage:true})) return false;
+        await setExpanded(true);
+        if (!focusTarget(anchor)) app.body.querySelector('[data-ri-heading]')?.focus({preventScroll:true});
+        return true;
     },
     go(route) { app.route = route; app.resetScroll = true; render(); app.root?.scrollIntoView?.({ block: 'start' }); },
 };
@@ -104,13 +244,16 @@ function resizeExpandedPanel() {
     });
 }
 
-async function setExpanded(on) {
+async function setExpanded(on, {handoff=false} = {}) {
+    if (!app.root) return false;
+    const external = !on && !handoff && app.external;
+    if (external && !await canLeaveDraft()) return false;
     const st = settings();
     st.expanded = !!on;
     saveSettings();
     if (on) {
         const active = document.activeElement;
-        app.returnFocus = active && active!==document.body && !app.root.contains(active) ? active : null;
+        app.returnFocus = app.external?.returnFocus || (active && active!==document.body && !app.root.contains(active) ? active : null);
         app.restoreDrawer = Boolean(app.home.getClientRects().length);
         let overlay = document.getElementById('ri_overlay');
         if (!overlay) { overlay = h('div', { id: 'ri_overlay', class: 'ri-overlay' }); document.body.appendChild(overlay); }
@@ -139,7 +282,18 @@ async function setExpanded(on) {
     const returnFocus = !on && app.returnFocus?.isConnected && app.returnFocus.getClientRects().length
         ? app.returnFocus : control;
     returnFocus.focus({preventScroll:true});
-    if (!on) app.returnFocus=null;
+    if (!on) {
+        app.returnFocus=null;
+        if (external) {
+            app.external=null;
+            app.history=[];
+            app.replyTarget=null;
+            app.loreTarget=null;
+            app.anchor='';
+            if (external.scope===executionScope()) external.resume?.();
+            render();
+        }
+    }
     return true;
 }
 
@@ -161,13 +315,19 @@ function expandedKeyboard(event) {
 
 export function render() {
     if (!app.root) return;
+    app.displayScope=draftScope();
     const st = settings();
     const expanded = app.root.classList.contains('ri-expanded');
-    const group = GROUPS.find(item=>item.tabs.some(([id])=>id===app.tab)) || GROUPS[2];
+    if (!destination(app.tab)) app.tab=startingPage(isChatOpen());
+    const current=destination(app.tab);
+    const group=groups.find(item=>item.id===current.group);
     (app.lastPages ||= {})[group.id] = app.tab;
     app.root.dataset.accent = st.accent && st.accent !== 'auto' ? st.accent : group.accent;
     // Keep the page from jumping while the panel is rebuilt.
-    const keepScroll = app.resetScroll ? 0 : (app.body?.scrollTop || 0);
+    const unchanged=!app.resetScroll && app.body?.dataset.page===app.tab;
+    const previous=unchanged && captureView(app.body);
+    const finderOpen=app.root.querySelector('.ri-tool-finder')?.open;
+    const finderFocused=app.root.querySelector('#ri-find-tool')===document.activeElement;
     app.resetScroll = false;
     app.root.style.minHeight = `${app.root.offsetHeight}px`;
     clear(app.root);
@@ -185,26 +345,37 @@ export function render() {
             expand));
 
     const categories = h('nav',{class:'ri-categories','aria-label':'Roleplay sections'},
-        GROUPS.map(item=>h('button',{type:'button',class:'ri-category','data-ri-group':item.id,
-            'aria-current':item===group ? 'true' : null,onclick:()=>navigate(app.lastPages[item.id] || item.tabs[0][0],item.id)},item.label)));
-    const pages = GROUPS.map(item=>h('nav',{class:'ri-tabs ri-page-nav','aria-label':`${item.label} pages`,hidden:item!==group},
-        item.tabs.map(([id,label])=>h('button',{type:'button',class:`ri-tab ${id===app.tab ? 'ri-tab-on' : ''}`,
+        groups.map(item=>h('button',{type:'button',class:'ri-category','data-ri-group':item.id,
+            'aria-current':item===group ? 'true' : null,onclick:()=>navigate(app.lastPages[item.id] || item.pages[0].id,{group:item.id})},item.label)));
+    const pages = groups.map(item=>h('nav',{class:'ri-tabs ri-page-nav','aria-label':`${item.label} pages`,hidden:item!==group},
+        item.pages.map(({id,label})=>h('button',{type:'button',class:`ri-tab ${id===app.tab ? 'ri-tab-on' : ''}`,
             'data-ri-page':id,'aria-current':id===app.tab ? 'page' : null,'aria-controls':'ri_panel_page',
             onclick:()=>navigate(id)},label))));
     const tabs = h('div',{class:'ri-panel-nav'},categories,pages);
+    const finder=toolFinder();
+    finder.open=!!finderOpen;
+    const returnLabel=app.history.length ? 'Back' : app.external?.label;
+    const heading=h('h2',{class:'ri-page-title',tabIndex:-1,'data-ri-heading':''},current.label);
+    app.body = h('div',{id:'ri_panel_page',class:'ri-body','data-page':app.tab},
+        h('div',{class:'ri-page-header'},
+            h('div',{},h('div',{class:'ri-page-section'},group.label),heading),
+            returnLabel && button(returnLabel,back,{kind:'ghost'})),
+        finder,interruptedDraft());
+    if (!isChatOpen() && current.id==='v10') app.body.append(h('p',{class:'ri-help'},'Open a character chat to use Quick actions and chat settings.'));
+    if (isChatOpen() && current.id==='state' && !app.userNavigated) app.body.append(h('p',{class:'ri-help'},
+        'Use Quick actions beside the composer for the next reply. Use this panel to manage the story and settings.'));
 
-    app.body = h('div', { id:'ri_panel_page', class: 'ri-body' });
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));
     if (!isChatOpen() && app.tab !== 'settings' && app.tab !== 'log') app.body.appendChild(h('div', { class: 'ri-note' },
-        ['v10','display'].includes(app.tab) ? 'Open a chat to change its workflow, module activation and display settings.' : 'Open a character chat to use the '+(group.tabs.find(([id])=>id===app.tab)?.[1] || 'story')+' controls.'));
+        ['v10','display'].includes(app.tab) ? 'Open a chat to change its workflow, module activation and display settings.' : 'Open a character chat to use the '+current.label+' controls.'));
 
     if (app.tab === 'instructions') renderInstructions(app.body, app);
     else if (app.tab === 'events') renderEvents(app.body, app);
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
-    else if (app.tab === 'corrections') renderCorrections(app.body);
+    else if (app.tab === 'corrections') renderCorrections(app.body,app.replyTarget);
     else if (V10_PAGES.has(app.tab)) renderV10(app.body,app,app.tab);
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
@@ -213,7 +384,8 @@ export function render() {
     else renderSettings(app.body, app);
 
     app.root.append(head, tabs, app.body);
-    app.body.scrollTop = keepScroll;
+    if (previous) restoreView(app.body,previous);
+    if (finderFocused && finder.open) finder.querySelector('input')?.focus({preventScroll:true});
     requestAnimationFrame(() => { if (app.root) app.root.style.minHeight = ''; });
 }
 
@@ -241,10 +413,28 @@ export function mount(missing) {
     const focusInField = () => app.root?.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
     onLog(() => { if (app.tab === 'log') { clearTimeout(timer); timer = setTimeout(render, 80); } });
     onChange((what) => {
-        if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.wroute = { view: 'list' }; app.cache = {}; app.loreTarget = null; }
+        const presetChanged=what==='preset' && app.displayScope!==draftScope();
+        if (what==='chat' || presetChanged) keepInterruptedDraft();
+        if (what==='chat') {
+            app.route={view:'sets'};
+            app.eroute={view:'list'};
+            app.sroute={view:'list'};
+            app.wroute={view:'list'};
+            app.cache={};
+            app.history=[];
+            app.external=null;
+            app.loreTarget=app.replyTarget=null;
+            app.anchor='';
+            app.resetScroll=true;
+            if (!app.userNavigated || !isChatOpen() && !destination(app.tab)?.withoutChat) app.tab=startingPage(isChatOpen());
+        }
         refreshUnderReplies();
         // Setup controls save immediately and their handlers belong to the displayed preset.
-        if (what === 'preset' && app.tab === 'v10') {
+        if (presetChanged) {
+            const key=editorRoutes[app.tab];
+            if (app[key]?.dirty) app[key]=key==='route' ? {view:'sets'} : {view:'list'};
+            app.history=[];
+            app.resetScroll=true;
             clearTimeout(timer);
             render();
             return;

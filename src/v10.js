@@ -929,6 +929,14 @@ export function setSpeakerColor(key, value) {
     saveChatState();
 }
 
+export function chooseAutomaticSpeakerColor(key) {
+    const speakers=prefs()?.speakers || {};
+    const used=new Set(Object.entries(speakers).filter(([id])=>id!==key).map(([,speaker])=>speaker.color));
+    const color=PALETTE.find(value=>!used.has(value)) || PALETTE[Math.max(0,Object.keys(speakers).indexOf(key))%PALETTE.length];
+    setSpeakerColor(key,color);
+    return color;
+}
+
 function luminance(rgb) {
     return rgb.map(v => v/255).reduce((sum,v,i) => sum + [0.2126,0.7152,0.0722][i]*(v <= 0.04045 ? v/12.92 : ((v+0.055)/1.055)**2.4),0);
 }

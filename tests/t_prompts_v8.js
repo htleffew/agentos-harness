@@ -20,8 +20,8 @@ async function customizeGuidedFraming(page) {
 }
 
 async function openGuidedSheet(page) {
- await page.locator('#chat .last_mes .ri-guided').getByRole('button',{name:'Guide a swipe',exact:true}).tap();
- return page.getByRole('dialog',{name:'Guide a swipe'});
+ await page.locator('#chat .last_mes .ri-guided').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+ return page.getByRole('dialog',{name:'Generate an alternate reply'});
 }
 
 (async () => {
@@ -39,7 +39,7 @@ async function openGuidedSheet(page) {
   const sheet=await openGuidedSheet(page);
   await sheet.getByRole('textbox',{name:'Your direction'}).fill('GUIDED_DIRECTION: Let her decline calmly.');
   L.resetLog();
-  await sheet.getByRole('button',{name:'Generate swipe',exact:true}).tap();
+  await sheet.getByRole('button',{name:'Generate alternate reply',exact:true}).tap();
   await sheet.getByRole('status').filter({hasText:/protected state or scene correction/i}).waitFor();
   assert.equal(L.requests().length,0);
   await sheet.getByRole('button',{name:'Close',exact:true}).tap();
@@ -49,7 +49,7 @@ async function openGuidedSheet(page) {
   await page.evaluate(async B=>(await import(`${B}/src/ui/sent.js`)).refreshUnderReplies(),L.BASE);
   await openGuidedSheet(page);
   await sheet.getByRole('textbox',{name:'Your direction'}).fill('GUIDED_DIRECTION: Let her decline calmly.');
-  await sheet.getByRole('button',{name:'Generate swipe',exact:true}).tap();
+  await sheet.getByRole('button',{name:'Generate alternate reply',exact:true}).tap();
   await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('She calmly declines.'),null,{timeout:60000});await idleWorld(page);
   const prompt=L.text(L.requests().at(-1));assert.match(prompt,/GUIDED_DIRECTION/);assert.match(prompt,/V8_GUIDED_CUSTOM/);assert.match(prompt,/BEFORE_THE_TURN/);assert.doesNotMatch(prompt,/WRONG_WORLD_VALUE|WRONG_MIND_VALUE|ORIGINAL_EVENT_MARKER|DISCARDED_OVERRIDE_MARKER/);
   const result=await page.evaluate(async B=>{const W=await import(`${B}/src/world.js`),id=W.chatWorld();return {rows:W.listWorld(await W.loadWorld(id),id),m:SillyTavern.getContext().chat.at(-1)}},L.BASE);assert.equal(result.rows.find(x=>x.name==='Seraphina').fields.wants,'NEW_WORLD_VALUE');assert(!result.m.mes.includes('GUIDED_DIRECTION'));assert(result.m.extra.roleplay_instructions.guided);

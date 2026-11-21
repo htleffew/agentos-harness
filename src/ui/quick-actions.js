@@ -2,8 +2,9 @@ import { ctx, heldGroupContinuationComposer, isChatOpen, isGenerating, KEY, on }
 import { saveChatState, settings } from '../store.js';
 import { memoryOnly } from '../components.js';
 import { app } from './panel.js';
-import { button, field, h, select, textArea, textInput } from './dom.js';
-import { executionDetails, executionSettings } from './execution.js';
+import { taskLabels } from './destinations.js';
+import { button, field, h, select, textArea, textInput, captureView, restoreView } from './dom.js';
+import { executionDetails } from './execution.js';
 import { executionPreview } from '../execution.js';
 import { impersonationInspector } from './impersonation.js';
 import { listQuickActions, loadQuickActionSources, quickActionOwner, readQuickAction, resolveQuickAction, rollQuickActionDie } from '../quick-actions.js';
@@ -15,8 +16,8 @@ import { armFreshStart, cancelQueued, freshRemaining, moveQuickPin, pinQuickActi
 
 const families = {
     steer: { title:'Steer the next reply', primary:'Queue with my next message', add:'Add nudge' },
-    swipe: { title:'Guide a swipe', primary:'Generate swipe', add:'Add swipe option' },
-    continue: { title:'Continue this reply', primary:'Continue this reply', add:'Add continuation option' },
+    swipe: { title:taskLabels.alternate, primary:taskLabels.generateAlternate, add:'Add swipe option' },
+    continue: { title:taskLabels.continue, primary:taskLabels.continue, add:'Add continuation option' },
     draft: { title:'Draft my reply', primary:'Generate my draft', add:'Add player draft option' },
 };
 const sessions = new Map();
@@ -25,6 +26,7 @@ let overlay;
 let opener;
 let composerAtOpen;
 let focusComposer;
+let returnToPanel;
 let knownChat;
 let composer;
 const composerDrafts = new Map();
@@ -89,6 +91,8 @@ function enterSheet() {
 
 function closeSheet({restore = true} = {}) {
     if (!overlay) return;
+    const resume=returnToPanel;
+    returnToPanel=null;
     overlay.removeEventListener('focusin',enterSheet);
     overlay.remove();
     releaseBackground();
@@ -103,6 +107,7 @@ function closeSheet({restore = true} = {}) {
         } else opener?.focus({preventScroll:true});
     }
     opener = composerAtOpen = null;
+    if (restore) resume?.();
 }
 
 function tabInSheet(event) {
@@ -126,7 +131,7 @@ function tabInSheet(event) {
     }
 }
 
-export function openQuickActions(family, index, trigger = document.activeElement) {
+export function openQuickActions(family, index, trigger = document.activeElement, returning, resumePanel) {
     if (!isChatOpen() || !settings().enabled) return;
     knownChat = quickChatIdentity();
     session = sessions.get(knownChat);
@@ -140,6 +145,7 @@ export function openQuickActions(family, index, trigger = document.activeElement
     const input = openComposer();
     composerAtOpen = snapshot(input);
     focusComposer = document.activeElement === input;
+    returnToPanel=returning?.resumePanel || resumePanel;
     if (!overlay) {
         overlay = h('div',{class:'ri-quick-overlay',onclick:event=>{ if (event.target === overlay) closeSheet(); }});
         document.body.append(overlay);
@@ -149,18 +155,44 @@ export function openQuickActions(family, index, trigger = document.activeElement
         globalThis.visualViewport?.addEventListener('scroll', resizeSheet);
         resizeSheet();
     }
-    if (family) chooseFamily(family, index);
-    else {
-        session.view = 'root';
+    session.history=[];
+    session.view='root';
+    session.family='';
+    if (returning) {
+        composerAtOpen=returning.composer;
+        focusComposer=returning.focusComposer;
+        session.history=returning.history;
+        session.view=returning.view;
+        session.family=returning.family;
         renderSheet();
+        restoreView(overlay.querySelector('.ri-quick-scroll'),returning.snapshot,overlay.querySelector('#ri-quick-heading'));
+        return;
     }
+    if (family) chooseFamily(family, index);
+    else renderSheet();
     if (!focusComposer) overlay.querySelector('[data-quick-close]')?.focus({preventScroll:true});
     else isolateBackground(true);
 }
 
-function show(view) {
-    session.view = view;
+function sheetLocation() {
+    return {view:session.view,family:session.family,
+        snapshot:captureView(overlay.querySelector('.ri-quick-scroll'))};
+}
+
+function show(view, family = session.family, replace = false) {
+    if (!replace && (session.view!==view || session.family!==family)) session.history.push(sheetLocation());
+    session.view=view;
+    session.family=family;
     renderSheet();
+}
+
+function backInSheet() {
+    const previous=session.history.pop();
+    if (!previous) return closeSheet();
+    session.view=previous.view;
+    session.family=previous.family;
+    renderSheet();
+    restoreView(overlay.querySelector('.ri-quick-scroll'),previous.snapshot,overlay.querySelector('#ri-quick-heading'));
 }
 
 function chooseFamily(family, index) {
@@ -169,8 +201,7 @@ function chooseFamily(family, index) {
         // Reopening an unfinished action keeps the exact target until the user selects another.
         if (index !== undefined || !edit.target || (!edit.direction && !edit.cues.length && !edit.lastAttempt)) edit.target = guidedTarget(index);
     }
-    session.family = family;
-    show('family');
+    show('family',family);
 }
 
 function joinGuidance(edit) {
@@ -309,12 +340,11 @@ function catalogView(mode) {
             if ((family === 'swipe' || family === 'continue') && !edit.target) edit.target = guidedTarget();
             edit.mode = 'select';
             addResolved(edit, {...resolved, reference:action?.origin==='source' ? undefined : action?.id || resolved.id, usesDirection:resolved.embedsDirection});
-            session.family = family;
-            show('family');
+            show('family',family,true);
         },
         onChange:()=>{ if (session===owner && session.view==='add') {
             owner.actionEditor=null;
-            show('family');
+            backInSheet();
         } },
         onPin:pinQuickAction,
         onRestore:({family,undoId})=>{
@@ -331,7 +361,7 @@ function catalogView(mode) {
             saveChatState();
         },
         onOpenTool:tool=>openPanel(tool==='Notes'?'sent':'context'),
-        onClose:()=>show(owner.family?'family':'root'),
+        onClose:backInSheet,
         onCancelPending:()=>show('pending'),
     });
     return host;
@@ -369,7 +399,7 @@ function rootView() {
         hits.replaceChildren();
         if (!words.length) return;
         const found = listQuickActions().filter(action=>words.every(word=>`${action.title} ${action.category} ${action.text}`.toLowerCase().includes(word))).slice(0, 30);
-        if (!found.length) hits.append(info('No saved actions match. Browse all to search source books.'));
+        if (!found.length) hits.append(info('No saved actions match. Browse directions to search source books.'));
         else for (const action of found) hits.append(button(`${action.title} · ${families[action.family].title}`, () => {
             chooseFamily(action.family);
             selectFavorite(editorFor(action.family), {reference:action.id,title:action.title}, true);
@@ -392,15 +422,22 @@ function rootView() {
             }),definition && info(quickActionOwner(definition)));
         })),
         field('Search', '', query), hits,
-        actionRow(button('Browse all',()=>{ session.family=''; show('browse'); }),button('Manage',()=>{ session.family=''; show('manage'); })),
+        actionRow(button(taskLabels.browse,()=>show('browse','')),button(taskLabels.manage,()=>show('manage',''))),
         h('details',{},h('summary',{},'Pins and order'), pinned.length ? pinned.map((pin,index)=>pinRow(pin,index,pinned.length))
             : info('Pin a direction from its action menu.')),
-        actionRow(button('Chapter tools',()=>openPanel('context')),button('Reply Notes',()=>openPanel('sent')),button('Prompt and preset tools',()=>openPanel('v10'))));
+        actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What Was Sent',()=>openPanel('sent')),button('Edit preset prompts',()=>openPanel('v10',null,'#ri-preset-workbench'))));
 }
 
-async function openPanel(page) {
-    closeSheet();
-    if (await app.openPage(page)) await app.setExpanded(true);
+async function openPanel(page, reply = null, anchor = '') {
+    const scope=quickChatIdentity(), origin=opener;
+    const returning={...sheetLocation(),history:[...session.history],composer:composerAtOpen,focusComposer,resumePanel:returnToPanel};
+    const external={label:'Back to Quick actions',returnFocus:origin,resume:()=>{
+        if (quickChatIdentity()===scope) openQuickActions(undefined,undefined,origin,returning);
+    }};
+    if (!await app.openPage(page,{reply,anchor,external,focusPage:true}) || quickChatIdentity()!==scope) return;
+    closeSheet({restore:false});
+    await app.setExpanded(true);
+    app.focusTarget(anchor);
 }
 
 function previewFor(edit, mode = 'draft') {
@@ -413,7 +450,7 @@ function previewFor(edit, mode = 'draft') {
     const preview = guidedPreview(edit.family,{target:edit.target,freshStart:!!edit.freshStart,mode,fixFacts});
     const repairOnly = fixFacts && edit.cues.every(cue=>cue.operation==='repair') && !edit.direction.trim();
     const stage = preview.stage;
-    const stages = [executionPreview(preview.operation,{stage,label:mode==='choices'?'Give me choices':undefined,target:edit.target && `${edit.target.name} · swipe ${edit.target.swipe + 1}`})];
+    const stages = [executionPreview(preview.operation,{stage,label:mode==='choices'?'Give me choices':undefined,target:edit.target && `${edit.target.name} · version ${edit.target.swipe + 1}`})];
     if (repairOnly) stages.length=0;
     if (fixFacts) stages.unshift(executionPreview('factRepair',{stage:'code',label:'Audit world facts'}));
     return {...preview,available:repairOnly ? !!edit.target : preview.available,repairOnly,stages};
@@ -577,10 +614,11 @@ function unavailableAction(preview, label = '') {
     const rejected=preview.stages.find(stage=>stage.problem || stage.profileId);
     const reason=preview.reason || rejected?.problem || 'This route is unavailable.';
     return h('div',{},status(label ? `${label} · ${reason}` : reason),
-        rejected?.profileId && button('Connection settings',()=>{
-            session.operation=rejected.operation;
-            show('connections');
-        }));
+        rejected?.profileId && button('Connection settings',()=>openConnection(rejected.operation)));
+}
+
+function openConnection(operation) {
+    return openPanel('settings',null,`#ri-model-request-settings [data-ri-operation="${CSS.escape(operation)}"]`);
 }
 
 function familyView(edit) {
@@ -632,8 +670,8 @@ function familyView(edit) {
     const detailNodes = h('div',{class:'ri-quick-content'},
         reference && info(`${reference.name} · swipe ${reference.swipe + 1} · revision ${String(reference.fingerprint).slice(-8)}`),
         reference && h('details',{},h('summary',{},'Selected reply'),h('p',{},reference.text)),
-        reference && versions.length>1 && field('Selected swipe','',
-            select(versions.map(({swipe})=>({value:String(swipe),label:`Swipe ${swipe + 1}`})),String(reference.swipe),async value=>{
+        reference && versions.length>1 && field('Selected version','A version is called a swipe in the host.',
+            select(versions.map(({swipe})=>({value:String(swipe),label:`Version ${swipe + 1}`})),String(reference.swipe),async value=>{
                 if (edit.switching || edit.running) return;
                 const owner=session;
                 edit.switching=true;
@@ -644,7 +682,7 @@ function familyView(edit) {
                     edit.switching=false;
                     if (session===owner) renderSheet();
                 }
-            },{'aria-label':'Selected swipe',disabled:edit.running || edit.switching})),
+            },{'aria-label':'Selected version',disabled:edit.running || edit.switching})),
         edit.switching && status('Switching to the selected swipe…'),
         reference && !reference.latest && button('Use latest reply',()=>{edit.target=guidedTarget();edit.lastAttempt=null;renderSheet();},
             {disabled:edit.running || edit.switching}),
@@ -654,7 +692,7 @@ function familyView(edit) {
         unavailableAction(choicesPreview,'Give me choices'),
         edit.family==='steer' && button(`Pending directions · ${group.pending.length}`,()=>show('pending')),
         (pinned.length || recent.length) ? shelf([...pinned,...recent],edit) : null,
-        actionRow(button('Browse all',()=>show('browse')),button(config.add,()=>show('add')),button('Manage',()=>show('manage'))),
+        actionRow(button(taskLabels.browse,()=>show('browse')),button(config.add,()=>show('add')),button(taskLabels.manage,()=>show('manage'))),
         edit.family==='swipe' && actionRow(button('Fix world facts',()=>selectFavorite(edit,{reference:'builtin:swipe:fix-facts',title:'Fix world facts'},true))),
         h('details',{open:!pinned.length},h('summary',{},'Available directions'),
             shelf(available.map(action=>({reference:action.id,title:action.title,operation:action.operation})),edit)),
@@ -692,7 +730,7 @@ function familyView(edit) {
         edit.family==='draft' && h('details',{},h('summary',{},'Choice and expansion prompts'),
             impersonationInspector({operation:'playerChoices',guidance:()=>joinGuidance(edit),mode:'helper'}),
             impersonationInspector({operation:'playerExpansion',guidance:()=>joinGuidance(edit),mode:'helper'})),
-        executionDetails(stage,{onSettings:operation=>{session.operation=operation;show('connections');}}),
+        executionDetails(stage,{onSettings:openConnection}),
         edit.error && h('div',{'data-quick-error':true},status(edit.error),
             edit.lastAttempt && edit.nativeFallback && button('Draft through direct helper · 1 model call',()=>{
                 const attempt=edit.lastAttempt;
@@ -705,7 +743,7 @@ function familyView(edit) {
         edit.repair && h('details',{open:true},h('summary',{},'Fact repair result'),
             edit.repair.repaired?.length ? info('Updated sources · '+edit.repair.repaired.join(', ')) : null,
             edit.repair.unresolved?.map(issue=>status(issue)),
-            button('Review source facts and Undo',()=>openPanel('corrections'))),
+            button('Correct story facts',()=>openPanel('corrections',edit.target))),
         edit.partial && partialResult(edit),
         edit.lastQueued && button('Undo queue',()=>{cancelQueued(edit.lastQueued);edit.lastQueued=null;edit.message='Direction removed.';renderSheet();}),
         edit.undo && button('Undo continuation',async()=>{
@@ -746,12 +784,10 @@ function renderSheet() {
     if (view==='root') content=rootView();
     else if (view==='family') ({content,footer}=familyView(editorFor(family)));
     else if (view==='pending') content=pendingView();
-    else if (view==='connections') {
-        content=executionSettings({operation:session.operation});
-    } else content=catalogView(view);
+    else content=catalogView(view);
     const header = h('header',{class:'ri-quick-header'},
-        view!=='root' && button('Back',()=>show(view==='family'||!family?'root':'family')),
-        h('h2',{id:'ri-quick-heading'},({root:'Quick actions',pending:'Pending directions',browse:'Browse all',manage:'Manage quick actions',add:families[family]?.add,connections:'Saved connections'})[view] || families[family].title),
+        session.history.length>0 && button('Back',backInSheet),
+        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',browse:taskLabels.browse,manage:taskLabels.manage,add:families[family]?.add})[view] || families[family].title),
         h('button',{type:'button',class:'ri-btn','data-quick-close':'',onclick:()=>closeSheet()},'Close'));
     const old = overlay.querySelector('.ri-quick-scroll');
     const continuing = old?.dataset.view===view;

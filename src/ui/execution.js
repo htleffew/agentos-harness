@@ -87,7 +87,7 @@ export function executionSettings({ operation, receipt, onChange = () => {} } = 
                 select([{value:'off',label:'Off'},{value:'on',label:'On'}],setting.automatic ? 'on' : 'off',value=>onSetting({automatic:value==='on'}),
                     {'aria-label':`${def.label} automatic requests`,style:{minHeight:'44px'}}));
             refresh(receipt);
-            return h('details',{class:'ri-card ri-tight',open:!!operation},
+            return h('details',{class:'ri-card ri-tight','data-ri-operation':id,open:!!operation},
                 h('summary',{style:{minHeight:'44px',alignContent:'center'}},def.label),
                 def.mainOnly && h('p',{class:'ri-help'},'The host starts this generation through Main API.'),connection,disclosure,automatic);
         }));

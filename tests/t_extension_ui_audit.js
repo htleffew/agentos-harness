@@ -37,7 +37,7 @@ async function auditDisclosures(body) {
         if (!next || !await next.isVisible()) continue;
         const title=(await next.innerText()).trim();
         if (!await next.evaluate(node=>node.parentElement.open)) {
-            try { await next.click({timeout:2000}); }
+            try { await next.tap({timeout:2000}); }
             catch(error) {
                 if (!await next.evaluate(node=>node.isConnected).catch(()=>false)) continue;
                 throw error;
@@ -49,7 +49,7 @@ async function auditDisclosures(body) {
     // Close deepest first. Each click should return the browser's disclosure to its initial state.
     for (const {summary,title} of opened.reverse()) {
         if (!await summary.isVisible() || !await summary.evaluate(node=>node.parentElement?.open)) continue;
-        try { await summary.click({timeout:2000}); }
+        try { await summary.tap({timeout:2000}); }
         catch(error) {
             if (!await summary.evaluate(node=>node.isConnected).catch(()=>false)) continue;
             throw error;
@@ -61,27 +61,28 @@ async function auditDisclosures(body) {
 
 (async()=>{
     L.sync();
-    const {browser,page,errors}=await L.open({width:390,height:820});
+    const portraitHeight=Number(process.env.RI_PANEL_HEIGHT || 820);
+    const {browser,page,errors}=await L.open({width:390,height:portraitHeight,hasTouch:true,isMobile:true});
     try {
         await L.setupApi(page);
         await L.openChat(page);
         const root=page.locator('#ri_root'), body=root.locator('#ri_panel_page');
         const openInline=async()=>{
-            if (!await page.locator('#ri_drawer').isVisible()) await page.locator('#extensions-settings-button > .drawer-toggle').click();
-            if (!await root.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').click();
+            if (!await page.locator('#ri_drawer').isVisible()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
+            if (!await root.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').tap();
         };
         await openInline();
-        const click=(label)=>root.getByRole('button',{name:label,exact:true}).click();
+        const click=(label)=>root.getByRole('button',{name:label,exact:true}).tap();
         const group=(label)=>root.getByRole('navigation',{name:'Roleplay sections'}).getByRole('button',{name:label,exact:true});
         const menu=(label)=>body.getByLabel(label,{exact:true});
         await click('Expand');
         assert.ok(await root.evaluate(node=>node.classList.contains('ri-expanded')));
-        await group('Setup').click();
+        await group('Setup').tap();
         await click('Preset & Extension');
         const workflow=menu('Story workflow for this chat');
         await workflow.selectOption('memory');
         assert.equal(await body.locator('[data-module]').count(),0);
-        await group('Story').click();
+        await group('Story').tap();
         await click('Opening');
         await click('Open workflow settings');
         assert.equal(await workflow.inputValue(),'memory');
@@ -109,7 +110,7 @@ async function auditDisclosures(body) {
                 const opposite=original==='on'?'off':'on';
                 await select.selectOption(opposite);
                 assert.equal(await select.inputValue(),opposite,key);
-                await row.getByRole('button',{name:/^Use extension /}).click();
+                await row.getByRole('button',{name:/^Use extension /}).tap();
                 assert.equal(await select.inputValue(),original,key);
             }
         };
@@ -118,7 +119,7 @@ async function auditDisclosures(body) {
         assert.equal(await root.getByRole('button',{name:'Extension defaults for this preset'}).getAttribute('aria-pressed'),'true');
         await exerciseModules();
         await click('This chat');
-        await group('Direction').click();
+        await group('Direction').tap();
         await click('Random Story Events');
         await click('Change autonomous world events');
         assert.equal(await page.evaluate(()=>document.activeElement.id),'ri-module-worldEvents');
@@ -127,14 +128,14 @@ async function auditDisclosures(body) {
         const widths=Object.hasOwn(process.env,'RI_PANEL_WIDTHS')
             ? process.env.RI_PANEL_WIDTHS.split(',').filter(Boolean).map(Number) : [390,1280];
         for (const width of widths) {
-            await page.setViewportSize({width,height:850});
+            await page.setViewportSize({width,height:portraitHeight});
             let opened=0;
             const firstPage=visited.length;
             for (const [section,pages] of Object.entries(navigation)) {
-                await group(section).click();
+                await group(section).tap();
                 for (const label of pages) {
                     const tab=root.getByRole('navigation',{name:section+' pages'}).getByRole('button',{name:label,exact:true});
-                    await tab.click();
+                    await tab.tap();
                     assert.equal(await tab.getAttribute('aria-current'),'page',label);
                     assert.ok((await body.innerText()).trim().length>0,label);
                     assert.ok(await body.evaluate(node=>node.scrollWidth<=node.clientWidth+2),`${label} overflows at ${width}px`);
@@ -144,45 +145,45 @@ async function auditDisclosures(body) {
             }
             console.log(`Audited all ${visited.length-firstPage} pages and ${opened} reachable disclosures at ${width}px.`);
         }
-        await group('Story').click();
+        await group('Story').tap();
         await click('Chat Facts');
         await click('Add record');
         await menu('Record text').fill('A new fact written without an ID.');
         await click('Current State');
         const dialog=page.locator('dialog[open]');
-        await dialog.locator('.popup-button-cancel').click();
+        await dialog.locator('.popup-button-cancel').tap();
         assert.equal(await menu('Record text').inputValue(),'A new fact written without an ID.');
         await click('Save record');
         await body.getByText(/Fact · a-new-fact-written-without-an-id/).waitFor();
-        await group('Direction').click();
+        await group('Direction').tap();
         await click('Writing Guidance');
         const writing=body.locator('details').filter({has:page.getByLabel('Live writing guidance',{exact:true})});
-        await writing.locator(':scope > summary').click();
+        await writing.locator(':scope > summary').tap();
         const guidance=menu('Live writing guidance');
         const previous=await guidance.inputValue();
         await guidance.fill('Keep dialogue concise and unmistakably individual.');
         await click('Close full screen');
         assert.equal(await guidance.inputValue(),'Keep dialogue concise and unmistakably individual.');
         await click('Expand');
-        await group('Review').click();
-        await dialog.locator('.popup-button-cancel').click();
+        await group('Review').tap();
+        await dialog.locator('.popup-button-cancel').tap();
         assert.equal(await guidance.inputValue(),'Keep dialogue concise and unmistakably individual.');
-        await writing.getByRole('button',{name:'Discard draft',exact:true}).click();
+        await writing.getByRole('button',{name:'Discard draft',exact:true}).tap();
         assert.equal(await guidance.inputValue(),previous);
         await guidance.fill('Keep dialogue concise and unmistakably individual.');
-        await writing.getByRole('button',{name:'Save guidance',exact:true}).click();
+        await writing.getByRole('button',{name:'Save guidance',exact:true}).tap();
         await writing.getByRole('status').filter({hasText:'Saved for this chat.'}).waitFor();
         assert.match(await writing.locator(':scope > summary').textContent(),/Customized/);
-        await writing.getByRole('button',{name:'Restore default',exact:true}).click();
+        await writing.getByRole('button',{name:'Restore default',exact:true}).tap();
         assert.equal(await guidance.inputValue(),previous);
         await root.getByRole('button',{name:'Close full screen',exact:true}).focus();
         await page.keyboard.press('Shift+Tab');
         await page.keyboard.press('Shift+Tab');
         assert.ok(await root.evaluate(node=>node.contains(document.activeElement)));
         const power=root.getByRole('switch',{name:'Turn the whole extension on or off'});
-        await power.click();
+        await power.tap();
         assert.equal(await power.getAttribute('aria-checked'),'false');
-        await power.click();
+        await power.tap();
         assert.equal(await power.getAttribute('aria-checked'),'true');
         await root.getByRole('button',{name:'Close full screen',exact:true}).focus();
         await page.keyboard.press('Escape');
@@ -192,7 +193,7 @@ async function auditDisclosures(body) {
         await L.send(page,'I listen to Mira.');
         await openInline();
         await click('Expand');
-        await group('Review').click();
+        await group('Review').tap();
         await click('What Was Sent');
         await body.getByText('The extension confirmed story guidance was sent. Exact text was not saved for this reply.').waitFor();
         await click('Edit writing guidance');
@@ -203,15 +204,15 @@ async function auditDisclosures(body) {
         await L.send(page,'I check the compass again.');
         await openInline();
         await click('Expand');
-        await group('Review').click();
+        await group('Review').tap();
         await click('What Was Sent');
         const receipt=body.locator('.ri-sentcard').first();
         await receipt.getByText('Always eligible · 100% configured chance · wait 5 replies').waitFor();
-        await receipt.getByText('World Info selections',{exact:true}).click();
-        await receipt.getByRole('button',{name:'Open in Direction for Receipt example'}).click();
+        await receipt.getByText('World Info selections',{exact:true}).tap();
+        await receipt.getByRole('button',{name:'Open in Direction for Receipt example'}).tap();
         const name=body.getByPlaceholder('Example: Picks a fight');
         assert.equal(await name.inputValue(),'Receipt example');
-        await group('Review').click();
+        await group('Review').tap();
         await click('Edit this instruction');
         assert.equal(await name.inputValue(),'Receipt example');
         assert.deepEqual(errors,[]);

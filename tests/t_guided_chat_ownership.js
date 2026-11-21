@@ -142,8 +142,8 @@ const h = require('./lib.js');
 
         h.resetLog();
         h.mode({ reply: 'The keeper sets the red key on the railing.' });
-        await open('Guide a swipe');
-        await tap('Generate swipe');
+        await open('Generate an alternate reply');
+        await tap('Generate alternate reply');
         await sheet.getByText('Reply updated.', { exact: true }).waitFor();
         await close();
         const baseline = await selected();

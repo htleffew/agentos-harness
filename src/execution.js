@@ -1,6 +1,7 @@
 import { canUseProfiles, characterKey, ctx, listProfiles } from './st.js';
 import { settings, saveSettings } from './store.js';
 import { addLog, updateLog } from './log.js';
+import { historySourceMark } from './history-source.js';
 
 export const EXECUTION_OPERATIONS = Object.freeze({
     playerDraft: { label:'Generate my draft',preserveDraft:true },
@@ -139,7 +140,9 @@ export async function runAdditional(operation, { authorization, target, onReceip
     receipt.attempts = 1;
     receipt.outcome = 'running';
     publish(receipt,onReceipt);
-    const entry = record ? addLog({what:receipt.label,details:[`Additional model request · attempt 1 of 1.`, `Connection ${receipt.connection}.`]}) : null;
+    const reply=operation==='instructionCheck' && Number.isInteger(target?.id) && ctx().chat?.[target.id];
+    const entry = record ? addLog({what:receipt.label,details:[`Additional model request · attempt 1 of 1.`, `Connection ${receipt.connection}.`],
+        reply:reply && {scope:receipt.scope,index:target.id,fingerprint:historySourceMark(reply),swipe:Number(reply.swipe_id || 0)}}) : null;
     try {
         const value = await dispatch({profileId:receipt.profileId,receipt});
         if (!preserveDraft && receipt.scope!==executionScope()) {

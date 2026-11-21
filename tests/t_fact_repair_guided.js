@@ -92,7 +92,7 @@ function record(reply, world) {
         await sheet.getByLabel('Your direction',{exact:true}).fill('The gate is closed; let the captain sound relieved.');
         H.resetLog();
         H.mode({fail:true,reply:'The gate is closed. The captain lets out a breath.'});
-        await sheet.getByRole('button',{name:/^Generate swipe/}).tap();
+        await sheet.getByRole('button',{name:/^Generate alternate reply/}).tap();
         const retry = sheet.getByRole('button',{name:/Retry with the same directions/});
         await retry.waitFor({timeout:30000});
         state = await H.memory(page);
@@ -126,7 +126,7 @@ function record(reply, world) {
         assert.equal(H.fact(regenerated.effective,'Courtyard'),'The courtyard lies beyond the tower.');
         assert.equal(H.fact(regenerated.effective,'Pier'),undefined);
         assert.equal(H.fact(regenerated.physical,'Compass'),'The compass points north.');
-        const originalSelector = sheet.getByLabel('Selected swipe',{exact:true});
+        const originalSelector = sheet.getByLabel('Selected version',{exact:true});
         await originalSelector.selectOption('0');
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1).swipe_id===0);
         await sheet.getByText(/swipe 1 · revision/).first().waitFor();

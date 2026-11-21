@@ -60,7 +60,7 @@ const L=require('./lib.js');
             return {link:link.title,invalid:bad.title};
         },{base:L.BASE,set,nonce});
         await family('Steer the next reply');
-        await click('Browse all');
+        await click('Browse directions');
         await sheet.getByRole('searchbox',{name:'Search quick actions'}).fill(set);
         assert.equal(await sheet.getByRole('button',{name:'Unavailable disabled '+nonce,exact:true}).isDisabled(),true);
         await sheet.getByText('Disabled in this source book',{exact:true}).first().waitFor();

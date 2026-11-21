@@ -74,15 +74,15 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
         await click(page, 'Write a chapter now');
         await page.waitForFunction(() => [...document.querySelectorAll('#ri_root .ri-section-title')].some(x => /^The story so far \(2\)/.test(x.textContent)), null, { timeout: 15000 });
         ch = await chapters(page);
-        const ui = await page.evaluate(() => ({ chips: [...document.querySelectorAll('#ri_root .ri-chip')].map(c => c.textContent), fields: [...document.querySelectorAll('#ri_root .ri-field .ri-label')].map(x => x.textContent.trim()) }));
-        assert(ch[1].name === 'The walk' && ch[1].span.from === 4 && ch[1].span.to === 4 && ui.chips.includes('Replies 4 to 4') && ui.fields.includes('Keep the story so far in chapters'), 'panel: "Write a chapter now" summarises everything since the last chapter, and the tab lists the chapters with the replies they cover');
+        const ui = await page.evaluate(() => ({ chips: [...document.querySelectorAll('#ri_root .ri-chip')].map(c => c.textContent), sections: [...document.querySelectorAll('#ri_root .ri-section-title')].map(x => x.textContent.trim()) }));
+        assert(ch[1].name === 'The walk' && ch[1].span.from === 4 && ch[1].span.to === 4 && ui.chips.includes('Replies 4 to 4') && ui.sections.includes('Chapters and transfer'), 'panel: "Write a chapter now" summarises everything since the last chapter, and the tab lists the chapters with the replies they cover');
         await click(page, 'Write a chapter now');
         await page.waitForFunction(() => /No uncovered filed replies are ready for a chapter/.test(document.querySelector('#ri_root')?.textContent || ''), null, { timeout: 8000 });
         assert(true, 'panel: when every reply is already in a chapter, it says so and makes no request');
         await page.screenshot({ path: '/tmp/s54_world.png' });
 
         // SillyTavern's own summary
-        const warn = await page.evaluate(async (B) => { const c = globalThis.SillyTavern.getContext(); const C = await import(`${B}/src/chapters.js`); const before = C.otherSummaryOn(); c.extensionPrompts['1_memory'] = { value: 'A summary from SillyTavern.', position: 0, depth: 0 }; const P = await import(`${B}/src/ui/panel.js`); P.app.render(); await new Promise(r => setTimeout(r, 200)); const shown = /SillyTavern's own Summarize is also adding a summary/.test(document.querySelector('#ri_root').textContent); delete c.extensionPrompts['1_memory']; return { before, shown }; }, L.BASE);
+        const warn = await page.evaluate(async (B) => { const c = globalThis.SillyTavern.getContext(); const C = await import(`${B}/src/chapters.js`); const before = C.otherSummaryOn(); c.extensionPrompts['1_memory'] = { value: 'A summary from SillyTavern.', position: 0, depth: 0 }; const P = await import(`${B}/src/ui/panel.js`); P.app.render(); await new Promise(r => setTimeout(r, 200)); const shown = /SillyTavern[’']s own Summarize is also adding a summary/.test(document.querySelector('#ri_root').textContent); delete c.extensionPrompts['1_memory']; return { before, shown }; }, L.BASE);
         assert(!warn.before && warn.shown, 'warning: when SillyTavern\'s own summary is also in the prompt, the tab says so');
 
         // ----- D. older chapters are combined when they pile up

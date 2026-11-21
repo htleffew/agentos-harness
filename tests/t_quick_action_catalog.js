@@ -33,7 +33,7 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
         await composer.fill('Half a player reply');
         await composer.evaluate(node => node.setSelectionRange(5, 8));
         await tap('Quick actions');
-        await tap('Manage');
+        await tap('Manage quick actions');
 
         await tap('Add nudge');
         await sheet.getByLabel('Button name', { exact: true }).fill(cueName);
@@ -95,7 +95,7 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
         assert.equal(await sheet.getByRole('button', { name: 'Edit Original title 15 ' + suffix, exact: true }).count(), 1);
         assert.equal(await sheet.getByRole('button', { name: 'Edit Original title 19 ' + suffix, exact: true }).count(), 0);
 
-        await tap('Browse all');
+        await tap('Browse directions');
         await sheet.getByLabel('Search quick actions', { exact: true }).fill(sourceName);
         await sheet.getByText('Versions and ingredients', { exact: true }).tap();
         await tap('Version 2');

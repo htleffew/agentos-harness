@@ -41,16 +41,16 @@ The extension requests and files generated story state only under the applicable
 
 ## Quick actions
 
-Open **Quick actions** beside the chat composer. The same sheet opens for a specific reply from **Guide a swipe** or **Continue this reply** below that reply. Use one active host preset. The companion and other presets enter through the same controls.
+Open **Quick actions** beside the chat composer. The same sheet opens for a specific reply from **Generate an alternate reply** or **Continue this reply** below that reply. Use one active host preset. The companion and other presets enter through the same controls.
 
 | Action | What it does | Requests |
 | --- | --- | --- |
 | **Steer the next reply** | Pick a saved direction, browse or roll from sources, or enter your own. Queue private guidance, visible OOC, or a required direction. Review exact wording in **Pending directions** before sending a player message. | Uses the next ordinary reply. |
-| **Guide a swipe** | Select the reply and swipe, add optional cues or wording, and generate an alternate. **Fix world facts** checks supported source evidence. Use **Corrections** for manual edits, source history and Undo. | The latest supported reply uses a host swipe. An older reply uses one disclosed helper request. The local fact audit uses code. |
+| **Generate an alternate reply** | Select the reply and swipe, add optional cues or wording, and generate an alternate. **Fix world facts** checks supported source evidence. Use **Corrections** for manual edits, source history and Undo. | The latest supported reply uses a host swipe. An older reply uses one disclosed helper request. The local fact audit uses code. |
 | **Continue this reply** | Append to the selected swipe and use **Undo continuation** to recover the earlier text and effects. | The latest supported reply uses a host continuation. An older reply uses one disclosed helper request. |
 | **Draft my reply** | Inspect the impersonation prompt, draft your own contribution, or request three playable choices. Edit a result before placing it in the composer. **Recover previous composer draft** restores the prior text and selection. **Recent drafts and choices** reopens earlier results from this chat for editing. | One request per draft or choice batch. Expanding a choice is a separate request. Editing, restoring and using wording run in code. |
 
-Use **Browse all** for exact versions, scoped rolls, and source owners. Pin directions in a chat for quick access. **Customize** opens selection mode so a favorite can be combined with additional cues and free text. **Manage** opens button editing, ordering, named variations, import and export, restore, and Undo. A reviewed import can translate supported Keel definitions into extension actions. Other imported material remains available as data. Queue entries keep the wording chosen when queued. [Quick actions handoff](docs/quick-replies-implementation.md)
+Use **Browse directions** for exact versions, scoped rolls, and source owners. Pin directions in a chat for quick access. **Customize** opens selection mode so a favorite can be combined with additional cues and free text. **Manage quick actions** opens button editing, ordering, named variations, import and export, restore, and Undo. A reviewed import can translate supported Keel definitions into extension actions. Other imported material remains available as data. Queue entries keep the wording chosen when queued. [Quick actions handoff](docs/quick-replies-implementation.md)
 
 An ordinary reply consumes its bound directions once. If it fails, open **Pending directions** and retry that reply. The original player message keeps one copy of any visible OOC and a new composer draft stays available. The reply receipt shows which required directions were sent and whether it found matching prose evidence. Changing the accepted swipe also changes the evidence and story effects that are active.
 
@@ -61,6 +61,8 @@ The latest six story replies form the default editable memory window. They contr
 Chat Completion and Text Completion support queued delivery when the host exposes the outgoing player message and the assembled prompt. Text Completion reports retained prose where the host lacks request-local history replacement. Use **Choose JSON file** to open the host picker or **Paste JSON instead** for library imports. Native file picking and downloads depend on the browser or app. Preset restore identifies the stored source as an extension snapshot, a supplied original file, or a host default when exposed. See the verification record for device, provider and host coverage. [Quick actions verification](docs/quick-replies-verification.md)
 
 ## Interface map
+
+The first panel visit opens **Current State** for an active chat or **Preset & Extension** without one. The page heading shows where you are. **Find a tool** searches task names and common terms such as “fix a fact,” “swipe,” and “connection.” **Back** returns to the previous task or to the chat control that opened the panel. From **Review this reply**, the panel opens that reply’s current version.
 
 | Group | Page | Use it for |
 | --- | --- | --- |
@@ -318,7 +320,7 @@ The audit trail records the accepted correction and its affected sources. A corr
 
 ### Guide a swipe
 
-Open **Guide a swipe** on the newest eligible model reply. Enter a direction to fix something, introduce a fact, change an event, adjust the prose, change pacing, or try a different story direction. Select **Generate guided swipe**. The one-time direction is saved in the replacement’s receipt. Existing swipes stay accessible.
+Open **Generate an alternate reply** on the newest eligible model reply. Enter a direction to fix something, introduce a fact, change an event, adjust the prose, change pacing, or try a different story direction. Select **Generate guided swipe**. The one-time direction is saved in the replacement’s receipt. Existing swipes stay accessible.
 
 Before generation, the extension reverses the outgoing reply’s tracked world changes when those changes can be safely undone. The replacement sees the earlier accepted story and supported protected corrections. Use **Repeat the previous turn’s orders** if you want the same random instruction or event again. Direction guidance itself applies only to the requested replacement. The normal checker may still run if applicable. If generation is canceled or fails, the extension attempts to restore the outgoing state. A conflicting intervening edit can require review. When a manual change must be kept, use the offered review and preservation controls. Start the new swipe from the latest saved swipe if prompted. [Guided generation UI](src/ui/guided.js) · [Generation transactions](src/engine.js) · [World rollback](src/worldflow.js)
 
@@ -563,7 +565,7 @@ Prompt editors expose the relevant prose, system message, and writer guidance by
 | Speaker attribution and action-check wording | **Characters → Dialogue Colors** and **Direction → Action Checks**, respectively. |
 | Planning, prose-first handling, commentary voice, Roast formatting and feedback | **Setup → Reply Display**. |
 | Correction tracing, stored correction canon, and regeneration | **Story → Corrections**, or the correction disclosure on an eligible reply. |
-| Guided swipe framing | Beneath an eligible reply in **Guide a swipe**, or under **Setup → Settings**. |
+| Guided swipe framing | Beneath an eligible reply in **Generate an alternate reply**, or under **Setup → Settings**. |
 | Legacy scene, character-state instructions, dice, and separate compliance checker | **Setup → Settings**, according to the active workflow. |
 
 ### Macros, actor and target choices, and AI authoring
@@ -604,7 +606,7 @@ Open **Review → What Was Sent** and expand a reply. Receipts are tied to the a
 | **Exact story guidance** | The stored extension wording when **Keep exact story guidance** was enabled and assembly was observed. |
 | **Story world changes** | File changes, evidence or status where recorded, and **Undo these changes** when reversible. |
 | **Send again / Do not send again** | Controls an outstanding order or retires a waiting reminder. |
-| **Pick again and write a new reply** | Replaces the reply with new applicable random selections. Use **Guide a swipe** for user-written direction. |
+| **Pick again and write a new reply** | Replaces the reply with new applicable random selections. Use **Generate an alternate reply** for user-written direction. |
 | **Check this reply again** | Runs the checker for eligible instructions again. This is an auxiliary model request. |
 
 **Setup → Settings → Show what was sent under each reply** has an Off setting, a display-only option, and a legacy saved-text option. Use display-only for user-facing receipts with no additional response prose. The saved-text option uses a marked block and may require the host-side exclusion described in its UI. The compact **World Info under replies** setting in Reply Display is independent of this larger receipt. All receipts can be inspected through Review when available. [Receipt rendering and actions](src/ui/sent.js) · [Receipt generation](src/engine.js)
@@ -713,6 +715,7 @@ A native book contains data the host can export. The chat file contains the link
 
 ## Source and verification
 
+- The [extension-wide UX specification](docs/extension-ux-spec.md) tracks proposed navigation, interaction and accessibility improvements across chat and the extension panel.
 - [`src/engine.js`](src/engine.js), [`src/st.js`](src/st.js), and [`src/components.js`](src/components.js) cover host events, request assembly, and component selection.
 - [`src/v10.js`](src/v10.js), [`src/state.js`](src/state.js), [`src/story-clock.js`](src/story-clock.js), and [`src/worldflow.js`](src/worldflow.js) cover story state, structured validation, time, and world transactions.
 - [`src/chapters.js`](src/chapters.js), [`src/recall.js`](src/recall.js), [`src/book-triggers.js`](src/book-triggers.js), and [`src/context-budget.js`](src/context-budget.js) cover memory and recall.

@@ -1,7 +1,7 @@
 import { DEFAULT_NPC_AVOID } from '../npc-names.js';
 import { DEFAULT_STORY_AVOID } from '../defaults.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
-import { executionPreview, executionReceipt } from '../execution.js';
+import { executionPreview, executionReceipt, executionScope } from '../execution.js';
 import { presetWorkbench } from './preset-workbench.js';
 import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
@@ -10,6 +10,7 @@ import { impersonationInspector } from './impersonation.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
 import { renderChatBooks } from './chat-books.js';
+import { renderReplyDisplayOptions } from './settings.js';
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
@@ -22,7 +23,7 @@ import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES, writingProfileText, SCENE_CHECKS, sceneCheckId, hostSceneChecks, avoidPhrases,
     isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText, rowsForWorld,
-    readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, displayColor, baseWorld,
+    readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, chooseAutomaticSpeakerColor, displayColor, baseWorld,
 } from '../v10.js';
 
 const options = names => names.map(name => ({ value:name, label:name }));
@@ -156,14 +157,14 @@ function renderOpening(local, redraw) {
     }
     refreshExecution();
     const available = (ctx().chat || []).length <= 1 && !ctx().chat?.[0]?.extra?.[KEY]?.v10;
-    return section('Opening setup',profileEditor(local,'opening','Opening message guidance',OPENING),
-        promptGroup(['systemOpening','readGreeting','openingPlayerThoughts','sceneOpening'],'Customize opening and greeting prompts'),
-        available ? [scoped('Greeting source',card),direction,
+    return section('Opening setup',available ? [scoped('Greeting source',card),direction,
             h('label',{class:'ri-row'},h('input',{type:'checkbox',checked:local.openingPlayerThoughts===true,onchange:event=>{
                 local.openingPlayerThoughts=event.currentTarget.checked;saveChatState();
             }}),'Allow the generated opening to write my character’s internal thoughts'),
             h('div',{class:'ri-row'},executionAction(button('Generate opening',event=>run(event,false))),executionAction(button('Read state from selected greeting',event=>run(event,true)))),execution,
-            scoped('Review or edit opening',area), accept,state] : h('p',{class:'ri-help'},'Opening setup is available at the start of a chat.'));
+            scoped('Review or edit opening',area), accept,state] : h('p',{class:'ri-help'},'Opening setup is available at the start of a chat.'),
+        profileEditor(local,'opening','Opening message guidance',OPENING),
+        promptGroup(['systemOpening','readGreeting','openingPlayerThoughts','sceneOpening'],'Customize opening and greeting prompts'));
 }
 
 function renderDice(local, redraw) {
@@ -255,8 +256,7 @@ function reusableBookControls(local, redraw, memory, app) {
                         const name = await copyGuidelinesToInstructions(book.name);
                         toast('success','Created an inactive instruction set. Review it before turning it on.');
                         if (prefs() === local) {
-                            app.tab = 'instructions';
-                            app.go({ view:'set', name });
+                            await app.openPage('instructions',{editor:{view:'set',name},focusPage:true});
                         }
                     } catch (error) { problem(error); }
                     finally { control.disabled = false; }
@@ -419,17 +419,33 @@ function editRecord(original, save, cancel, kinds) {
     return root;
 }
 
-function renderRecords(redraw, title, kinds) {
+function renderRecords(redraw, title, kinds, app) {
     const list = h('div');
     const editor = h('div');
-    const save = async (value,options)=>{await saveV10Record(value,options);redraw();};
+    const scope=executionScope();
+    const key=JSON.stringify([scope,title]);
+    const filters=app.recordFilters ||= new Map();
+    const status=h('p',{role:'status',class:'ri-help'},'Loading records…');
+    const search=textInput(filters.get(key) || '',value=>{
+        filters.set(key,value);
+        filter();
+    },{type:'search','aria-label':`Search ${title.toLowerCase()}`,placeholder:'Search by name, wording or status'});
+    let records=[];
+    const save = async (value,options)=>{
+        if (scope!==executionScope()) throw new Error('The chat changed. Open this record in its own chat.');
+        await saveV10Record(value,options);
+        if (scope===executionScope()) redraw();
+    };
     const open = async record=>{
         if (editor.querySelector('[data-ri-dirty]') && !await confirmBox('Discard your unsaved record edits?')) return;
-        editor.replaceChildren(editRecord(record,save,()=>editor.replaceChildren(),kinds));
+        if (scope!==executionScope()) return;
+        const form=editRecord(record,save,()=>editor.replaceChildren(),kinds);
+        editor.replaceChildren(form);
+        editor.scrollIntoView({block:'nearest'});
+        editor.querySelector('input,select,textarea')?.focus({preventScroll:true});
     };
-    list.append(h('p',{class:'ri-help'},'Loading…'));
     rowsForWorld().then(rows=>{
-        const records=rows.map(readRecord).filter(Boolean);
+        records=rows.map(readRecord).filter(Boolean);
         if (kinds.includes('profile')) {
             const sources = portrayalSources(rows);
             for (const [index,record] of records.entries()) if (record.kind==='profile') {
@@ -442,18 +458,25 @@ function renderRecords(redraw, title, kinds) {
                 records.push({kind:'profile',id,subject:baseline.name,text:baseline.text || baseline.voice,voice:baseline.voice,aliases:baseline.aliases,baseline});
             }
         }
-        const shown = records.filter(record=>kinds.includes(record.kind));
+        records=records.filter(record=>kinds.includes(record.kind));
+        filter();
+    }).catch(error=>{status.textContent=error.message;});
+    function filter() {
+        const words=search.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        const shown=records.filter(record=>words.every(word=>[record.id,record.subject,record.other,record.text,record.status,
+            record.protected ? 'Protected' : '',entryLabel(record.kind)].join(' ').toLowerCase().includes(word)));
+        status.textContent=records.length ? `Showing ${shown.length} of ${records.length} records.` : 'No records yet.';
         list.replaceChildren(...(shown.length ? shown.map(record=>h('details',{class:'ri-card ri-tight'},
-            h('summary',{},`${entryLabel(record.kind)} · ${record.subject || record.id}`),
+            h('summary',{},[entryLabel(record.kind),record.subject || record.id,record.other,record.status,record.protected && 'Protected'].filter(Boolean).join(' · ')),
             h('p',{},record.text),record.voice && h('p',{class:'ri-help'},`Voice · ${record.voice}`),
             record.baseline?.sources?.length && h('p',{class:'ri-help'},`Sources · ${record.baseline.sources.join(' · ')}`),
             record.baseEntry && record.baseRelation==='contradicts' && h('p',{class:'ri-note'},'Base World conflict. This correction applies in this chat.'),
-            h('p',{class:'ri-help'},[record.id,record.basis,record.status,record.protected?'Protected':'',record.source==='user'?'Edited by player':record.quote].filter(Boolean).join(' · ')),
+            h('p',{class:'ri-help'},['This chat',record.id,record.basis,record.source==='user'?'Edited by player':record.quote].filter(Boolean).join(' · ')),
             button('Edit',()=>open(record))))
-            : [h('p',{class:'ri-help'},'No records yet.')]));
-    }).catch(error=>list.replaceChildren(h('p',{role:'status'},error.message)));
+            : records.length ? [h('p',{class:'ri-help'},'No records match the search.')] : []));
+    }
     const canAdd = kinds.some(kind=>effectiveModules()[KIND_MODULE[kind]]);
-    return section(title,list,canAdd ? button('Add record',()=>open(null)) : null,editor);
+    return section(title,h('div',{class:'ri-row'},search,canAdd ? button('Add record',()=>open(null),{kind:'primary'}) : null),status,editor,list);
 
 }
 
@@ -463,14 +486,19 @@ function renderSpeakers(local) {
         Object.entries(local.speakers || {}).map(([key,speaker])=>{
             const picker=h('input',{type:'color',value:speaker.color,'aria-label':`Color for ${speaker.name}`});
             const status=h('span',{class:'ri-help'});
+            const sample=h('q',{class:'ri-speaker-sample'},'I’m ready when you are.');
             const update=()=>{
                 const theme = target && displayColor(speaker.color,target);
                 const rendered = theme || displayColor(speaker.color,null);
                 status.textContent=`Saved ${speaker.color}${rendered && rendered!==speaker.color ? ` · Displayed ${rendered}` : ''}${theme || !target ? '' : ' · Contrast background applied'}`;
+                sample.style.color=displayColor(speaker.color,null) || 'inherit';
             };
             update();
             picker.addEventListener('input',()=>{try {setSpeakerColor(key,picker.value);update();refreshDialogue();}catch(error){problem(error);}});
-            return h('label',{class:'ri-row'},picker,speaker.name,status);
+            return h('div',{class:'ri-card ri-tight'},h('div',{class:'ri-row'},h('label',{},picker,speaker.name),sample),status,
+                h('div',{class:'ri-row'},button('Use automatic color',()=>{
+                    try {picker.value=chooseAutomaticSpeakerColor(key);update();refreshDialogue();} catch(error) {problem(error);}
+                },{kind:'ghost'})));
         }), !Object.keys(local.speakers || {}).length ? h('p',{class:'ri-help'},'Characters appear here as dialogue or thoughts identify them.') : null);
 }
 
@@ -490,8 +518,8 @@ const MODULE_HELP = {
 };
 function presetDetails(preset, app) {
     const prompts = activeHostPrompts();
-    return section('Host preset',
-        h('p',{},preset ? `Active preset: ${preset}` : 'To select the companion, open API Connections and choose Chat Completion. Then open AI Response Configuration and select Roleplay Instructions V10. If it is missing, import the companion preset JSON there.'),
+    return section('Active host preset',
+        h('p',{},preset ? `SillyTavern or TauriTavern preset · ${preset}` : 'Select a preset in the host’s AI Response Configuration. Roleplay Instructions V10 is the companion for Chat Completion.'),
         isCompanionPreset(preset) ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
         prompts ? presetWorkbench(preset,app,key=>key==='style' ? profileEditor(prefs(),'style','Live writing guidance',defaultWritingGuidance(),false)
             : key==='preflight' ? profileEditor(prefs(),'preflight','Scene check guidance',PREFLIGHT,false) : null) : h('p',{class:'ri-help'},'This host connection does not expose an ordered list of preset prompt blocks.'),
@@ -626,7 +654,10 @@ function memorySettings(app, redraw) {
 export function renderV10(body, app, page) {
     if (!isChatOpen()) {
         if (page==='v10') body.append(presetDetails(activePreset(),app));
-        if (page==='display') body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
+        if (page==='display') {
+            body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
+            renderReplyDisplayOptions(body,app);
+        }
         return;
     }
     const local = prefs();
@@ -652,7 +683,7 @@ export function renderV10(body, app, page) {
     if (page === 'books') {
         if (app.loreTarget) {
             const target=app.loreTarget;
-            const back = () => app.openPage(target.fromReview ? 'sent' : 'books');
+            const back = () => app.back();
             body.append(section('World Info entry',receiptEntryEditor(target,back,(name,entry)=>
                 reusableAssignments(local).some(book=>book.name===name && book.role==='guidelines') && !memoryOnly()
                     ? guidelineScope(local,name,entry) : null),
@@ -693,7 +724,12 @@ export function renderV10(body, app, page) {
             body.append(replyScreening());
             return;
         }
-        if (page==='display') body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
+        if (page==='display') {
+            renderReplyDisplayOptions(body,app,{legacy:!memoryOnly()});
+            if (memoryOnly()) body.append(h('p',{class:'ri-help'},'The active host preset supplies reply cards in Memory only.'));
+            body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
+            return;
+        }
         body.append(h('div',{class:'ri-note'},
             h('p',{},'Choose the Structured story workflow to use this page.'),
             button('Open workflow settings',()=>app.openPage('v10'),{kind:'ghost'})));
@@ -707,21 +743,22 @@ export function renderV10(body, app, page) {
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
                 chatFlag('showRoast','Show Roast cards','Show the saved reader reaction beneath its reply. Choose the commentator voice below.',true),
-                field('Story state under replies','The collapsed console shows saved scene, character and world records available at that reply.',
+                field('Story state under replies','Extension-wide. The console shows saved scene, character and world records for the reply.',
                     select([{value:'auto',label:'Auto'},{value:'always',label:'Always'},{value:'off',label:'Off'}],settings().scene.card,value=>{
                         settings().scene.card=value;saveSettings();redraw();
                     },{'aria-label':'Story state under replies'})),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.'),
                 promptGroup(['planGuidance','proseFirst'],'Customize planning and prose prompts'),
                 roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback')));
+            renderReplyDisplayOptions(body,app);
             break;
         case 'opening': body.append(renderOpening(local,redraw)); break;
-        case 'facts': body.append(promptGroup(['structuredFacts','structuredRepair'],'Customize fact and repair prompts'),
-            renderRecords(redraw,'Chat Facts',['fact'])); break;
-        case 'plots': body.append(promptGroup(['autonomousEvent','optionalOpportunity','structuredSchedule','structuredOutcomes','lockedPayoff','checkPlot'],'Customize plot and event prompts'),
-            renderRecords(redraw,'Plot Records',PLOT_KINDS)); break;
-        case 'portrayal': body.append(profileEditor(local,'avoidNpcNames','New NPC names to avoid',DEFAULT_NPC_AVOID,true,true),promptGroup(['structuredPortrayal','structuredKnowledge','checkKnowledge'],'Customize portrayal and knowledge prompts'),
-            renderRecords(redraw,'Portrayal & Knowledge',['profile','knowledge'])); break;
+        case 'facts': body.append(renderRecords(redraw,'Chat Facts',['fact'],app),
+            promptGroup(['structuredFacts','structuredRepair'],'Customize fact and repair prompts')); break;
+        case 'plots': body.append(renderRecords(redraw,'Plot Records',PLOT_KINDS,app),
+            promptGroup(['autonomousEvent','optionalOpportunity','structuredSchedule','structuredOutcomes','lockedPayoff','checkPlot'],'Customize plot and event prompts')); break;
+        case 'portrayal': body.append(renderRecords(redraw,'Portrayal & Knowledge',['profile','knowledge'],app),
+            profileEditor(local,'avoidNpcNames','New NPC names to avoid',DEFAULT_NPC_AVOID,true,true),promptGroup(['structuredPortrayal','structuredKnowledge','checkKnowledge'],'Customize portrayal and knowledge prompts')); break;
         case 'emotion': {
             if (modules.emotions) {
                 const tuning=local.emotion ||= {};
@@ -731,11 +768,11 @@ export function renderV10(body, app, page) {
                 body.append(section('Emotion tuning',h('div',{class:'ri-grid2'},dial('baseline','Baseline',0,10,3),dial('persistence','Persistence in replies',0,40,3),dial('recovery','Recovery per reply',0,10,1),
                     scoped('Sensitivity',select(options(['flexible','subtle','responsive']),tuning.sensitivity || 'flexible',value=>{tuning.sensitivity=value;saveChatState();})))));
             }
-            body.append(promptGroup(['emotionSensitivity','checkEmotion','structuredEmotions','structuredRelationships'],'Customize emotion and relationship prompts'),
-                renderRecords(redraw,'Emotions & Relationships',['emotion','relationship']));
+            body.append(renderRecords(redraw,'Emotions & Relationships',['emotion','relationship'],app),
+                promptGroup(['emotionSensitivity','checkEmotion','structuredEmotions','structuredRelationships'],'Customize emotion and relationship prompts'));
             break;
         }
-        case 'speakers': body.append(promptGroup(['speakerGuidance'],'Customize speaker attribution prompt'),renderSpeakers(local)); break;
+        case 'speakers': body.append(renderSpeakers(local),promptGroup(['speakerGuidance'],'Customize speaker attribution prompt')); break;
         case 'writing': {
             const hostChecks = hostSceneChecks();
             body.append(section('Writing profile',
@@ -760,7 +797,9 @@ export function renderV10(body, app, page) {
             break;
         }
         case 'checks': body.append(promptGroup(['resolvedActionGuidance'],'Customize action check prompt'),
-            modules.dice ? renderDice(local,redraw) : h('p',{class:'ri-note'},'Turn on the Explicit action checks module in Setup → Preset & Extension.')); break;
+            modules.dice ? renderDice(local,redraw) : h('div',{class:'ri-note'},
+                h('p',{},'Turn on Explicit action checks for this chat.'),
+                button('Action check settings',()=>app.openSetting('v10','ri-module-dice','chat'),{kind:'ghost'}))); break;
     }
 }
 

@@ -17,7 +17,7 @@ const fixtures = {
     L.sync();
     const {browser,page,errors} = await L.open({width:390,height:740,hasTouch:true,isMobile:true});
     const evidence = { host:'SillyTavern 1.19.0', viewport:'390 × 740, touch emulation', provider:'Local Chat Completion mock', captures:[] };
-    const sheet = page.getByRole('dialog',{name:/Quick actions|Steer the next reply|Guide a swipe|Continue this reply|Draft my reply|Pending directions|Add nudge|Browse all|Manage quick actions/});
+    const sheet = page.getByRole('dialog',{name:/Quick actions|Steer the next reply|Generate an alternate reply|Continue this reply|Draft my reply|Pending directions|Add nudge|Browse directions|Manage quick actions/});
     const composer = page.locator('#send_textarea');
     const tap = (name,scope=sheet) => scope.getByRole('button',{name,exact:typeof name==='string'}).first().tap();
     const open = () => tap('Quick actions',page);
@@ -74,7 +74,7 @@ const fixtures = {
         await composer.fill('An unsent draft to keep.');
         await composer.evaluate(input=>input.setSelectionRange(3,9));
         await open();
-        await tap('Browse all');
+        await tap('Browse directions');
         await close();
         assert.equal(await composer.inputValue(),'An unsent draft to keep.');
         assert.deepEqual(await composer.evaluate(input=>[input.selectionStart,input.selectionEnd]),[3,9]);
@@ -215,9 +215,9 @@ const fixtures = {
 
         L.mode({reply:'She tests the latch with the edge of her sleeve.'});
         L.resetLog();
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Guide a swipe',exact:true}).tap();
+        await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
         await direct(fixtures.swipe);
-        await tap('Generate swipe');
+        await tap('Generate alternate reply');
         await sheet.getByText('Reply updated.',{exact:true}).waitFor({timeout:20000});
         assert.equal(record('QACT-04: reply-level guided swipe').length,1);
         assert.match(L.text(L.requests()[0]),/QASWIPE/);
@@ -293,12 +293,12 @@ const fixtures = {
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chat.at(-2).mes.split('OAIRETRY').length-1),1);
         await close();
         for (const [action,reply] of [['Keep original roll','She rechecks the chain.'],['Reroll d20','She leaves the chain loose.']]) {
-            await page.locator('#chat .last_mes').getByRole('button',{name:'Guide a swipe',exact:true}).tap();
+            await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
             await sheet.getByText('Action roll',{exact:true}).tap();
             await tap(action);
             L.mode({reply});
             L.resetLog();
-            await tap('Generate swipe');
+            await tap('Generate alternate reply');
             await sheet.getByText('Reply updated.',{exact:true}).waitFor({timeout:20000});
             const sent=record('QACT-ROLL: '+action);
             const roll=await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.guided.roll);
@@ -325,7 +325,7 @@ const fixtures = {
         const set='Reanchor QA '+Date.now();
         await L.makeSet(page,set,[{name:'Reanchor',chance:100,versions:['A1','A2','A3','A4','A5']}]);
         await family('Steer the next reply');
-        await tap('Browse all');
+        await tap('Browse directions');
         await sheet.getByLabel('Search quick actions',{exact:true}).fill(set);
         await sheet.getByText('Versions and ingredients',{exact:true}).tap();
         L.resetLog();

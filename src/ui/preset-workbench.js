@@ -35,7 +35,7 @@ export function presetWorkbench(preset,app,profile) {
     const context=keyFor();
     if (app.presetWorkspace?.context!==context) app.presetWorkspace={context,drafts:new Map(),matches:[]};
     const ui=app.presetWorkspace;
-    const details=h('details',{class:'ri-card ri-preset-workbench',open:ui.open});
+    const details=h('details',{id:'ri-preset-workbench',class:'ri-card ri-preset-workbench',open:ui.open});
     const body=h('div');
     const status=h('p',{class:'ri-help',role:'status'},ui.message || '');
     const redraw=(element=document.activeElement)=>{

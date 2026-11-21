@@ -21,6 +21,8 @@ import { writeEvent, readEvent } from '../events.js';
 import { toast } from '../st.js';
 import { settings } from '../store.js';
 import { ctx, KEY, isChatOpen, isReply, loadBook } from '../st.js';
+import { guidedTarget } from '../guided-context.js';
+import { executionScope } from '../execution.js';
 
 const KIND = { new: 'New', continuing: 'Kept sending', resend: 'Sent again', repeat: 'New' };
 
@@ -59,9 +61,9 @@ function partRows(it, isLast, withButtons) {
     }));
 }
 
-async function editDirectionEntry(set, uid, book) {
+async function editDirectionEntry(set, uid, book, trigger) {
     try {
-        const chat = ctx().getCurrentChatId?.();
+        const scope=executionScope();
         if (!set && book) {
             const entry = (await loadBook(book))?.entries?.[uid];
             if (entry) set = setOfEntry({...entry,world:book});
@@ -71,15 +73,13 @@ async function editDirectionEntry(set, uid, book) {
         const {kind} = setInfo(set);
         const data = await loadSet(set);
         const entry = data && entriesOf(data,set).find(item=>String(item.uid)===String(uid));
-        if (ctx().getCurrentChatId?.()!==chat) return;
+        if (executionScope()!==scope) return;
         if (!entry) throw new Error('This entry is no longer in its set.');
         const {app} = await import('./panel.js');
-        if (!await app.openPage(kind) || ctx().getCurrentChatId?.()!==chat) return;
-        if (kind==='instructions') app.go({view:'edit',name:set,draft:readInstruction(entry)});
-        else {
-            app[kind==='events' ? 'eroute' : 'sroute'] = {view:'edit',name:set,draft:readEvent(entry,setName(set)),open:{}};
-            app.render();
-        }
+        const editor=kind==='instructions' ? {view:'edit',name:set,draft:readInstruction(entry)}
+            : {view:'edit',name:set,draft:readEvent(entry,setName(set)),open:{}};
+        const external=trigger && !app.root?.contains(trigger) && {label:'Back to chat',returnFocus:trigger};
+        if (!await app.openPage(kind,{editor,external,focusPage:true}) || executionScope()!==scope) return;
         if (!app.root.classList.contains('ri-expanded')) await app.setExpanded(true);
     } catch(error) { toast('error',error.message); }
 }
@@ -90,7 +90,7 @@ function itemRow(id, rec, it, index, withButtons) {
     const set = canonSet(it.set || it.world);
     const rule = it.recallRule;
     if (withButtons && Object.hasOwn(settings().sets,set) && setInfo(set).kind==='instructions' && it.uid!=null) {
-        buttons.push(button('Edit this instruction',()=>editDirectionEntry(set,it.uid),{kind:'ghost'}));
+        buttons.push(button('Edit this instruction',event=>editDirectionEntry(set,it.uid,undefined,event.currentTarget),{kind:'ghost'}));
     }
     if (withButtons && !it.noCheck && !('goalTask' in it)) {
         if (it.status === 'done') buttons.push(button('Undo done', () => undoDone(id, index), { kind: 'ghost', title: 'Mark it as not done, so it is sent again' }));
@@ -227,10 +227,19 @@ export function renderSent(body, app) {
         h('div', { class: 'ri-row ri-row-tight' }, button('Do not send these again', () => clearQueue(), { kind: 'ghost' }))));
     if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Instruction follow-through checks are off. Turn on “Check that it happened” in Settings to see Done and Overdue for required instructions here.'));
     // The way to carry the story into a new chat, kept where it is easy to find.
-    body.appendChild(h('div', { class: 'ri-row ri-row-tight' }, button('Start a new chapter in a new chat', () => {
-        import('./panel.js').then((P) => { P.app.tab = 'world'; P.app.wroute = { view: 'list', sheet: { kind: 'chapter', wish: '', busy: false, error: '', draft: null } }; P.app.render(); });
-    }, { kind: 'ghost', title: 'One AI request writes a detailed summary and a first message for you to change. A new chat then opens that carries the story on. This chat stays as it is.' })));
-    const records = recentRecords(30);
+    body.appendChild(h('div',{class:'ri-row ri-row-tight'},button('Start a new chapter in a new chat',()=>app.openPage('world',{
+        editor:{view:'list',sheet:{kind:'chapter',wish:'',busy:false,error:'',draft:null}},focusPage:true,
+    }),{kind:'ghost',title:'Review a chapter summary and opening before starting a new chat.'})));
+    const host=ctx(), requested=app.replyTarget;
+    const selected=requested && guidedTarget(requested.index);
+    const exact=selected && selected.chatId===requested.chatId && selected.fingerprint===requested.fingerprint && selected.swipe===requested.swipe;
+    if (requested && !exact) body.append(h('p',{class:'ri-note ri-note-warn',role:'status'},
+        'That reply or version changed. The receipts below reflect the current conversation.'));
+    const records=recentRecords(30);
+    if (exact && !records.some(row=>row.id===selected.index)) {
+        const rec=host.chat[selected.index]?.extra?.[KEY];
+        if (rec) records.unshift({id:selected.index,rec,isLast:selected.latest});
+    }
     if (!records.length) {
         body.appendChild(h('div', { class: 'ri-empty' }, 'No reply receipts yet. Receipts appear after the extension records a reply with story guidance, World Info, or other extension instructions.'));
         return;
@@ -238,9 +247,13 @@ export function renderSent(body, app) {
     let reply = 0;
     const labels = (ctx().chat || []).map((message,index)=>index && isReply(message) ? 'Reply '+(++reply) : 'Opening');
     records.forEach((r, i) => {
-        body.appendChild(foldCard(
-            [h('span', { class: 'ri-sent-title' }, labels[r.id]+(r.isLast ? ' (newest)' : '')), h('span', { class: 'ri-sent-sub' }, summaryLine(r.rec))],
-            recordBody(r.id, r.rec, r.isLast, true), { open: i === 0, cls: 'ri-sentcard' }));
+        const version=Number(host.chat[r.id]?.swipe_id || 0)+1;
+        const card=foldCard([
+            h('span',{class:'ri-sent-title'},labels[r.id]+(r.isLast ? ' (newest)' : '')),
+            h('span',{class:'ri-sent-sub'},`Version ${version} · ${summaryLine(r.rec)}`),
+        ],recordBody(r.id,r.rec,r.isLast,true),{open:exact ? selected.index===r.id : i===0,cls:'ri-sentcard'});
+        card.id=`ri-review-reply-${r.id}`;
+        body.append(card);
     });
 }
 
@@ -360,10 +373,10 @@ function loreEntryButton(entry, fromReview) {
     if (!entry.book) return null;
     const managed = entry.managedSet || ['Random Instructions','Random Story Events','Random Writing Style'].includes(entry.role);
     const label = managed ? 'Open in Direction' : 'View entry settings';
-    const control = button(label,async()=>{
-        if (managed) return editDirectionEntry(entry.managedSet,entry.uid,entry.book);
+    const control = button(label,async event=>{
+        if (managed) return editDirectionEntry(entry.managedSet,entry.uid,entry.book,event.currentTarget);
         const { app } = await import('./panel.js');
-        await app.openLoreEntry({...entry,fromReview});
+        await app.openLoreEntry({...entry,fromReview},event.currentTarget);
     },{kind:'ghost'});
     control.setAttribute('aria-label',`${label} for ${entry.title}`);
     return control;

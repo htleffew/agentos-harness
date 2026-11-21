@@ -30,6 +30,50 @@ export function clear(el) {
     return el;
 }
 
+const focusable = 'button, a[href], input, select, textarea, summary, [tabindex]';
+const controlName = node => node.getAttribute('aria-label') || node.getAttribute('title') ||
+    node.labels?.[0]?.textContent.trim() || node.textContent.trim();
+
+export function captureView(root) {
+    if (!root) return null;
+    const active = root.contains(document.activeElement) && document.activeElement;
+    const focus = active && {
+        id:active.id, tag:active.tagName, name:controlName(active), start:active.selectionStart,
+        end:active.selectionEnd, direction:active.selectionDirection,
+    };
+    if (focus) focus.index=[...root.querySelectorAll(focusable)]
+        .filter(node=>node.tagName===focus.tag && controlName(node)===focus.name).indexOf(active);
+    return {scroll:root.scrollTop,focus,folds:[...root.querySelectorAll('details')].map(node=>
+        [node.querySelector(':scope > summary')?.textContent.trim(),node.open])};
+}
+
+export function restoreView(root, view, fallback) {
+    if (!root || !view) return;
+    const folds=new Map();
+    for (const [name,open] of view.folds) {
+        if (!folds.has(name)) folds.set(name,[]);
+        folds.get(name).push(open);
+    }
+    for (const node of root.querySelectorAll('details')) {
+        const name=node.querySelector(':scope > summary')?.textContent.trim();
+        const states=folds.get(name);
+        if (states?.length) node.open=states.shift();
+    }
+    root.scrollTop=view.scroll;
+    const focus=view.focus;
+    if (!focus) {
+        fallback?.focus({preventScroll:true});
+        return;
+    }
+    const controls=[...root.querySelectorAll(focusable)];
+    const control=(focus.id && controls.find(node=>node.id===focus.id)) ||
+        controls.filter(node=>node.tagName===focus.tag && controlName(node)===focus.name)[focus.index];
+    if (control?.getClientRects().length && !control.disabled) {
+        control.focus({preventScroll:true});
+        if (focus.start!=null) control.setSelectionRange?.(focus.start,focus.end,focus.direction);
+    } else fallback?.focus({preventScroll:true});
+}
+
 export function button(label, onClick, { kind = '', title = '', disabled = false } = {}) {
     return h('button', { type: 'button', class: `ri-btn ${kind ? 'ri-btn-' + kind : ''}`, title, disabled, onclick: onClick }, label);
 }

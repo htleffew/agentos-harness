@@ -64,7 +64,7 @@ const L = require('./lib.js');
         await original.getByText('Review proposed edit',{exact:true}).click();
         await original.getByRole('checkbox',{name:/Apply edit/}).check();
         await panel.getByLabel('Regenerate the latest reply',{exact:true}).uncheck();
-        await panel.getByRole('button',{name:'Apply correction',exact:true}).click();
+        await panel.getByRole('button',{name:/^(Apply correction|Find and apply source edits|Repair facts and generate alternate)$/}).click();
         await panel.getByRole('status').filter({hasText:/Saved 4 source edits/}).waitFor();
         assert.equal(L.requests().length,1);
         const read = () => story(async ({base})=>{

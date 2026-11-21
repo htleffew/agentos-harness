@@ -27,7 +27,7 @@ function taskList(g, key, ui, redraw, rowExtras) {
     g[key].forEach((t, i) => {
         if (ui.editing === t.id) {
             let value = t.text;
-            const box = textInput(value, v => { value = v; }, { 'aria-label': key === 'steps' ? 'Edit one-time step' : 'Edit repeatable action' });
+            const box = textInput(value, v => { value = v; box.toggleAttribute('data-ri-dirty',v!==t.text); }, { 'aria-label': key === 'steps' ? 'Edit one-time step' : 'Edit repeatable action' });
             list.appendChild(h('div', { class: 'ri-version ri-version-editing' }, box, h('div', { class: 'ri-row ri-row-tight' },
                 button('Done', () => { if (value.trim()) { t.text = swapNames(value.trim()).text; saveGoals(); } ui.editing = ''; redraw(); }, { kind: 'primary' }),
                 button('Cancel', () => { ui.editing = ''; redraw(); }, { kind: 'ghost' }))));
@@ -35,12 +35,27 @@ function taskList(g, key, ui, redraw, rowExtras) {
         }
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: t.on, title: 'Tick to let it be sent', onchange: () => { t.on = tick.checked; saveGoals(); } });
         const extras = rowExtras(t);
-        list.appendChild(h('div', { class: 'ri-version' },
+        const move=(offset,label)=>button(label,()=>{
+            const next=i+offset;
+            [g[key][i],g[key][next]]=[g[key][next],g[key][i]];
+            saveGoals(); redraw();
+            const moved=document.getElementById(`ri-goal-${t.id}`);
+            (moved && [...moved.querySelectorAll('[data-ri-goal-move]:enabled')].find(control=>control.textContent===label) ||
+                moved?.querySelector('[data-ri-goal-move]:enabled'))?.focus({preventScroll:true});
+        },{kind:'ghost',disabled:!g[key][i+offset]});
+        const up=move(-1,'Move up'),down=move(1,'Move down');
+        up.dataset.riGoalMove=down.dataset.riGoalMove='';
+        list.appendChild(h('div', { class: 'ri-version',id:`ri-goal-${t.id}` },
             h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(t.text), ' ', extras.chip)),
             extras.note, taskFlags(t.text),
-            h('div', { class: 'ri-row ri-row-tight' }, extras.buttons,
+            h('div', { class: 'ri-row ri-row-tight' }, extras.buttons,up,down,
                 button('Edit', () => { ui.editing = t.id; redraw(); }, { kind: 'ghost' }),
-                button('Delete', () => { g[key].splice(i, 1); saveGoals(); redraw(); }, { kind: 'danger' }))));
+                button('Remove',async()=>{
+                    const active=goals();
+                    if (active!==g || !await confirmBox(`Remove “${t.text}” from this chat’s goal?`) || goals()!==g) return;
+                    const index=g[key].indexOf(t);
+                    if (index>=0) { g[key].splice(index,1); saveGoals(); redraw(); }
+                },{kind:'danger'}))));
     });
     if (!g[key].length) list.appendChild(h('div', { class: 'ri-empty' }, key === 'steps' ? 'No one-time steps yet. Type one below, for example: tell {{user}} a secret' : 'No repeatable actions yet. Type one below, for example: compliment {{user}}'));
     const addBox = textInput(ui[`add_${key}`] || '', v => { ui[`add_${key}`] = v; }, { 'aria-label': key === 'steps' ? 'New one-time step' : 'New repeatable action', placeholder: key === 'steps' ? 'Type a one-time step, for example: tell {{user}} a secret' : 'Type a repeatable action, for example: compliment {{user}}' });
@@ -55,10 +70,11 @@ function taskList(g, key, ui, redraw, rowExtras) {
 }
 
 export function renderGoals(body, app) {
-    body.appendChild(promptGroup(['goalOrder', 'goalOngoing', 'goalWriterRules', 'systemGoal']));
     if (!isChatOpen()) return;
     const g = goals();
-    const ui = app.goalUi || (app.goalUi = { editing: '', ai: null });
+    const scope=executionScope();
+    if (app.goalUi?.scope!==scope) app.goalUi={scope,editing:'',ai:null};
+    const ui=app.goalUi;
     const redraw = () => app.render();
     const p = goalProgress('normal');
     const isDone = goalDone(g, p);
@@ -127,8 +143,10 @@ export function renderGoals(body, app) {
 
     body.appendChild(h('div', { class: 'ri-row' }, button('Clear this chat\'s goal', async () => {
         if (!await confirmBox('Remove the goal, actions and steps from this chat? Goals saved to your list are kept.')) return;
+        if (goals()!==g) return;
         Object.assign(g, blankGoal()); saveGoals(); redraw();
     }, { kind: 'danger' })));
+    body.append(promptGroup(['goalOrder','goalOngoing','goalWriterRules','systemGoal'],'Customize goal prompts'));
 }
 
 function aiBox(g, ui, redraw) {
@@ -175,4 +193,4 @@ function aiBox(g, ui, redraw) {
     return box;
 }
 import { executionAction, functionExecution } from './execution.js';
-import { executionReceipt } from '../execution.js';
+import { executionReceipt, executionScope } from '../execution.js';

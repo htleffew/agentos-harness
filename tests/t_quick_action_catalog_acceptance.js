@@ -6,7 +6,7 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
 
 const families = [
     ['steer', 'Steer the next reply', 'Add nudge', 'Queue with my next message'],
-    ['swipe', 'Guide a swipe', 'Add swipe option', 'Generate swipe'],
+    ['swipe', 'Generate an alternate reply', 'Add swipe option', 'Generate alternate reply'],
     ['continue', 'Continue this reply', 'Add continuation option', 'Continue this reply'],
     ['draft', 'Draft my reply', 'Add player draft option', 'Generate my draft · 1 model call'],
 ];
@@ -46,7 +46,7 @@ const recipe = (uid, comment, choices) => ({
     const open = () => tap('Quick actions', page);
     const close = () => tap('Close');
     const openFamily = async name => { await open(); await tap(name); };
-    const manage = async () => { await open(); await tap('Manage'); };
+    const manage = async () => { await open(); await tap('Manage quick actions'); };
     const notice = (name, timeout = 25000) => sheet.getByRole('status').filter({ hasText: name }).first().waitFor({ timeout });
     const fill = (label, value) => sheet.getByLabel(label, { exact: true }).fill(value);
     const show = async (text, scope = sheet) => {
@@ -256,21 +256,21 @@ const recipe = (uid, comment, choices) => ({
         await fill('Your direction', 'Leave this queue snapshot in place. QAQUEUE');
         await submit(families[0]);
         await notice('Queued with your next player message.');
-        await tap('Manage');
+        await tap('Manage quick actions');
         if ((await snapshotAction('Dress me')).hidden) await tap('Show button', rowFor('Dress me'));
         await editText('Dress me', words('QAOUTFITOVERRIDE'));
         await tap('Hide button', rowFor('Dress me'));
         await tap('Pin ' + titles[0]);
         await close();
         await openFamily(families[1][1]);
-        await tap('Manage');
+        await tap('Manage quick actions');
         await editText('More emotional', words('QASWIPEBUILTIN'));
         await tap('Move up', rowFor(titles[1]));
         await tap('Pin ' + titles[1]);
         await close();
         const layout = await state();
         await openFamily(families[0][1]);
-        await tap('Manage');
+        await tap('Manage quick actions');
         await tap('Restore this menu');
         await sheet.getByLabel('Restore mode', { exact: true }).selectOption('layout');
         assert.match(await sheet.innerText(), /Restore Steer the next reply/);
@@ -332,14 +332,15 @@ const recipe = (uid, comment, choices) => ({
         await notice('Imported ' + arc);
         await importFile(other, nativeBook(other, 'events', [recipe('1', 'Distant subplot ' + date, { Development: [['ship','A ship docks.']] })]));
         await notice('Imported ' + other);
-        await tap('Browse all');
+        await tap('Browse directions');
         await sheet.getByText(/eligible source entries/).waitFor();
         const corpus = await page.evaluate(async base => {
             const Q = await import(base + '/src/quick-actions.js');
             const sources = await Q.loadQuickActionSources();
             const roots = sources.filter(row => row.enabled && row.version === undefined && !row.itemId);
             const draws = roots.map((_, i) => Q.rollQuickAction(sources, { random: () => (i + 0.1) / roots.length }));
-            return { roots: roots.map(row => row.key), drawn: draws.map(value => value.sources[0].key), size: draws.map(value => value.draw.size) };
+            return { roots: roots.map(row => row.key), drawn: draws.map(value => value.sources[0].key),
+                size: draws.map(value => value.draw.size), eventBooks: roots.filter(row=>row.sourceKind==='event').map(row=>row.book) };
         }, L.BASE);
         assert.deepEqual(corpus.drawn, corpus.roots);
         assert(corpus.size.every(size => size === corpus.roots.length));
@@ -351,7 +352,9 @@ const recipe = (uid, comment, choices) => ({
         const eventDraw = category.getByRole('button', { name: /^Roll Story Events · [0-9]+ eligible$/ });
         current.taps.push('Roll Story Events');
         await eventDraw.tap();
-        assert((await sheet.innerText()).includes('World Info · ' + arc) || (await sheet.innerText()).includes('World Info · ' + other));
+        const eventPreview=await sheet.innerText();
+        assert(corpus.eventBooks.includes(arc) && corpus.eventBooks.includes(other));
+        assert(corpus.eventBooks.some(book=>eventPreview.includes('World Info · ' + book)));
         await tap('Back to library');
         await fill('Search quick actions', arc);
         const set = sheet.locator('details').filter({ has: page.getByText(arc + ' · ' + arc, { exact: true }) }).last();
@@ -395,7 +398,7 @@ const recipe = (uid, comment, choices) => ({
         assert.equal(await label('Exact direction').inputValue(), words('QALINKEDIT'));
         assert((await sheet.innerText()).includes('World Info · ' + reanchor));
         await tap('Back to library');
-        await tap('Manage');
+        await tap('Manage quick actions');
         await editText('More emotional', words('QABUILTINONE'));
         await editText('More romantic', words('QABUILTINTWO'));
         await restoreItem('More emotional', 'Restore built-in');
@@ -420,13 +423,13 @@ const recipe = (uid, comment, choices) => ({
         const link = await snapshotAction('Reanchor personality ' + date + ' · Version 3');
         assert.equal(link.source.snapshot, words('QALINKEDIT'));
         assert.equal(link.status, 'Follows source');
-        await tap('Browse all');
+        await tap('Browse directions');
         await fill('Search quick actions', reanchor);
         await sheet.getByText(/eligible source entries/).waitFor();
         await tap('Reanchor personality ' + date + ' · Version 3');
         assert.equal(await label('Exact direction').inputValue(), words('QALINKEDIT'));
         await tap('Back to library');
-        await tap('Manage');
+        await tap('Manage quick actions');
         assert.equal(L.requests().length, start7);
         current.status = 'Pass';
         current.state = { linked: link.source, restored: 'More emotional', unrelated: ['More romantic', titles[0]], requests: 0 };
@@ -440,7 +443,7 @@ const recipe = (uid, comment, choices) => ({
         }));
         await importFile('Large quick action library', { format: 'roleplay-instructions/quick-actions', version: 1, library: { actions: lot } });
         await notice('Imported 160 buttons.');
-        await tap('Browse all');
+        await tap('Browse directions');
         await fill('Search quick actions', 'More emotional');
         await sheet.getByText('Roleplay Instructions · Built-in', { exact: true }).first().waitFor();
         await tap('Pin More emotional');

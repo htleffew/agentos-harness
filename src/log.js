@@ -35,9 +35,10 @@ const clip = (s) => {
  * Add one entry and return it. The caller may change it afterwards and call update().
  * what: plain name of the job. ok: true, false, or null while it is still running.
  */
-export function addLog({ what, ok = null, status = '', result = '', details = [], sent = '', got = '' }) {
+export function addLog({ what, ok = null, status = '', result = '', details = [], sent = '', got = '', reply }) {
     load();
-    const entry = { time: Date.now(), what: String(what), ok, status, result: String(result), details: details.map(String), sent: clip(sent), got: clip(got) };
+    const entry = { time: Date.now(), what: String(what), ok, status, result: String(result), details: details.map(String), sent: clip(sent), got: clip(got),
+        ...(reply && {reply}) };
     entries.push(entry);
     if (entries.length > MAX) entries.splice(0, entries.length - MAX);
     save();

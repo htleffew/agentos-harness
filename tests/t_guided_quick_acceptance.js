@@ -103,7 +103,7 @@ async function ordinaryInstruction(page, name) {
         h.mode({ reply: text });
         await h.send(page, message);
     };
-    const oldReply = index => page.locator(`#chat .mes[mesid="${index}"]`).getByRole('button', { name: 'Guide a swipe', exact: true }).tap();
+    const oldReply = index => page.locator(`#chat .mes[mesid="${index}"]`).getByRole('button', { name: 'Generate an alternate reply', exact: true }).tap();
     const saved = () => exactText('Reply updated.').waitFor({ timeout: 20000 });
     const draftReady = () => exactText('Draft ready to edit.').waitFor({ timeout: 20000 });
     const choicesReady = count => exactText(`${count} of 3 choices received.`).waitFor({ timeout: 20000 });
@@ -141,7 +141,7 @@ async function ordinaryInstruction(page, name) {
         await direction().fill('Let me hear the chain move. HISTORICAL_SCOPE_CONTROL');
         h.resetLog();
         h.mode({ reply: 'The guard turns a brass key.' });
-        await tap('Generate swipe · 1 model call');
+        await tap('Generate alternate reply · 1 model call');
         await saved();
         const bounded = record('GA16-bounded', { laterBefore: later, laterAfter: (await chat()).slice(3), world: names.id });
         excludes(bounded, [marker.future, marker.secret, marker.offscreen, marker.oldCue]);
@@ -150,7 +150,7 @@ async function ordinaryInstruction(page, name) {
         await close();
 
         await oldReply(2);
-        await tap('Browse all');
+        await tap('Browse directions');
         await sheet.getByRole('searchbox', { name: 'Search quick actions' }).fill(sourceTitle);
         await tap(sourceTitle);
         await exactText('Reveal this secret').tap();
@@ -159,7 +159,7 @@ async function ordinaryInstruction(page, name) {
         await tap('Select direction');
         h.resetLog();
         h.mode({ reply: 'The guard points at the tunnel map.' });
-        await tap('Generate swipe · 1 model call');
+        await tap('Generate alternate reply · 1 model call');
         await saved();
         const history = await page.evaluate(() => SillyTavern.getContext().chat[2].extra.roleplay_instructions.guided);
         const bolder = record('GA16-explicit-source', { history });
@@ -202,12 +202,12 @@ async function ordinaryInstruction(page, name) {
         await answer('The guard settles his lamp beside the stair.', 'CURRENT_SEND I raise one hand.');
         reset(record('GA54-steer', { initialPreset, activePreset: preset }), `${marker.current}_STEER`, { includes: ['CURRENT_SEND'] });
 
-        await open('Guide a swipe');
+        await open('Generate an alternate reply');
         await direction().fill(`${marker.current}_SWIPE Keep the lamp low.`);
         await fresh();
         h.resetLog();
         h.mode({ reply: 'The guard rests a small lamp on the landing.' });
-        await tap('Generate swipe');
+        await tap('Generate alternate reply');
         await saved();
         reset(record('GA54-swipe', { initialPreset, activePreset: preset }), `${marker.current}_SWIPE`, { includes: ['CURRENT_SEND'] });
         await close();

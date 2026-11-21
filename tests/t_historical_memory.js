@@ -39,11 +39,11 @@ const L = require('./lib.js');
 
         L.resetLog();
         L.mode({reply:'The heavy brass key stays on the desk.'});
-        await page.locator('#chat .mes[mesid="2"]').getByRole('button',{name:'Guide a swipe',exact:true}).tap();
-        const sheet = page.getByRole('dialog',{name:'Guide a swipe'});
+        await page.locator('#chat .mes[mesid="2"]').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+        const sheet = page.getByRole('dialog',{name:'Generate an alternate reply'});
         const disclosure = await sheet.getByText(/1 later replies and 1 dependent cards/).innerText();
         await sheet.getByLabel('Your direction',{exact:true}).fill('Rey leaves the key on the desk.');
-        await sheet.getByRole('button',{name:'Generate swipe · 1 model call',exact:true}).tap();
+        await sheet.getByRole('button',{name:'Generate alternate reply · 1 model call',exact:true}).tap();
         await sheet.getByRole('status').filter({hasText:'Reply updated.'}).waitFor();
         const replaced = await read();
         assert.equal(replaced.messages[2].text,'The heavy brass key stays on the desk.');

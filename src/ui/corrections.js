@@ -5,8 +5,9 @@ import { chatState } from '../store.js';
 import { correctionSwipeTarget, regenerateStoryCorrection } from '../engine.js';
 import { applyStoryCorrection, beginStoryCorrection, correctionExcerpt, findCorrectionSources, runFactRepair, suggestCorrectionEdits, undoStoryCorrection } from '../corrections.js';
 import { replaceUnique } from '../correction-rules.js';
-import { executionPreview, executionReceipt } from '../execution.js';
+import { executionPreview, executionReceipt, executionScope } from '../execution.js';
 import { executionDetails, executionSettings } from './execution.js';
+import { guidedTarget } from '../guided-context.js';
 
 function openMessage(index) {
     const host = ctx();
@@ -73,7 +74,12 @@ function sourceRow(source, proposal, review, target, onChange) {
 
 export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     const startChat = ctx().getCurrentChatId?.();
-    let target = correctionSwipeTarget();
+    const scope=executionScope();
+    const currentTarget=()=>{
+        const latest=correctionSwipeTarget();
+        return focus<0 || latest?.index===focus ? latest : null;
+    };
+    let target = currentTarget();
     const truth = textArea('',()=>{},{rows:3,maxLength:1000,'aria-label':'Correct story fact',placeholder:'The bridge was built of stone.'});
     const wording = textInput('',()=>{},{maxLength:400,'aria-label':'Wrong wording (optional)',placeholder:'Exact phrase in the story or lore'});
     const status = h('p',{class:'ri-help',role:'status'});
@@ -91,8 +97,9 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         manualHint.hidden = !manual;
         const requests = Number(auto.checked) + Number(regenerate.checked);
         cost.textContent = requests === 0 ? 'Saves the correction for future replies. No model requests.'
-            : requests === 2 ? 'Up to 2 model requests · one to trace sources and one to generate a new swipe.'
-                : auto.checked ? 'Up to 1 model request to find and update sources.' : '1 model request to generate a new swipe.';
+            : requests === 2 ? 'Up to 2 model requests · one to trace sources and one to generate an alternate reply.'
+                : auto.checked ? 'Up to 1 model request to find and update sources.' : '1 model request to generate an alternate reply.';
+        save.textContent=regenerate.checked ? 'Repair facts and generate alternate' : auto.checked ? 'Find and apply source edits' : 'Apply correction';
         save.disabled = busy || !truth.value.trim() || rows.some(row=>row.check());
         audit.disabled = busy;
         search.disabled = busy || (!truth.value.trim() && !wording.value.trim());
@@ -104,7 +111,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     const showRetry = (correction, requestedTarget, traceNote) => {
         results.replaceChildren(button('Retry guided regeneration',async event=>{
             const latest = correctionSwipeTarget();
-            if (!latest || latest.chatId!==startChat || latest.message!==requestedTarget.message) {
+            if (!latest || executionScope()!==scope || latest.chatId!==startChat || latest.message!==requestedTarget.message) {
                 status.textContent='The latest reply changed. Open Corrections on the intended reply.';
                 return;
             }
@@ -123,7 +130,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         if (!requestedTarget) return;
         try {
             await regenerateStoryCorrection(correction,requestedTarget);
-            target=correctionSwipeTarget();
+            target=currentTarget();
             status.textContent = result+' The revised reply is ready.';
             if (!status.isConnected) toast('success',status.textContent);
         } catch (error) {
@@ -133,7 +140,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         }
     };
     async function commit(useModel) {
-        if (busy || ctx().getCurrentChatId?.()!==startChat) return;
+        if (busy || executionScope()!==scope) return;
         const requestedTarget = regenerate.checked ? target : null;
         busy=true; configure();
         truth.disabled=wording.disabled=regenerate.disabled=true;
@@ -158,7 +165,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
                 results.replaceChildren(evidence);
             }
             rows=[]; review=null;
-            truth.value=''; wording.value=''; auto.checked=false; onSaved(correction);
+            truth.value=''; wording.value=''; auto.checked=false; markDraft(); onSaved(correction);
             results.append(button('Undo source repair',async()=>{
                 try { await undoRepair(correction.id); results.replaceChildren(); status.textContent='Source repair undone.'; onSaved(); }
                 catch (error) { status.textContent=error.message; }
@@ -244,7 +251,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         status.textContent='The correction was saved. Its guided reply did not finish.';
         showRetry(unfinished,target);
     }
-    return h('div',{class:'ri-guided-body ri-correction-editor'},
+    const form=h('div',{class:'ri-guided-body ri-correction-editor'},
         h('label',{class:'ri-field'},'Correct story fact',truth),
         h('label',{class:'ri-row'},auto,' Find and update sources with AI'),
         manualHint,
@@ -260,10 +267,20 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             executionSettings({operation:'factRepair'})),
         promptGroup(['traceCorrection','correctionSwipe','correctionCanon'],'Customize correction prompts'),
         results);
+    const markDraft=()=>form.toggleAttribute('data-ri-dirty',Boolean(truth.value.trim() || wording.value.trim()));
+    truth.addEventListener('input',markDraft);
+    wording.addEventListener('input',markDraft);
+    markDraft();
+    return form;
 }
 
-export function renderCorrections(body) {
+export function renderCorrections(body, requested) {
     if (!isChatOpen()) return;
+    const selected=requested && guidedTarget(requested.index);
+    if (requested && (!selected || selected.chatId!==requested.chatId || selected.fingerprint!==requested.fingerprint || selected.swipe!==requested.swipe)) {
+        body.append(h('p',{class:'ri-note ri-note-warn',role:'status'},'The selected reply or version changed. Return to chat and open Correct story facts on the intended version.'));
+        return;
+    }
     const list = h('div',{class:'ri-list'});
     const renderHistory = () => {
         const corrections = [...(chatState()?.storyCorrections || [])].reverse();
@@ -276,12 +293,11 @@ export function renderCorrections(body) {
             },{kind:'ghost'}))));
         list.hidden=!corrections.length;
     };
-    const form = correctionEditor({onSaved:()=>{
+    const form = correctionEditor({focus:selected?.index,onSaved:()=>{
         form.removeAttribute('data-ri-dirty');
         renderHistory();
     }});
-    const truth = form.querySelector('[aria-label="Correct story fact"]');
-    truth.addEventListener('input',()=>form.toggleAttribute('data-ri-dirty',Boolean(truth.value.trim())));
-    body.append(section('Correct story facts',form),list);
+    body.append(section('Correct story facts',
+        selected && h('p',{class:'ri-help'},`${selected.name} · selected version ${selected.swipe+1}`),form),list);
     renderHistory();
 }
