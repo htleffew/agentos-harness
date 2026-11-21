@@ -30,4 +30,18 @@ extensionSettings.roleplay_instructions.cards.voice='Dry theater critic with a w
 assert.match(P.promptText('roastVoice'),/Dry theater critic/);
 assert(P.promptStatus('roastVoice').customized);
 P.restorePrompt('roastVoice');
-assert.match(P.promptText('roastVoice'),/Write as Gremlin/);
+const { DEFAULT_VOICE, ORIGINAL_VIEWER_VOICE } = await import('../../src/defaults.js');
+assert.equal(P.promptText('roastVoice'),DEFAULT_VOICE);
+assert.match(DEFAULT_VOICE,/i keysmash when words fail hfksjdks/);
+const st=extensionSettings.roleplay_instructions;
+for (const stock of [DEFAULT_VOICE, ORIGINAL_VIEWER_VOICE]) {
+    st.cards.voice=stock;
+    assert.equal(P.promptText('roastVoice'),DEFAULT_VOICE);
+    assert.equal(P.promptStatus('roastVoice').customized,false);
+}
+const edited=ORIGINAL_VIEWER_VOICE+' Give the closing joke to the crow.';
+st.cards.voice=edited;
+assert.equal(P.promptText('roastVoice'),edited);
+P.savePrompt('roastVoice','Use my saved rewrite.');
+st.cards.voice=edited;
+assert.equal(P.promptText('roastVoice'),'Use my saved rewrite.');

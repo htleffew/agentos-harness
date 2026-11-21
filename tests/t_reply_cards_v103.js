@@ -44,7 +44,8 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         const prompt = L.text(L.requests()[0]);
         assert.match(prompt,/put a brief outline of intended beats/i);
         assert.match(prompt,/Include this string even when no story facts changed/);
-        assert.match(prompt,/Write as Gremlin, a feral, genre-savvy reader/);
+        assert.match(prompt,/ok so hi call me gremlin n yes im alwys online/);
+        assert.match(prompt,/LOL wut\?!\? babbbbbbay!/);
         const latest = page.locator('#chat .last_mes');
         const header = latest.locator('.ri-scene-header');
         assert.deepEqual(await header.locator('dd').allTextContents(),['morning','Wednesday, Day 2','Dock','grey clouds rolling in']);
@@ -107,7 +108,7 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
             block({scene:{where:'Gate',present:'Mira'}})+'\n<roast>The gate earned its own introduction.</roast>'});
         await L.send(page,'I follow Mira.');
         assert.match(L.text(L.requests().at(-1)),/Stand at the back of the theater/);
-        assert.doesNotMatch(L.text(L.requests().at(-1)),/Write as Gremlin/);
+        assert.doesNotMatch(L.text(L.requests().at(-1)),/i got dat manic motion/);
         await page.evaluate(async base=>(await import(base+'/src/prompts.js')).restorePrompt('roastVoice'),L.BASE);
         await page.locator('#chat .mes[mesid="2"] .ri-reply-glance').waitFor({state:'detached'});
         assert.deepEqual(await header.locator('dd').allTextContents(),['afternoon','Wednesday, Day 2','Gate','grey clouds rolling in']);
@@ -117,6 +118,7 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
 
         L.mode({reply:'Mira looked up.\n'+block({scene:{where:'Gate',weather:'Steady rain'}})});
         await L.send(page,'I look up too.');
+        assert.match(L.text(L.requests().at(-1)),/i got dat manic motion/);
         assert.equal(await header.locator('.ri-scene-header-weather dd').textContent(),'Steady rain');
         assert.equal(await latest.locator('.ri-reply-roast').count(),0);
         const issues = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.cardIssues);

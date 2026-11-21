@@ -1,6 +1,6 @@
 // Saved settings (per app) and per-chat state.
 import { ctx, KEY, names, characterKey, setChatVariable, isChatOpen } from './st.js';
-import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, DEFAULT_VOICE, LEGACY_DEFAULT_VOICE, OLD_VOICE_START } from './defaults.js';
+import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, DEFAULT_VOICE, ORIGINAL_VIEWER_VOICE } from './defaults.js';
 
 export const FORMS = ['they', 'them', 'their', 'theirs', 'themself'];
 export const PRONOUN_SETS = {
@@ -82,7 +82,7 @@ export function settings() {
     const st = fill(root[KEY], DEFAULTS);
     if (Object.hasOwn(st.cards,'voice')) {
         const voice = typeof st.cards.voice==='string' ? st.cards.voice.trim() : '';
-        if (voice && voice!==LEGACY_DEFAULT_VOICE && voice!==DEFAULT_VOICE && !voice.startsWith(OLD_VOICE_START)) {
+        if (voice && voice!==DEFAULT_VOICE && voice!==ORIGINAL_VIEWER_VOICE) {
             st.prompts ||= {};
             st.prompts.roastVoice ??= {text:voice,base:DEFAULT_VOICE};
         }

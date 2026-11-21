@@ -81,7 +81,7 @@ export const PROMPTS = {
     optionalOpportunity: define('Offering a plot development', 'Defer if it does not fit. An offered event can remain open.'),
     resolvedActionGuidance: define('Using the resolved action check', 'Honor the outcome and preserve player agency.'),
     structuredRoast: define('Writing the Roast', 'Give a brief, out-of-story reaction as the commentator below. Use one or two short paragraphs and optional Markdown emphasis. Keep the reaction about this reply. Write the prose separately in the story’s own voice.'),
-    roastVoice: define('Commentator voice', DEFAULT_VOICE),
+    roastVoice: define('Roast voice', DEFAULT_VOICE, [], 'Gremlin is the default voice of the Roast card. This instruction controls how the reaction sounds in both Structured and Legacy chats.'),
     roastFeedback: define('Using previous Roast commentary', 'Treat the following out-of-story voice feedback as a suggestion for variety. Preserve established facts and the character’s portrayal.'),
     structuredRepair: define('Repairing a missed story update', 'Recover only changes supported by the accepted reply. Use exact evidence and respect newer facts. Keep new changes in the ordinary changes list.'),
     correctionSwipe: define('Regenerating after a story correction', 'Regenerate this reply using the following accepted correction. Keep the same point in the story and retain unrelated established details. Apply the correction in the fiction without discussing the edit.'),

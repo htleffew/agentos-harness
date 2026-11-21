@@ -1,5 +1,9 @@
 # Changelog
 
+## 10.0.31
+
+- Restored the complete v9 Gremlin voice and both original samples as the shared default for Structured and Legacy Roasts. The editor is labeled **Roast voice**. Existing custom voices keep their wording, including older edits that retained the original first line.
+
 ## 10.0.30
 
 - Clarified which extension default a chat follows and which setting a reset restores in **Setup → Preset & Extension**.

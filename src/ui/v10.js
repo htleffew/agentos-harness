@@ -428,7 +428,7 @@ const MODULE_HELP = {
     worldEvents: 'Uses an automatic chance check to offer an optional development. Random Instructions are controlled separately.',
     dice: 'Rolls once when you queue an action in Direction → Action Checks. Regular replies proceed without a roll.',
     colors: 'Colors dialogue and italic thoughts when the prose identifies the character.',
-    roast: 'Requests a brief commentary in the same model reply. Reply Display controls the collapsed Roast card.',
+    roast: 'Asks for one reader reaction in the same reply. Edit its voice under Setup → Reply Display.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
 function hostPrompt(block) {
@@ -638,7 +638,7 @@ export function renderV10(body, app, page) {
                 chatFlag('showPlanning','Show Reply planning','Show any emitted outline in a collapsed disclosure.',true),
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
-                chatFlag('showRoast','Show Roast cards','Control Roast display independently of generation and feedback.',true),
+                chatFlag('showRoast','Show Roast cards','Show the saved reaction beneath the reply. Gremlin is its default voice.',true),
                 field('Story state under replies','The collapsed console shows saved scene, character and world records available at that reply.',
                     select([{value:'auto',label:'Auto'},{value:'always',label:'Always'},{value:'off',label:'Off'}],settings().scene.card,value=>{
                         settings().scene.card=value;saveSettings();redraw();

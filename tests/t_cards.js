@@ -34,7 +34,7 @@ const world = (page) => page.evaluate(async (B) => { const W = await import(`${B
         const l1 = await last(page);
         console.log('ask:', r1.text.slice(r1.text.indexOf('[Scene.'), r1.text.indexOf('[Scene.') + 1800));
         assert(r1.n === 1 && /<profile name="[^"]+">/.test(r1.text) && /Mind: current goal, attention or plan/.test(r1.text) && /Profiles on file: none yet/.test(r1.text), 'ask: the profile form is part of the one block, with no extra AI request, and nobody is on file yet');
-        assert(/Roast: Write as Gremlin/.test(r1.text) && /<roast>/.test(r1.text) && !/reaction to the previous reply was/.test(r1.text), "ask: the roast form and the commentator's voice are sent; with no earlier roast, none is quoted");
+        assert(/Roast: The commentator is Gremlin/.test(r1.text) && /<roast>/.test(r1.text) && !/reaction to the previous reply was/.test(r1.text), "ask: the roast form and the commentator's voice are sent; with no earlier roast, none is quoted");
         assert(/2 profiles at most/.test(r1.text) && /never gets one/.test(r1.text), 'ask: the most profiles in one reply and the rule for {{user}} are sent');
         assert(!/<profile|<roast|story_update|Wants:/.test(l1.mes) && l1.mes.includes('You look wonderful tonight'), 'lift: the profiles and the roast are taken out of the reply text');
         const hale = (l1.profiles || []).find(p => p.name === 'Hale'), mira = (l1.profiles || []).find(p => p.name === 'Mira');
@@ -110,7 +110,7 @@ const world = (page) => page.evaluate(async (B) => { const W = await import(`${B
         await page.waitForTimeout(400);
         const titles = await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-section-title')].map(x => x.textContent.trim()));
         const help = await page.evaluate(() => document.querySelector('#ri_root')?.textContent || '');
-        assert(titles.includes('Character cards') && /Customize commentator voice/.test(help) && !/\{\{char\}\} always/.test(help), 'panel: Settings has a Character cards section with the commentator\'s voice, using the character\'s name');
+        assert(titles.includes('Character cards') && /Customize Roast voice/.test(help) && !/\{\{char\}\} always/.test(help), 'panel: Settings has a Character cards section with the commentator\'s voice, using the character\'s name');
         await L.setSettings(page, { cards: { on: false } });
         console.log('page errors:', JSON.stringify(errors));
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 400));
