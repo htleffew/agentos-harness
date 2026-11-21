@@ -124,9 +124,11 @@ async function auditDisclosures(body) {
         assert.equal(await page.evaluate(()=>document.activeElement.id),'ri-module-worldEvents');
         assert.equal(await root.locator('[data-module-scope="chat"]').getAttribute('aria-pressed'),'true');
         const visited = [];
-        for (const width of [390,1280]) {
+        const widths=process.env.RI_PANEL_WIDTHS ? process.env.RI_PANEL_WIDTHS.split(',').map(Number) : [390,1280];
+        for (const width of widths) {
             await page.setViewportSize({width,height:850});
             let opened=0;
+            const firstPage=visited.length;
             for (const [section,pages] of Object.entries(navigation)) {
                 await group(section).click();
                 for (const label of pages) {
@@ -139,7 +141,7 @@ async function auditDisclosures(body) {
                     visited.push(label);
                 }
             }
-            console.log(`Audited all ${visited.length/(width===390?1:2)} pages and ${opened} reachable disclosures at ${width}px.`);
+            console.log(`Audited all ${visited.length-firstPage} pages and ${opened} reachable disclosures at ${width}px.`);
         }
         await group('Story').click();
         await click('Chat Facts');

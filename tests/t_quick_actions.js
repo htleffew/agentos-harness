@@ -300,6 +300,31 @@ const fixtures = {
         await send('I move away from the chain.');
         assert.doesNotMatch(L.text(L.requests()[0]),/Work from the facts and current direction/);
         record('QACT-FRESH: expired on next normal reply');
+
+        const set='Reanchor QA '+Date.now();
+        await L.makeSet(page,set,[{name:'Reanchor',chance:100,versions:['A1','A2','A3','A4','A5']}]);
+        await family('Steer the next reply');
+        await tap('Browse all');
+        await sheet.getByLabel('Search quick actions',{exact:true}).fill(set);
+        await sheet.getByText('Versions and ingredients',{exact:true}).tap();
+        L.resetLog();
+        await tap('Version 3');
+        assert.match(await sheet.getByLabel('Exact direction',{exact:true}).inputValue(),/thing A3/);
+        assert.equal(L.requests().length,0);
+        await tap('Select direction');
+        await tap('Queue with my next message');
+        await close();
+        await send('I make room at the gate.');
+        const sourceRequest=record('QACT-SOURCE: exact version with matching automatic source');
+        assert.equal(sourceRequest.length,1);
+        assert.equal(L.text(sourceRequest[0]).split('thing A3').length-1,1);
+        assert.doesNotMatch(L.text(sourceRequest[0]),/thing A[1245]/);
+        const used=await page.evaluate(async ({base,set})=>{
+            const {chatState}=await import(base+'/src/store.js');
+            return Object.entries(chatState().used).find(([key])=>key.startsWith(set+'.'))?.[1];
+        },{base:L.BASE,set});
+        assert.deepEqual(used,[2]);
+        evidence.captures.at(-1).acceptedVersions=used;
         evidence.browserErrors=errors;
         console.log('PASS phone-width composer, draft recovery, CYOA, queue delivery, Fresh start, guided swipe, continuation undo and explicit retry');
     } catch (error) {

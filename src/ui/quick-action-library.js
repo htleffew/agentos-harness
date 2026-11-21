@@ -53,13 +53,13 @@ export function renderQuickActionLibrary(host, {
     const ui = state;
     const mount = Symbol();
     const sourceFamily = family || 'steer';
-    if (ui.sourceFamily !== sourceFamily) {
-        ui.sources = null;
-        ui.sourceFamily = sourceFamily;
-    }
+    if (ui.sourceFamily !== sourceFamily || mode==='browse' && ui.page==='browse') ui.sources = null;
+    ui.sourceFamily = sourceFamily;
     ui.mount = mount;
     ui.loading = false;
+    ui.onSources = null;
     const next = (page, properties = {}) => {
+        if (page==='browse' && ui.page!=='browse') ui.sources = null;
         Object.assign(ui, { page, error: '', ...properties });
         draw();
     };
@@ -84,18 +84,20 @@ export function renderQuickActionLibrary(host, {
         button(QUICK_ACTION_FAMILIES[destination].add, () => edit({ family: destination, text: initialDirection })));
 
     function mountSources(onLoaded) {
-        if (ui.sources || ui.loading) return;
+        if (ui.sources) return;
+        ui.onSources = onLoaded;
+        if (ui.loading) return;
         ui.loading = true;
         loadQuickActionSources({ family: sourceFamily }).then(sources => {
             if (ui.mount !== mount) return;
             ui.sources = sources;
             ui.loading = false;
-            if (library.isConnected && ui.page === 'browse') onLoaded();
+            if (library.isConnected && ui.page === 'browse') ui.onSources?.();
         }).catch(error => {
             if (ui.mount !== mount) return;
             ui.loading = false;
             ui.sources = [];
-            if (library.isConnected && ui.page === 'browse') { onLoaded(); info(error.message); }
+            if (library.isConnected && ui.page === 'browse') { ui.onSources?.(); info(error.message); }
         });
     }
 
