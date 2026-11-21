@@ -241,9 +241,9 @@ const chatLore = (page, name) => page.evaluate((name) => { const c = globalThis.
         await page.click('dialog[open] .popup-button-ok');
         await page.waitForFunction((S) => ![...document.querySelectorAll('#ri_root .ri-setcard')].some(c => c.querySelector('.ri-card-name')?.textContent === 'Made in panel' && c.querySelector('.ri-kept')?.textContent.includes(S)), S, { timeout: 8000 });
         data = await book(page, S);
-        const ownHasNoDelete = await page.evaluate(() => { const card = [...document.querySelectorAll('#ri_root .ri-setcard')].find(c => /Kept in a lorebook of its own/.test(c.textContent)); return card ? ![...card.querySelectorAll('button')].some(b => b.textContent.trim() === 'Delete this set') : null; });
+        const ownHasDelete = await page.evaluate(() => { const card = [...document.querySelectorAll('#ri_root .ri-setcard')].find(c => /Kept in a lorebook of its own/.test(c.textContent)); return card && [...card.querySelectorAll('button')].some(b => b.textContent.trim() === 'Delete this set'); });
         assert(!data.extensions.ri.groups['Made in panel'] && data.extensions.ri.groups.Alpha && Object.keys(data.entries).length === nBefore, 'delete: "Delete this set" removes the set from the shared lorebook and leaves the other sets alone');
-        assert(ownHasNoDelete !== false, 'delete: a set with a lorebook of its own has no delete button (its lorebook is deleted in World Info)');
+        assert(ownHasDelete, 'delete: a set with a lorebook of its own also offers the delete control');
         await L.setSettings(page, { home: '' });
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 400));
     } finally { await browser.close(); }
