@@ -195,7 +195,7 @@ function cardRules(onFile, type) {
         `For a person whose profile is not on file yet, add five lines at the top of their profile: ${PROFILE_STABLE.map(([, label, help]) => `${label}: ${help}`).join('. ')}. Profiles on file: ${onFile.join(', ') || 'none yet'}.`,
     ];
     if (roastOn()) {
-        lines.push(`Roast: ${clean(settings().cards.voice) || 'one short reaction from a viewer of this reply'}`);
+        lines.push(`Roast: ${clean(promptText('roastVoice'))}`);
         const prev = settings().cards.previousRoast === false ? '' : lastRoast(type);
         if (prev) lines.push(`The commentator's reaction to the previous reply was: ${prev}`);
     }

@@ -2,7 +2,6 @@ import { promptGroup } from './prompts.js';
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
-import { DEFAULT_VOICE } from '../defaults.js';
 import { statNames, sheet, setStat, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../dice.js';
 import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
 import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
@@ -121,9 +120,7 @@ function cardsSection(app) {
                 onOff(o.roast !== false, (v) => { o.roast = v; save(); app.render(); })),
             o.roast !== false ? [
                 field('Include the previous roast in the next request', 'Optional continuity for the commentator; this uses prompt tokens.', onOff(o.previousRoast === true, (v) => { o.previousRoast = v; save(); })),
-                field("The commentator's voice", 'Sent with every reply while the roast is on. Describe who the commentator is and how they type. A sample of the voice helps the most.',
-                    textArea(o.voice ?? DEFAULT_VOICE, (v) => { o.voice = v; saveSettings(); }, { rows: 6 })),
-                h('div', { class: 'ri-row ri-row-tight' }, button('Put the starting voice back', () => { o.voice = DEFAULT_VOICE; saveSettings(); app.render(); }, { kind: 'ghost' })),
+                promptGroup(['roastVoice'], 'Customize commentator voice'),
             ] : null,
         ] : null);
 }
@@ -287,6 +284,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.23: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.24: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

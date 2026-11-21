@@ -2,7 +2,7 @@ import { memoryOnly } from '../components.js';
 import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
-import { replyCardHeader, replyChip } from './reply-cards.js';
+import { replyCardHeader, replyChip, replyGlance, revealReplyBody, roastCard } from './reply-cards.js';
 import { replyWorldTabs } from './reply-world.js';
 import { chatWorld } from '../world.js';
 import { refreshGuidedControl } from './guided.js';
@@ -295,9 +295,7 @@ function refreshStoryState(chat) {
             scene.append(slot); outer.append(scene);
         }
         for (const person of people) outer.append(characterStateCard(person, id, refreshCards, { historical: true, replyCard: true }));
-        if (roast) outer.append(h('details', { class: 'ri-roast ri-reply-card ri-reply-roast', 'data-card-key': 'roast' },
-            replyCardHeader({ icon: '✦', eyebrow: 'A voice from the sidelines', title: 'Roast' }),
-            h('div', { class: 'ri-roast-v ri-reply-quote' }, roast)));
+        if (roast) outer.append(roastCard(roast,{'data-card-key':'roast'}));
         for (const card of outer.querySelectorAll('.ri-reply-card')) card.open = openCards.has(card.dataset.cardKey);
         const under = block.querySelector(':scope > .ri-under');
         if (old) old.replaceWith(outer); else if (under) block.insertBefore(outer, under); else block.appendChild(outer);
@@ -341,7 +339,12 @@ function replyTabs(parts, active, id) {
         panels.append(h('div',{role:'tabpanel',id:`ri-reply-${id}-panel-${i}`,'aria-labelledby':tab.id},content));
     });
     activate(initial);
-    return {list,panels,loadSelected,reset:()=>loaded.clear()};
+    return {list,panels,loadSelected,reset:()=>loaded.clear(),choose(label){
+        const index = ids.indexOf(label);
+        if (index<0) return null;
+        activate(index,true);
+        return panels.children[index];
+    }};
 }
 
 function loreEntryButton(entry, fromReview) {
@@ -396,6 +399,7 @@ function refreshV10Replies(chat) {
     const local=root?.v10 || {};
     const world=chatWorld();
     const manualVersion=root?.manualWorldChanges?.at(-1)?.time;
+    const latestReply=chat.findLastIndex(isReply);
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const id=Number(mes.getAttribute('mesid'));
         const msg=chat[id];
@@ -417,7 +421,7 @@ function refreshV10Replies(chat) {
         const roast=local.showRoast!==false ? rec.roast : '';
         const lore=local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
-        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,sc,people,profiles,records,planning,roast,lore,
+        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,id===latestReply,sc,people,profiles,records,planning,roast,lore,
             rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
         const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});
@@ -456,21 +460,24 @@ function refreshV10Replies(chat) {
             const tabs = replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id);
             const consoleCard = h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
                 replyCardHeader({icon:'◇',title:'Story state',chips:[
-                sc.where && {text:sc.where,tone:'sky'},
-                sc.when && {text:sc.when,tone:'indigo'},
+                people.length && {text:`${people.length} ${people.length===1 ? 'character' : 'characters'}`,tone:'sky'},
                 records.length && {text:`${records.length} ${records.length===1 ? 'change' : 'changes'}`,tone:'mint'},
                 ].filter(Boolean)}),tabs.list,tabs.panels);
             consoleCard.addEventListener('toggle',()=>{
                 if (consoleCard.open) tabs.loadSelected();
                 else {tabs.reset();saved?.reset();}
             });
+            const glance = id===latestReply && replyGlance({scene:sc,people,profiles,records,changed:rec.stateChanges || []},label=>{
+                consoleCard.open=true;
+                revealReplyBody(consoleCard,tabs.choose(label));
+            });
+            if (glance) out.append(glance);
             out.append(consoleCard);
         }
         if (planning) out.append(h('details',{class:'ri-reply-card ri-v10-plan','data-reply-fold':'planning'},
             replyCardHeader({icon:'≋',title:'Reply planning'}),
             h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)));
-        if(roast) out.append(h('details',{class:'ri-roast ri-reply-card ri-reply-roast','data-reply-fold':'roast'},
-            replyCardHeader({icon:'✦',title:'Roast'}),h('div',{class:'ri-roast-v ri-reply-quote'},roast)));
+        if(roast) out.append(roastCard(roast,{'data-reply-fold':'roast'}));
         if(lore.length) out.append(h('details',{class:'ri-reply-card ri-v10-lore','data-reply-fold':'lore'},
             replyCardHeader({icon:'▤',title:'World Info',chips:[
                 {text:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}`,tone:'sky'},

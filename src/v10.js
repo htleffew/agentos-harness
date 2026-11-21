@@ -633,7 +633,7 @@ export function updateContract(modules, opening = false, { fieldsOnly = false } 
         (modules.plots || modules.worldEvents) && `For plot and event records use status open or done. ${promptText('structuredOutcomes')}`,
         modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts and a travel object with from, to, departed (exact story minute), and minutes (minimum duration), when timing and travel are established.',
         modules.plots && modules.worldEvents && `Use schedule:true with optional weight and spacing in replies. ${promptText('structuredSchedule')}`,
-        modules.roast && !opening && `roast: ${promptText('structuredRoast')} Include this string even when no story facts changed.`,
+        modules.roast && !opening && `roast: ${promptText('structuredRoast')} Include this string even when no story facts changed.\nCommentator voice (for roast only): ${promptText('roastVoice')}`,
     ].filter(Boolean);
     if (fieldsOnly || !sections.length) return sections.join('\n');
     return `After the visible prose, ${opening || modules.roast ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;

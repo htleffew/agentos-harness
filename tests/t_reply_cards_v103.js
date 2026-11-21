@@ -5,7 +5,7 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
 
 (async () => {
     L.sync();
-    const {browser,page} = await L.open();
+    const {browser,page,errors} = await L.open({width:390,height:820});
     try {
         await L.setupApi(page);
         const name = 'Roleplay Instructions V10.3';
@@ -35,24 +35,68 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         },L.BASE);
         const block = data => `<story_update v="2">${JSON.stringify({v:2,...data})}</story_update>`;
         L.mode({reply:'<reply_plan>Follow the dock scene.</reply_plan>\n\nMira held up the lantern.\n'+
-            block({scene:{where:'Dock',when:'Wednesday, Day 2, morning, grey clouds rolling in',present:'Mira'},
-                characters:[{name:'Mira',heart:'Relieved',evidence:'Mira held up the lantern.'}],roast:'Mira finally let the light do the talking.'})});
+            block({scene:{where:'Dock',when:'Wednesday, Day 2, morning, grey clouds rolling in',present:'Mira',environment:'The tide was coming in under the dock.'},
+                characters:[{name:'Mira',heart:'Relieved',mind:'Watching the water',body:'Steady on her feet',psyche:'Trying to seem unfazed',evidence:'Mira held up the lantern.'}],
+                changes:[{id:'lantern',kind:'fact',text:'Mira carried a lantern.',evidence:'Mira held up the lantern.'}],
+                roast:'Mira finally let the light do the talking. **FINALLY.**\n\nthat lantern did *all the diplomacy*. <img src=x onerror=alert(1)>'})});
         L.resetLog();
         await L.send(page,'I look for Mira.');
         const prompt = L.text(L.requests()[0]);
         assert.match(prompt,/put a brief outline of intended beats/i);
         assert.match(prompt,/Include this string even when no story facts changed/);
+        assert.match(prompt,/Write as Gremlin, a feral, genre-savvy reader/);
         const latest = page.locator('#chat .last_mes');
         const header = latest.locator('.ri-scene-header');
         assert.deepEqual(await header.locator('dd').allTextContents(),['morning','Wednesday, Day 2','Dock','grey clouds rolling in']);
         assert.equal(await latest.locator('.ri-v10-plan').evaluate(el=>el.open),false);
         assert.equal(await latest.locator('.ri-reply-roast').evaluate(el=>el.open),false);
         assert.match(await latest.locator('.ri-reply-roast').textContent(),/light do the talking/);
-        assert.match(await latest.locator('.ri-v10-console').textContent(),/Mira/);
+        const tr = latest.locator('.ri-v10-reply');
+        const consoleCard = tr.locator('.ri-v10-console');
+        assert.equal(await consoleCard.evaluate(el=>el.open),false);
+        const cast = tr.locator('.ri-glance-person');
+        assert.match(await cast.innerText(),/Mira[\s\S]*Watching the water[\s\S]*Relieved[\s\S]*Steady on her feet[\s\S]*Trying to seem unfazed/);
+        assert.match(await tr.locator('.ri-glance-scene').innerText(),/tide was coming in/);
+        await tr.locator('.ri-glance-changes').click();
+        assert.equal(await tr.getByRole('tab',{name:'Changes',exact:true}).getAttribute('aria-selected'),'true');
+        assert.match(await tr.getByRole('tabpanel',{name:'Changes',exact:true}).innerText(),/Mira carried a lantern/);
+        await cast.click();
+        assert.equal(await tr.getByRole('tab',{name:'Mira',exact:true}).getAttribute('aria-selected'),'true');
+        await tr.getByRole('button',{name:'Edit this snapshot',exact:true}).waitFor();
+        await page.waitForFunction(()=>{
+            const panel=document.querySelector('#chat .last_mes .ri-v10-panels [role="tabpanel"]:not([hidden])');
+            const composer=document.querySelector('#send_form')?.getBoundingClientRect();
+            return panel?.getBoundingClientRect().top < Math.min(innerHeight,composer?.height ? composer.top : Infinity)-70;
+        });
+        await consoleCard.locator(':scope > summary').click();
+        const roastHeading = tr.locator('.ri-reply-roast > summary');
+        await roastHeading.evaluate(node=>node.scrollIntoView({block:'end'}));
+        await roastHeading.click();
+        await page.waitForFunction(()=>{
+            const body=document.querySelector('#chat .last_mes .ri-reply-roast blockquote');
+            const composer=document.querySelector('#send_form')?.getBoundingClientRect();
+            return body?.getBoundingClientRect().top < Math.min(innerHeight,composer?.height ? composer.top : Infinity)-30;
+        });
+        assert.equal(await tr.locator('blockquote p').count(),2);
+        assert.equal(await tr.locator('blockquote strong').innerText(),'FINALLY.');
+        assert.equal(await tr.locator('blockquote em').innerText(),'all the diplomacy');
+        assert.equal(await tr.locator('blockquote img').count(),0);
+        assert.match(await tr.locator('blockquote').textContent(),/<img src=x/);
+        assert.ok(await tr.evaluate(node=>node.scrollWidth<=node.clientWidth+1));
         assert.doesNotMatch(await latest.locator('.mes_text').textContent(),/Follow the dock scene|light do the talking/);
+        if (process.env.RI_REPLY_SCREENSHOT) await tr.screenshot({path:process.env.RI_REPLY_SCREENSHOT});
+        await page.setViewportSize({width:1440,height:950});
+        assert.ok(await tr.evaluate(node=>{
+            const cast=node.querySelector('.ri-glance-cast').getBoundingClientRect();
+            const context=node.querySelector('.ri-glance-context').getBoundingClientRect();
+            return context.left > cast.left && Math.abs(context.top-cast.top)<1;
+        }));
+        await page.setViewportSize({width:390,height:820});
         await page.evaluate(async base=>{
             const W=await import(base+'/src/worldflow.js');
             const V=await import(base+'/src/v10.js');
+            const P=await import(base+'/src/prompts.js');
+            P.savePrompt('roastVoice','Stand at the back of the theater and laugh at one sharp detail.');
             V.prefs().emotion={persistence:1,recovery:1,baseline:3};
             await W.saveV10Record({id:'mira-mood',kind:'emotion',subject:'Mira',text:'Guarded mood',axes:{fury:9}},{create:true});
             await W.saveV10Record({id:'mira-rel',kind:'relationship',subject:'Mira',other:'Rowan',text:'Trusted friend'},{create:true});
@@ -61,9 +105,14 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         L.mode({reply:'[Time: afternoon | Location: Gate]\n\nMira walked to the gate.\n'+
             block({scene:{where:'Gate',present:'Mira'}})+'\n<roast>The gate earned its own introduction.</roast>'});
         await L.send(page,'I follow Mira.');
+        assert.match(L.text(L.requests().at(-1)),/Stand at the back of the theater/);
+        assert.doesNotMatch(L.text(L.requests().at(-1)),/Write as Gremlin/);
+        await page.evaluate(async base=>(await import(base+'/src/prompts.js')).restorePrompt('roastVoice'),L.BASE);
+        await page.locator('#chat .mes[mesid="2"] .ri-reply-glance').waitFor({state:'detached'});
         assert.deepEqual(await header.locator('dd').allTextContents(),['afternoon','Wednesday, Day 2','Gate','grey clouds rolling in']);
         assert.equal(await header.locator('.ri-scene-header-weather dd').getAttribute('title'),'Last established weather');
         assert.match(await latest.locator('.ri-reply-roast').textContent(),/earned its own introduction/);
+        assert.equal(await latest.locator('.ri-reply-roast').evaluate(el=>el.open),false);
 
         L.mode({reply:'Mira looked up.\n'+block({scene:{where:'Gate',weather:'Steady rain'}})});
         await L.send(page,'I look up too.');
@@ -99,6 +148,7 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         assert.match(L.text(L.requests().at(-1)),/mira-mood[^\n]*"fury":6/);
         assert.match(L.text(L.requests().at(-1)),/mira-rel[^\n]*Trusted friend/);
         assert.equal(await header.locator('.ri-scene-header-time dd').textContent(),'12:04 AM');
-        console.log('PASS V10.3 companion, actual planning and Roast requests, separate collapsed cards, weather recovery and missing-card diagnostics');
+        assert.deepEqual(errors,[]);
+        console.log('PASS reply previews, direct tab jumps, formatted collapsed Roast, editable commentator voice, and chapter continuity');
     } finally { await browser.close(); }
 })().catch(error=>{ console.error(error); process.exitCode = 1; });

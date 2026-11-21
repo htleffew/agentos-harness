@@ -631,7 +631,7 @@ export function renderV10(body, app, page) {
                     },{'aria-label':'Story state under replies'})),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.'),
                 promptGroup(['planGuidance','proseFirst'],'Customize planning and prose prompts'),
-                promptGroup(['structuredRoast','roastFeedback'],'Customize Roast and feedback prompts')));
+                promptGroup(['roastVoice','structuredRoast','roastFeedback'],'Customize Roast and feedback prompts')));
             break;
         case 'opening': body.append(renderOpening(local,redraw)); break;
         case 'facts': body.append(promptGroup(['structuredFacts','structuredRepair'],'Customize fact and repair prompts'),

@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.0.24
+
+- Show scene, cast and story-change previews beneath the newest reply. Each preview opens the matching section of Story State in one tap.
+- Give Roast a standalone quotation layout with paragraphs and emphasis. Structured and Legacy replies now use the same editable commentator voice. Saved custom voices carry over, and the default reacts as an invested reader.
+- Bring newly opened cards into view if they would fall behind the composer on a phone.
+
 ## 10.0.23
 
 - Manage keyword source, chance, sticky duration and cooldown on Story World entries. An optional AI helper suggests trigger phrases for an entry and leaves the final selection in its editor.

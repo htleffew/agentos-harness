@@ -1,6 +1,6 @@
 // Saved settings (per app) and per-chat state.
 import { ctx, KEY, names, characterKey, setChatVariable, isChatOpen } from './st.js';
-import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, DEFAULT_VOICE, OLD_VOICE_START } from './defaults.js';
+import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, DEFAULT_VOICE, LEGACY_DEFAULT_VOICE, OLD_VOICE_START } from './defaults.js';
 
 export const FORMS = ['they', 'them', 'their', 'theirs', 'themself'];
 export const PRONOUN_SETS = {
@@ -54,7 +54,7 @@ const DEFAULTS = {
         ],
     },
     scene: { track: true, card: 'auto' },   // ask every reply for who is present, where and when; draw the scene card ('auto': only under replies with no HUD of their own)
-    cards: { on: true, most: 2, roast: true, previousRoast: false, stateBudget: 350, voice: DEFAULT_VOICE },   // character profile cards and the roast, asked for in the same block as the scene lines
+    cards: { on: true, most: 2, roast: true, previousRoast: false, stateBudget: 350 },   // character profile cards and the roast, asked for in the same block as the scene lines
     dice: { on: true, user: true, char: true, others: true, stats: ['Strength', 'Agility', 'Wits', 'Charm', 'Will', 'Senses'], sheets: {} },   // rolled in code; sheets: stat modifiers per character card and persona
     words: { on: true, tell: true, list: DEFAULT_WORDS },   // words to flag in AI-written text; "tell" also asks the AI writer to leave them out
     writer: { count: 10, moreRoom: false, eventScene: false, rules: DEFAULT_WRITER_RULES, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
@@ -80,8 +80,14 @@ export function settings() {
     const root = ctx().extensionSettings;
     if (!root[KEY] || typeof root[KEY] !== 'object') root[KEY] = {};
     const st = fill(root[KEY], DEFAULTS);
-    // The starting voice of 5.11.0 (never edited) becomes the Gremlin voice.
-    if (typeof st.cards?.voice === 'string' && st.cards.voice.startsWith(OLD_VOICE_START)) st.cards.voice = DEFAULT_VOICE;
+    if (Object.hasOwn(st.cards,'voice')) {
+        const voice = typeof st.cards.voice==='string' ? st.cards.voice.trim() : '';
+        if (voice && voice!==LEGACY_DEFAULT_VOICE && voice!==DEFAULT_VOICE && !voice.startsWith(OLD_VOICE_START)) {
+            st.prompts ||= {};
+            st.prompts.roastVoice ??= {text:voice,base:DEFAULT_VOICE};
+        }
+        delete st.cards.voice;
+    }
     // Where new sets are kept: '' = each in a lorebook of its own, or the name of the shared lorebook.
     // A new install keeps everything in one lorebook. An install that already has sets stays as it is.
     if (typeof st.home !== 'string') st.home = Object.keys(st.sets).length ? '' : HOME_BOOK;

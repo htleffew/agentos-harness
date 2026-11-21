@@ -66,6 +66,8 @@ The companion preset can put an emitted planning outline in the collapsed **Repl
 
 Open **Story state** below a structured reply to inspect saved **Portrayal**, **Emotions**, **Relationships**, **Knowledge**, **Facts**, and **Plot**, alongside the scene, character snapshots, and changes for that reply. Emotion meters show the last recorded scores. Plot cards include saved status, prerequisites, travel, and outcomes where available. The extension reads these records on demand without a model request. Earlier replies use the saved world changes to recover the state at that point. If historical data is incomplete, the view flags that and shows the records it can verify. **Roast**, **Reply planning**, and **World Info** each retain their own disclosure.
 
+Below the newest reply, scene, character state and story-change previews are visible as soon as the reply is filed. Tap a preview to open the matching detail directly. **Roast** opens independently to a formatted quotation. To change its voice, use **Setup → Reply Display → Customize Roast and feedback prompts → Commentator voice**. The same voice setting applies to Structured and Legacy replies, and Roast generation uses the normal reply request.
+
 State extraction and eligible repair use the ordinary reply request. Drafting or reading an opener can use one setup request. The optional instruction checker and chapter summarizer have their own settings. See the [v10 decision log](docs/v10-vexa-decision-log.md) for the design and verification cases.
 
 ## Context and memory

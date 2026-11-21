@@ -1,6 +1,7 @@
 // Editable instruction text. Runtime data and response formats are assembled by
 // their feature; only the behavioral wording below is customized.
 import { settings, saveSettings } from './store.js';
+import { DEFAULT_VOICE } from './defaults.js';
 
 const define = (label, text, required = [], help = '') => ({ label, text, required, help });
 export const PROMPTS = {
@@ -79,7 +80,8 @@ export const PROMPTS = {
     autonomousEvent: define('Unscheduled world opportunity', 'If the scene has room, introduce one plausible outside development that follows from the current place and circumstances.'),
     optionalOpportunity: define('Offering a plot development', 'Defer if it does not fit. An offered event can remain open.'),
     resolvedActionGuidance: define('Using the resolved action check', 'Honor the outcome and preserve player agency.'),
-    structuredRoast: define('Writing the Roast', 'Write one brief out-of-story reaction about this reply, focusing on character voice, variety, or pacing.'),
+    structuredRoast: define('Writing the Roast', 'Give a brief, out-of-story reaction as the commentator below. Use one or two short paragraphs and optional Markdown emphasis. Keep the reaction about this reply. Write the prose separately in the story’s own voice.'),
+    roastVoice: define('Commentator voice', DEFAULT_VOICE),
     roastFeedback: define('Using previous Roast commentary', 'Treat the following out-of-story voice feedback as a suggestion for variety. Preserve established facts and the character’s portrayal.'),
     structuredRepair: define('Repairing a missed story update', 'Recover only changes supported by the accepted reply. Use exact evidence and respect newer facts. Keep new changes in the ordinary changes list.'),
     correctionSwipe: define('Regenerating after a story correction', 'Regenerate this reply using the following accepted correction. Keep the same point in the story and retain unrelated established details. Apply the correction in the fiction without discussing the edit.'),

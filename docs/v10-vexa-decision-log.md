@@ -6,6 +6,8 @@ Use **Decided** for agreed direction, **Proposed** for design ideas, and **Open*
 
 The [v10 verification](v10-verification.md) traces the decisions and subsequent requests to current code and tests.
 
+In 10.0.24, the newest reply also shows scene, cast and story-change previews above the tabbed details. Each preview opens its own detail in one tap. Roast remains an independent disclosure and uses the shared, editable commentator voice in both workflows.
+
 ## 2026-11-19 · Comparison
 
 | Area | Vexa v1.0 | Extension v9.0.1 and implications |

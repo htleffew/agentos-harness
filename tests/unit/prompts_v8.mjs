@@ -25,3 +25,9 @@ P.restorePrompt('event');assert(!P.promptStatus('event').customized);assert(P.pr
 P.savePrompt('worldUpdate','Custom world behavior');const ask=WF.buildAsk([]);assert.match(ask,/Custom world behavior/);assert.match(ask,/<story_update>/);assert.match(ask,/Output the following/);
 extensionSettings.roleplay_instructions.prompts.guided={text:'bad without token',base:'old'};assert.match(P.promptText('guided',{direction:'SAFE'}),/SAFE/);
 assert(saves>=5);console.log('prompt templates, validation, protected format, independent restore and default drift: passed');
+
+extensionSettings.roleplay_instructions.cards.voice='Dry theater critic with a weakness for a good entrance.';
+assert.match(P.promptText('roastVoice'),/Dry theater critic/);
+assert(P.promptStatus('roastVoice').customized);
+P.restorePrompt('roastVoice');
+assert.match(P.promptText('roastVoice'),/Write as Gremlin/);
