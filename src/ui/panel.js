@@ -35,17 +35,26 @@ const GROUPS = [
 ];
 const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','portrayal','emotion','speakers','writing','checks']);
 
-async function navigate(id, groupId) {
-    if (app.tab !== id) {
-        if (app.root?.querySelector('[data-ri-dirty]')) {
-            const chat = ctx().getCurrentChatId?.();
-            if (!await confirmBox('Discard your unsaved record edits?') || ctx().getCurrentChatId?.()!==chat) return;
-        }
+async function canLeaveDraft() {
+    const routeKey = {instructions:'route',events:'eroute',style:'sroute',world:'wroute'}[app.tab];
+    const route = app[routeKey];
+    if (!route?.dirty && !app.root?.querySelector('[data-ri-dirty]')) return true;
+    const chat = ctx().getCurrentChatId?.();
+    if (!await confirmBox('Discard your unsaved changes?') || ctx().getCurrentChatId?.()!==chat) return false;
+    if (route?.dirty) app[routeKey] = routeKey==='route' ? {view:'set',name:route.name} : {view:'list'};
+    return true;
+}
+
+async function navigate(id, groupId, loreTarget = null) {
+    if (app.tab !== id || app.loreTarget !== loreTarget) {
+        if (!await canLeaveDraft()) return false;
         app.tab = id;
+        app.loreTarget = loreTarget;
         app.resetScroll = true;
         render();
     }
     app.root?.querySelector(groupId ? `[data-ri-group="${groupId}"]` : `[data-ri-page="${id}"]`)?.focus({preventScroll:true});
+    return true;
 }
 
 export const app = {
@@ -54,6 +63,7 @@ export const app = {
     eroute: { view: 'list' },  // inside Random Story Events: list | edit
     sroute: { view: 'list' },  // inside Random Writing Style: list | edit
     wroute: { view: 'list' },  // inside Story World: list | edit
+    loreTarget: null,
     cache: {},                 // lorebook name -> data, for counts on the cards
     root: null,
     body: null,
@@ -62,15 +72,32 @@ export const app = {
     render,
     setExpanded,
     openPage: navigate,
+    async openSetting(page, controlId, moduleScope) {
+        if (!await navigate(page)) return;
+        if (moduleScope && app.moduleScope!==moduleScope) {
+            app.moduleScope=moduleScope;
+            render();
+        }
+        const control = controlId && document.getElementById(controlId);
+        const disclosure = control?.closest('details');
+        if (disclosure) disclosure.open=true;
+        control?.scrollIntoView({block:'center'});
+        control?.focus({preventScroll:true});
+    },
+    async openLoreEntry(entry) {
+        if (await navigate('books',null,entry) && !app.root?.classList.contains('ri-expanded')) await setExpanded(true);
+    },
     go(route) { app.route = route; app.resetScroll = true; render(); app.root?.scrollIntoView?.({ block: 'start' }); },
 };
 
 async function setExpanded(on) {
-    if (app.root?.querySelector('[data-ri-dirty]') && !await confirmBox('Discard your unsaved record edits?')) return false;
     const st = settings();
     st.expanded = !!on;
     saveSettings();
     if (on) {
+        const active = document.activeElement;
+        app.returnFocus = active && active!==document.body && !app.root.contains(active) ? active : null;
+        app.restoreDrawer = Boolean(app.home.getClientRects().length);
         let overlay = document.getElementById('ri_overlay');
         if (!overlay) { overlay = h('div', { id: 'ri_overlay', class: 'ri-overlay' }); document.body.appendChild(overlay); }
         overlay.appendChild(app.root);
@@ -83,9 +110,17 @@ async function setExpanded(on) {
         app.root.classList.remove('ri-expanded');
         for (const name of ['role','aria-modal','aria-label']) app.root.removeAttribute(name);
         document.getElementById('ri_overlay')?.remove();
+        if (app.restoreDrawer && !app.home.getClientRects().length) {
+            app.home.closest('.drawer')?.querySelector(':scope > .drawer-toggle')?.click();
+        }
     }
-    render();
-    app.root.querySelector('[data-ri-expand]')?.focus({preventScroll:true});
+    const control = app.root.querySelector('[data-ri-expand]');
+    control.textContent = on ? 'Close full screen' : 'Expand';
+    control.title = on ? 'Go back to the small panel' : 'Show this panel full screen';
+    const returnFocus = !on && app.returnFocus?.isConnected && app.returnFocus.getClientRects().length
+        ? app.returnFocus : control;
+    returnFocus.focus({preventScroll:true});
+    if (!on) app.returnFocus=null;
     return true;
 }
 
@@ -118,7 +153,7 @@ export function render() {
     app.root.style.minHeight = `${app.root.offsetHeight}px`;
     clear(app.root);
 
-    const expand = button(expanded ? 'Close full screen' : 'Expand', () => setExpanded(!expanded),
+    const expand = button(expanded ? 'Close full screen' : 'Expand', () => setExpanded(!app.root.classList.contains('ri-expanded')),
         {kind:'ghost',title:expanded ? 'Go back to the small panel' : 'Show this panel full screen'});
     expand.dataset.riExpand='';
     const head = h('div', { class: 'ri-head' },
@@ -182,9 +217,10 @@ export function mount(missing) {
     tryMount();
 
     let timer = null;
+    const focusInField = () => app.root?.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
     onLog(() => { if (app.tab === 'log') { clearTimeout(timer); timer = setTimeout(render, 80); } });
     onChange((what) => {
-        if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.wroute = { view: 'list' }; app.cache = {}; }
+        if (what === 'chat') { app.route = { view: 'sets' }; app.eroute = { view: 'list' }; app.sroute = { view: 'list' }; app.wroute = { view: 'list' }; app.cache = {}; app.loreTarget = null; }
         refreshUnderReplies();
         // Keep unsaved wording in an open prompt editor during background updates.
         if (what !== 'chat' && app.root?.querySelector('.ri-prompt-editor[open]')) return;
@@ -194,12 +230,14 @@ export function mount(missing) {
         if (app.tab === 'events' && app.eroute.view === 'edit' && what !== 'chat') return;
         if (app.tab === 'style' && app.sroute.view === 'edit' && what !== 'chat') return;
         if (V10_PAGES.has(app.tab) && what !== 'chat' && (app.root?.querySelector('.ri-state-editor, [data-v10-draft]') ||
-            (app.root?.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')))) return;
+            focusInField())) return;
         if (app.tab === 'world' && (app.wroute.view === 'edit' || app.wroute.sheet) && what !== 'chat') return;
         if (app.tab === 'state' && what !== 'chat' && app.root?.querySelector('.ri-state-editor')) return;
         if (app.tab === 'context' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement?.tagName || '')) return;
         if (app.tab === 'goals' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
         clearTimeout(timer);
-        timer = setTimeout(render, 80);
+        timer = setTimeout(()=>{
+            if (what==='chat' || !app.root?.querySelector('[data-ri-dirty]') && !(V10_PAGES.has(app.tab) && focusInField())) render();
+        },80);
     });
 }

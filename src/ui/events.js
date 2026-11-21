@@ -13,6 +13,7 @@ import { eventLeft, unburnSet } from '../engine.js';
 import { contextField } from './context.js';
 import { NEEDS } from '../pacing.js';
 import { ORIGINS, originOf, STAKES, STAKES_NAME, listRole } from '../events.js';
+import { enabledV10, effectiveModules } from '../v10.js';
 
 const EVENTS = {
     kind: 'events', type: 'event', route: 'eroute', make: newEvent, tick: 'events', set: 'story event set', sets: 'story event sets', Set: 'Story event set',
@@ -37,7 +38,15 @@ const itemWriterPrompts = category => promptGroup(cfg.kind === 'style'
     ? ['styleWriterRules', 'systemStyleItems'] : ['eventWriterRules', ...itemContextPromptIds(category), 'systemItems'],
     'Customize Write with AI prompts', { contextual: true });
 
-export function renderEvents(body, app) { cfg = EVENTS; if (app.eroute.view !== 'edit') body.appendChild(promptGroup(['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite'])); return app.eroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
+export function renderEvents(body, app) {
+    cfg = EVENTS;
+    if (app.eroute.view === 'edit') return renderEdit(body, app);
+    if (enabledV10()) body.append(h('div',{class:'ri-note'},
+        h('p',{},`Autonomous world events are ${effectiveModules().worldEvents ? 'on' : 'off'} for this chat. They offer optional developments independently of the event sets below.`),
+        button('Change autonomous world events',()=>app.openSetting('v10','ri-module-worldEvents','chat'),{kind:'ghost'})));
+    body.appendChild(promptGroup(['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite']));
+    return renderList(body, app);
+}
 export function renderStyle(body, app) { cfg = STYLE; if (app.sroute.view !== 'edit') body.appendChild(promptGroup(['style', 'styleWriterRules', 'systemStyleItems'])); return app.sroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
 
 const go = (app, route, c = cfg) => { app[c.route] = route; app.resetScroll = true; app.render(); app.root?.scrollIntoView?.({ block: 'start' }); };

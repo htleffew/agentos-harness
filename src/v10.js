@@ -751,6 +751,8 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
         if (!seen.has(key)) { seen.add(key); receipt.push(item); }
     };
     const local = prefs();
+    const info = book && setInfo(book);
+    const source = info?.shared ? {sourceBook:info.book,sourceGroup:info.group} : {};
     const roles = new Map(reusableAssignments(local).map(book => [book.name,
         book.role === 'guidelines' ? 'Guidelines' : reusableBookRoles[book.role]]));
     for (const entry of entries) {
@@ -765,14 +767,14 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
         ].filter(Boolean).join(' · ');
         const role = managed || (entry.world === local?.base?.name ? 'Base World' : roles.get(entry.world) || 'World Info');
         add({ book:entry.world, uid:entry.uid, title:entry.comment || entry.key?.[0] || `Entry ${entry.uid}`, role,
-            ...(timing ? { timing } : {}), selected:true, text:entry.content });
+            ...(managed ? {managedSet:set} : {}), ...(timing ? { timing } : {}), selected:true, text:entry.content });
     }
     for (const uid of notes?.ids || []) {
         const row = rows.find(item => item.uid === uid);
-        if (row) add({ book, uid, title:row.kind === 'secret' && row.status !== 'out' ? 'Concealed entry' : row.name,
+        if (row) add({ book, uid, ...source, title:row.kind === 'secret' && row.status !== 'out' ? 'Concealed entry' : row.name,
             selected:true, role:'Story World', delivery:'Story notes block', text:notes.text });
     }
-    for (const {record,text} of recalled) add({book,uid:record.id,title:record.kind === 'knowledge' && record.private ? 'Character knowledge' : record.id,role:PLOT_KINDS.includes(record.kind) ? 'Plot Records' : 'Chat Facts',selected:true,text});
+    for (const {record,text} of recalled) add({book,uid:record.id,...source,title:record.kind === 'knowledge' && record.private ? 'Character knowledge' : record.id,role:PLOT_KINDS.includes(record.kind) ? 'Plot Records' : 'Chat Facts',selected:true,text});
     return receipt.slice(0,120);
 }
 

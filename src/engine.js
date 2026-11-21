@@ -25,7 +25,7 @@ import { chapterAfterReply } from './chapters.js';
 import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile, parseUpdate } from './worldflow.js';
 import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, acceptGuidedSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
-import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
+import { USER_LINE, parseContent, readInstruction, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
 const sentEntries = new Map();   // key -> the lorebook entry whose text is being sent in this reply
 
@@ -317,7 +317,15 @@ async function onEntriesLoaded(lore) {
             if (g?.on && String(g.goal || '').trim() && !goalDone(g, goalProgress(gen && !gen.dryRun ? gen.type : 'normal'))) lore.chatLore.push(goalEntry());
         }
         for (const arr of arrays) {
-            for (const e of arr) if (isManaged(e)) rawByKey.set(keyOf(e), { content: e.content, role: e.role });
+            for (const e of arr) if (isManaged(e)) {
+                const raw = { content:e.content, role:e.role };
+                const set = setOf(e);
+                if (Object.hasOwn(settings().sets,set) && setInfo(set).kind==='instructions') {
+                    const {when,triggerSource,chance,keep,wait} = readInstruction(e);
+                    raw.recallRule = {when,triggerSource,chance,keep,wait};
+                }
+                rawByKey.set(keyOf(e),raw);
+            }
         }
         learnAliases(arrays.flat().filter(isManaged));
         if (cs) syncChat(cs);
@@ -377,6 +385,8 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     entry.content = text;
     sentEntries.set(keyOf(entry), entry);
     const item = { key: keyOf(entry), world: entry.world, set: setOf(entry), uid: entry.uid, name: String(entry.comment || `Instruction ${entry.uid}`), sentAs, version, text, misses, kind, repeat, status: 'sent', quote: '' };
+    const rule = repeat ? extra?.recallRule : rawByKey.get(item.key)?.recallRule;
+    if (rule) item.recallRule = rule;
     // A story event also keeps what the dice picked, and the state of its categories after this event.
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
     if (entry.extensions?.ri?.actor === 'model') item.modelDirection = true;
@@ -870,6 +880,7 @@ function onMessageReceived(id, type) {
             rec.v10Plot = turn.plotAudit?.filter(row=>row.recalled || row.eligible || row.id===pending.offer).slice(0,40);
             if (pending.offer && !rec.v10Plot?.some(row=>row.id===pending.offer)) (rec.v10Plot ||= []).push({id:pending.offer,eligible:true,recalled:false});
             rec.v10Lore = pending.lore?.map(({text, ...entry})=>entry);
+            if (typeof pending.guidanceConfirmed==='boolean') rec.v10Guidance = pending.guidanceConfirmed;
             if (pending.v10Request) rec.v10Request = pending.v10Request;
             const cardIssues = [];
             if (pending.guidanceConfirmed === false) cardIssues.push('The extension could not find its story guidance in the assembled request.');
@@ -920,6 +931,7 @@ function onMessageReceived(id, type) {
         const guidedAttempt = rec.guided && guided;
         if (guidedAttempt) {
             guidedAttempt.completed = true;
+            if (guidedAttempt.ending) guided = null;
             if (guidedAttempt.correction) {
                 const meta = chatState();
                 const anchor = `record:${rec.time}`;
@@ -1199,7 +1211,7 @@ export function recentRecords(limit = 30) {
     const out = [];
     for (let i = chat.length - 1; i >= 0 && out.length < limit; i--) {
         const rec = chat[i]?.extra?.[KEY];
-        if (rec?.items?.length || rec?.v10Lore?.length || rec?.v10Request || rec?.v10Offer || rec?.v10Check || rec?.cardIssues?.length || shownChanges(rec?.update?.changes).length || rec?.pace?.quiet) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
+        if (rec?.v10 || rec?.items?.length || rec?.v10Lore?.length || rec?.v10Request || rec?.v10Offer || rec?.v10Check || rec?.cardIssues?.length || shownChanges(rec?.update?.changes).length || rec?.pace?.quiet) out.push({ id: i, rec, isLast: i === chat.length - 1, name: chat[i].name });
     }
     return out;
 }
@@ -1382,6 +1394,11 @@ export function init() {
         // A dry run (SillyTavern counting tokens for its prompt list) can start while a real reply is being written.
         // It must leave the state of the real reply alone, so only real generations are tracked.
         if (dryRun) return;
+        if (guided?.ending) {
+            const attempt = guided;
+            guided = null;
+            if (!attempt.completed) cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e));
+        }
         clearReplyProgress();
         if (guided && type === 'swipe' && guided.chatId === String(ctx().getCurrentChatId?.() || '')) guided.started = true;
         gen = { memory:memoryOnly(), guided: guided?.started ? guided : null, type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
@@ -1422,9 +1439,20 @@ export function init() {
         if (finished) setTimeout(() => {
             if (replyProgress()?.turn === finished && !['filing','ready'].includes(replyProgress().phase)) clearReplyProgress(finished);
         },1200);
+        gen = null;
         const attempt = guided;
-        gen = null; guided = null;
-        if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }
+        if (!attempt || attempt.completed) { guided = null; return; }
+        // The host unlocks streaming controls before it emits MESSAGE_RECEIVED.
+        // Give that event a chance to file the new swipe before rolling back.
+        attempt.ending = true;
+        setTimeout(() => {
+            if (guided!==attempt) return;
+            guided = null;
+            if (!attempt.completed) {
+                pending = null;
+                cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e));
+            }
+        },1200);
     });
     on('GENERATION_STOPPED', () => { clearReplyProgress(); const attempt = guided; guided = null; gen = null; pending = null; pickAgain = false; rerollCat = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
     on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);

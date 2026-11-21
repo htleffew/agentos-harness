@@ -56,8 +56,15 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         })});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
         const progress=page.locator('.ri-v10-progress');
+        let releaseRequest;
+        const waiting = new Promise(resolve=>{releaseRequest=resolve;});
+        await page.route('**/api/backends/chat-completions/generate',async route=>{
+            await waiting;
+            await route.continue();
+        },{times:1});
         const sending=L.send(page,'I run to the dock.');
-        await progress.getByRole('status').getByText('Waiting for the reply').waitFor();
+        try { await progress.getByRole('status').getByText('Waiting for the reply').waitFor(); }
+        finally { releaseRequest(); }
         await progress.getByRole('status').getByText('Writing the reply').waitFor();
         assert.equal(await progress.locator('li[data-status="done"]').count(),1);
         assert.equal(await progress.locator('li[data-status="done"] .ri-progress-light').textContent(),'✓');
@@ -151,6 +158,21 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.match(await latest.locator('.ri-v10-console .ri-reply-chip-rail').textContent(),/Dock.*2 changes/);
         const confirmed = state.rec.v10Lore.filter(entry=>entry.confirmed).length;
         assert.match(await latest.locator('.ri-v10-lore .ri-reply-chip-rail').first().textContent(),new RegExp(`${confirmed} confirmed`));
+        await latest.locator('.ri-v10-lore > summary').click();
+        await latest.locator('.ri-v10-lore li').filter({hasText:'Harbor marker'}).getByRole('button',{name:'View entry settings'}).click();
+        const entryPanel=page.locator('#ri_overlay #ri_panel_page');
+        assert.equal(await entryPanel.getByLabel('Entry title',{exact:true}).inputValue(),'Harbor marker');
+        assert.equal(await entryPanel.getByLabel('Primary triggers',{exact:true}).inputValue(),'dock');
+        await entryPanel.getByLabel('Chance (%)',{exact:true}).fill('70');
+        await entryPanel.getByRole('button',{name:'Save entry',exact:true}).click();
+        await entryPanel.getByRole('status').filter({hasText:'Entry saved.'}).waitFor();
+        await entryPanel.getByRole('button',{name:'Edit entry again',exact:true}).click();
+        assert.equal(await entryPanel.getByLabel('Chance (%)',{exact:true}).inputValue(),'70');
+        await entryPanel.getByLabel('Chance (%)',{exact:true}).fill('100');
+        await entryPanel.getByRole('button',{name:'Save entry',exact:true}).click();
+        await entryPanel.getByRole('status').filter({hasText:'Entry saved.'}).waitFor();
+        await page.getByRole('button',{name:'Close full screen',exact:true}).click();
+        assert.equal(L.requests().length,1);
         assert.equal(await latest.locator('.ri-reply-roast').evaluate(x=>x.open),false);
         await latest.locator('.ri-v10-console > summary').click();
         await latest.getByRole('tab',{name:'Changes'}).click();
@@ -255,6 +277,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         const go = name => navigation.locator(`[data-ri-group="${name.toLowerCase()}"]`);
         // Programmatic clicks keep this test independent of the host's Extensions-drawer layout.
         await go('Story').evaluate(el=>el.click());
+        await navigation.locator('[data-ri-page="opening"]').evaluate(el=>el.click());
         assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'Opening');
         await navigation.locator('[data-ri-page="facts"]').evaluate(el=>el.click());
         assert.match(await navigation.locator('#ri_panel_page').textContent(),/Chat Facts/);

@@ -50,9 +50,12 @@ async function auditDisclosures(body) {
     try {
         await L.setupApi(page);
         await L.openChat(page);
-        await page.locator('#extensions-settings-button > .drawer-toggle').click();
-        await page.locator('#ri_drawer .inline-drawer-header').click();
         const root=page.locator('#ri_root'), body=root.locator('#ri_panel_page');
+        const openInline=async()=>{
+            if (!await page.locator('#ri_drawer').isVisible()) await page.locator('#extensions-settings-button > .drawer-toggle').click();
+            if (!await root.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').click();
+        };
+        await openInline();
         const click=(label)=>root.getByRole('button',{name:label,exact:true}).click();
         const group=(label)=>root.getByRole('navigation',{name:'Roleplay sections'}).getByRole('button',{name:label,exact:true});
         const menu=(label)=>body.getByLabel(label,{exact:true});
@@ -100,6 +103,11 @@ async function auditDisclosures(body) {
         assert.equal(await root.getByRole('button',{name:'Module defaults by preset'}).getAttribute('aria-pressed'),'true');
         await exerciseModules();
         await click('This chat');
+        await group('Direction').click();
+        await click('Random Story Events');
+        await click('Change autonomous world events');
+        assert.equal(await page.evaluate(()=>document.activeElement.id),'ri-module-worldEvents');
+        assert.equal(await root.locator('[data-module-scope="chat"]').getAttribute('aria-pressed'),'true');
         const visited = [];
         for (const width of [390,1280]) {
             await page.setViewportSize({width,height:850});
@@ -128,6 +136,27 @@ async function auditDisclosures(body) {
         assert.equal(await menu('Record text').inputValue(),'A new fact written without an ID.');
         await click('Save record');
         await body.getByText(/Fact · a-new-fact-written-without-an-id/).waitFor();
+        await group('Direction').click();
+        await click('Writing Guidance');
+        const writing=body.locator('details').filter({has:page.getByLabel('Live writing guidance',{exact:true})});
+        await writing.locator('summary').click();
+        const guidance=menu('Live writing guidance');
+        const previous=await guidance.inputValue();
+        await guidance.fill('Keep dialogue concise and unmistakably individual.');
+        await click('Close full screen');
+        assert.equal(await guidance.inputValue(),'Keep dialogue concise and unmistakably individual.');
+        await click('Expand');
+        await group('Review').click();
+        await dialog.locator('.popup-button-cancel').click();
+        assert.equal(await guidance.inputValue(),'Keep dialogue concise and unmistakably individual.');
+        await writing.getByRole('button',{name:'Discard draft',exact:true}).click();
+        assert.equal(await guidance.inputValue(),previous);
+        await guidance.fill('Keep dialogue concise and unmistakably individual.');
+        await writing.getByRole('button',{name:'Save guidance',exact:true}).click();
+        await writing.getByRole('status').filter({hasText:'Saved for this chat.'}).waitFor();
+        assert.match(await writing.locator('summary').textContent(),/Customized/);
+        await writing.getByRole('button',{name:'Restore default',exact:true}).click();
+        assert.equal(await guidance.inputValue(),previous);
         await root.getByRole('button',{name:'Close full screen',exact:true}).focus();
         await page.keyboard.press('Shift+Tab');
         await page.keyboard.press('Shift+Tab');
@@ -140,6 +169,33 @@ async function auditDisclosures(body) {
         await root.getByRole('button',{name:'Close full screen',exact:true}).focus();
         await page.keyboard.press('Escape');
         assert.equal(await root.evaluate(node=>node.classList.contains('ri-expanded')),false);
+        await L.setSettings(page,{check:{mode:'off'}});
+        L.mode({reply:'Mira puts the compass on the table.'});
+        await L.send(page,'I listen to Mira.');
+        await openInline();
+        await click('Expand');
+        await group('Review').click();
+        await click('What Was Sent');
+        await body.getByText('The extension confirmed story guidance was sent. Exact text was not saved for this reply.').waitFor();
+        await click('Edit writing guidance');
+        await page.waitForFunction(()=>document.activeElement.id==='ri-profile-style');
+        await click('Close full screen');
+        const ruleSet=`UI audit rule ${Date.now()}`;
+        await L.makeSet(page,ruleSet,[{name:'Receipt example',versions:['RAUDIT'],chance:100,wait:5}]);
+        await L.send(page,'I check the compass again.');
+        await openInline();
+        await click('Expand');
+        await group('Review').click();
+        await click('What Was Sent');
+        const receipt=body.locator('.ri-sentcard').first();
+        await receipt.getByText('Always eligible · 100% configured chance · wait 5 replies').waitFor();
+        await receipt.getByText('World Info selections',{exact:true}).click();
+        await receipt.getByRole('button',{name:'Open in Direction for Receipt example'}).click();
+        const name=body.getByPlaceholder('Example: Picks a fight');
+        assert.equal(await name.inputValue(),'Receipt example');
+        await group('Review').click();
+        await click('Edit this instruction');
+        assert.equal(await name.inputValue(),'Receipt example');
         assert.deepEqual(errors,[]);
         console.log('PASS extension navigation, nested disclosures, both settings scopes, all extension modules, memory components and both display sizes');
     } finally {await browser.close();}

@@ -480,6 +480,7 @@ export function revertChanges(data, id, changes, { conflicts } = {}) {
 }
 
 const stepName = (kind, s) => WORLD_KINDS[kind]?.steps?.find(x => x[0] === s)?.[1] || s;
+const shortChange = value => value.length > 160 ? `${value.slice(0,160)}…` : value;
 /** One change in plain words. */
 export function describeChange(c) {
     const def = WORLD_KINDS[c.kind];
@@ -488,7 +489,11 @@ export function describeChange(c) {
     if (c.type === 'hide') return `${c.dates.length} older ${c.dates.length === 1 ? 'message was' : 'messages were'} hidden from the AI, because the chapter "${c.name}" covers them`;
     if (c.type === 'off') return `${c.name}: it is finished, so it was written into the chapter "${c.into}" and turned off`;
     if (c.type === 'status') return `${c.name}: went from "${stepName(c.kind, c.before)}" to "${stepName(c.kind, c.after)}"${c.why ? ` (${c.why})` : ''}`;
-    if (c.type === 'set') return `${c.name}: "${def.fields.find(f => f.key === c.field)?.label || c.field}" is now "${c.after.length > 160 ? `${c.after.slice(0, 160)}...` : c.after}"`;
+    if (c.type === 'set') {
+        const record = c.field==='data' && readRecord({kind:c.kind,fields:{data:c.after}});
+        if (typeof record?.text==='string') return `Updated ${def.label.toLowerCase()} “${c.name}”. ${shortChange(record.text)}`;
+        return `${c.name}: "${def.fields.find(f => f.key === c.field)?.label || c.field}" is now "${shortChange(c.after)}"`;
+    }
     return '';
 }
 export const shownChanges = changes => (changes || []).filter(c => c.type !== 'clock');

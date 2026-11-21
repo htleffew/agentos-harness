@@ -1,6 +1,6 @@
 import { h, button, section, textArea, textInput } from './dom.js';
 import { promptGroup } from './prompts.js';
-import { ctx, KEY, isChatOpen } from '../st.js';
+import { ctx, KEY, isChatOpen, toast } from '../st.js';
 import { chatState } from '../store.js';
 import { correctionSwipeTarget, regenerateStoryCorrection } from '../engine.js';
 import { applyStoryCorrection, beginStoryCorrection, correctionExcerpt, findCorrectionSources, suggestCorrectionEdits } from '../corrections.js';
@@ -72,11 +72,21 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     const status = h('p',{class:'ri-help',role:'status'});
     const results = h('div',{class:'ri-list'});
     const regenerate = h('input',{type:'checkbox',checked:!!target,disabled:!target,'aria-label':'Regenerate the latest reply'});
+    const auto = h('input',{type:'checkbox','aria-label':'Find and update sources with AI'});
+    const cost = h('p',{class:'ri-help','aria-live':'polite'});
+    const manualHint = h('p',{class:'ri-help',hidden:true},'Source edits you checked will be applied. Clear those selections to use automatic source editing.');
     let review, rows=[], found=[], revision=0, busy=false;
     const configure = () => {
-        save.textContent = regenerate.checked ? 'Save correction and regenerate' : 'Save correction';
+        const manual = rows.some(row=>row.selected.checked);
+        if (manual) auto.checked=false;
+        auto.disabled = busy || manual;
+        manualHint.hidden = !manual;
+        const requests = Number(auto.checked) + Number(regenerate.checked);
+        cost.textContent = requests === 0 ? 'Saves the correction for future replies. No model requests.'
+            : requests === 2 ? 'Up to 2 model requests · one to trace sources and one to generate a new swipe.'
+                : auto.checked ? 'Up to 1 model request to find and update sources.' : '1 model request to generate a new swipe.';
         save.disabled = busy || !truth.value.trim() || rows.some(row=>row.check());
-        search.disabled = trace.disabled = auto.disabled = busy || !truth.value.trim();
+        search.disabled = trace.disabled = busy || !truth.value.trim();
     };
     const doc = () => ({truth:truth.value,wording:wording.value,focus});
     const showRetry = (correction, requestedTarget, traceNote) => {
@@ -103,8 +113,10 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             await regenerateStoryCorrection(correction,requestedTarget);
             target=correctionSwipeTarget();
             status.textContent = result+' The revised reply is ready.';
+            if (!status.isConnected) toast('success',status.textContent);
         } catch (error) {
             status.textContent = result+' '+error.message;
+            if (!status.isConnected) toast('warning',status.textContent);
             showRetry(correction,requestedTarget,traceNote);
         }
     };
@@ -134,14 +146,13 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             }
             const correction = await applyStoryCorrection(current,edits);
             results.replaceChildren(); rows=[]; review=null;
-            truth.value=''; wording.value=''; onSaved(correction);
+            truth.value=''; wording.value=''; auto.checked=false; onSaved(correction);
             await settle(correction,requestedTarget,traceNote);
             (await import('./sent.js')).refreshUnderReplies();
         } catch (error) { status.textContent=error.message; }
         finally {busy=false;truth.disabled=wording.disabled=false;regenerate.disabled=!target;configure();}
     }
-    const auto=button('Correct sources with AI',()=>commit(true),{kind:'primary',disabled:true});
-    const save=button('Save correction and regenerate',()=>commit(false),{kind:'ghost',disabled:true});
+    const save=button('Apply correction',()=>commit(auto.checked),{kind:'primary',disabled:true});
     const more = button('Show more source matches',()=>{
         for (const {source,proposal} of found.slice(rows.length,rows.length+8)) {
             const row=sourceRow(source,proposal,review,target,configure);
@@ -184,6 +195,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     truth.addEventListener('input',invalidate);
     wording.addEventListener('input',invalidate);
     regenerate.addEventListener('change',configure);
+    auto.addEventListener('change',configure);
     configure();
     const unfinished = target && (chatState()?.storyCorrections || []).findLast(item=>
         item.regeneration?.status==='failed' && item.regeneration.recordTime===target.message.extra[KEY].time);
@@ -193,10 +205,11 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     }
     return h('div',{class:'ri-guided-body ri-correction-editor'},
         h('label',{class:'ri-field'},'Correct story fact',truth),
-        h('label',{class:'ri-row'},regenerate,' Regenerate the latest reply'),
-        h('p',{class:'ri-help'},target ? 'Saving with regeneration adds a new guided swipe. Source edits apply only if checked.' : 'A recorded character reply must be the latest message to regenerate it. You can save the correction for future replies.'),
-        h('div',{class:'ri-row'},auto,save),
-        h('p',{class:'ri-help'},'Correct sources with AI uses one request to find and apply supported edits. When regeneration is checked, the revised reply uses its own request.'),
+        h('label',{class:'ri-row'},auto,' Find and update sources with AI'),
+        manualHint,
+        target && h('label',{class:'ri-row'},regenerate,' Regenerate the latest reply'),
+        cost,
+        h('div',{class:'ri-row'},save),
         status,
         h('details',{class:'ri-correction-sources'},h('summary',{},'Find and edit source records'),
             h('label',{class:'ri-field'},'Wrong wording, optional',wording),
@@ -215,6 +228,12 @@ export function renderCorrections(body) {
             h('ul',{},correction.sources.map(source=>h('li',{},source.label+(['lore','card'].includes(source.kind) ? ' · this chat' : '')))))));
         list.hidden=!corrections.length;
     };
-    body.append(section('Correct story facts',correctionEditor({onSaved:renderHistory})),list);
+    const form = correctionEditor({onSaved:()=>{
+        form.removeAttribute('data-ri-dirty');
+        renderHistory();
+    }});
+    const truth = form.querySelector('[aria-label="Correct story fact"]');
+    truth.addEventListener('input',()=>form.toggleAttribute('data-ri-dirty',Boolean(truth.value.trim())));
+    body.append(section('Correct story facts',form),list);
     renderHistory();
 }

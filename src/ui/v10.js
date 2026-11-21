@@ -1,5 +1,5 @@
 import { copyGuidelinesToInstructions } from '../books.js';
-import { bookEntryEditor } from './book-entry-editor.js';
+import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
 import { renderChatBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
@@ -23,11 +23,38 @@ const problem = error => toast('error', error.message || String(error));
 const entryLabel = kind => ({fact:'Fact',profile:'Portrayal',knowledge:'Knowledge',emotion:'Emotion',relationship:'Relationship',arc:'Arc milestone',seed:'Seed',agenda:'Agenda',event:'Event'})[kind];
 const scoped = (label, control) => h('label',{class:'ri-field'},h('span',{class:'ri-label'},label),control);
 
-function profileEditor(local, key, label, fallback, redraw) {
-    const box = textArea(local[key] ?? fallback, () => {}, {rows:5,'aria-label':label});
-    return h('details',{class:'ri-card ri-tight'},h('summary',{},label),box,
-        h('div',{class:'ri-row'}, button('Save guidance',() => { local[key] = box.value.trim(); saveChatState(); }),
-            button('Restore default',() => { delete local[key]; saveChatState(); redraw(); })));
+function profileEditor(local, key, label, fallback) {
+    const box = textArea(local[key] ?? fallback, () => {}, {rows:5,id:`ri-profile-${key}`,'aria-label':label});
+    const badge = h('span',{class:'ri-prompt-badge'});
+    const status = h('p',{class:'ri-help',role:'status'});
+    const discard = button('Discard draft',()=>{
+        box.value=local[key] ?? fallback;
+        update('Draft discarded.');
+        box.focus();
+    },{kind:'ghost'});
+    const form = h('details',{class:'ri-card ri-tight'},h('summary',{},label,' ',badge),
+        h('p',{class:'ri-help'},'Changes apply to this chat.'),box,
+        h('div',{class:'ri-row'},button('Save guidance',()=>{
+            local[key]=box.value.trim();
+            box.value=local[key];
+            saveChatState();
+            update('Saved for this chat.');
+        },{kind:'primary'}),discard,button('Restore default',()=>{
+            delete local[key];
+            box.value=fallback;
+            saveChatState();
+            update('Restored the default for this chat.');
+        },{kind:'ghost'})),status);
+    function update(message) {
+        badge.textContent = Object.hasOwn(local,key) ? 'Customized' : 'Default';
+        const dirty = box.value!==(local[key] ?? fallback);
+        form.toggleAttribute('data-ri-dirty',dirty);
+        discard.hidden=!dirty;
+        status.textContent=message;
+    }
+    box.addEventListener('input',()=>update(''));
+    update('');
+    return form;
 }
 
 function renderOpening(local, redraw) {
@@ -71,7 +98,7 @@ function renderOpening(local, redraw) {
         } catch(error) { state.textContent=error.message; accept.disabled=false; }
     }, {kind:'primary'});
     const available = (ctx().chat || []).length <= 1 && !ctx().chat?.[0]?.extra?.[KEY]?.v10;
-    return section('Opening setup',profileEditor(local,'opening','Opening message guidance',OPENING,redraw),
+    return section('Opening setup',profileEditor(local,'opening','Opening message guidance',OPENING),
         available ? [scoped('Greeting source',card),direction,
             h('label',{class:'ri-row'},h('input',{type:'checkbox',checked:local.openingPlayerThoughts===true,onchange:event=>{
                 local.openingPlayerThoughts=event.currentTarget.checked;saveChatState();
@@ -544,18 +571,26 @@ export function renderV10(body, app, page) {
     const modules = effectiveModules();
     const chatFlag = (key, label, hint, defaultOn = false) => field(label,hint,
         select(choices.slice(1),(local[key] ?? defaultOn) ? 'on':'off',value=>{local[key]=value==='on';saveChatState();redraw();},
-            {'aria-label':label}));
+            {id:`ri-${key}`,'aria-label':label}));
     if (page === 'books') {
+        if (app.loreTarget) {
+            const target=app.loreTarget;
+            const back = () => app.openPage(target.fromReview ? 'sent' : 'books');
+            body.append(section('World Info entry',receiptEntryEditor(target,back,(name,entry)=>
+                reusableAssignments(local).some(book=>book.name===name && book.role==='guidelines') && !memoryOnly()
+                    ? guidelineScope(local,name,entry) : null),
+                target.fromReview && button('View all World Info books',()=>app.openPage('books'),{kind:'ghost'})));
+            return;
+        }
         const manage = enabledV10() || memoryOnly() && memoryComponents().world;
         if (manage) body.append(renderBooks(local,redraw,app,memoryOnly()));
         body.append(renderChatBooks(app, { assignedEditors:manage }));
         return;
     }
     if (page === 'v10') {
-        body.append(presetDetails(preset,app));
         body.append(section('Roleplay Instructions extension',field('Story workflow for this chat',
-            'Structured enables the extension’s continuity controls and reply cards. Legacy uses the older story tools. Memory only keeps lore, summaries and auto-hiding active while the host preset handles writing and display.',
-            select([{value:'inherit',label:`Automatic (${isCompanionPreset(preset) ? 'structured' : 'legacy'})`},
+            'Choose Structured to use the extension’s reply cards and continuity tools. Choose Memory only to use the host preset for writing and presentation. Legacy uses the original instructions, events and story tools.',
+            select([{value:'inherit',label:`Follow active preset (${isCompanionPreset(preset) ? 'Structured' : 'Legacy'})`},
                 {value:'memory',label:'Memory only'}, {value:'on',label:'Structured story workflow'},
                 {value:'off',label:'Legacy story workflow'}],memoryOnly() ? 'memory' : mode(local.enabled),value=>{
                 const cs = chatState();
@@ -566,8 +601,9 @@ export function renderV10(body, app, page) {
                     else local.enabled=value==='on';
                 }
                 saveChatState();redraw();
-            },{'aria-label':'Story workflow for this chat'}))));
+            },{id:'ri-story-workflow','aria-label':'Story workflow for this chat'}))));
         body.append(memorySettings(app,redraw));
+        body.append(presetDetails(preset,app));
         if (!enabledV10()) return;
         body.append(moduleSettings(local,app,preset,modules,redraw),
             chatFlag('generatePlan','Request a reply plan','The Roleplay Instructions V10 companion presets request a brief outline before the prose. Reply Display controls its card.'));
@@ -617,9 +653,9 @@ export function renderV10(body, app, page) {
                         ({value:key,label:key==='grounded' ? 'Grounded realism' : 'Heightened drama'}))],local.writingProfile || 'default',
                     value=>{local.writingProfile=value;saveChatState();redraw();},{'aria-label':'Portrayal intensity'})),
                 local.writingProfile && WRITING_PROFILES[local.writingProfile] ? h('p',{class:'ri-help'},WRITING_PROFILES[local.writingProfile]) : null),
-                profileEditor(local,'style','Live writing guidance',defaultWritingGuidance(),redraw),
-                profileEditor(local,'preflight','Scene and character checks',PREFLIGHT,redraw),
-                profileEditor(local,'avoidPhrases','Stock phrases to avoid','',redraw),
+                profileEditor(local,'style','Live writing guidance',defaultWritingGuidance()),
+                profileEditor(local,'preflight','Scene and character checks',PREFLIGHT),
+                profileEditor(local,'avoidPhrases','Stock phrases to avoid',''),
                 chatFlag('proseMetrics','Show turn length and dialogue share','Add word count and the approximate percentage in quotation marks to the reply’s Notes tab.'));
             break;
         case 'checks': body.append(modules.dice ? renderDice(local,redraw) : h('p',{class:'ri-note'},'Turn on the Explicit action checks module in Setup → Preset & Extension.')); break;

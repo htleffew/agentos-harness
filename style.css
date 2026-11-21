@@ -265,6 +265,7 @@
 
 /* Optional direction for a replacement reply */
 .ri-guided { margin-top: 7px; font-size: .88em; min-width:0; max-width:100%; }
+.mes_block:has(> .ri-guided-correction) { padding-bottom: 48px; }
 .ri-guided-summary { cursor: pointer; color: var(--ri-accent); font-weight: 600; }
 .ri-guided-body { display: grid; grid-template-columns:minmax(0,1fr); gap: 7px; margin-top: 7px; padding: 10px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }
 .ri-guided-body > * { min-width:0; max-width:100%; overflow-wrap:anywhere; }

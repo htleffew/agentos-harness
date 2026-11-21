@@ -1,10 +1,10 @@
 import { BOOK_TRIGGER_SOURCES, bookTriggerSource } from '../book-triggers.js';
 import { h, field, button, select, textInput, textArea } from './dom.js';
-import { ctx, isReply, loadBook, saveBook, confirmBox, toast } from '../st.js';
+import { ctx, isReply, loadBook, saveBook, confirmBox, toast, worldNames } from '../st.js';
 import { sharedId, setInfo, blankEntry, freeUid, removeEntries } from '../books.js';
 import { chatWorld, readWorldEntry, writeWorldEntry, WORLD_KINDS, isWorldEntry } from '../world.js';
 import { recordManualWorldChange, enqueue } from '../worldflow.js';
-import { pinBase, prefs } from '../v10.js';
+import { pinBase, prefs, readRecord, reusableAssignments } from '../v10.js';
 import { restoreChapterHistory } from '../hide.js';
 import { ACTIVATION_MODES, readActivation } from '../recall.js';
 
@@ -63,8 +63,11 @@ function entryTiming(entry) {
     return `${BOOK_MODES[mode]}${source} · ${chanceOf(entry)}% chance · Sticky ${entry.sticky || 0} · Cooldown ${entry.cooldown || 0} messages`;
 }
 
-function editEntry(name, entry, target, refresh, reusable, adding = false) {
+function editEntry(name, entry, target, refresh, reusable, adding = false, cancel = () => target.replaceChildren()) {
     const panel = h('div',{class:'ri-card ri-state-editor'});
+    const dirty = () => { panel.dataset.riDirty=''; };
+    panel.addEventListener('input',dirty);
+    panel.addEventListener('change',dirty);
     const row = isWorldEntry(entry) ? readWorldEntry(entry) : null;
     const title = input('Entry title',entry.comment || '');
     const enabled = toggle('Enabled',!entry.disable);
@@ -171,9 +174,58 @@ function editEntry(name, entry, target, refresh, reusable, adding = false) {
         try {await updateBook(name,adding ? [] : [entry],apply);await refresh();}
         catch(error) {problem(error);save.disabled=false;}
     },{kind:'primary'});
-    panel.append(h('div',{class:'ri-row'},save,button('Cancel',()=>target.replaceChildren(),{kind:'ghost'})));
+    panel.append(h('div',{class:'ri-row'},save,button('Cancel',cancel,{kind:'ghost'})));
     target.replaceChildren(panel);
     title.focus();
+}
+
+export function receiptEntryEditor(receipt, back, entryOptions) {
+    const info = setInfo(receipt.book);
+    const name = receipt.sourceBook || info.book;
+    const group = receipt.sourceGroup ?? info.group;
+    const controls = h('div',{class:'ri-row'});
+    const status = h('p',{class:'ri-help',role:'status'},'Loading entry…');
+    const target = h('div');
+    const scope = h('div');
+    const root = h('div',{},controls,h('h3',{},receipt.title),h('p',{class:'ri-help'},name),
+        h('p',{class:'ri-help'},'This reply recorded the selection shown below. Saved edits change how the entry works in future replies wherever the book is used.'),
+        h('p',{class:'ri-help'},[receipt.confirmed ? 'Confirmed in prompt' : 'Delivery unconfirmed',receipt.delivery,receipt.timing].filter(Boolean).join(' · ')),
+        status,target,scope);
+    controls.append(button(receipt.fromReview ? 'Back to What Was Sent' : 'Back to World Info books',back,{kind:'ghost'}));
+    const saved = () => {
+        target.replaceChildren();
+        status.textContent = 'Entry saved.';
+        controls.append(button('Edit entry again',load,{kind:'ghost'}));
+        controls.lastElementChild.focus();
+    };
+    async function load() {
+        controls.querySelector('button:nth-child(2)')?.remove();
+        status.textContent = 'Loading entry…';
+        try {
+            const data = worldNames().includes(name) && await loadBook(name);
+            if (!root.isConnected) return;
+            const entries = Object.values(data?.entries || {}).filter(entry=>!group || entry.extensions?.ri?.set===group);
+            const structured = ['Chat Facts','Plot Records'].includes(receipt.role);
+            const matches = entries.filter(entry=>receipt.uid == null
+                ? (entry.comment || entry.key?.[0] || titleOf(entry))===receipt.title
+                : structured ? isWorldEntry(entry) && readRecord(readWorldEntry(entry))?.id===receipt.uid
+                    : String(entry.uid)===String(receipt.uid));
+            if (matches.length !== 1) {
+                status.textContent = matches.length ? 'Several entries match this older receipt. Open the book list to choose an entry.'
+                    : 'This entry is no longer available in the recorded book.';
+                return;
+            }
+            status.textContent = '';
+            const reusable = prefs()?.base?.name===name || reusableAssignments().some(book=>book.name===name);
+            const options = entryOptions?.(name,matches[0]);
+            scope.replaceChildren(...(options ? [options] : []));
+            editEntry(name,structuredClone(matches[0]),target,saved,reusable,false,back);
+        } catch(error) {
+            if (root.isConnected) status.textContent = error.message;
+        }
+    }
+    queueMicrotask(()=>{if (root.isConnected) load();});
+    return root;
 }
 
 export function bookEntryEditor(name, { reusable = false, entryOptions = null } = {}) {

@@ -7,10 +7,14 @@ import { worldNames, toast, confirmBox, inputBox, isChatOpen } from '../st.js';
 import { renderEditor, deleteInstructionButton } from './editor.js';
 
 export function renderInstructions(body, app) {
-    if (app.route.view !== 'edit') body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'versionRules', 'modelVersionRules', 'systemVersions']));
     if (app.route.view === 'edit') return renderEditor(body, app);
+    const sets = app.route.view === 'set' ? null : knownSets();
+    if (sets?.length===0) body.append(h('div',{class:'ri-note'},
+        h('p',{},'Random instruction sets are optional. Add a set when you want occasional directions sent with replies.'),
+        isChatOpen() && button('Set up this chat',()=>app.openSetting('v10','ri-story-workflow'),{kind:'ghost'})));
+    body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'versionRules', 'modelVersionRules', 'systemVersions']));
     if (app.route.view === 'set') return renderSet(body, app);
-    return renderSets(body, app);
+    return renderSets(body, app, sets);
 }
 
 async function cached(app, name) {
@@ -48,9 +52,8 @@ function onForChat(name) {
 
 // ---------- list of instruction sets ----------
 
-function renderSets(body, app) {
-    const sets = knownSets();
-    body.appendChild(h('div', { class: 'ri-intro' }, 'An instruction set is a group of instructions saved in a lorebook. Turn a set on for a chat, and its instructions are sent at random with the timing you set. Settings has the choice between one shared lorebook for every set and a lorebook for each.'));
+function renderSets(body, app, sets) {
+    if (sets.length) body.appendChild(h('div', { class: 'ri-intro' }, 'Turn a set on to send its instructions at random with the timing you set.'));
 
     body.appendChild(h('div', { class: 'ri-row' },
         button('Add instruction set', async () => {
@@ -83,11 +86,6 @@ function renderSets(body, app) {
                     } catch (e) { toast('error', e.message); }
                 }, { kind: 'primary' }),
                 button('Cancel', () => app.go({ view: 'sets' }), { kind: 'ghost' }))));
-    }
-
-    if (!sets.length) {
-        body.appendChild(h('div', { class: 'ri-empty' }, 'No instruction sets yet. Add one, or open a lorebook you already have.'));
-        return;
     }
 
     for (const name of sets) {
@@ -178,6 +176,7 @@ function summaryChips(ins) {
 function renderSet(body, app) {
     const name = app.route.name;
     body.appendChild(h('div', { class: 'ri-row' }, button('‹ Back to instruction sets', () => app.go({ view: 'sets' }), { kind: 'ghost' })));
+    if (app.route.notice) body.appendChild(h('p',{class:'ri-note',role:'status'},app.route.notice));
     body.appendChild(h('div', { class: 'ri-card ri-setcard' },
         h('div', { class: 'ri-card-top' }, h('div', { class: 'ri-h2' }, setName(name)), onForChat(name)),
         keptIn(name),

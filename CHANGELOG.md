@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.0.21
+
+- Apply a correction from one button. AI source tracing is optional, and the form counts the requests needed for the selected options. A successful streamed correction stays selected as the new swipe.
+- Open the exact World Info entry and edit its settings from a reply receipt. What Was Sent shows whether story guidance was confirmed when exact text retention is off and links to the writing guidance.
+- Find chat workflow setup from the empty Random Instructions page and jump from Random Story Events to the chat’s autonomous events setting.
+- Preserve drafts when switching between inline and full-screen views. Warn before leaving changed forms and let users discard unsaved prompt text independently.
+
 ## 10.0.20
 
 - Saving a story correction can immediately generate a guided swipe. The original swipe remains available. Failed generations preserve the correction and offer a retry.

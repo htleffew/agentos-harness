@@ -213,8 +213,8 @@ export function renderEditor(body, app) {
                 }
                 writeInstruction(data, draft, name);
             });
-            toast('success', draft.versions.length ? 'Instruction saved.' : 'Instruction saved. It has no versions yet, so it sends nothing.');
-            app.go({ view: 'set', name });
+            app.go({view:'set',name,notice:draft.versions.length
+                ? 'Instruction saved.' : 'Instruction saved. Add a version when you want it to be eligible to send.'});
         } catch (e) { toast('error', `Could not save: ${e.message}`); }
     };
     body.appendChild(h('div', { class: 'ri-row ri-savebar' },

@@ -11,12 +11,13 @@ import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
 import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue, rerollPartNow, setLock, isLocked } from '../engine.js';
-import { loadSet, saveSet, entriesOf, canonSet, setName } from '../books.js';
+import { loadSet, saveSet, entriesOf, canonSet, setName, setInfo, readInstruction, setOfEntry } from '../books.js';
+import { BOOK_TRIGGER_SOURCES } from '../book-triggers.js';
 import { shownChanges, describeChange, undoReplyChanges } from '../worldflow.js';
 import { writeEvent, readEvent } from '../events.js';
 import { toast } from '../st.js';
 import { settings } from '../store.js';
-import { ctx, KEY, isChatOpen, isReply } from '../st.js';
+import { ctx, KEY, isChatOpen, isReply, loadBook } from '../st.js';
 
 const KIND = { new: 'New', continuing: 'Kept sending', resend: 'Sent again', repeat: 'New' };
 
@@ -55,9 +56,39 @@ function partRows(it, isLast, withButtons) {
     }));
 }
 
+async function editDirectionEntry(set, uid, book) {
+    try {
+        const chat = ctx().getCurrentChatId?.();
+        if (!set && book) {
+            const entry = (await loadBook(book))?.entries?.[uid];
+            if (entry) set = setOfEntry({...entry,world:book});
+        }
+        set = canonSet(set);
+        if (!Object.hasOwn(settings().sets,set)) throw new Error('This entry’s set is no longer available.');
+        const {kind} = setInfo(set);
+        const data = await loadSet(set);
+        const entry = data && entriesOf(data,set).find(item=>String(item.uid)===String(uid));
+        if (ctx().getCurrentChatId?.()!==chat) return;
+        if (!entry) throw new Error('This entry is no longer in its set.');
+        const {app} = await import('./panel.js');
+        if (!await app.openPage(kind) || ctx().getCurrentChatId?.()!==chat) return;
+        if (kind==='instructions') app.go({view:'edit',name:set,draft:readInstruction(entry)});
+        else {
+            app[kind==='events' ? 'eroute' : 'sroute'] = {view:'edit',name:set,draft:readEvent(entry,setName(set)),open:{}};
+            app.render();
+        }
+        if (!app.root.classList.contains('ri-expanded')) await app.setExpanded(true);
+    } catch(error) { toast('error',error.message); }
+}
+
 function itemRow(id, rec, it, index, withButtons) {
     const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
     const buttons = [];
+    const set = canonSet(it.set || it.world);
+    const rule = it.recallRule;
+    if (withButtons && Object.hasOwn(settings().sets,set) && setInfo(set).kind==='instructions' && it.uid!=null) {
+        buttons.push(button('Edit this instruction',()=>editDirectionEntry(set,it.uid),{kind:'ghost'}));
+    }
     if (withButtons && !it.noCheck && !('goalTask' in it)) {
         if (it.status === 'done') buttons.push(button('Undo done', () => undoDone(id, index), { kind: 'ghost', title: 'Mark it as not done, so it is sent again' }));
         if (it.status === 'overdue' || it.status === 'queued') buttons.push(button('Do not send again', () => cancelResend(id, index), { kind: 'ghost' }));
@@ -73,6 +104,12 @@ function itemRow(id, rec, it, index, withButtons) {
                 kv('Size', `about ${it.notes.tokens} tokens, ${it.notes.ids?.length || 0} ${it.notes.ids?.length === 1 ? 'entry' : 'entries'}`),
             ] : it.pace ? kv('Story phase', it.pace) : it.worldOrder ? kv('From the story world', it.worldOrder.label || it.name) : 'goalTask' in it ? (it.goalTask ? kv(it.goalTask.type === 'step' ? 'One-time step' : 'Repeatable action', it.goalTask.text) : null) : kv('Instruction set', setName(canonSet(it.set || it.world))),
             kv('Why it was sent', it.notes ? `This chat has a story world${it.repeat ? ', same as before the swipe' : ''}` : `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
+            rule && kv('Instruction settings at selection',[
+                rule.when==='always' ? 'Always eligible' : `${rule.when==='pattern' ? 'Pattern' : 'Keyword'} · ${BOOK_TRIGGER_SOURCES[rule.triggerSource] || 'Recent chat'}`,
+                `${rule.chance}% configured chance`,
+                rule.keep>0 && `keep for ${rule.keep} ${rule.keep===1 ? 'reply' : 'replies'}`,
+                rule.wait>0 && `wait ${rule.wait} ${rule.wait===1 ? 'reply' : 'replies'}`,
+            ].filter(Boolean).join(' · ')),
             kv('Exact text sent', it.text),
             Array.isArray(it.rules) && it.rules.length ? kv('Rules checked', it.rules.map(r => `${r.ok ? 'Followed' : 'Not followed'}: ${r.label}`).join('  |  ')) : null,
             it.quote ? kv('Shown by this part of the reply', `"${it.quote}"`) : null),
@@ -109,9 +146,21 @@ function askedRows(rec) {
 }
 
 function recordBody(id, rec, isLast, withButtons) {
+    const open = async (page, control) => {
+        const {app} = await import('./panel.js');
+        await app.openSetting(page,control);
+    };
     return [
         rec.v10Request ? h('details',{class:'ri-sentitem'},h('summary',{},'Story guidance sent'),
             h('pre',{class:'ri-v10-prompt-text'},rec.v10Request)) : null,
+        withButtons && rec.v10 && h('div',{class:'ri-note'},
+            h('p',{},rec.v10Request ? 'Exact story guidance is available above.'
+                : rec.v10Guidance === true ? 'The extension confirmed story guidance was sent. Exact text was not saved for this reply.'
+                    : rec.v10Guidance === false ? 'The extension could not confirm story guidance in this request.'
+                        : 'This reply has no saved guidance receipt.'),
+            h('div',{class:'ri-row'},
+                button('Edit writing guidance',()=>open('writing','ri-profile-style'),{kind:'ghost'}),
+                button('Guidance receipt settings',()=>open('display','ri-keepTurnGuidance'),{kind:'ghost'}))),
         rec.cardIssues?.length ? h('div',{class:'ri-note ri-note-warn'},rec.cardIssues.map(issue=>h('p',{},issue))) : null,
         rec.v10Check ? h('div',{class:'ri-note'},checkText(rec.v10Check)) : null,
         rec.v10Offer ? h('div',{class:'ri-note'},`Optional plot opportunity offered: ${rec.v10Offer}`) : null,
@@ -119,7 +168,7 @@ function recordBody(id, rec, isLast, withButtons) {
             h('ul',{class:'ri-changes'},rec.v10Lore.map(entry=>h('li',{},[
                 `${entry.title} · ${entry.book || 'Story World'}${entry.role ? ` (${entry.role})` : ''}`,
                 entry.confirmed ? 'Confirmed in prompt' : 'Delivery unconfirmed', entry.delivery, entry.timing,
-            ].filter(Boolean).join(' · '))))) : null,
+            ].filter(Boolean).join(' · '), ' ', loreEntryButton(entry,true))))) : null,
         rec.guided ? h('div', { class: 'ri-note' }, `Guided swipe: ${rec.guided.direction} (${rec.guided.repeatOrders ? 'previous orders repeated' : 'previous orders left out'})`) : null,
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
@@ -140,7 +189,7 @@ function summaryLine(rec) {
     const n = orders.length;
     const also = [];
     if (rec.items.some(i => i.notes)) also.push('story notes');
-    if (rec.v10Request) also.push('story guidance');
+    if (rec.v10Request || rec.v10Guidance===true) also.push('story guidance');
     if (rec.v10Lore?.length) also.push('World Info');
     if (rec.v10Offer) also.push('plot opportunity');
     if (rec.v10Check) also.push('action check');
@@ -149,7 +198,7 @@ function summaryLine(rec) {
     const changed = shownChanges(rec.update?.changes).length;
     const world = changed && !rec.update.undone ? [`${changed} ${changed === 1 ? 'change' : 'changes'} to the story world`] : [];
     if (rec.pace?.quiet) world.push('nothing new started (quiet after a big event)');
-    if (!n) return [also.length ? `${also.join(', ')} sent` : '', ...world].filter(Boolean).join(' · ') || 'nothing sent';
+    if (!n) return [also.length ? `${also.join(', ')} sent` : '', ...world].filter(Boolean).join(' · ') || (rec.v10 ? 'No saved delivery details' : 'nothing sent');
     const done = rec.items.filter(i => i.status === 'done').length;
     const waiting = rec.items.filter(i => ['overdue', 'queued'].includes(i.status)).length;
     const parts = [`${n} ${n === 1 ? 'instruction' : 'instructions'}${also.length ? ` and ${also.join(', ')}` : ''} sent`, ...world];
@@ -174,7 +223,7 @@ export function renderSent(body, app) {
     }, { kind: 'ghost', title: 'One AI request writes a detailed summary and a first message for you to change. A new chat then opens that carries the story on. This chat stays as it is.' })));
     const records = recentRecords(30);
     if (!records.length) {
-        body.appendChild(h('div', { class: 'ri-empty' }, 'Nothing has been sent in this chat yet. Turn an instruction set on for this chat in the Random Instructions tab, then send a message.'));
+        body.appendChild(h('div', { class: 'ri-empty' }, 'No reply receipts yet. Receipts appear after the extension records a reply with story guidance, World Info, or other extension instructions.'));
         return;
     }
     let reply = 0;
@@ -295,12 +344,27 @@ function replyTabs(parts, active, id) {
     return {list,panels,loadSelected,reset:()=>loaded.clear()};
 }
 
+function loreEntryButton(entry, fromReview) {
+    if (!entry.book) return null;
+    const managed = entry.managedSet || ['Random Instructions','Random Story Events','Random Writing Style'].includes(entry.role);
+    const label = managed ? 'Open in Direction' : 'View entry settings';
+    const control = button(label,async()=>{
+        if (managed) return editDirectionEntry(entry.managedSet,entry.uid,entry.book);
+        const { app } = await import('./panel.js');
+        await app.openLoreEntry({...entry,fromReview});
+    },{kind:'ghost'});
+    control.setAttribute('aria-label',`${label} for ${entry.title}`);
+    return control;
+}
+
 function replyLoreRows(lore) {
     return h('ul',{class:'ri-lore-receipt'},lore.map(entry=>h('li',{},
         h('div',{class:'ri-lore-receipt-title'},h('strong',{},entry.title),h('span',{},entry.book || 'Story World')),
         h('div',{class:'ri-reply-chip-rail'},entry.role && replyChip(entry.role,'indigo'),
             replyChip(entry.confirmed ? 'Confirmed in prompt' : 'Delivery unconfirmed',entry.confirmed ? 'mint' : 'slate'),
-            entry.delivery && replyChip(entry.delivery,'slate')))));
+            entry.delivery && replyChip(entry.delivery,'slate'),
+            entry.timing && replyChip(entry.timing,'slate')),
+        loreEntryButton(entry,false))));
 }
 
 function updateSceneHeader(mes,id,show) {
@@ -311,6 +375,7 @@ function updateSceneHeader(mes,id,show) {
     const scene = snapshotScene(id);
     const fields = [['Time',scene.time ?? scene.when],['Date',scene.date],['Location',scene.where],['Weather',scene.weather]];
     const record = ctx().chat?.[id]?.extra?.[KEY];
+    if (id===0 && !record && !fields.some(([,value])=>value)) { existing?.remove(); return; }
     const inherited = !!record?.weatherInherited && !Object.hasOwn(record?.sceneSnapshotEdits || {},'weather');
     const stamp = JSON.stringify([fields,inherited]);
     if (existing?.dataset.scene === stamp) return;
