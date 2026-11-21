@@ -2,6 +2,8 @@
 
 Applies to Roleplay Instructions feature design, repairs, audits, cold interactive testing and QA. Baseline recorded November 2026. Use this standard in the design and review of each changed flow. Assess the interface in SillyTavern with one active preset and Roleplay Instructions as the sole active extension. Include TauriTavern when the change depends on host-specific behavior.
 
+**Mobile release requirement.** Every supported workflow must be usable from start to finish by touch on a phone, including setup, editing, import and export, and recovery. Use controls available in the phone browser or the host app's webview. Desktop-only features are outside project scope. Desktop and physical-keyboard checks may supplement phone testing. Phone touch testing determines whether a workflow is ready to ship.
+
 ## Design and repair criteria
 
 | Principle | What to check in the extension |
@@ -25,6 +27,7 @@ An idle badge is static. If motion helps convey that a request has actually star
 
 - Start with observed tasks and the user’s expected outcome. For a repair, reproduce the reported problem before the change when possible. After the change, exercise the same path and adjacent actions that could regress.
 - Give a cold reviewer a goal and a phone-width touch interface. Record where they tap, what they expect, where they hesitate, and how they recover. Ask them to identify which action will call the model, what happens when they tap the indicator, and where they can change a saved connection. Reveal the intended path after the first attempt.
+- Complete each changed workflow by touch, including its settings, secondary actions and failure recovery. Exercise portrait layouts with the software keyboard open. Record actual device and webview results separately from emulation.
 - Exercise the keyboard-open state, long or translated labels, small viewports, accessibility settings, and failed or missing connections. Check at least one code-only action, one same-reply operation, one extra-call action and one opted-in background trigger. Use fixtures or a request recorder to verify actual call counts and saved routes.
 - Apply the [programmatic execution guideline](../AGENTS.md#prefer-programmatic-execution) to changed or audited flows. Verify that code-only steps make zero requests and that any separate request performs only work the programmatic or existing reply path cannot deliver.
 - Compare the default view against the prior design using task completion, first-tap accuracy, accidental calls and need for explanation. Record the tested host and viewport, actual observations, fixes and verification gaps in the audit. Mark any untested device or assistive technology explicitly.
