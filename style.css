@@ -785,3 +785,6 @@ button.ri-glance-card:hover { border-color: var(--card-ink); }
 
 .mes_block:has(> .ri-v10-reply) > .ri-v10-progress[data-phase='ready'] { display: none; }
 .ri-guided-actions summary { min-height: 44px; align-content: center; }
+
+.ri-quick-shelf { grid-template-columns: minmax(0,1fr); }
+.ri-quick-sheet :is(.ri-btn,.ri-quick-pin-label) { min-width: 0; overflow-wrap: anywhere; }

@@ -65,12 +65,15 @@ async function enableReview(page) {
 async function selectCompanion(page) {
     const drawer = page.locator('#ai-config-button > .drawer-toggle');
     await drawer.tap();
-    const chooser = page.waitForEvent('filechooser');
-    await page.locator('#import_oai_preset').tap();
-    await (await chooser).setFiles(require.resolve('../presets/Roleplay Instructions V10.json'));
-    const overwrite = page.locator('dialog[open]').filter({hasText:'Overwrite?'}).locator('.popup-button-ok');
-    if (await overwrite.isVisible()) await overwrite.tap();
-    await page.waitForFunction(()=>document.querySelector('#settings_preset_openai option:checked')?.textContent.trim()==='Roleplay Instructions V10');
+    const preset = page.locator('#settings_preset_openai');
+    const name = 'Roleplay Instructions V10';
+    if (await preset.getByRole('option',{name,exact:true}).count()) await preset.selectOption({label:name});
+    else {
+        const chooser = page.waitForEvent('filechooser');
+        await page.locator('#import_oai_preset').tap();
+        await (await chooser).setFiles(require.resolve('../presets/Roleplay Instructions V10.json'));
+    }
+    await page.waitForFunction(name=>document.querySelector('#settings_preset_openai option:checked')?.textContent.trim()===name,name);
     await drawer.tap();
 }
 

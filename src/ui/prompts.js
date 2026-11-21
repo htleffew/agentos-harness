@@ -125,7 +125,7 @@ export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice')
     const name=h('input',{class:'ri-input',maxLength:80,'aria-label':'New commentator voice name'});
     const direction=h('textarea',{class:'ri-input ri-textarea',rows:4,maxLength:12000,'aria-label':'New commentator voice direction'});
     const note=h('p',{class:'ri-help','aria-live':'polite'});
-    const file=h('input',{type:'file',accept:'.json,application/json','aria-label':'Import voice JSON',style:{maxWidth:'100%'}});
+    const file=h('input',{type:'file',accept:'.json,application/json','aria-label':'Import voice JSON',hidden:true});
     file.onchange=async()=>{
         const source=file.files?.[0];
         if (!source) return;
@@ -141,7 +141,7 @@ export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice')
                 try { createVoice(name.value,direction.value); name.value=direction.value=''; showVoice(); note.textContent='Created and selected a voice.'; }
                 catch (error) { note.textContent=error.message; }
             })),
-        h('details',{},h('summary',{},'Import or export a voice'),file,
+        h('details',{},h('summary',{},'Import or export a voice'),button('Choose voice JSON',()=>file.click()),file,
             button('Export selected voice',()=>{
                 const voice=exportVoice(selectedVoice());
                 if (download(`${voice.name.replace(/[\\/:*?"<>|]/g,'-')}.json`,JSON.stringify(voice,null,2))) note.textContent='Export started.';

@@ -91,6 +91,25 @@ test('chapter coverage remains visible when the host acknowledges a write withou
     assert(f.host.chat.every(message=>!message.is_system));
 });
 
+test('a failed auto-summary remains one attempt when later replies extend the token threshold',async()=>{
+    const f = fixture();
+    settings().world.editableReplies = -1;
+    Object.assign(settings().summary,{every:0,everyTokens:12});
+    setExecutionSetting('chapterSummary',{automatic:true});
+    const respond = f.host.generateRaw;
+    f.host.generateRaw = async input=>{
+        if (!f.requests.length) { f.requests.push(input); return ''; }
+        return respond(input);
+    };
+    await f.accept('Hale and Rowan spend a quiet afternoon walking across the bridge.',[],{runChapter:true});
+    assert.equal(executionReceipt('chapterSummary').outcome,'failed');
+    await f.accept('They wait for the lantern to come on.',[],{runChapter:true});
+    assert.equal(f.requests.length,1);
+    await writeChapter(1,2,'explicit retry');
+    assert.equal(f.requests.length,2);
+    assert.equal(executionReceipt('chapterSummary').authorization,'manual');
+});
+
 test('the editable timeline keeps surviving independent evidence when an earlier source changes', async()=>{
     const f = fixture();
     const key = {k:'person',a:'Rey',b:'Courier',c:'Rey pocketed the heavy brass key'};
@@ -115,6 +134,23 @@ test('the editable timeline keeps surviving independent evidence when an earlier
     assert.equal(listWorld(f.book(),f.world).length,0);
     assert.equal(f.requests.length,0);
     assert.equal(f.host.chat[4].mes,'Rey looked at the tower. A pier reaches the northern water.');
+});
+
+test('a host timestamp refresh cannot drop an accepted continuation update', async()=>{
+    const f = fixture();
+    const first = await f.accept('The old pier crosses the water.',[{k:'place',a:'Pier',b:'The old pier crosses the water'}]);
+    const message = f.host.chat.at(-1);
+    message.swipe_info = [{send_date:message.send_date,extra:message.extra}];
+    const load = f.host.loadWorldInfo;
+    f.host.loadWorldInfo = async name=>{
+        message.swipe_info[0].send_date = 'host-refreshed-swipe';
+        return load(name);
+    };
+    message.send_date = 'native-continuation';
+    const continued = await f.accept('A lantern burns above the quay.',[{k:'place',a:'Quay',b:'A lantern burns above the quay'}],{continuation:true});
+    assert.equal(continued.update.pending.revision.turn,first.memoryTurn);
+    assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).map(row=>row.name),['Pier','Quay']);
+    assert.equal(f.writes(),0);
 });
 
 test('a saved book write is acknowledged without a second write after save interruption', async()=>{
@@ -195,6 +231,27 @@ test('an authoritative player fact can repair an editable record without an AI r
     assert.equal(listWorld(await loadEffectiveWorld(f.world),f.world)[0].fields.what,'The gate is closed.');
     await undoStoryCorrection(result.correction.id);
     assert.equal(listWorld(await loadEffectiveWorld(f.world),f.world)[0].fields.what,'The gate is open.');
+});
+
+test('undo restores a repaired inactive swipe while leaving the selected revision intact',async()=>{
+    const f = fixture();
+    const old = await f.accept('The gate is open.',[{k:'place',a:'Gate',b:'The gate is open.'}]);
+    const reply = f.host.chat[2];
+    old.scene = {environment:'The gate is open.'};
+    f.host.chat[1].mes = 'The gate is closed.';
+    const repaired = await runFactRepair({focus:2});
+    assert.equal(old.scene.environment,'The gate is closed.');
+    const alternate = 'The gate is closed and the captain waves.';
+    const alternativeRecord = {time:5,scene:{environment:alternate}};
+    reply.swipes = [reply.mes,alternate];
+    reply.swipe_info = [{send_date:reply.send_date,extra:reply.extra},{send_date:'alternate',extra:{[KEY]:alternativeRecord}}];
+    Object.assign(reply,{mes:alternate,swipe_id:1,send_date:'alternate',extra:reply.swipe_info[1].extra});
+    await undoStoryCorrection(repaired.correction.id);
+    assert.equal(reply.mes,alternate);
+    assert.equal(reply.extra[KEY].scene.environment,alternate);
+    assert.equal(old.scene.environment,'The gate is open.');
+    assert.equal(old.update.pending.changes.length,1);
+    assert.equal(f.requests.length,0);
 });
 
 test('historical replacement reconciles dependent filed facts while keeping later prose', async()=>{
@@ -283,5 +340,32 @@ test('catch-up stages the newest window and summarizes only filed coverage',asyn
     assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).map(row=>row.name).sort(),['Gate','Pier','The harbour']);
     assert.equal(f.host.chat.at(-1).extra[KEY].update.pending.changes.length,1);
     await catchUpChatHistory();
+    assert.equal(f.requests.length,2);
+});
+
+test('editing inside staged catch-up coverage removes stale derived facts and keeps independent facts',async()=>{
+    const f = fixture();
+    await f.accept('Hale looks across the bay.');
+    await f.accept('The bell hangs beside the open gate.');
+    for (let n=3;n<=6;n++) await f.accept('Hale walks onward.');
+    await f.accept('A wooden raft rests beside the quay.',[{k:'place',a:'Quay',b:'A wooden raft rests beside the quay'}]);
+    f.host.generateRaw = async ({prompt})=>{
+        f.requests.push({prompt});
+        const hasGate=prompt[0].content.includes('The bell hangs beside the open gate.');
+        return JSON.stringify({summary:'Hale looked across the bay.',world:hasGate ?
+            [{line:'place: Gate | A bell hangs beside the open gate',evidence:'The bell hangs beside the open gate.'}] : []});
+    };
+    await catchUpChatHistory();
+    assert.equal(f.requests.length,2);
+    assert.equal(f.host.chat[14].extra[KEY].update.pending.changes.length,2);
+    assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).filter(row=>row.kind==='place').map(row=>row.name),['Gate','Quay']);
+    f.host.chat[4].mes='The bell hangs in a quiet courtyard.';
+    const fromCurrent = async ()=>(listWorld(await loadEffectiveWorld(f.world),f.world).filter(row=>row.kind==='place').map(row=>row.name));
+    assert.deepEqual(await fromCurrent(),['Quay']);
+    await invalidateAfterEdit(4);
+    assert.deepEqual(await fromCurrent(),['Quay']);
+    const reconciled=f.host.chat[14].extra[KEY];
+    assert.match(reconciled.memoryUncertain,/Source history changed/);
+    assert.equal(reconciled.update.pending.changes.length,1);
     assert.equal(f.requests.length,2);
 });

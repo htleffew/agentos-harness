@@ -3,15 +3,15 @@ import { setMemoryComponent } from '../hide.js';
 import { h, button, field, section, select } from './dom.js';
 import { settings, saveSettings } from '../store.js';
 import { isChatOpen, hasEvent, toast } from '../st.js';
-import { applyHistoryWindow, catchUpChatHistory, historyCatchUpStatus, stopHistoryCatchUp } from '../chapters.js';
+import { applyHistoryWindow, catchUpChatHistory, historyCatchUpPreview, historyCatchUpStatus, stopHistoryCatchUp } from '../chapters.js';
 import { refreshUnderReplies } from './sent.js';
 import { promptGroup } from './prompts.js';
 import { chatWorld } from '../world.js';
 import { historyPreview, chapterPreview, lastContext } from '../context-budget.js';
 import { editableReplySlots, storyJournalStatus } from '../memory-journal.js';
 import { syncWorld } from '../worldflow.js';
-import { executionPreview, executionReceipt } from '../execution.js';
-import { executionDetails, executionSettings } from './execution.js';
+import { executionReceipt } from '../execution.js';
+import { executionAction, executionDetails, executionSettings, functionExecution } from './execution.js';
 
 const number = n => Number(n || 0).toLocaleString();
 const approx = n => `~${number(n)} tokens`;
@@ -27,17 +27,38 @@ function historyTools(app, components) {
         finally { refreshUnderReplies(); redraw(); }
     };
     const disabled = !components.chapters || !!status?.running;
+    const catchUp = executionAction(button('Catch up this chat',()=>run(false),{kind:'primary',disabled}),'1 model call per batch');
+    const rebuild = executionAction(button('Rebuild from all chat history',()=>run(true),{disabled}),'1 model call per batch');
+    const catchUpBudget = h('div',{class:'ri-help','aria-live':'polite'},'Calculating current batch count…');
+    const rebuildBudget = h('div',{class:'ri-help','aria-live':'polite'},'Calculating current batch count…');
+    const budget = (preview,node,action) => {
+        const count = preview.count;
+        const expected = count>1 ? `up to ${count}` : count;
+        action.disabled = disabled || count===0;
+        executionAction(action,count===1 ? '1 model call' : `Up to ${count} model calls`);
+        node.replaceChildren(count===0 ? h('p',{},'Current coverage has no batches ready for this action.')
+            : functionExecution('historyCatchUp',{expected,trigger:`One model request per batch. Stops on the first failure. ${count} batches are ready.`}));
+    };
+    if (!disabled) historyCatchUpPreview().then(plan=>{
+        budget(plan.catchUp,catchUpBudget,catchUp);
+        budget(plan.rebuild,rebuildBudget,rebuild);
+    }).catch(error=>{
+        catchUpBudget.replaceChildren(h('p',{},error.message));
+        rebuildBudget.replaceChildren(h('p',{},error.message));
+    });
     return section('Catch up or rebuild this chat',
         h('p',{class:'ri-help'},'Read accepted replies in order and write chapters in batches. Each batch uses an AI request. Enabled story features file supported details in this chat’s Story World. Auto-hide and the protected message window apply after chapters are saved.'),
         !components.chapters && h('p',{class:'ri-note'},'Enable Chapter summaries above to use these actions.'),
         status && h('p',{class:'ri-note',role:'status'},status.text),
         status?.running ? button(status.installing ? 'Saving…' : status.stop ? 'Stopping…' : 'Stop after the current request',()=>{stopHistoryCatchUp();redraw();},{disabled:status.stop || status.installing}) :
-            h('div',{class:'ri-row'},button('Catch up this chat',()=>run(false),{kind:'primary',disabled})),
+            h('div',{class:'ri-row'},catchUp),
+        !disabled && catchUpBudget,
         h('p',{class:'ri-help'},'Catch-up fills uncovered history and resumes from saved chapters. A fresh rebuild reads the entire chat and switches to a new managed Story World after all chapters are ready. The previous book stays available as a backup.'),
-        executionDetails(executionReceipt('historyCatchUp') || executionPreview('historyCatchUp',{expected:'1 per batch'})),
+        status?.receipts?.length>0 && executionDetails(status.receipts),
         h('details',{},h('summary',{},'Fresh rebuild options'),
             h('label',{class:'ri-row'},keep,'Keep my authored entries and state corrections'),
-            button('Rebuild from all chat history',()=>run(true),{disabled})),
+            rebuild,
+            !disabled && rebuildBudget),
         promptGroup(['chapterSummary','catchUpHistory','systemCatchUp'],'Customize catch-up and rebuild guidance'));
 }
 
@@ -103,10 +124,8 @@ export function renderContext(body, app) {
             `Filed through reply ${filing.filed} · ${filing.pending} editable records with changes · ${filing.uncertain} replies need review.`),
         filing.error && h('div',{class:'ri-note ri-note-warn',role:'status'},filing.error,retryFiling),
         h('details',{},h('summary',{},'Automatic chapter model requests'),
-            executionDetails(executionReceipt('chapterSummary') || executionPreview('chapterSummary')),
-            executionSettings({operation:'chapterSummary'}),
-            executionDetails(executionReceipt('chapterCombine') || executionPreview('chapterCombine')),
-            executionSettings({operation:'chapterCombine'})),
+            executionSettings({operation:'chapterSummary',receipt:executionReceipt('chapterSummary')}),
+            executionSettings({operation:'chapterCombine',receipt:executionReceipt('chapterCombine')})),
         h('div', {class:'ri-grid2'},
             !memory && field('Write a chapter when the scene ends', 'Requires Story World updates and at least the minimum number of replies.', choose(o.onSceneEnd !== false, v => {o.onSceneEnd=v;})),
             !memory && numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),

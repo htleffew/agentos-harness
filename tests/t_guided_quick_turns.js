@@ -25,16 +25,18 @@ const h = require('./lib.js');
         await h.send(page, 'EARLY_PLAYER_INPUT I ask about the clock.');
         h.mode({ reply: latest });
         await h.send(page, 'CURRENT_PLAYER_INPUT I point at his journal.');
-        await page.evaluate(() => {
+        await page.evaluate(async base => {
             const c = SillyTavern.getContext();
             c.chatCompletionSettings.impersonation_prompt = 'DISTINCTIVE_IMPERSONATION Write the player’s next contribution.';
+            const {impersonationSource,setImpersonationSource}=await import(`${base}/src/impersonation.js`);
+            setImpersonationSource(impersonationSource(),'preset');
             c.powerUserSettings.persona_description = 'DISTINCTIVE_PERSONA I repair clocks.';
             c.chat.at(-1).extra.roleplay_instructions.v10Changes = [{
                 id: 'npc-only', kind: 'knowledge', subject: c.name2, private: true, text: 'OFFSCREEN_NPC_SECRET',
             }];
             document.querySelector('#send_textarea').value = '/newchat UNSENT_COMPOSER_FRAGMENT';
             document.querySelector('#send_textarea').setSelectionRange(2, 6);
-        });
+        },h.BASE);
 
         const run = (family, options = {}) => page.evaluate(async ({ base, family, options }) => {
             const actions = await import(`${base}/src/guided-turns.js`);

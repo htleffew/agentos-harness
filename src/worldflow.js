@@ -1,5 +1,5 @@
 import { historySourceMark, historySourceMatches, storyRevision } from './history-source.js';
-import { editableReplySlots, markPromoted, projectStoryJournal, replayStoryPatch, revisionMatches, storySlots, unmarkPromoted, wasPromoted } from './memory-journal.js';
+import { editableReplySlots, markPromoted, pendingStoryPatches, projectStoryJournal, replayStoryPatch, reserveStoryUids, revisionMatches, storySlots, unmarkPromoted, wasPromoted } from './memory-journal.js';
 import { recallPolicy } from './recall.js';
 import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
@@ -659,6 +659,7 @@ function setPending(rec,message,index,wid,changes) {
     update.windowVersion = 1;
     if (!changes.length && !update.pending) return;
     update.pending = {
+        ...update.pending,
         chat:String(ctx().getCurrentChatId?.() || ''),
         revision:storyRevision(message,index),
         changes:[...(update.pending?.changes || []),...changes],
@@ -798,6 +799,33 @@ function reconcilePending(chat,root,wid,data,{continuing} = {}) {
         const pending = rec.update.pending;
         if (wasPromoted(data,wid,pending)) continue;
         const valid = rec.time === continuing || revisionMatches(message,index,pending.revision);
+        const historyChanged = pending.historySource?.length && !historySourceMatches(chat,index,pending.historySource);
+        if (historyChanged) {
+            const retained = pendingStoryPatches(chat,index,pending);
+            const affected = pending.changes.filter(change=>!retained.includes(change));
+            const records = new Set(affected.flatMap(change=>{
+                if (change.type==='create') return [readRecord(change.entry)?.id];
+                if (change.field==='data') {
+                    try { return [JSON.parse(change.after).id]; } catch { return []; }
+                }
+                return [];
+            }).filter(Boolean));
+            if (records.size) rec.v10Changes = (rec.v10Changes || []).filter(record=>!records.has(record.id));
+            pending.changes = retained;
+            delete pending.historySource;
+            delete rec.historySource;
+            if (rec.historyScene || pending.historyScene) {
+                const before = rec.scene;
+                rec.scene = {...sceneFromReplyHeader(message.mes),...rec.sceneOwn,...rec.sceneSnapshotEdits};
+                delete rec.historyScene;
+                delete pending.historyScene;
+                delete rec.v10Minutes;
+                rec.stateChanges = [];
+                reconcileSceneProvenance(chat,index,before,rec.scene);
+            }
+            rec.memoryUncertain = 'Source history changed. Catch up again to review the affected memory.';
+            changed = true;
+        }
         if (!valid) {
             const prose = clean(message.mes).toLowerCase();
             pending.changes = pending.changes.filter(change=>{
@@ -826,7 +854,7 @@ function reconcilePending(chat,root,wid,data,{continuing} = {}) {
             rec.v10Profiles = rec.v10Profiles?.filter(profile=>!entries.has(profile.id) && !entries.has(profile.subject));
             changed ||= priorProfiles !== (rec.v10Profiles?.length || 0);
         } else if (rec.memoryUncertain === problem) { delete rec.memoryUncertain; changed = true; }
-        if (!valid) {
+        if (!valid || historyChanged) {
             for (const holder of [message.swipe_info?.[message.swipe_id]]) if (holder?.extra) holder.extra[KEY] = rec;
         }
     }
@@ -971,9 +999,12 @@ async function reopenRecentJournal() {
             return false;
         });
         const pending = rec.update.pending;
+        const history = rec.update.filedByJournal.findLast(item=>item.historySource?.length);
         rec.update.pending = {
+            ...pending,
             chat:String(host.getCurrentChatId?.() || ''),
             revision:storyRevision(message,index),
+            ...(history && !pending?.historySource && {historySource:history.historySource,historyScene:history.historyScene}),
             changes:[...changes,...(pending?.changes || [])],
         };
         delete rec.update.filedByJournal;
@@ -1081,6 +1112,8 @@ export function applyStructuredUpdates(data, wid, meta, id, rec, parsed, turn, {
 export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
     const host = ctx(), originChat = host.chat, originRoot = chatState();
     const accepted = storyRevision(originChat?.[id],id);
+    // The host refreshes swipe timestamps after accepting a continuation.
+    if (rec && originChat?.[id]?.extra?.[KEY]===rec) rec.memoryTurn = accepted.turn;
     return enqueue(async () => {
         const cs = chatState();
         const wid = chatWorld();
@@ -1799,7 +1832,7 @@ export async function saveV10Record(input, {create = false} = {}) {
             if (chatState()===cs && ctx().chat===chat) saveChatState();
             return record;
         }
-        const w = stored || newWorldEntry(effective,kind);
+        const w = stored || newWorldEntry(reserveStoryUids(data,wid,chat,cs),kind);
         const before = data.entries[w.uid] ? structuredClone(data.entries[w.uid]) : null;
         w.name = record.id;
         w.fields.data = JSON.stringify(record);

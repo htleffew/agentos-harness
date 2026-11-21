@@ -53,7 +53,7 @@ const L = require('./lib.js');
 
         L.mode({reply:payload});
         L.resetLog();
-        await page.locator('#ri_root').getByRole('button',{name:'Catch up this chat',exact:true}).evaluate(button=>button.click());
+        await page.locator('#ri_root').getByRole('button',{name:/^Catch up this chat/}).evaluate(button=>button.click());
         await page.locator('#ri_root').getByRole('status').filter({hasText:/Saved 3 chapters/}).waitFor({state:'attached'});
         const first = await read();
         assert.deepEqual(first.rows.filter(row=>row.kind==='chapter').map(row=>[row.span.from,row.span.to]),[[1,2],[3,4],[5,6]]);

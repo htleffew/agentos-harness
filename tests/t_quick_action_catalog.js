@@ -20,6 +20,11 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
         await L.openChat(page);
         const sheet = page.locator('.ri-quick-sheet');
         const tap = async label => (label === 'Quick actions' ? page : sheet).getByRole('button', { name: label, exact: true }).tap();
+        const chooseJSON = async (name, value) => {
+            const chooser = page.waitForEvent('filechooser');
+            await tap('Choose JSON file');
+            await (await chooser).setFiles({ name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(value)) });
+        };
         const suffix = Date.now().toString(36);
         const cueName = 'Remember the audience ' + suffix;
         const bookName = 'Touch Catalog ' + suffix;
@@ -59,9 +64,7 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
             }, extensions: { ri: { v: 1, kind: 'instructions' } },
         };
         await tap('Import JSON');
-        await sheet.getByLabel('Select a JSON file', { exact: true }).setInputFiles({
-            name: bookName + '.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(book)),
-        });
+        await chooseJSON(bookName + '.json', book);
         await sheet.getByText(sourceName + ' · instruction', { exact: true }).waitFor();
         await tap('Import reviewed JSON');
         await sheet.getByRole('status').filter({ hasText: 'Imported ' + bookName }).waitFor();
@@ -80,9 +83,7 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
         keel.name += ' ' + suffix;
         for (const entry of keel.qrList) entry.label += ' ' + suffix;
         await tap('Import JSON');
-        await sheet.getByLabel('Select a JSON file', { exact: true }).setInputFiles({
-            name: 'Synthetic Keel.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(keel)),
-        });
+        await chooseJSON('Synthetic Keel.json', keel);
         await sheet.getByText('23 entries · Runs in code', { exact: true }).waitFor();
         assert.equal(await sheet.getByText(/· Automatic hook$/).count(), 2);
         assert.equal(await sheet.getByText(/· Visible launcher$/).count(), 1);

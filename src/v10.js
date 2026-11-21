@@ -499,7 +499,7 @@ export async function ensureWorld() {
         writeWorldEntry(data,chapter,label);
     }
     const id = await createSet(label,'world',data,'');
-    if (ctx().getCurrentChatId?.() !== chatId) throw new Error('The chat changed while creating the story book.');
+    if (ctx().getCurrentChatId?.() !== chatId || chatState() !== root) throw new Error('The chat changed while creating the story book.');
     if (!chatWorld()) {
         if (root?.carried) delete root.carried;
         setChatWorld(id);

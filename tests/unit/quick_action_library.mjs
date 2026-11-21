@@ -136,6 +136,9 @@ test('native exports supply shared and standalone sources through the same brows
     assert.equal(base.filter(row => row.sourceKind === 'event').length, 1);
     assert.equal(base.filter(row => row.sourceKind === 'style').length, 1);
     assert.equal(base.filter(row => row.enabled).length, 9);
+    const disabled = base.find(row => row.sourceKind === 'instruction' && !row.enabled);
+    assert.equal(disabled.unavailable, 'Disabled in this source book');
+    assert.throws(() => resolveQuickAction(disabled), /Disabled in this source book/);
     assert.equal(sources.find(row => row.itemId === 'poem').unavailable, 'Category disabled');
     assert.equal(sources.find(row => row.itemId === 'calm').unavailable, 'Another ingredient is locked');
 
@@ -150,6 +153,11 @@ test('native exports supply shared and standalone sources through the same brows
     await editQuickActionSource(reanchor3, 'Fresh version text');
     const updated = await loadQuickActionSources();
     assert.throws(() => resolveQuickAction(linked, { sources: updated }), /missing or changed/);
+    assert.equal(resolveQuickAction(linked.id, { sources: updated }).text, 'Fresh version text');
+    const changedOutOfBand = books.get('Shared');
+    changedOutOfBand.entries[1].extensions.ri.versions.reverse();
+    const reordered = await loadQuickActionSources();
+    assert.throws(() => resolveQuickAction(linked.id, { sources: reordered }), /missing or changed/);
 
     const locked = resolveQuickAction(sources.find(row => row.itemId === 'fire'));
     assert.deepEqual(locked.effects[0].parts.map(part => part.ids), [['fire'], ['npc'], ['stirring']]);
@@ -181,6 +189,29 @@ test('Keel inspection preserves 23 items, flags two hooks, and translates only e
     assert.equal(cue.text, 'Apply this idea: A blue coat.');
     assert.equal(resolveQuickAction(listQuickActions('steer').find(item => item.operation === 'queue')).operation, 'queue');
     assert.equal(listQuickActions('steer').find(item => item.title === 'Original title 16').text, 'Write direction number 16.');
+
+    const everyDefinition = fixture.qrList.map(item => item.id);
+    assert.deepEqual(await importQuickActionData(inspection, { selected: everyDefinition }), { actions: 7, book: '' });
+    const installed = actionLibrary().imports[0].translated;
+    assert.deepEqual(Object.keys(installed).map(Number), translations);
+    assert.equal(listQuickActions('steer').filter(item => item.origin === 'translated').length, translations.length);
+    for (const id of [1, 2, 12, 13, 16]) {
+        const action = resolveQuickAction(installed[id]);
+        assert.equal(action.family, 'steer');
+        assert.equal(action.text, 'Write direction number ' + id + '.');
+        assert.equal(action.operation, '');
+    }
+    for (const id of [9, 14, 15, 17]) {
+        assert.throws(() => resolveQuickAction(installed[id]), /Enter a direction/);
+        const direction = 'Direction ' + id;
+        const action = resolveQuickAction(installed[id], { variables: { direction } });
+        assert.equal(action.family, 'steer');
+        assert.equal(action.embedsDirection, true);
+        assert.equal(action.text, 'Apply this idea: ' + direction + '.');
+    }
+    assert.equal(resolveQuickAction(installed[3]).operation, 'queue');
+    for (const id of everyDefinition.filter(id => !translations.includes(id))) assert.equal(installed[id], undefined);
+
     const exported = JSON.parse(exportQuickActionLibrary());
     assert.deepEqual(exported.library.imports[0].original, fixture);
     const tampered = syntheticKeel();

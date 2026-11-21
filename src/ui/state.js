@@ -123,7 +123,7 @@ export function sceneEditor(scene, refresh, { historicalId = null } = {}) {
 function rebuildEditor(refresh) {
     const box = h('div', { class: 'ri-state-editor' });
     const signature = () => JSON.stringify((ctx().chat || []).map(m => [m?.is_user, m?.is_system, m?.mes]));
-    let preparedSignature = '';
+    let preparedSignature = '', preparedScope = '';
     const info = h('div', { class: 'ri-help' }, 'One AI request proposes a new state from the visible story. Review and edit its update block before applying it. This does not rewrite story text; review world entries and chapter summaries too.');
     const draft = h('textarea', { class: 'ri-input ri-textarea', rows: 12, placeholder: 'The proposed story update will appear here.' });
     const status = h('div', { class: 'ri-help' });
@@ -131,19 +131,23 @@ function rebuildEditor(refresh) {
     const updateExecution=()=>execution.replaceChildren(functionExecution('editedState',{receipt:executionReceipt('editedState')}));
     const ask = executionAction(button('Draft a state update with AI', async () => {
         ask.disabled = true; status.textContent = 'Reading the story…';
+        const scope = executionScope();
         try {
             await worldIdle();
-            const c = ctx(), chatId = String(c.getCurrentChatId?.() || ''), originalSignature = signature();
+            if (executionScope()!==scope) throw new Error('The chat changed. Open the editor in the intended chat.');
+            const c = ctx(), originalSignature = signature();
             const messages = (c.chat || []).filter(m => m && !m.is_system && typeof m.mes === 'string').map(m => `${m.is_user ? 'User' : 'Character'}: ${m.mes}`).join('\n\n');
             if (!messages.trim()) throw new Error('There is no story text to review.');
             const clipped = messages.length > 40000;
             const wid = chatWorld(), data = wid ? await loadWorld(wid) : null;
+            if (executionScope()!==scope || signature()!==originalSignature) throw new Error('The story changed. Draft the update again.');
             const form = data ? buildAsk(listWorld(data, wid)) : buildSceneAsk();
             const answer = await request({ operation:'editedState',authorization:'manual',what:'Rebuild edited story state',
                 user:`Review the current story. ${clipped ? 'Use the supplied recent excerpt as the evidence.' : ''}\n\n${messages.slice(-40000)}\n\n${form}\nReturn only the update block.`,tokens:1200 });
-            if (String(ctx().getCurrentChatId?.() || '') !== chatId || signature() !== originalSignature) throw new Error('The story changed while drafting; start the rebuild again.');
-            preparedSignature = originalSignature;
+            if (executionScope()!==scope || signature()!==originalSignature) throw new Error('The story changed while drafting. Draft the update again.');
             if (!parseUpdate(answer.text).found) throw new Error('The model did not return a readable story_update block.');
+            preparedSignature = originalSignature;
+            preparedScope = scope;
             draft.value = answer.text; answer.note('Draft ready for review; no changes applied.');
             status.textContent = clipped ? 'Draft ready. Only the most recent 40,000 characters were read; check earlier facts by hand.' : 'Draft ready. Review it before applying.';
         } catch (e) { status.textContent = `Could not draft: ${e.message}`; }
@@ -151,7 +155,10 @@ function rebuildEditor(refresh) {
     }));
     updateExecution();
     const apply = button('Apply reviewed update', async () => {
-        if (!preparedSignature || signature() !== preparedSignature) { status.textContent = 'The story changed since this draft was prepared. Draft it again.'; return; }
+        if (!preparedSignature || executionScope()!==preparedScope || signature()!==preparedSignature) {
+            status.textContent = 'The story changed since this draft was prepared. Draft it again.';
+            return;
+        }
         const parsed = parseUpdate(draft.value);
         if (!parsed.found || !parsed.block || !/<\/story_update\s*>/i.test(draft.value)) { status.textContent = 'A complete <story_update> block is required.'; return; }
         const c = ctx(), id = lastReply(), m = c.chat?.[id], rec = m?.extra?.[KEY];
@@ -166,6 +173,7 @@ function rebuildEditor(refresh) {
             rec.stateStale = false; rec.stateOutdated = false;
             if (Array.isArray(m.swipe_info) && m.swipe_info[m.swipe_id]) { m.swipe_info[m.swipe_id].extra ||= {}; m.swipe_info[m.swipe_id].extra[KEY] = rec; }
             await afterReply(id, rec, parsed, 0, () => {}, { rebuild: true, propagate: true });
+            if (executionScope()!==preparedScope) return;
             saveChatState(); await c.saveChat?.();
             toast('success', settings().world.update === 'off' ? 'The reviewed state was applied. Automatic Story World updates are off; review world facts by hand.' : 'The reviewed state was applied. Review any manually edited chapters and world facts.'); refresh();
         } catch (e) { Object.keys(rec).forEach(k => delete rec[k]); Object.assign(rec, previous); status.textContent = `Could not apply: ${e.message}`; }
@@ -198,4 +206,4 @@ export function renderCurrentState(body, refresh) {
     else values.forEach(p => body.append(characterStateCard(p, id, refresh)));
 }
 import { executionAction, functionExecution } from './execution.js';
-import { executionReceipt } from '../execution.js';
+import { executionReceipt, executionScope } from '../execution.js';

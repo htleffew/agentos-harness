@@ -2,11 +2,12 @@
 import { executionPreview } from './execution.js';
 import { memoryOnly } from './components.js';
 import { chatState, saveChatState, settings } from './store.js';
-import { characterKey, ctx, hasEvent, isGenerating, isReply } from './st.js';
+import { characterKey, ctx, hasEvent, isGenerating, isReply, KEY, readComposer, writeComposer } from './st.js';
 
 const SEND_KEY = 'riQuickActionSend';
 const SLOT_KEY = 'riQuickActionSlot';
 const FRESH_LENGTH = 5;
+let retrying = null;
 const id = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const textOf = content => typeof content === 'string' ? content : (Array.isArray(content) ? content.map(part => part?.text || '').join('') : '');
 
@@ -26,8 +27,10 @@ export function quickChat() {
 export function queueCapability() {
     const c = ctx();
     if (memoryOnly()) return 'Directions need the full extension workflow in this chat.';
-    if (c.mainApi !== 'openai' || !['MESSAGE_SENT','CHAT_COMPLETION_PROMPT_READY','WORLDINFO_SCAN_DONE','WORLDINFO_ENTRIES_LOADED'].every(hasEvent)) {
-        return 'Queue delivery needs a chat-completion connection with an observable final prompt.';
+    const routeEvents = c.mainApi === 'openai' ? ['CHAT_COMPLETION_PROMPT_READY']
+        : c.mainApi ? ['GENERATE_BEFORE_COMBINE_PROMPTS','GENERATE_AFTER_COMBINE_PROMPTS'] : [];
+    if (!routeEvents.length || !['MESSAGE_SENT','WORLDINFO_SCAN_DONE','WORLDINFO_ENTRIES_LOADED',...routeEvents].every(hasEvent)) {
+        return 'This host does not expose the player send and final prompt needed for queue delivery.';
     }
     return '';
 }
@@ -94,6 +97,60 @@ const boundSnapshot = (state, message) => {
 
 const activeRows = (state, snapshot) => snapshot.entries.filter(entry => state.pending.some(row => row.id === entry.id));
 
+function deliveryRows(entries) {
+    const seen = new Set();
+    let required = 0;
+    return entries.flatMap(entry => entry.rows).flatMap(row => {
+        const key = row.sources?.length ? JSON.stringify([row.text, row.sources]) : '';
+        if (key && seen.has(key)) return [];
+        if (key) seen.add(key);
+        return [{...row, ...(row.required ? {evidenceId:'Q'+(++required)} : {})}];
+    });
+}
+
+function visibleDirections(rows) {
+    return rows.filter(row => row.visibility === 'visible')
+        .map(row => `(OOC: ${row.required ? `Required direction ${row.evidenceId}. ` : ''}${row.text})`).join('\n');
+}
+
+function privateDirections(rows, entries) {
+    const direction = rows.filter(row => row.visibility !== 'visible')
+        .map(row => `${row.required ? 'Required direction '+row.evidenceId : 'Direction'}: ${row.text}`);
+    for (const entry of entries) if (entry.roll) direction.push(entry.roll.text);
+    if (rows.some(row=>row.required)) direction.push(
+        'After the story prose, put evidence for fulfilled directions in <direction_evidence>{"Q1":"exact quote from this reply"}</direction_evidence>.',
+        'Use the matching direction ID and copy a short passage that shows the action in the story. Use an empty object when none apply.',
+    );
+    return direction.length ? 'Directions for the current reply.\n'+direction.join('\n') : '';
+}
+
+const EVIDENCE_BLOCK = /\s*<direction_evidence\b[^>]*>([\s\S]*?)(?:<\/direction_evidence\s*>|(?=<story_update\b|<\/reply\s*>|$))/gi;
+
+export function splitQuickEvidence(prose, {streaming=false}={}) {
+    const evidence = new Map();
+    let text = String(prose ?? '').replace(EVIDENCE_BLOCK, (_source, json) => {
+        try {
+            const values = JSON.parse(json.trim());
+            if (values && !Array.isArray(values) && typeof values==='object') for (const [key,value] of Object.entries(values)) {
+                if (/^Q[1-9]\d*$/.test(key) && typeof value==='string' && !evidence.has(key)) evidence.set(key,value.trim());
+            }
+        } catch { /* Keep the prose even when the metadata is incomplete. */ }
+        return '';
+    });
+    if (streaming) {
+        const opening = '<direction_evidence';
+        for (let length=opening.length-1;length>2;length--) {
+            if (text.toLowerCase().endsWith(opening.slice(0,length))) { text=text.slice(0,-length); break; }
+        }
+    }
+    return {text,evidence};
+}
+
+export function hasQuickEvidence(prose, quote) {
+    const words = typeof quote==='string' ? quote.match(/[\p{L}\p{N}]+/gu)?.length || 0 : 0;
+    return words>=3 && words<=40 && String(prose ?? '').includes(quote);
+}
+
 export function startQuickReply(generation, options) {
     if (!settings().enabled || generation.skip || generation.memory || generation.type !== 'normal') return;
     const state = quickChat();
@@ -104,7 +161,7 @@ export function startQuickReply(generation, options) {
     const message = ctx().chat?.at(-1);
     const snapshot = boundSnapshot(state, message);
     const composer = document.getElementById('send_textarea');
-    if (!composer?.value.trim() && message?.is_user && snapshot?.owner === state.owner && !snapshot.accepted) {
+    if ((retrying?.binding===snapshot?.id || !composer?.value.trim()) && message?.is_user && snapshot?.owner === state.owner && !snapshot.accepted) {
         if (activeRows(state, snapshot).length) generation.quickSend = snapshot;
     }
 }
@@ -120,8 +177,7 @@ export async function bindQuickReply(generation, index) {
     const alreadyBound = new Set(state.bindings.flatMap(binding => binding.entries.map(entry => entry.id)));
     const entries = state.pending.filter(entry => !alreadyBound.has(entry.id));
     if (!entries.length) return;
-    const visible = entries.flatMap(entry => entry.rows.filter(row => row.visibility === 'visible'))
-        .map(row => `(OOC: ${row.required ? 'Required direction. ' : ''}${row.text})`).join('\n');
+    const visible = visibleDirections(deliveryRows(entries));
     const suffix = visible ? '\n\n' + visible : '';
     const snapshot = { owner: state.owner, id: id(), entries: structuredClone(entries), contribution: message.mes, suffix, attempts: 0 };
     message.extra ||= {};
@@ -175,39 +231,71 @@ export function stripStoredQuickText(prompt) {
     return result;
 }
 
-export function applyQuickPrompt(messages, plan) {
-    if (!plan?.entries.length) return null;
-    const { snapshot, entries } = plan;
+function boundContribution(snapshot) {
     const source = (ctx().chat || []).find(message => message.extra?.[SEND_KEY]?.id === snapshot.id);
     const contribution = playerContribution(source);
-    if (!contribution || contribution !== snapshot.contribution) return null;
-    const lastUser = messages.findLastIndex(message => message.role === 'user' && textOf(message.content).trim().endsWith(contribution.trim()));
-    if (lastUser < 0) return null;
-    const target = messages[lastUser];
-    const rows = [];
-    const seen = new Set();
-    for (const row of entries.flatMap(entry => entry.rows)) {
-        const key = row.sources?.[0]?.key;
-        if (key && seen.has(key)) continue;
-        if (key) seen.add(key);
-        rows.push(row);
-    }
-    const visible = rows.filter(row => row.visibility === 'visible').map(row => `(OOC: ${row.required ? 'Required direction. ' : ''}${row.text})`).join('\n');
-    const direction = rows.filter(row => row.visibility !== 'visible').map(row => `${row.required ? 'Required direction' : 'Direction'}: ${row.text}`);
-    for (const entry of entries) if (entry.roll) direction.push(entry.roll.text);
-    if (visible) {
-        if (typeof target.content === 'string') target.content += '\n\n' + visible;
-        else if (Array.isArray(target.content)) target.content.push({ type: 'text', text: '\n\n' + visible });
-    }
-    if (direction.length) messages.splice(lastUser, 0, { role: 'system', content: `Directions for the current reply.\n${direction.join('\n')}` });
+    return contribution === snapshot.contribution ? contribution : '';
+}
+
+function recordDelivery(plan, rows, route) {
+    const {snapshot,entries} = plan;
     snapshot.attempts += 1;
     const receipt = {...executionPreview('steer',{stage:'reply',label:'Queued directions',target:snapshot.id,
-        trigger:'The first character reply to this player message.'}), observedRoute:'Chat Completion',
+        trigger:'The first character reply to this player message.'}), observedRoute:route,
         attempts:snapshot.attempts, outcome:'included', directions:structuredClone(rows),
         rolls:entries.flatMap(entry=>entry.roll || [])};
     snapshot.receipt = receipt;
     if (plan.history) receipt.history = plan.history;
     return receipt;
+}
+
+export function applyQuickPrompt(messages, plan) {
+    if (!plan?.entries.length) return null;
+    const contribution = boundContribution(plan.snapshot);
+    if (!contribution) return null;
+    const lastUser = messages.findLastIndex(message => message.role === 'user' && textOf(message.content).trim().endsWith(contribution.trim()));
+    if (lastUser < 0) return null;
+    const target = messages[lastUser];
+    const rows = deliveryRows(plan.entries);
+    const visible = visibleDirections(rows);
+    const direction = privateDirections(rows,plan.entries);
+    if (visible) {
+        if (typeof target.content === 'string') target.content += '\n\n' + visible;
+        else if (Array.isArray(target.content)) target.content.push({ type: 'text', text: '\n\n' + visible });
+    }
+    if (direction) messages.splice(lastUser, 0, { role: 'system', content: direction });
+    return recordDelivery(plan,rows,'Chat Completion');
+}
+
+/** Observe the native formatted player entry without replacing any of the host's prompt formatting. */
+export function observeQuickTextAnchor(data,plan) {
+    if (!plan?.entries.length || !Array.isArray(data?.finalMesSend)) return;
+    const contribution = boundContribution(plan.snapshot);
+    if (!contribution) return;
+    const player = data.finalMesSend.findLast(entry=>!entry.injected && typeof entry.message==='string' &&
+        stripStoredQuickText(entry.message).includes(contribution));
+    plan.textAnchor = player && stripStoredQuickText(player.message).replace(/\r/g,'').trim();
+}
+
+export function applyQuickText(prompt,plan) {
+    const anchor = plan?.textAnchor;
+    if (!anchor) return prompt;
+    plan.textAnchor = null;
+    const contribution = boundContribution(plan.snapshot);
+    if (!contribution) return prompt;
+    const forms = [anchor,anchor.replace(/\n{2,}/g,'\n')];
+    const matched = forms.find(text=>prompt.includes(text) && text.includes(contribution));
+    if (!matched) return prompt;
+    const index = prompt.lastIndexOf(matched);
+    const end = index + matched.lastIndexOf(contribution) + contribution.length;
+    const rows = deliveryRows(plan.entries);
+    const visible = visibleDirections(rows);
+    const direction = privateDirections(rows,plan.entries);
+    const assembled = prompt.slice(0,index)+(direction ? direction+'\n\n' : '')+prompt.slice(index,end)+
+        (visible ? '\n\n'+visible : '')+prompt.slice(end);
+    recordDelivery(plan,rows,'Text Completion');
+    plan.confirmed = true;
+    return assembled;
 }
 
 export function finishQuickReply(plan, message, acceptedRecord, {story=true}={}) {
@@ -261,12 +349,66 @@ export function queuedRetry() {
 }
 
 export async function retryQueuedReply() {
-    if (!queuedRetry()) throw new Error('The original player message is no longer the latest message.');
-    if (isGenerating()) throw new Error('Wait for the current reply to finish.');
+    const host=ctx(), state=quickChat(), message=host.chat?.at(-1), binding=boundSnapshot(state,message);
+    if (!queuedRetry() || !binding) throw new Error('The original player message is no longer the latest message.');
+    if (playerContribution(message)!==binding.contribution) throw new Error('The player message was edited. Cancel the old directions and queue them for a new send.');
+    if (isGenerating() || retrying) throw new Error('Wait for the current reply to finish.');
     if (queueCapability()) throw new Error(queueCapability());
-    if (document.getElementById('send_textarea')?.value.trim()) throw new Error('Save or clear the unsent composer text before retrying this message.');
-    if (typeof ctx().generate !== 'function') throw new Error('This host cannot retry the original message from Quick actions.');
-    return ctx().generate('normal');
+    if (typeof host.generate !== 'function') throw new Error('This host cannot retry the original message from Quick actions.');
+    if (host.groupId && host.mainApi==='openai' && host.chatCompletionSettings?.send_if_empty?.trim()) {
+        throw new Error('The host adds a default player message in this group. Clear the host’s Send if empty setting to retry the original message.');
+    }
+    const retry = {owner:state.owner,binding:binding.id};
+    retrying=retry;
+    const draft = host.groupId && readComposer();
+    if (draft?.text) {
+        state.heldRetryDraft=draft;
+        saveChatState();
+        writeComposer({text:''});
+    }
+    try {
+        // Native solo generation uses the existing player turn and skips processing the unsent composer.
+        return await host.generate('normal',{depth:1});
+    } finally {
+        if (retrying===retry) retrying=null;
+        if (quickChatIdentity()===retry.owner) restoreHeldRetryDraft();
+    }
+}
+
+export function restoreHeldRetryDraft() {
+    const state=quickChat(), prior=state?.heldRetryDraft;
+    if (!prior) return false;
+    const now=readComposer();
+    if (!now) return false;
+    if (!now.text && writeComposer(prior)) {
+        delete state.heldRetryDraft;
+        saveChatState();
+        return true;
+    }
+    // Keep this draft recoverable when the player has started another composition.
+    state.draftRecovery={value:prior.text,start:prior.start,end:prior.end,direction:prior.direction};
+    delete state.heldRetryDraft;
+    saveChatState();
+    return false;
+}
+
+export function reconcileQuickDelivery() {
+    const state=quickChat();
+    if (!state?.bindings?.length) return;
+    const receipts=new Map();
+    for (const message of ctx().chat || []) {
+        for (const extra of [message.extra,...(message.swipe_info || []).map(item=>item?.extra)]) {
+            const receipt=extra?.[KEY]?.quickActions;
+            if (receipt?.target && receipt.outcome==='accepted') receipts.set(receipt.target,receipt);
+        }
+    }
+    const accepted=state.bindings.filter(binding=>receipts.has(binding.id));
+    if (!accepted.length) return;
+    const spent=new Set(accepted.flatMap(binding=>binding.entries.map(entry=>entry.id)));
+    state.lastReceipt=structuredClone(receipts.get(accepted.at(-1).id));
+    state.pending=state.pending.filter(entry=>!spent.has(entry.id));
+    state.bindings=state.bindings.filter(binding=>!receipts.has(binding.id));
+    saveChatState();
 }
 
 export function armFreshStart() {

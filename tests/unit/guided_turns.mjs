@@ -43,6 +43,10 @@ test('salvages closed choices from an interrupted JSON batch and rejects inert p
     assert.deepEqual(parsePlayerChoices('1. Plot twist\n2. **Wait** — I wait.\n3. [Say something]\n4. I go.').choices, ['I wait.', 'I go.']);
     assert.deepEqual(parsePlayerChoices('```json\n["I open the door.","I wait.","I ask for the key.","I go."]\n```').choices,
         ['I open the door.', 'I wait.', 'I ask for the key.']);
+    assert.deepEqual(parsePlayerChoices('["I open the door.", {"title":"Wait", "text":"I wait."}, "I start to').choices,
+        ['I open the door.', 'I wait.']);
+    assert.deepEqual(parsePlayerChoices('- Take the key\n---\n(2) Listen — I wait.\n3. I begin to').choices, ['I wait.']);
+    assert.deepEqual(parsePlayerChoices('').choices, []);
 });
 
 test('Fresh start keeps stable host blocks and current contribution and identifies retained history', () => {
@@ -61,6 +65,20 @@ test('Fresh start keeps stable host blocks and current contribution and identifi
     assert.equal(unrecognized[1], unknown);
     assert.equal(preserveContinuationPrefix('First line.\n\n', 'First line. Then I hesitate.'), 'First line.\n\nThen I hesitate.');
     assert.equal(preserveContinuationPrefix('First line.', 'It is a different first line.'), null);
+});
+
+test('Fresh start keeps just the last current contribution and continuation prefix when older turns repeat verbatim', () => {
+    const currentText = 'I hold the door open while I listen.';
+    const prefixText = 'The clock strikes seven and the guard lifts his key.';
+    const original = host.chat;
+    host.chat = [user(currentText, 'repeat-user'), reply(prefixText, 'repeat-assistant'), user(currentText, 'last-user'), reply(prefixText, 'last-assistant')];
+    try {
+        const current = { role: 'user', content: currentText }, prefix = { role: 'assistant', content: prefixText };
+        const messages = [{ ...current }, { ...prefix }, current, prefix];
+        assert.deepEqual(projectGuidedRequest(messages, { type: 'continue', target: guidedTarget(3), freshStart: true }), { mode: 'substituted', removed: 2 });
+        assert.equal(messages[0], current);
+        assert.equal(messages.at(-1), prefix);
+    } finally { host.chat = original; }
 });
 
 test('one CYOA helper request contains only player context and selected directions once', async () => {
@@ -137,8 +155,8 @@ test('cancelling a direct Main API helper discards its result before it reaches 
     } finally { host.generateRaw = originalGenerator; }
 });
 
-test('a helper returns a draft to the originating editor after a chat switch without changing either chat', async () => {
-    const target = guidedTarget(), before = structuredClone(chat), other = [reply('Other chat greeting.', 'other')];
+test('a helper returns a draft to the originating editor when the host reuses its chat array', async () => {
+    const target = guidedTarget(), before = structuredClone(chat), original = [...chat], other = reply('Other chat greeting.', 'other');
     const originalGenerator = host.generateRaw, currentId = host.getCurrentChatId;
     let dispatched, finish;
     const ready = new Promise(resolve => { dispatched = resolve; });
@@ -146,18 +164,43 @@ test('a helper returns a draft to the originating editor after a chat switch wit
     try {
         const pending = runGuidedTurn('draft', { target, composer: 'The originating composer.' });
         await ready;
-        host.chat = other;
+        chat.splice(0, chat.length, other);
         host.getCurrentChatId = () => 'other';
+        assert.equal(cancelGuidedTurn(), '');
         finish('I put the key in my pocket.');
         const draft = await pending;
         assert.equal(draft.text, 'I put the key in my pocket.');
         assert.equal(draft.receipt.chat, target.chatId);
-        assert.equal(other[0].mes, 'Other chat greeting.');
-        assert.deepEqual(chat, before);
+        assert.deepEqual(chat, [other]);
+        assert.deepEqual(original, before);
     } finally {
-        host.chat = chat;
+        chat.splice(0, chat.length, ...original);
         host.getCurrentChatId = currentId;
         host.generateRaw = originalGenerator;
+    }
+});
+
+test('a group continuation cannot restore its held composer into a different chat on the same array', async () => {
+    const { heldGroupContinuationComposer, triggerContinuation } = await import('../../src/st.js');
+    const input = { value: 'The original group draft.', selectionStart: 2, selectionEnd: 4, setSelectionRange() {}, dispatchEvent() {} };
+    const previousDocument = globalThis.document, previousId = host.getCurrentChatId;
+    globalThis.document = { querySelector: () => input };
+    host.groupId = 'group-a';
+    host.generate = async () => {
+        assert.equal(input.value, '');
+        assert.equal(heldGroupContinuationComposer().text, 'The original group draft.');
+        host.groupId = 'group-b';
+        host.getCurrentChatId = () => 'new-group-chat';
+        assert.equal(heldGroupContinuationComposer(), null);
+    };
+    try {
+        assert(await triggerContinuation());
+        assert.equal(input.value, '');
+    } finally {
+        globalThis.document = previousDocument;
+        host.getCurrentChatId = previousId;
+        delete host.groupId;
+        delete host.generate;
     }
 });
 

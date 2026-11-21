@@ -1,3 +1,5 @@
+import { KEY } from './st.js';
+
 // Stable across hiding a message or copying a chat to a branch.
 export function historySourceMark(message) {
     const text = JSON.stringify([message?.send_date, message?.name, !!message?.is_user, message?.mes]);
@@ -15,7 +17,9 @@ export function historySourceMatches(chat, end, source) {
 export function storyRevision(message, index) {
     const swipe = Number(message?.swipe_id) || 0;
     const first = message?.swipe_info?.[0];
-    const turn = String(first?.send_date || message?.send_date || index);
+    const rec = message?.extra?.[KEY], initial = first?.extra?.[KEY];
+    const turn = String(rec?.memoryTurn || initial?.memoryTurn || rec?.memoryRevision?.turn || initial?.memoryRevision?.turn ||
+        rec?.update?.pending?.revision?.turn || first?.send_date || message?.send_date || index);
     const prose = typeof message?.mes === 'string' ? message.mes.replace(/\s*<sent_instructions>[\s\S]*?<\/sent_instructions>/gi,'') : message?.mes;
     return { turn, swipe, fingerprint: historySourceMark({...message,mes:prose}) };
 }

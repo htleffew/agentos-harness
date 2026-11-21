@@ -89,12 +89,33 @@ const fixtures = {
         assert(choiceTop && choiceTop.y>=scrollFrame.y && choiceTop.y<scrollFrame.y+scrollFrame.height);
         assert.equal(record('QACT-01: blank choices').length,1);
         assert.match(L.text(L.requests()[0]),/An unsent draft to keep\./);
+        const editedChoice='I raise a hand and offer to watch the gate.';
+        await sheet.getByRole('textbox',{name:'Choice 1',exact:true}).fill(editedChoice);
         await tap('Use this wording');
         assert.match(await composer.inputValue(),/^I raise a hand/);
         await family('Draft my reply');
         await tap('Recover previous composer draft');
         assert.equal(await composer.inputValue(),'An unsent draft to keep.');
         assert.equal(L.requests().length,1);
+
+        const draftChat = await page.evaluate(()=>SillyTavern.getContext().getCurrentChatId());
+        await page.evaluate(()=>SillyTavern.getContext().saveChat());
+        await page.reload({waitUntil:'domcontentloaded'});
+        await page.waitForFunction(()=>globalThis.SillyTavern?.getContext && !document.getElementById('preloader'));
+        await L.openChat(page,{fresh:false});
+        if (await page.evaluate(()=>SillyTavern.getContext().getCurrentChatId())!==draftChat) {
+            await page.evaluate(id=>SillyTavern.getContext().openCharacterChat(id),draftChat);
+        }
+        await family('Draft my reply');
+        await sheet.getByText('Recent drafts and choices',{exact:true}).tap();
+        await sheet.getByText(/^Player choices · I raise a hand/).tap();
+        await tap('Restore for editing');
+        await sheet.getByText('Choices restored for editing.',{exact:true}).waitFor();
+        assert.equal(await sheet.getByRole('textbox',{name:'Choice 1',exact:true}).inputValue(),editedChoice);
+        assert.equal(L.requests().length,1);
+        evidence.captures.push({label:'QACT-CHOICES-RECOVERED: after reload',requests:[],choices:3});
+        await close();
+        await L.setupApi(page,{preset:null,legacyAutomation:false});
 
         for (const [name,cue,text] of [
             ['cues only','Do something bold',''],

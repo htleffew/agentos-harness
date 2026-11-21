@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { activeQuickPlan, applyQuickPrompt, bindQuickReply, failQuickReply, finishQuickReply, freshRemaining,
-    playerContribution, queueDirections, quickChat, queuedRetry, startQuickReply, stopFreshStart, stripStoredQuickDirections }
+import { activeQuickPlan, applyQuickPrompt, applyQuickText, bindQuickReply, failQuickReply, finishQuickReply, freshRemaining,
+    hasQuickEvidence, observeQuickTextAnchor, playerContribution, queueDirections, quickChat, queuedRetry, reconcileQuickDelivery, retryQueuedReply, splitQuickEvidence, startQuickReply, stopFreshStart, stripStoredQuickDirections, stripStoredQuickText }
     from '../../src/quick-action-chat.js';
 
-const events = ['MESSAGE_SENT','CHAT_COMPLETION_PROMPT_READY','WORLDINFO_SCAN_DONE','WORLDINFO_ENTRIES_LOADED'];
+const events = ['MESSAGE_SENT','CHAT_COMPLETION_PROMPT_READY','WORLDINFO_SCAN_DONE','WORLDINFO_ENTRIES_LOADED','GENERATE_BEFORE_COMBINE_PROMPTS','GENERATE_AFTER_COMBINE_PROMPTS'];
 const KEY = 'roleplay_instructions';
 const host = {
     extensionSettings:{}, chatMetadata:{}, chat:[], mainApi:'openai', characterId:'0', characters:[{avatar:'captain.png'}],
@@ -13,12 +13,13 @@ const host = {
 };
 const composer = {value:''};
 globalThis.SillyTavern = {getContext:()=>host};
-globalThis.document = {getElementById:()=>composer};
+globalThis.document = {body:{dataset:{}},getElementById:()=>composer};
 
 function reset() {
     host.chat=[];
     host.chatMetadata={};
     host.key='test parent';
+    host.mainApi='openai';
     composer.value='';
 }
 function start(type='normal') {
@@ -101,9 +102,64 @@ test('counts accepted forward slots by surviving chat history and gives a branch
     assert.equal(freshRemaining(),0);
     assert.deepEqual(quickChat().pending,[]);
     host.key='test parent';
+    host.mainApi='openai';
     host.chatMetadata=parent;
     assert.equal(freshRemaining(),1);
     stopFreshStart();
     assert.equal(freshRemaining(),0);
     assert.equal(quickChat().pending.length,1);
+});
+
+test('Text Completion puts directions on the native player entry and keeps the host output prefix',async()=>{
+    reset();
+    host.mainApi='textgenerationwebui';
+    queueDirections([],'Tell her to lower the lamp.');
+    queueDirections([],'The tide stays out.',{visibility:'visible',required:true});
+    const gen=start();
+    const player=await send(gen,'I touch the lantern.');
+    const plan=activeQuickPlan(gen);
+    const actual='[input]'+player.mes+'[/input]';
+    observeQuickTextAnchor({finalMesSend:[{message:actual}]},plan);
+    const assembled=applyQuickText(stripStoredQuickText('Standing prefix\n'+actual+'\n[output]'),plan);
+    assert.match(assembled,/^Standing prefix\nDirections/);
+    assert.match(assembled,/Required direction Q1\. The tide stays out\.\)\[\/input\]\n\[output\]$/);
+    assert.equal(assembled.split('The tide stays out.').length-1,1);
+    assert.equal(plan.snapshot.receipt.observedRoute,'Text Completion');
+    assert.equal(plan.confirmed,true);
+    assert.equal(applyQuickText('Separate helper prompt',plan),'Separate helper prompt');
+});
+
+test('restores the queue after interrupted acknowledgment and retries an existing player turn with a draft',async()=>{
+    reset();
+    queueDirections([],'Look past the gate.');
+    const first=await send(start(),'I ask about the old path.');
+    composer.value='/newchat remains unsent';
+    host.generate=async (operation,opts)=>{
+        assert.equal(operation,'normal');
+        assert.equal(opts.depth,1);
+        assert.equal(composer.value,'/newchat remains unsent');
+        const request=[{role:'user',content:first.mes}];
+        const plan=activeQuickPlan(start());
+        const receipt=applyQuickPrompt(request,plan);
+        assert.match(request[0].content,/Look past the gate/);
+        const historical={...receipt,outcome:'accepted'};
+        host.chat.push({mes:'The path bends left.',swipe_info:[{extra:{[KEY]:{quickActions:historical}}}]});
+    };
+    await retryQueuedReply();
+    assert.equal(composer.value,'/newchat remains unsent');
+    assert.equal(quickChat().pending.length,1);
+    reconcileQuickDelivery();
+    assert.equal(quickChat().lastReceipt.outcome,'accepted');
+    assert.equal(quickChat().pending.length,0);
+    delete host.generate;
+});
+
+test('requires an accepted prose quote and keeps evidence metadata out of the story',()=>{
+    const prose='She raises a bronze lantern.';
+    const result=splitQuickEvidence(prose+'\n<direction_evidence>{"Q1":"She raises a bronze lantern.","Q2":"He throws the door open."}</direction_evidence>\n<story_update>when: dusk</story_update>');
+    assert.equal(result.text,prose+'\n<story_update>when: dusk</story_update>');
+    assert.equal(hasQuickEvidence(prose,result.evidence.get('Q1')),true);
+    assert.equal(hasQuickEvidence(prose,result.evidence.get('Q2')),false);
+    assert.equal(splitQuickEvidence(prose+'<direction_evid',{streaming:true}).text,prose);
+    assert.equal(splitQuickEvidence(prose+'<direction_evidence>{invalid').text,prose);
 });

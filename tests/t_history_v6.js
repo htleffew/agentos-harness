@@ -4,7 +4,7 @@ const wait = async page => { await page.evaluate(async B => (await import(`${B}/
 const block = (want, mind) => `Story ${want}.\n<story_update>\npresent: Seraphina\nwhere: Inn\nwhen: Night\nwants: Seraphina | ${want}\n<profile name="Seraphina">\nMind: ${mind}\n</profile>\n</story_update>`;
 const world = page => page.evaluate(async B => { const W=await import(`${B}/src/world.js`); const id=W.chatWorld(), d=id && await W.loadWorld(id); return { id, rows:d ? W.listWorld(d,id) : [] }; },L.BASE);
 (async () => {
- L.sync(); const {browser,page,errors}=await L.open();
+ L.sync(); const {browser,page,errors}=await L.open({width:390,height:740,hasTouch:true,isMobile:true});
  try {
   await L.setupApi(page); await L.setSettings(page,{check:{mode:'off'},perReply:0,scene:{track:true,card:'always'},cards:{on:true,most:1,roast:false},world:{update:'all',build:0,head:0,copyOnBranch:true},summary:{on:false,hide:false}}); await L.openChat(page);
   await page.evaluate(async B => {const K=await import(`${B}/src/books.js`),W=await import(`${B}/src/world.js`); const d={entries:{}};const w=W.newWorldEntry(d,'character');w.name='Seraphina';w.fields.wants='Beginning';W.writeWorldEntry(d,w);W.setChatWorld(await K.createSet(`History ${Date.now()}`,'world',d,''));},L.BASE);
@@ -42,17 +42,21 @@ const world = page => page.evaluate(async B => { const W=await import(`${B}/src/
   const notes = await page.evaluate(async B=>{const W=await import(`${B}/src/world.js`),id=W.chatWorld(); return W.buildNotes(W.listWorld(await W.loadWorld(id),id))?.text || '';},L.BASE); assert.doesNotMatch(notes,/MANUAL_STALE_SUMMARY/); console.log('PASS overlapping manual chapter withheld during review');
   // Explicit rebuild uses one additional request, leaves the proposal editable,
   // and only updates state and the world after the user applies it.
-  await page.evaluate(async B=>{const UI=await import(`${B}/src/ui/state.js`);const host=document.createElement('div');host.id='history-review';document.body.append(host);window.renderHistory=()=>{host.replaceChildren();UI.renderCurrentState(host,window.renderHistory)};window.renderHistory();},L.BASE);
+  if (!await page.locator('#ri_drawer').isVisible()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
+  const root=page.locator('#ri_root');
+  if (!await root.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').tap();
+  await root.getByRole('button',{name:'Expand',exact:true}).tap();
+  await root.getByRole('navigation',{name:'Roleplay sections'}).getByRole('button',{name:'Story',exact:true}).tap();
+  await root.getByRole('button',{name:'Current State',exact:true}).tap();
   L.resetLog(); L.mode({reply:'<story_update>\npresent: Seraphina\nwhere: Tower\nwhen: Dawn\nwants: Seraphina | Rebuilt\n<profile name="Seraphina">\nMind: Begin again\n</profile>\n</story_update>'});
-  const review=page.locator('#history-review'); await review.getByRole('button',{name:'Rebuild state from the edited story'}).click(); await review.getByRole('button',{name:'Draft a state update with AI'}).click();
-  await page.waitForFunction(()=>document.querySelector('#history-review .ri-state-editor textarea')?.value.includes('Begin again'),null,{timeout:30000});
+  const review=root.locator('#ri_panel_page'); await review.getByRole('button',{name:'Rebuild state from the edited story'}).tap(); await review.getByRole('button',{name:'Draft a state update with AI'}).tap();
+  await page.waitForFunction(()=>document.querySelector('#ri_panel_page .ri-state-editor textarea')?.value.includes('Begin again'),null,{timeout:30000});
   assert.equal((await world(page)).rows.find(w=>w.name==='Seraphina').fields.wants,'Beginning');
-  await review.getByRole('button',{name:'Apply reviewed update'}).click(); await wait(page);
+  await review.getByRole('button',{name:'Apply reviewed update'}).tap(); await wait(page);
   await page.waitForFunction(async B=>{const W=await import(`${B}/src/world.js`),id=W.chatWorld();return W.listWorld(await W.loadWorld(id),id).find(w=>w.name==='Seraphina')?.fields.wants==='Rebuilt'},L.BASE,{timeout:15000});
   const afterRebuild = L.requests();
-  const manualRequest = request => L.text(request).includes('Review the story as it now stands.');
-  assert.equal(afterRebuild.filter(manualRequest).length,1);
-  assert(afterRebuild.every(request => manualRequest(request) || L.text(request).includes('evidence" quote from this batch')));
+  assert.equal(afterRebuild.length,1);
+  assert.match(L.text(afterRebuild[0]),/Review the current story\.[\s\S]*Changed earlier story\./);
   const rebuilt=await page.evaluate(async B=>(await import(`${B}/src/state.js`)).stateAt(),L.BASE);assert.equal(rebuilt.seraphina.fields.mind,'Begin again');console.log('PASS reviewed rebuild makes one request and applies only after approval');
   const latest=await page.evaluate(()=>SillyTavern.getContext().chat.length-1);await page.evaluate(async id=>{const c=SillyTavern.getContext();c.chat[id].mes='Edited newest reply.';await c.eventSource.emit(c.eventTypes.MESSAGE_EDITED,id)},latest);await wait(page);
   const newest=await page.evaluate(async B=>({state:(await import(`${B}/src/state.js`)).stateAt(),review:SillyTavern.getContext().chatMetadata.roleplay_instructions.historyNeedsReview}),L.BASE);assert(newest.review);assert(!newest.state.seraphina?.fields.mind);console.log('PASS latest edit withdraws outdated state');

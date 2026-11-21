@@ -36,6 +36,9 @@ export async function request({ operation, what, system = '', user = '', tokens 
             let res;
             try { res = await askFull({system,user,tokens:room,profileId,useProfilePreset,signal}); }
             finally { inFlight.delete(receipt.id); }
+            if (signal?.aborted) {
+                throw Object.assign(new Error(signal.reason?.message || 'The request was cancelled.'),{name:'AbortError',partialText:res.text});
+            }
             if (!preserveDraft && receipt.scope!==executionScope()) {
                 throw Object.assign(new Error('The chat changed while this request was running.'),{name:'AbortError',partialText:res.text});
             }
@@ -48,9 +51,10 @@ export async function request({ operation, what, system = '', user = '', tokens 
             updateLog(entry,{ok:true,result:'Received an answer.'});
             return { text:res.text, entry };
         } catch (error) {
-            const aborted = error?.name==='AbortError';
-            const message = /no message generated/i.test(errorText(error)) ? 'The model returned an empty answer. Run the action again to retry.' : errorText(error);
-            const partial = error?.partialText ?? error?.partial ?? error?.responseText;
+            const aborted = signal?.aborted || error?.name==='AbortError' || error?.cause?.name==='AbortError';
+            const reason = (aborted && signal?.reason?.message) || errorText(error);
+            const message = !aborted && /no message generated/i.test(reason) ? 'The model returned an empty answer. Run the action again to retry.' : reason;
+            const partial = error?.partialText ?? error?.partial ?? error?.responseText ?? error?.cause?.partialText;
             updateLog(entry,{ok:false,status:aborted ? 'Cancelled' : 'Failed',result:message,...(typeof partial==='string' ? {got:partial} : {})});
             throw Object.assign(new Error(message),{name:aborted ? 'AbortError' : 'Error',partialText:partial});
         } finally {
@@ -58,7 +62,8 @@ export async function request({ operation, what, system = '', user = '', tokens 
         }
     });
     return { text:value.text, receipt, note(result,ok = true,details = []) {
-        updateLog(value.entry,{ok,result,details});
-        amendExecutionReceipt(receipt,{result:result || 'Received a result.',outcome:ok ? 'completed' : 'failed'},onReceipt);
+        const cancelled=receipt.outcome==='cancelled';
+        updateLog(value.entry,{ok:!cancelled && ok,result,details,...(cancelled && {status:'Cancelled'})});
+        amendExecutionReceipt(receipt,{result:result || 'Received a result.',outcome:cancelled ? 'cancelled' : ok ? 'completed' : 'failed'},onReceipt);
     } };
 }

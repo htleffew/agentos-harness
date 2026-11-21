@@ -42,8 +42,9 @@ export const EXECUTION_STAGES = Object.freeze({
 const recent = new Map();
 let serial = 0;
 const activeChat = () => String(ctx().getCurrentChatId?.() ?? '');
-const storageKey = (operation, chat) => JSON.stringify([chat, operation]);
-export const executionScope = () => JSON.stringify([characterKey(),activeChat()]);
+const scopedChat = (chat,character) => JSON.stringify([character,chat]);
+const storageKey = (operation, scope) => JSON.stringify([scope,operation]);
+export const executionScope = () => scopedChat(activeChat(),characterKey());
 const definition = operation => Object.hasOwn(EXECUTION_OPERATIONS, operation) ? EXECUTION_OPERATIONS[operation] : null;
 
 export function executionSetting(operation) {
@@ -96,13 +97,13 @@ export function executionPreview(operation, { stage = 'additional', target, trig
         trigger:trigger || 'When you run this action.', connection, profileId, target, problem };
 }
 
-export function executionReceipt(operation, chat = activeChat()) {
-    return recent.get(storageKey(operation, chat)) || null;
+export function executionReceipt(operation, chat = activeChat(), character = characterKey()) {
+    return recent.get(storageKey(operation,scopedChat(chat,character))) || null;
 }
 
 function publish(receipt, onReceipt) {
     const snapshot = { ...receipt };
-    const key = storageKey(receipt.operation, receipt.chat);
+    const key = storageKey(receipt.operation,receipt.scope);
     if (!recent.has(key) && recent.size >= 120) recent.delete(recent.keys().next().value);
     const previous = recent.get(key);
     if (!previous || previous.sequence<=receipt.sequence) recent.set(key, snapshot);

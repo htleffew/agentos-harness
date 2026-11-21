@@ -155,10 +155,12 @@ function importLibrary(inspection) {
         const canKeepId = /^action:[\w.~-]{1,151}$/.test(id) &&
             (!previous || (previous.family === raw.family && JSON.stringify(safeFields(previous.baseline)) === JSON.stringify(safeFields(raw.baseline))));
         const queue = raw.origin === 'translated' && raw.operation === 'queue' && raw.family === 'steer';
+        const portableOrigin = raw.origin === 'standalone' || raw.origin === 'translated' ||
+            raw.origin === 'linked' && fields.source ? raw.origin : 'imported';
         if (!fields.title || (!fields.text.trim() && !fields.source && !queue)) return [];
         const item = {
             ...fields, id: canUseBuiltin || canKeepId ? id : 'action:' + newId(), family: raw.family,
-            origin: canUseBuiltin ? 'built-in' : queue ? 'translated' : 'imported',
+            origin: canUseBuiltin ? 'built-in' : portableOrigin,
             baseline: raw.baseline?.title ? safeFields(raw.baseline) : fields,
             baselineRevision: Number(raw.baselineRevision) || 1,
             variations: Array.isArray(raw.variations) ? raw.variations.filter(value => typeof value?.name === 'string').map(value => ({

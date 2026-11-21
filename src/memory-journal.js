@@ -1,7 +1,7 @@
 import { ctx, KEY, isReply } from './st.js';
 import { settings, chatState } from './store.js';
-import { storyRevision } from './history-source.js';
-import { setInfo } from './books.js';
+import { historySourceMatches, storyRevision } from './history-source.js';
+import { freeUid, setInfo } from './books.js';
 import { isWorldEntry, readWorldEntry, writeWorldEntry } from './world.js';
 import { stripStoredQuickText } from './quick-action-chat.js';
 
@@ -22,6 +22,30 @@ export function storySlots(chat = ctx().chat || []) {
 
 export function revisionMatches(message,index,revision) {
     return !!revision && compare(storyRevision(message,index),revision);
+}
+
+export function pendingStoryPatches(chat,index,pending) {
+    if (!pending.historySource?.length || historySourceMatches(chat,index,pending.historySource)) return pending.changes;
+    return pending.changes.filter(change=>!change.historyDerived);
+}
+
+/** Physical writers share UID space with editable changes and their saved swipes. */
+export function reserveStoryUids(data,world,chat=ctx().chat || [],root=chatState()) {
+    const next = freeUid(data);
+    const reservations = [
+        ...(root?.storyJournalCarry || []).filter(pending=>pending.world===world),
+        ...chat.flatMap(message=>[message,...(message?.swipe_info || [])].flatMap(holder=>{
+            const update = holder?.extra?.[KEY]?.update;
+            return update?.world===world && update.pending ? [update.pending] : [];
+        })),
+    ];
+    let reservedNext = next;
+    for (const pending of reservations) for (const change of pending.changes) {
+        const uid = Number(change.uid);
+        if (Number.isSafeInteger(uid) && uid>=reservedNext) reservedNext=uid+1;
+    }
+    if (reservedNext>next) data.extensions = {...data.extensions,riNextUid:reservedNext};
+    return data;
 }
 
 export function pendingWriteId(world, pending) {
@@ -94,7 +118,7 @@ export function projectStoryJournal(data,world,{before=Infinity,continuing,chat=
         const pending = rec?.update?.pending;
         if (!pending || rec.update.world !== world || rec.update.undone || rec.stateStale ||
             rec.time !== continuing && !revisionMatches(message,index,pending.revision) || wasPromoted(copy,world,pending)) continue;
-        const result = replayStoryPatch(copy,world,pending.changes);
+        const result = replayStoryPatch(copy,world,pendingStoryPatches(chat,index,pending));
         conflicts.push(...result.conflicts);
     }
     return {data:copy,conflicts};
@@ -133,7 +157,10 @@ export function carryStoryJournal(data,world,chat,root) {
         const source = {reply:position+1,speaker:message.name || '',
             text:String(message.mes || '').replace(/\s*<sent_instructions>[\s\S]*?<\/sent_instructions>/gi,''),
             playerText:stripStoredQuickText(String(player?.mes || '')),scene:structuredClone(rec.scene || {})};
-        return [{...structuredClone(pending),world,source,remaining:Math.max(1,editableReplySlots()-slots.length+position+1)}];
+        const changes = pendingStoryPatches(chat,index,pending);
+        if (!changes.length) return [];
+        return [{...structuredClone(pending),changes:structuredClone(changes),world,source,
+            remaining:Math.max(1,editableReplySlots()-slots.length+position+1)}];
     });
     return [...inherited,...recent];
 }

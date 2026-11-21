@@ -7,10 +7,10 @@ import { chatBooks } from './chat-books.js';
 import { request } from './ai.js';
 import { promptText } from './prompts.js';
 import { characterCorrectionFields, correctionTerms, correctionMessageAnchor, correctedLoreEntry, replaceUnique } from './correction-rules.js';
-import { historySourceMatches, historySourceMark } from './history-source.js';
+import { historySourceMatches, historySourceMark, storyRevision } from './history-source.js';
 import { SCENE_FIELDS } from './state.js';
 import { enqueue, loadDurableWorld, saveVerifiedWorld, syncWorld, worldIdle, recordManualWorldChange } from './worldflow.js';
-import { projectStoryJournal } from './memory-journal.js';
+import { projectStoryJournal, storySlots } from './memory-journal.js';
 import { stripStoredQuickText } from './quick-action-chat.js';
 import { addLog } from './log.js';
 
@@ -57,6 +57,7 @@ async function sourceInventory(target) {
     const rows = effective ? listWorld(effective,target.world) : [];
     const filed = worldData ? new Map(listWorld(worldData,target.world).map(row=>[row.uid,row])) : new Map();
     const originsByEntry = origins(chat,target.world);
+    const slots = storySlots(chat);
     const worldName = target.world && setInfo(target.world).book;
     for (const row of rows) {
         const record = readRecord(row);
@@ -67,7 +68,8 @@ async function sourceInventory(target) {
             WORLD_KINDS[row.kind].fields.map(spec=>[spec.key,spec.label,row.fields[spec.key]]);
         for (const [field,label,value] of fields) {
             const copies = fieldOrigins(originsByEntry.get(row.uid) || [],field,!!record);
-            const evidenceAt = sourceIndex>=0 && field==='text' ? sourceIndex : (copies.at(-1) ?? -1);
+            const legacyIndex = row.auto && row.at?.chat===target.id ? slots[row.at.n-1]?.index : undefined;
+            const evidenceAt = sourceIndex>=0 && field==='text' ? sourceIndex : (copies.at(-1) ?? legacyIndex ?? -1);
             const physical = filed.get(row.uid);
             const prior = record ? readRecord(physical)?.[field] : physical?.fields[field];
             add(['world',row.uid,field].join(':'),[worldName,row.name,label].join(' / '),value,
@@ -364,6 +366,7 @@ export async function applyStoryCorrection(review, edits, truth = review.truth) 
                 carried:[...pendingUpdates.values()].filter(patch=>patch.index===undefined).flatMap(patch=>patch.rows),
                 messages:changes.filter(source=>source.index!==undefined).map(({kind,index,field,before,after,identity})=>
                     ({kind,index,field,before,after,identity,revision:historySourceMark(chat[index]),
+                        slot:storyRevision(chat[index],index),
                         priorSceneEdit:kind==='scene' ? backups.find(row=>row.message===chat[index])?.extra?.[KEY]?.sceneSnapshotEdits?.[field] : undefined})),
             }};
         (root.storyCorrections ||= []).push(correction);
@@ -395,6 +398,28 @@ export async function applyStoryCorrection(review, edits, truth = review.truth) 
     },{propagate:true});
 }
 
+function undoSourceRevision(edit,chat) {
+    const index = edit.slot ? chat.findIndex((message,position)=>storyRevision(message,position).turn===edit.slot.turn) : edit.index;
+    const message = chat[index];
+    if (!message) return null;
+    const selected = Number(message.swipe_id) || 0;
+    const swipe = edit.slot?.swipe ?? selected;
+    const active = selected===swipe;
+    const holder = active ? message : message.swipe_info?.[swipe];
+    const text = active ? message.mes : message.swipes?.[swipe];
+    if (!holder || typeof text!=='string' || historySourceMark(active ? message : {...message,mes:text,send_date:holder.send_date})!==edit.revision) return null;
+    const rec = holder.extra?.[KEY];
+    if ((edit.kind==='scene' ? rec?.scene?.[edit.field] : text)!==edit.after) return null;
+    const write = value => {
+        if (active) writeMessage(message,value);
+        else {
+            message.swipes[swipe] = value;
+            if (holder.extra) delete holder.extra.display_text;
+        }
+    };
+    return {edit,index,active,rec,write};
+}
+
 export function undoStoryCorrection(id) {
     const target = scope();
     return enqueue(async()=>{
@@ -404,10 +429,16 @@ export function undoStoryCorrection(id) {
         if (correction.undo.world !== (world || '')) throw new Error('The Story World changed. Reopen the original world to undo the edit.');
         const redo = [];
         const bookEdits = correction.undo.entries || [];
+        const updates = new Set();
         const patches = chat.flatMap(message=>{
-            const rec = message.extra?.[KEY];
-            return [rec?.update?.pending,rec?.update].flatMap((update,index)=>
-                update?.changes?.some(change=>change.correctionId===id) ? [{update,filed:index===1,rec}] : []);
+            return [message,...(message.swipe_info || [])].flatMap(holder=>{
+                const rec = holder?.extra?.[KEY];
+                return [rec?.update?.pending,rec?.update].flatMap((update,index)=>{
+                    if (!update?.changes?.some(change=>change.correctionId===id) || updates.has(update)) return [];
+                    updates.add(update);
+                    return [{update,filed:holder===message && index===1,rec}];
+                });
+            });
         });
         const carried = (root.storyJournalCarry || []).filter(update=>update.world===world && update.changes.some(change=>change.correctionId===id));
         patches.push(...carried.map(update=>({update,filed:false})));
@@ -435,14 +466,8 @@ export function undoStoryCorrection(id) {
             }
         }
         const messageEdits = correction.undo.messages || [];
-        for (const edit of messageEdits) {
-            const message = chat[edit.index];
-            const rec = message?.extra?.[KEY];
-            if (!message || historySourceMark(message)!==edit.revision ||
-                (edit.kind==='scene' ? rec?.scene?.[edit.field] : message.mes)!==edit.after) {
-                throw new Error('A corrected message or card changed again. Review it before undoing the correction.');
-            }
-        }
+        const revisions = messageEdits.map(edit=>undoSourceRevision(edit,chat));
+        if (revisions.some(value=>!value)) throw new Error('A corrected message or card changed again. Review it before undoing the correction.');
         if (data) {
             const latest = await loadDurableWorld(world);
             if (!matchesScope(target) || JSON.stringify(latest)!==JSON.stringify(original)) {
@@ -457,11 +482,10 @@ export function undoStoryCorrection(id) {
             return rec?.historySource?.length && historySourceMatches(chat,index,rec.historySource)
                 ? [{rec,end:index,start:index+1-rec.historySource.length}] : [];
         });
-        for (const edit of messageEdits) {
-            const message = chat[edit.index], rec = message.extra?.[KEY];
+        for (const {edit,rec,write} of revisions) {
             if (edit.kind==='message') {
-                redo.push(()=>writeMessage(message,edit.after));
-                writeMessage(message,edit.before);
+                redo.push(()=>write(edit.after));
+                write(edit.before);
             } else {
                 redo.push(()=>{rec.scene[edit.field]=edit.after; rec.sceneSnapshotEdits[edit.field]=edit.after;});
                 rec.scene[edit.field] = edit.before;
@@ -470,7 +494,7 @@ export function undoStoryCorrection(id) {
             }
         }
         for (const {rec,start,end} of covered) {
-            if (!messageEdits.some(edit=>edit.kind==='message' && edit.index>=start && edit.index<=end)) continue;
+            if (!revisions.some(({edit,index,active})=>active && edit.kind==='message' && index>=start && index<=end)) continue;
             const previous = rec.historySource;
             redo.push(()=>{rec.historySource=previous;});
             rec.historySource = chat.slice(start,end+1).map(historySourceMark);
@@ -498,7 +522,7 @@ export function undoStoryCorrection(id) {
         }
         if (matchesScope(target)) {
             saveChatState();
-            for (const edit of messageEdits.filter(edit=>edit.kind==='message')) host.updateMessageBlock?.(edit.index,chat[edit.index]);
+            for (const {edit,index,active} of revisions) if (active && edit.kind==='message') host.updateMessageBlock?.(index,chat[index]);
         }
         return true;
     },{propagate:true});

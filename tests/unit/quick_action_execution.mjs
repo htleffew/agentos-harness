@@ -54,6 +54,22 @@ test('an additional action dispatches once through the selected route and blocks
     const abort=new AbortController(); abort.abort();
     await assert.rejects(request({...work,signal:abort.signal}),error=>error.name==='AbortError' && error.receipt.attempts===0);
     assert.equal(requests.length,5);
+
+    model.characters=[{avatar:'first.png'},{avatar:'second.png'}];
+    model.characterId=0;
+    const firstCharacter=await request(work);
+    model.characterId=1;
+    assert.equal(executionReceipt('playerDraft'),null);
+    assert.equal(executionReceipt('playerDraft',chat,'char:first.png').id,firstCharacter.receipt.id);
+
+    const midstream=new AbortController();
+    model.generateRaw=async()=>{midstream.abort();return 'I kept waiting.';};
+    await assert.rejects(request({...work,signal:midstream.signal}),error=>error.receipt.attempts===1 &&
+        error.receipt.outcome==='cancelled' && error.receipt.partialText==='I kept waiting.');
+
+    firstCharacter.receipt.outcome='cancelled';
+    firstCharacter.note('Discarded the result.',false);
+    assert.equal(executionReceipt('playerDraft',chat,'char:first.png').outcome,'cancelled');
 });
 
 test('preset fields keep distinct sources, draft variations survive restore, and stale targets fail closed',async()=>{
@@ -78,6 +94,7 @@ test('preset fields keep distinct sources, draft variations survive restore, and
     live.impersonation_prompt='My cue for {{user}}';
     const blank=await saveImpersonationField(impersonationSource(),'');
     assert.equal(blank.kind,'blank');
+    assert.equal(blank.status,'Blank host field');
     assert.equal(write[0][1].impersonation_prompt,'');
     setImpersonationSource(blank,'preset');
     assert.equal(draftImpersonation().expanded,'');
@@ -85,7 +102,20 @@ test('preset fields keep distinct sources, draft variations survive restore, and
     host.powerUserSettings={instruct:{enabled:true,preset:'Plain',last_input_sequence:'USER:'}};
     assert.equal(impersonationSource().kind,'instruct');
     assert.equal(impersonationSource().text,'USER:');
+    assert.equal(impersonationSource().writable,false);
+    assert.equal(draftImpersonation().source,'Extension player draft instruction');
+    host.powerUserSettings.instruct.enabled=false;
+    assert.equal(impersonationSource().kind,'opaque');
+    assert.equal(impersonationSource().text,null);
+    assert.equal(draftImpersonation().host.status,'Host wording unavailable');
     host.mainApi='openai';
+    const manager=host.getPresetManager;
+    delete host.getPresetManager;
+    live.impersonation_prompt='A readable cue from a read-only host.';
+    assert.equal(impersonationSource().status,'Read-only host wording');
+    assert.equal(draftImpersonation().expanded,live.impersonation_prompt);
+    await assert.rejects(saveImpersonationField(impersonationSource(),'Change read-only text'),/read-only/);
+    host.getPresetManager=manager;
     const row=presetRows().find(item=>item.id==='b');
     const owner=promptOwner('preset',preset,row.id);
     const first=saveVariation(owner,{name:'First',value:{...presetBlockVariation(row),content:'New {{char}} words'}});

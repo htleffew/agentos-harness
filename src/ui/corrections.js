@@ -14,6 +14,11 @@ function openMessage(index) {
     document.querySelector('#chat .mes[mesid="'+index+'"]')?.scrollIntoView({block:'center'});
 }
 
+async function undoRepair(id) {
+    await undoStoryCorrection(id);
+    (await import('./sent.js')).refreshUnderReplies();
+}
+
 function sourceRow(source, proposal, review, target, onChange) {
     const editTarget = source.kind==='message' && source.index===target?.index;
     const selected = h('input',{type:'checkbox',checked:!!proposal && !source.user && !editTarget,
@@ -155,7 +160,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             rows=[]; review=null;
             truth.value=''; wording.value=''; auto.checked=false; onSaved(correction);
             results.append(button('Undo source repair',async()=>{
-                try { await undoStoryCorrection(correction.id); results.replaceChildren(); status.textContent='Source repair undone.'; onSaved(); }
+                try { await undoRepair(correction.id); results.replaceChildren(); status.textContent='Source repair undone.'; onSaved(); }
                 catch (error) { status.textContent=error.message; }
             },{kind:'ghost'}));
             await settle(correction,requestedTarget,traceNote);
@@ -175,7 +180,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             results.replaceChildren(h('details',{},h('summary',{},'Sources checked'),h('ul',{},inspected.checked.map(source=>h('li',{},source)))));
             if (inspected.correction) {
                 results.append(button('Undo source repair',async()=>{
-                    try { await undoStoryCorrection(inspected.correction.id); results.replaceChildren(); status.textContent='Source repair undone.'; onSaved(); }
+                    try { await undoRepair(inspected.correction.id); results.replaceChildren(); status.textContent='Source repair undone.'; onSaved(); }
                     catch (error) { status.textContent=error.message; }
                 },{kind:'ghost'}));
                 onSaved(inspected.correction);
@@ -266,7 +271,7 @@ export function renderCorrections(body) {
             h('summary',{},correction.truth),
             h('ul',{},correction.sources.map(source=>h('li',{},source.label+(['lore','card'].includes(source.kind) ? ' · this chat' : '')))),
             correction.undo && button('Undo source repair',async()=>{
-                try { await undoStoryCorrection(correction.id); renderHistory(); }
+                try { await undoRepair(correction.id); renderHistory(); }
                 catch (error) { toast('error',error.message); }
             },{kind:'ghost'}))));
         list.hidden=!corrections.length;

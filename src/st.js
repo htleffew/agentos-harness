@@ -261,6 +261,18 @@ export function writeComposer(snapshot) {
     return true;
 }
 
+let heldGroupDraft;
+
+function groupDraftOwner(hold) {
+    const current = ctx();
+    return current.chat === hold.chat && current.getCurrentChatId?.() === hold.chatId && characterKey() === hold.character;
+}
+
+/** The origin's draft during the host's temporary input clear for a group continuation. */
+export function heldGroupContinuationComposer() {
+    return heldGroupDraft && groupDraftOwner(heldGroupDraft) ? heldGroupDraft.draft : null;
+}
+
 export async function triggerContinuation() {
     const host = ctx();
     if (typeof host.generate !== 'function') return false;
@@ -271,11 +283,16 @@ export async function triggerContinuation() {
     }
     // Group generation invokes the host command a second time without the depth
     // option. Temporarily clear the composer and restore only in this same chat.
-    const draft = readComposer(), chat = host.chat;
-    if (draft?.text) writeComposer({ text: '' });
+    const draft = readComposer();
+    const hold = { draft, chat: host.chat, chatId: host.getCurrentChatId?.(), character: characterKey() };
+    if (draft?.text) {
+        heldGroupDraft = hold;
+        writeComposer({ text: '' });
+    }
     try { await host.generate('continue'); }
     finally {
-        if (ctx().chat === chat && draft && readComposer()?.text === '') writeComposer(draft);
+        if (heldGroupDraft === hold) heldGroupDraft = null;
+        if (groupDraftOwner(hold) && draft?.text && readComposer()?.text === '') writeComposer(draft);
     }
     return true;
 }

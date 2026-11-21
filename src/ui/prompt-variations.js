@@ -25,7 +25,7 @@ export function variationEditor({ owner, readDraft, readActive, loadDraft, apply
     const fieldStyle = {minHeight:'44px'};
     const picker = h('select',{class:'ri-input','aria-label':'Saved variation',style:fieldStyle});
     const name = h('input',{class:'ri-input','aria-label':'Variation name',maxLength:80,style:fieldStyle});
-    const file = h('input',{type:'file',accept:'.json,application/json','aria-label':'Import variation JSON',style:{...fieldStyle,maxWidth:'100%'}});
+    const file = h('input',{type:'file',accept:'.json,application/json','aria-label':'Import variation JSON',hidden:true});
     const note = h('p',{class:'ri-help','aria-live':'polite'});
     const status = h('p',{class:'ri-help'});
     const compare = h('div');
@@ -122,7 +122,7 @@ export function variationEditor({ owner, readDraft, readActive, loadDraft, apply
     };
     root.append(summary,label('Saved variation',picker),status,compare,
         row(compareButton,load,applyDraft && apply),label('Variation name',name),row(saveAs,update,rename,duplicate),
-        row(remove,exportFile),h('details',{},h('summary',{style:fieldStyle},'Import variation'),file),
+        row(remove,exportFile),h('details',{},h('summary',{style:fieldStyle},'Import variation'),action('Choose variation JSON',()=>file.click()),file),
         h('details',{open:true},h('summary',{style:fieldStyle},'Undo removal'),archive),note);
     refresh();
     return { root, updateDraftStatus:()=>showStatus(listVariations(owner)) };

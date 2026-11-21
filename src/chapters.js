@@ -5,8 +5,8 @@ import { promptText } from './prompts.js';
 import { stateAt, sceneAt, storyMinuteAt, sceneUpdate, sceneFromReplyHeader, SCENE_FIELDS, changesFromProfiles } from './state.js';
 import { advanceStoryClock, validElapsed } from './story-clock.js';
 import { historySourceMark, historySourceMatches, storyRevision } from './history-source.js';
-import { carryStoryJournal, editableReplySlots, filedThrough, projectStoryJournal } from './memory-journal.js';
-import { automaticAllowed } from './execution.js';
+import { carryStoryJournal, editableReplySlots, filedThrough, projectStoryJournal, reserveStoryUids } from './memory-journal.js';
+import { automaticAllowed, executionScope } from './execution.js';
 import { stripStoredQuickText } from './quick-action-chat.js';
 import { storyCorrectionPrompt } from './correction-rules.js';
 import { estimateTokens } from './context-budget.js';
@@ -164,21 +164,31 @@ const asList = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string').map
 export async function writeChapter(from, to, why, {automatic=false} = {}) {
     if (busy) throw new Error('A chapter is already being written.');
     const wid = chatWorld();
-    const chat = chatId();
+    const chat = chatId(), scope = executionScope(), root = chatState();
     if (!wid) throw new Error('This chat has no story world to keep chapters in.');
     busy = true;
     let res;
     try {
         await worldIdle();
         const before = await loadWorld(wid);
-        if (chat !== chatId() || wid !== chatWorld()) throw new Error('The chat or Story World changed before the chapter started.');
+        if (scope !== executionScope() || wid !== chatWorld()) throw new Error('The chat or Story World changed before the chapter started.');
         if (to > filedThrough()) throw new Error('That range includes editable replies. Wait until they are filed, or change the editing window in Context & Memory.');
         const text = storyText(from, to, 0);
         const anchor = replies().find(r=>r.n===to);
         if (!text) throw new Error('There is nothing to summarise yet.');
+        if (automatic) {
+            if (!automaticAllowed('chapterSummary')) return '';
+            const source = historySourceMark({mes:text});
+            const attempt = root.chapterAutoAttempt;
+            // Continue offering manual recovery after a failed attempt for the same source.
+            if (attempt?.world===wid && attempt.from===from && attempt.to<=to &&
+                attempt.source===historySourceMark({mes:attempt.to===to ? text : storyText(from,attempt.to,0)})) return '';
+            root.chapterAutoAttempt = {world:wid,from,to,source};
+            saveChatState();
+        }
         const earlier = chaptersOf(listWorld(before, wid)).slice(-3);
         res = await request({ operation:'chapterSummary',authorization:automatic ? 'automatic' : 'manual',
-            target:{chat,from,to},what:'Write a chapter of the story so far',system:'You keep the story notes of a roleplay. You answer with JSON only.',
+            target:{chat,from,to,label:`Replies ${from}–${to}`},what:'Write a chapter of the story so far',system:'You keep the story notes of a roleplay. You answer with JSON only.',
             user:chapterPrompt(text,earlier),tokens:700 });
         const answer = String(res.text);
         const obj = parseJson(answer.slice(Math.max(0, answer.indexOf('{'))));
@@ -187,20 +197,20 @@ export async function writeChapter(from, to, why, {automatic=false} = {}) {
             res.note(msg, false);
             throw new Error(msg);
         }
-        if (chatId() !== chat) { res.note('The chat changed while the chapter was being written, so it was not filed.', false); throw new Error('The chat changed while the chapter was being written.'); }
+        if (executionScope() !== scope) { res.note('The chat changed while the chapter was being written, so it was not filed.', false); throw new Error('The chat changed while the chapter was being written.'); }
         let name = '';
         let moved = 0;
         let hidden = 0;
         await enqueue(async () => {
             const data = await loadDurableWorld(wid);
             const lastRe = replies().find(r => r.n === to);
-            if (chatId()!==chat || chatWorld()!==wid || !memoryComponents().chapters || !lastRe || to > filedThrough() ||
+            if (executionScope()!==scope || chatWorld()!==wid || !memoryComponents().chapters || !lastRe || to > filedThrough() ||
                 lastRe.time!==anchor?.time || storyText(from,to,0)!==text) {
                 const reason = 'The source history or chapter settings changed while the summary was being written. No chapter was saved.';
                 res.note(reason,false);
                 throw new Error(reason);
             }
-            const w = newWorldEntry(data, 'chapter');
+            const w = newWorldEntry(reserveStoryUids(data,wid), 'chapter');
             Object.assign(w, { name: clean(obj.title) || `Replies ${from} to ${to}`, auto: true, at: { chat, n: to }, span: { chat, from, to, ...(lastRe?.time ? { time: String(lastRe.time) } : {}) } });
             Object.assign(w.fields, { summary: clean(obj.summary), when: clean(obj.when), people: asList(obj.people), places: asList(obj.places), settled: clean(obj.settled) });
             // What is finished moves into the chapter: it is written into it in one line each and turned off, so the
@@ -210,7 +220,7 @@ export async function writeChapter(from, to, why, {automatic=false} = {}) {
             writeWorldEntry(data, w, wid);
             for (const x of retired) { x.on = false; writeWorldEntry(data, x, wid); }
             await saveVerifiedWorld(wid,data);
-            if (chatId()!==chat || chatWorld()!==wid) throw new Error('The chapter was saved to its original Story World. Reopen that chat to review it.');
+            if (executionScope()!==scope || chatWorld()!==wid) throw new Error('The chapter was saved to its original Story World. Reopen that chat to review it.');
             name = w.name;
             moved = retired.length;
             // The chapter belongs to the last reply it covers: delete or swipe away that reply and the chapter goes too,
@@ -259,7 +269,7 @@ export function chapterAfterReply(time, replyNo, onDone) {
         else if (every && since >= every) { why = `${every} filed replies are ready`; to = last+every; }
         else if (tokens && since>0 && estimateTokens(storyText(last+1,through,0))>=tokens) why = `the unsummarized story reached about ${tokens} tokens`;
         if (!why) return;
-        try { await writeChapter(last+1,to,why,{automatic:true}); onDone?.(); }
+        try { if (await writeChapter(last+1,to,why,{automatic:true})) onDone?.(); }
         catch (e) { console.warn(LOG, 'chapter', e); }
     }).catch(e => console.warn(LOG, 'chapter', e));
 }
@@ -319,10 +329,41 @@ function chapterCoverage(rows, id, total) {
     return covered;
 }
 
+function historyPlan(chat,rows,id,rebuild,repair) {
+    const replyList = replies();
+    const covered = rebuild ? new Set() : chapterCoverage(rows,id,replyList.length);
+    const stableThrough = rebuild ? Math.max(0,replyList.length-editableReplySlots()) : filedThrough();
+    if (!rebuild) for (const {index,n} of replyList) {
+        const rec = chat[index]?.extra?.[KEY];
+        if (!rec?.historySource?.length || rec.stateStale || !historySourceMatches(chat,index,rec.historySource)) continue;
+        const from = index+1-rec.historySource.length;
+        for (const prior of replyList) if (prior.n<=n && prior.n>stableThrough && prior.index>=from) covered.add(prior.n);
+    }
+    if (repair) for (const row of replyList) if (row.n < repair.from) covered.add(row.n);
+    const chapterThrough = repair && memoryComponents().chapters ? Math.min(stableThrough,repair.chapterThrough) : stableThrough;
+    const batches = catchUpBatches(chat,covered,Math.max(1,Number(settings().summary.every) || 20),28000,chapterThrough,
+        message=>stripStoredQuickText(String(message.mes)));
+    return {batches,covered,replyList,stableThrough,chapterThrough};
+}
+
+/** Inspect batch counts against the open timeline and current saved chapter coverage. */
+export async function historyCatchUpPreview() {
+    const chat = ctx().chat, id = executionScope(), wid = chatWorld();
+    const data = wid ? await loadDurableWorld(wid) : null;
+    if (wid && !data) throw new Error('The Story World could not be read.');
+    if (ctx().chat!==chat || executionScope()!==id || chatWorld()!==wid) throw new Error('Open the current chat to preview catch-up.');
+    const rows = data ? listWorld(data,wid) : [];
+    const summarize = rebuild => {
+        const {batches,stableThrough} = historyPlan(chat || [],rows,chatId(),rebuild,null);
+        return {count:batches.length,batches:batches.map(({from,to})=>({from,to,pending:to>stableThrough}))};
+    };
+    return {catchUp:summarize(false),rebuild:summarize(true)};
+}
+
 let catchUp = null;
-export const historyCatchUpStatus = () => catchUp?.chat === chatId() ? { ...catchUp } : null;
+export const historyCatchUpStatus = () => catchUp?.scope === executionScope() ? structuredClone(catchUp) : null;
 export function stopHistoryCatchUp() {
-    if (catchUp?.chat === chatId() && catchUp.running && !catchUp.installing) catchUp.stop = true;
+    if (catchUp?.scope === executionScope() && catchUp.running && !catchUp.installing) catchUp.stop = true;
 }
 
 function catchUpPayload(answer, batch, track, structured) {
@@ -371,6 +412,7 @@ function fileHistoryBatch(data, wid, meta, batch, payload, rec, config) {
         const scene = sceneUpdate(parsed.scene);
         const timeline = advanceStoryClock(previous,scene,{clock:previousClock,minutes:parsed.minutes,elapsed:parsed.elapsed});
         rec.scene = timeline.scene;
+        if (!keepChapter) rec.historyScene = true;
         rec.stateChanges = changesFromProfiles(parsed.profiles);
         rec.stateStale = false;
         rec.stateOutdated = false;
@@ -408,7 +450,8 @@ async function attachHistoryBatch(wid, batch, staged, original, safeEnd, {pendin
         rec.update ||= {world:wid,ops:[],ended:false,changes:[]};
         rec.update.windowVersion = 1;
         const prior = rec.update.pending?.changes || [];
-        rec.update.pending = {chat:chatId(),revision:storyRevision(message,batch.end),changes:[...prior,...changes]};
+        rec.update.pending = {chat:chatId(),revision:storyRevision(message,batch.end),historySource:rec.historySource,historyScene:rec.historyScene,
+            changes:[...prior,...changes.map(change=>({...change,historyDerived:true}))]};
     }
     attachChanges(rec.time,wid,[...(pending ? [] : changes),
         ...(chapter ? [{uid:chapter.uid,name:chapter.name,kind:'chapter',type:'create',createdState:creationFingerprint(chapter),entry:structuredClone(chapter)}] : []),
@@ -449,7 +492,13 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
         chat.length === original.length && historySourceMatches(chat,chat.length-1,original);
     const validate = () => { if (!current()) throw new Error('The chat changed during catch-up. Run catch-up again from its saved chapters.'); };
     busy = true;
-    const status = catchUp = {chat:id,running:true,stop:false,done:0,total:0,hidden:0,records:0,text:'Preparing chat history…'};
+    const status = catchUp = {chat:id,scope:executionScope(),running:true,stop:false,done:0,total:0,hidden:0,records:0,
+        chapters:0,editableBatches:0,receipts:[],text:'Preparing chat history…'};
+    const onReceipt = receipt => {
+        const index = status.receipts.findIndex(current=>current.id===receipt.id);
+        if (index<0) status.receipts.push(receipt);
+        else status.receipts[index] = receipt;
+    };
     const report = text => { status.text = text; onProgress(); };
     try {
         report(status.text);
@@ -478,19 +527,7 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
             for (let number = 2; used.has(wid); number++) wid = `${base} ${number}`;
             if (keepAuthored) keepAuthoredEntries(oldRows,stagingBook,wid);
         }
-        const replyList = replies();
-        const covered = rebuild ? new Set() : chapterCoverage(oldRows,id,replyList.length);
-        const stableThrough = rebuild ? Math.max(0,replyList.length-editableReplySlots()) : filedThrough();
-        if (!rebuild) for (const {index,n} of replyList) {
-            const rec = chat[index]?.extra?.[KEY];
-            if (!rec?.historySource?.length || rec.stateStale || !historySourceMatches(chat,index,rec.historySource)) continue;
-            const from = index+1-rec.historySource.length;
-            for (const prior of replyList) if (prior.n<=n && prior.n>stableThrough && prior.index>=from) covered.add(prior.n);
-        }
-        if (repair) for (const row of replyList) if (row.n < repair.from) covered.add(row.n);
-        const chapterThrough = repair && memoryComponents().chapters ? Math.min(stableThrough,repair.chapterThrough) : stableThrough;
-        const batches = catchUpBatches(chat,covered,Math.max(1,Number(settings().summary.every) || 20),28000,chapterThrough,
-            message=>stripStoredQuickText(String(message.mes)));
+        const {batches,covered,replyList,stableThrough,chapterThrough} = historyPlan(chat,oldRows,id,rebuild,repair);
         status.total = batches.length;
         let timestamp = Math.max(Date.now(), ...chat.map(message=>Number(message?.extra?.[KEY]?.time) || 0));
         for (const batch of batches) {
@@ -528,9 +565,9 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
             ].filter(Boolean).join('\n\n');
             validate();
             const response = await request({operation:'historyCatchUp',authorization:'manual',
-                target:{chat:id,from:batch.from,to:batch.to},what:`Catch up story history, replies ${batch.from}–${batch.to}`,
+                target:{chat:id,from:batch.from,to:batch.to,label:`Replies ${batch.from}–${batch.to}`},what:`Catch up story history, replies ${batch.from}–${batch.to}`,
                 system:promptText('systemCatchUp'),
-                user:form,tokens:track ? 2300 : 700});
+                user:form,tokens:track ? 2300 : 700,onReceipt});
             try {
                 validate();
                 if (status.stop) { response.note('Catch-up stopped before this chapter was saved.',false); break; }
@@ -557,7 +594,8 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     const originalBook = await loadWorld(wid);
                     validate();
                     if (!originalBook) throw new Error('The Story World could not be found.');
-                    const data = pending ? projectStoryJournal(originalBook,wid,{chat,root}).data : structuredClone(originalBook);
+                    const data = pending ? projectStoryJournal(originalBook,wid,{chat,root}).data :
+                        reserveStoryUids(structuredClone(originalBook),wid,chat,root);
                     const live = chat[batch.end].extra?.[KEY];
                     if (live?.update?.world && live.update.world!==wid && !live.update.undone) throw new Error('This reply already belongs to a different Story World.');
                     const rec = live ? structuredClone(live) : {v:1,items:[],type:'history',time:++timestamp};
@@ -583,6 +621,8 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                     }
                     status.hidden += hidden;
                     status.records += staged.changes.length;
+                    status.chapters += Number(!!staged.chapter);
+                    status.editableBatches += Number(pending);
                     status.done++;
                     saveChatState();
                 },{propagate:true});
@@ -641,6 +681,8 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                         if (!keepAuthored) { delete staged.rec.stateEdits; delete staged.rec.snapshotEdits; }
                         status.hidden += await attachHistoryBatch(wid,batch,staged,original,batch.end,{pending});
                         status.records += staged.changes.length;
+                        status.chapters += Number(!!staged.chapter);
+                        status.editableBatches += Number(pending);
                     }
                     await c.saveChat?.();
                     status.book = wid;
@@ -651,13 +693,12 @@ export async function catchUpChatHistory(onProgress = () => {}, { rebuild = fals
                 }
             },{propagate:true});
         }
+        const saved = `Saved ${status.chapters} chapter${status.chapters===1 ? '' : 's'} and kept ${status.editableBatches} recent batch${status.editableBatches===1 ? '' : 'es'} editable. Hid ${status.hidden} covered messages from the model.`;
         report(status.stop && rebuild ? 'Rebuild stopped. The previous Story World is still in use.' : status.stop ? `Paused after ${status.done} of ${status.total} batches.` :
-            repair ? `Refreshed ${status.done} affected history batches and filed ${status.records} Story World changes.` :
-            status.book ? `Rebuilt ${status.done} chapters in ${status.book}. Hid ${status.hidden} covered messages from the model.` : status.total ? `Saved ${status.done} chapters and filed ${status.records} Story World changes. Hid ${status.hidden} covered messages from the model.` :
-                'Every model reply in this chat already has chapter coverage.');
+            status.book ? `Switched to ${status.book}. ${saved}` : status.total ? saved : 'All available history has chapter coverage or editable records.');
         return {...status};
     } catch (error) {
-        report(`${error.message} ${rebuild ? 'The previous book remains available.' : `${status.done} chapters saved in this run.`}`);
+        report(`${error.message} ${rebuild ? 'The previous book remains available.' : `${status.done} batch${status.done===1 ? '' : 'es'} saved in this run.`}`);
         throw error;
     } finally {
         status.running = false;
@@ -723,7 +764,8 @@ async function rollUpIfNeeded() {
             throw new Error('The Story World changed before the combined chapter could be saved.');
         }
         const now = listWorld(d, wid);
-        const roll = now.find(w => w.kind === 'chapter' && w.rollup && w.on) || Object.assign(newWorldEntry(d, 'chapter'), { name: 'Before the latest chapters', rollup: true, auto: true });
+        const roll = now.find(w => w.kind === 'chapter' && w.rollup && w.on) ||
+            Object.assign(newWorldEntry(reserveStoryUids(d,wid), 'chapter'), { name: 'Before the latest chapters', rollup: true, auto: true });
         Object.assign(roll.fields, { summary: clean(obj.summary), people: asList(obj.people), places: asList(obj.places) });
         roll.span = { chat, from: 1, to: old[old.length - 1].span.to, ...(old[old.length - 1].span.time ? { time: old[old.length - 1].span.time } : {}) };
         if (roll.activation?.mode==='window') {
@@ -1009,14 +1051,15 @@ export async function draftStarterWorld() {
 
 /** Add reviewed starter lines to this chat's world. Returns what was added, in plain words. */
 export function addStarterWorld(ops) {
-    let out = [];
+    const scope = executionScope(), wid = chatWorld();
     return enqueue(async () => {
-        const wid = chatWorld();
         if (!wid) throw new Error('This chat has no story world.');
-        const data = await loadWorld(wid);
-        const changes = applyOps(data, wid, ops, { chat: chatId(), n: 0 }, 'all', 60);
-        if (changes.length) await saveWorld(wid, data);
-        out = shownChanges(changes).map(describeChange);
+        const data = await loadDurableWorld(wid);
+        if (executionScope()!==scope || chatWorld()!==wid || !data) throw new Error('The Story World changed before adding the reviewed entries.');
+        const changes = applyOps(reserveStoryUids(data,wid), wid, ops, { chat: chatId(), n: 0 }, 'all', 60);
+        if (changes.length) await saveVerifiedWorld(wid,data);
+        const out = shownChanges(changes).map(describeChange);
         addLog({ what: 'Story world update', ok: true, result: `${out.length} ${out.length === 1 ? 'change was' : 'changes were'} made from the character card.`, details: out, got: '' });
-    }).then(() => out);
+        return out;
+    },{propagate:true});
 }

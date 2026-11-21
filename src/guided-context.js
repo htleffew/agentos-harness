@@ -79,14 +79,23 @@ export function projectGuidedRequest(messages, { type = 'normal', target, freshS
         if (text) forRole[row.is_user ? 'user' : 'assistant'].add(text);
     }
     if (type === 'swipe' && target?.text) forRole.assistant.add(prose(scopedGuidedTemplate(target.text)));
+    const matches = (message, role, value) => {
+        if (!value || message?.role !== role) return false;
+        const text = prose(messageText(message.content));
+        return text === value || text.endsWith(`: ${value}`);
+    };
+    // Earlier turns can repeat the exact latest wording. Keep its final host
+    // occurrence, then remove the matching older examples with their turn peers.
+    const keep = new Set([
+        messages.findLastIndex(message => matches(message, 'user', current)),
+        messages.findLastIndex(message => matches(message, 'assistant', prefix)),
+    ]);
 
     let removed = 0;
     for (let index = messages.length - 1; index >= 0; index--) {
         const message = messages[index];
         const text = prose(messageText(message?.content));
-        if (!text || !forRole[message?.role]) continue;
-        if (current && message.role === 'user' && (text === current || text.endsWith(`: ${current}`))) continue;
-        if (prefix && message.role === 'assistant' && (text === prefix || text.endsWith(`: ${prefix}`))) continue;
+        if (keep.has(index) || !text || !forRole[message?.role]) continue;
         const old = forRole[message.role];
         const same = old.has(text) || [...old].some(source => text.endsWith(`: ${source}`));
         if (same) { messages.splice(index, 1); removed++; }

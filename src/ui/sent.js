@@ -2,12 +2,13 @@ import { memoryOnly } from '../components.js';
 import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { proseDiagnosticsNotes } from '../prose-diagnostics.js';
-import { executionDetails } from './execution.js';
+import { historySourceMark } from '../history-source.js';
+import { executionAction, executionDetails, functionExecution } from './execution.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
 import { storyStateChips, loreChips, replyCardHeader, replyChip, replyGlance, revealReplyBody, roastCard } from './reply-cards.js';
 import { replyWorldTabs } from './reply-world.js';
 import { chatWorld } from '../world.js';
-import { refreshGuidedControl } from './guided.js';
+import { deliveredDirections, refreshGuidedControl } from './guided.js';
 import { snapshotState, snapshotScene, sceneDateLabel } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
@@ -153,6 +154,8 @@ function recordBody(id, rec, isLast, withButtons) {
         await app.openSetting(page,control);
     };
     return [
+        rec.quickActions && executionDetails(rec.quickActions),
+        deliveredDirections(rec.quickActions),
         rec.v10Request ? h('details',{class:'ri-sentitem'},h('summary',{},'Story guidance sent'),
             h('pre',{class:'ri-v10-prompt-text'},rec.v10Request)) : null,
         withButtons && rec.v10 && h('div',{class:'ri-note'},
@@ -181,7 +184,11 @@ function recordBody(id, rec, isLast, withButtons) {
         worldChanges(id, rec, withButtons),
         withButtons && isLast ? h('div', { class: 'ri-row' },
             button('Pick again and write a new reply', () => pickAgainNow(), { title: 'Roll the instructions for this reply again and swipe to a new reply' }),
-            settings().check.mode === 'off' ? null : button('Check this reply again', () => checkAgain(id), { kind: 'ghost', title: 'Use this after you edit the reply by hand' })) : null,
+            settings().check.mode !== 'off' && rec.items.some(item=>!item.noCheck) && executionAction(
+                button('Check this reply again', () => checkAgain(id), { kind:'ghost',disabled:rec.checking,title:'Use this after you edit the reply by hand' }))) : null,
+        (rec.checkExecution || withButtons && isLast && settings().check.mode !== 'off' && rec.items.some(item=>!item.noCheck)) &&
+            functionExecution('instructionCheck',{receipt:rec.checkExecution,target:`${ctx().chat[id]?.name || 'Reply'} · swipe ${Number(ctx().chat[id]?.swipe_id || 0)+1}`}),
+        rec.automaticSwipeExecution && executionDetails(rec.automaticSwipeExecution),
     ];
 }
 
@@ -403,6 +410,11 @@ function refreshV10Replies(chat) {
     const local=root?.v10 || {};
     const world=chatWorld();
     const manualVersion=root?.manualWorldChanges?.at(-1)?.time;
+    const memoryVersion=historySourceMark({mes:JSON.stringify(chat.map(message=>{
+        const record=message.extra?.[KEY], update=record?.update;
+        return [record?.time,message.swipe_id,record?.memoryRevision?.fingerprint,record?.memoryUncertain,
+            update?.pending?.revision?.fingerprint,update?.pending?.changes?.length,update?.changes?.length];
+    }))});
     const latestReply=chat.findLastIndex(isReply);
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const id=Number(mes.getAttribute('mesid'));
@@ -429,7 +441,7 @@ function refreshV10Replies(chat) {
         const roast=showHeader && local.showRoast!==false ? rec.roast : '';
         const lore=showHeader && local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
-        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,id===latestReply,sc,people,profiles,records,planning,roast,lore,diagnostics,
+        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,memoryVersion,id===latestReply,sc,people,profiles,records,planning,roast,lore,diagnostics,
             rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
         const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});

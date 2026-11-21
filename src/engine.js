@@ -1,9 +1,8 @@
 import { freshGuidance, freshHistoryCapability, guidedContext, preserveContinuationPrefix, projectGuidedRequest, validateGuidedTarget } from './guided-context.js';
-import { activeQuickPlan, applyQuickPrompt, bindQuickReply, failQuickReply, finishQuickReply, startQuickReply, stripStoredQuickDirections, stripStoredQuickText } from './quick-action-chat.js';
-import { automaticAllowed, runAdditional } from './execution.js';
+import { activeQuickPlan, applyQuickPrompt, applyQuickText, bindQuickReply, failQuickReply, finishQuickReply, hasQuickEvidence, observeQuickTextAnchor, reconcileQuickDelivery, splitQuickEvidence, startQuickReply, stripStoredQuickDirections, stripStoredQuickText } from './quick-action-chat.js';
+import { automaticAllowed, executionPreview, executionScope, runAdditional } from './execution.js';
 import { flaggedNpcNames } from './npc-names.js';
 import { acceptProseDiagnostics, confirmProseDiagnostics, extractProseNotes, prepareProseDiagnostics } from './prose-diagnostics.js';
-import { executionPreview } from './execution.js';
 import { correctedLoreEntry, characterCorrectionFields, replaceUnique, storyCorrectionPrompt } from './correction-rules.js';
 import { rememberStoryTimeline, refreshAfterReplyEdit, refreshAfterDeletion, flushStoryDeletion, refreshAfterChatOpen } from './story-refresh.js';
 import { beginBookTriggers, bookTriggerSource, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
@@ -222,7 +221,7 @@ function scopeBookEntries(arrays,type) {
     for (const entry of entries) Object.assign(entry,scopedBookEntry(entry,texts));
 }
 
-async function loadMemory(lore, arrays) {
+async function loadMemory(lore, arrays, isCurrent) {
     // Keep native World Info entries. Suppress managed instructions even if their books are also indexed by the host.
     for (const list of arrays) for (let i=list.length-1;i>=0;i--) if (isManaged(list[i])) list.splice(i,1);
     if (!Array.isArray(lore.chatLore) || gen?.skip) return;
@@ -231,11 +230,14 @@ async function loadMemory(lore, arrays) {
     const components = memoryComponents();
     if (turn && ['swipe','regenerate'].includes(type)) undoForSwipe();
     await worldIdle();
+    if (!isCurrent()) return;
     await addConfiguredBooks(lore,arrays,{}, {}, {base:components.world,guidelines:false,reference:components.world});
+    if (!isCurrent()) return;
     filterExcludedBooks(arrays);
     for (const entries of arrays) for (let index=0;index<entries.length;index++) entries[index] = correctedLoreEntry(entries[index]);
     scopeBookEntries(arrays,type);
     const flow = await prepareWorld(type,0,{memory:true,components});
+    if (!isCurrent()) return;
     const notes = [components.world && storyCorrectionPrompt(),flow?.notes?.text].filter(Boolean).join('\n');
     if (notes) {
         lore.chatLore.push(notesEntry(notes));
@@ -247,10 +249,12 @@ async function onEntriesLoaded(lore) {
     try {
         const st = settings();
         if (!st.enabled || !lore) return;
+        const owner = executionScope(), turn = gen;
+        const isCurrent = () => gen === turn && executionScope() === owner;
         beginBookTriggers();
         const arrays = [lore.globalLore, lore.characterLore, lore.chatLore, lore.personaLore].filter(Array.isArray);
         observeHostBooks(lore);
-        if (gen?.memory ?? memoryOnly()) { await loadMemory(lore,arrays); return; }
+        if (gen?.memory ?? memoryOnly()) { await loadMemory(lore,arrays,isCurrent); return; }
         const cs = chatState();
         if (cs) syncChat(cs);
         if (cs && Array.isArray(lore.chatLore)) {
@@ -261,6 +265,7 @@ async function onEntriesLoaded(lore) {
             for (const [book, infos] of byBook) {
                 if (present.has(book)) continue;
                 const data = await loadBook(book).catch(() => null);
+                if (!isCurrent()) return;
                 if (!data?.entries) continue;
                 // A lorebook of its own is added whole. From a shared lorebook, only the sets that are on.
                 const whole = infos.some(i => !i.shared);
@@ -290,11 +295,11 @@ async function onEntriesLoaded(lore) {
         if (gen && !isOocTurn()) gen.quickPlan ??= activeQuickPlan(gen);
         if (kind === 'swipe' && cs && !gen?.guided) undoForSwipe();
         await worldIdle();
+        if (!isCurrent()) return;
         if (gen?.quickPlan?.freshStart && gen.quickPlan.facts === undefined) {
-            const active = gen;
             const context = await guidedContext({family:'steer',freshStart:true}).catch(() => null);
-            if (gen !== active) return;
-            active.quickPlan.facts = context?.facts || '';
+            if (!isCurrent()) return;
+            gen.quickPlan.facts = context?.facts || '';
         }
         const phase = cs ? phaseFor(history(kind).next) : null;
         const scale = phase?.chance ?? 100;
@@ -302,12 +307,14 @@ async function onEntriesLoaded(lore) {
         const modules = native ? { ...effectiveModules(), ...(freshStart ? {roastFeedback:false} : {}) } : null;
         const activeScene = native ? readScene(kind) : null;
         if (native) await addConfiguredBooks(lore, arrays,{present:activeScene.present,where:activeScene.location},modules,{base:memoryComponents().world,reference:memoryComponents().world});
+        if (!isCurrent()) return;
         filterExcludedBooks(arrays);
         for (const entries of arrays) for (let index=0;index<entries.length;index++) entries[index] = correctedLoreEntry(entries[index]);
         const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
         if (gen && gen.v10Schedule === undefined && native && !gen.dryRun) gen.v10Schedule = !quiet && kind === 'normal' && modules.worldEvents && chance > 0 && rollInt(100) < chance;
         const schedule = gen?.v10Schedule === true;
         const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet, scale, native, freshStart, opportunities:schedule && modules?.plots }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
+        if (!isCurrent()) return;
         // A story phase can have a line of its own, sent with every reply of the phase.
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
@@ -326,6 +333,7 @@ async function onEntriesLoaded(lore) {
         let v10Rows = [];
         if (native && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) {
             v10Rows = await rowsForWorld(kind).catch(() => []);
+            if (!isCurrent()) return;
             const old = gen?.guided?.prior || (kind === 'swipe' || kind === 'continue' ? lastRecord() : null);
             const check = modules.dice ? (gen?.check ?? old?.v10Check ?? null) : null;
             v10Turn = prepareTurn(v10Rows,{where:activeScene.location,present:activeScene.present},kind,modules,check,{schedule,recallFacts:memoryComponents().world});
@@ -525,7 +533,9 @@ function happened() {
     for (const m of ctx().chat || []) {
         const rec = m?.extra?.[KEY];
         for (const it of rec?.items || []) {
-            const did = it.status === 'done' || (!it.quickAction && (checkOff || it.noCheck) && it.status === 'sent');
+            const did = it.quickAction && it.quickDirectionId
+                ? it.status==='done' && hasQuickEvidence(m.mes,it.quote)
+                : it.status === 'done' || (!it.quickAction && (checkOff || it.noCheck) && it.status === 'sent');
             if (!did) continue;
             const key = canon(it.key);
             if (fresh[key] && Number(rec.time) <= Number(fresh[key])) continue;
@@ -900,8 +910,9 @@ function onMessageReceived(id, type) {
         // The update block is taken out of the reply first, so it is never shown, checked or sent back.
         const m = ctx().chat?.[id];
         if (!m || m.is_user || m.is_system) return;
-        const proseOutput = pending && type !== 'first_message' && settings().enabled ? extractProseNotes(m.mes) : null;
-        if (proseOutput?.found) {
+        const directionOutput = pending && type !== 'first_message' && settings().enabled ? splitQuickEvidence(m.mes) : null;
+        const proseOutput = directionOutput ? extractProseNotes(directionOutput.text) : null;
+        if (proseOutput && proseOutput.text !== m.mes) {
             m.mes = proseOutput.text;
             if (m.swipes?.[m.swipe_id] !== undefined) m.swipes[m.swipe_id] = m.mes;
             try { ctx().updateMessageBlock?.(id,m); } catch { /* drawn on the next redraw */ }
@@ -911,6 +922,10 @@ function onMessageReceived(id, type) {
         // A continued reply keeps the time of its record, so what its first part filed in the story world still belongs to it.
         const earlier = pending.type === 'continue' ? m.extra?.[KEY] || null : null;
         const rec = { v: 1, recall:pending.recall, items: pending.items, type: pending.type, time: earlier?.time || Date.now(), agency: null, checking: false, note: '' };
+        if (earlier?.quickActions) {
+            rec.quickActions = structuredClone(earlier.quickActions);
+            rec.items.push(...structuredClone(earlier.items.filter(item=>item.quickAction)));
+        }
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
@@ -1018,23 +1033,31 @@ function onMessageReceived(id, type) {
         }
         const quickPlan = pending.quickPlan;
         if (quickPlan?.confirmed) {
-            const effects = new Map(quickPlan.entries.flatMap(entry => entry.rows.flatMap(row => (row.effects || []).map(effect => [effect.key, effect]))));
-            for (const effect of effects.values()) {
-                const key = canon(effect.key);
-                if (effect.kind === 'instruction') {
-                    const chat = chatState();
+            for (const row of quickPlan.snapshot.receipt.directions) {
+                const recipe = row.effects?.find(effect=>effect.kind==='recipe');
+                for (const effect of row.effects || []) {
+                    if (effect.kind !== 'instruction') continue;
+                    const key=canon(effect.key), chat=chatState();
                     if (chat) {
                         chat.used[key] = [...new Set([...(chat.used[key] || []),effect.index])];
                         chat.picks[key] = { idx:effect.index, text:effect.version };
                     }
-                } else if (effect.kind === 'recipe') {
-                    rec.items.push({ key, name:effect.title, world:effect.book, set:effect.set, uid:effect.uid,
-                        text:effect.version, version:effect.version, parts:effect.parts, event:effect.event,
-                        sentAs:effect.sentAs || 'system', status:'sent', quickAction:true });
                 }
+                if (!recipe && !row.required) continue;
+                const quote = directionOutput?.evidence.get(row.evidenceId);
+                const verified = hasQuickEvidence(m.mes,quote);
+                rec.items.push({
+                    key:recipe ? canon(recipe.key) : `quick:${quickPlan.snapshot.id}:${row.evidenceId}`,
+                    name:row.title || recipe?.title || 'Required direction', world:recipe?.book,set:recipe?.set,uid:recipe?.uid,
+                    text:row.text, version:row.text, parts:recipe?.parts, event:recipe?.event,
+                    sentAs:recipe?.sentAs || 'system', status:verified ? 'done':'sent', quote:verified ? quote : '',
+                    quickAction:true, quickDirectionId:row.evidenceId, requiresEventEvidence:recipe ? recipe.requireEvidence !== false : undefined,
+                    noCheck:!row.required,
+                });
             }
         }
         finishQuickReply(quickPlan, m, rec, {story:!isOocTurn()});
+        updateQuickVerification(rec,m.mes);
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
@@ -1108,6 +1131,17 @@ function quoteFound(reply, quote) {
     return parts.length > 1 && parts.every(p => r.includes(p));
 }
 
+function updateQuickVerification(record,prose) {
+    for (const row of record?.quickActions?.directions || []) {
+        if (!row.required || !row.evidenceId) continue;
+        const item = record.items.find(value=>value.quickDirectionId===row.evidenceId);
+        if (!item) continue;
+        if (item.status==='done' && !hasQuickEvidence(prose,item.quote)) { item.status='sent'; item.quote=''; }
+        row.verification = item.status==='done' ? 'evidenced' : item.status==='missed' ? 'missed' : 'unverified';
+        row.evidence = item.quote || '';
+    }
+}
+
 function queueResend(cs, it, misses, from) {
     it.resend = misses;
     const key = canon(it.key);
@@ -1145,7 +1179,7 @@ async function runCheck(id, authorization = 'automatic') {
     changed('sent', id);
     const reply = stripSentBlock(m.mes);
     const n = names();
-    const lines = rec.items.map((it, i) => it.noCheck ? null : `ID a${i + 1}: ${sub(toStore(it.checkText || it.version))}`).filter(Boolean);
+    const lines = rec.items.map((it, i) => it.noCheck || (authorization==='automatic' && it.quickAction && it.status==='done') ? null : `ID a${i + 1}: ${sub(toStore(it.checkText || it.version))}`).filter(Boolean);
     if (!lines.length) { finish(); return; }
     // Questions that the current writing style asks about the reply ride along with a check that runs anyway.
     const asks = rec.items.flatMap(it => it.ask || []);
@@ -1161,7 +1195,11 @@ async function runCheck(id, authorization = 'automatic') {
 
     let results = null;
     try {
-        const res = await request({ operation:'instructionCheck', authorization, what: 'Check that it happened', system: 'You check whether instructions were carried out in a roleplay reply. You answer with JSON only.', user, tokens: 500 });
+        const swipe = Number(m.swipe_id || 0);
+        const res = await request({ operation:'instructionCheck', authorization, what:'Check that it happened',user,tokens:500,
+            target:{id,swipe,label:`${m.name || 'Reply'} · swipe ${swipe+1}`},
+            onReceipt:value=>{if (!stale()) rec.checkExecution=value;}
+        });
         results = parseJson(res.text);
         if (Array.isArray(results)) {
             const asked = results.filter(r => r && typeof r === 'object' && /^a\d+$/.test(String(r.id)));
@@ -1184,7 +1222,7 @@ async function runCheck(id, authorization = 'automatic') {
     rec.items.forEach((it, i) => {
         const r = byId.get(`a${i + 1}`);
         if (!r) return;
-        if (r.done === true && quoteFound(reply, r.quote)) {
+        if (r.done === true && (it.quickDirectionId ? hasQuickEvidence(reply,r.quote) : quoteFound(reply,r.quote))) {
             it.status = 'done'; it.quote = String(r.quote).trim();
             if (it.worldOrder && !rec.v10) applyEffect(rec, it.worldOrder, () => changed('checked', id));
             cs.overdue = cs.overdue.filter(o => !(o.key === canon(it.key) && (!o.from || o.from === rec.time)));
@@ -1197,6 +1235,7 @@ async function runCheck(id, authorization = 'automatic') {
     });
     if (rec.items.some(it => it.goalTask && it.status === 'done') && advanceIfDone()) toast('success', 'The goal is done. The next goal from your list has started.');
     if (asks.length) rec.asked = asks.map((a, i) => { const r = byId.get(`q${i + 1}`); return { q: a.q, pick: a.pick, yes: !r ? null : r.done === true, quote: r && r.done === true && quoteFound(reply, r.quote) ? String(r.quote).trim() : '' }; });
+    updateQuickVerification(rec,m.mes);
     const u = byId.get('user');
     rec.agency = u && u.done === true && quoteFound(reply, u.quote) ? { quote: String(u.quote).trim() } : null;
     finish();
@@ -1217,7 +1256,28 @@ async function autoRegenerate({ id, rec, chatId, missed }) {
     cs.autoRegenLen = cs.lastScan?.len;
     saveChatState();
     toast('info', missed ? 'An instruction did not happen. Writing a new reply.' : 'The reply wrote for you. Writing a new reply.');
-    await runAdditional('automaticSwipe', { authorization:'automatic', target:id, mainOnly:true }, () => triggerSwipe({ append:true }));
+    const chat=c.chat, message=chat[id], swipe=Number(message.swipe_id || 0);
+    const target={id,swipe,label:`${message.name || 'Reply'} · swipe ${swipe+1}`};
+    const saveReceipt=value=>{
+        if (ctx().chat!==chat || chat[id]!==message) return;
+        rec.automaticSwipeExecution=value;
+        const archived=message.swipe_info?.[swipe]?.extra?.[KEY];
+        const current=message.extra?.[KEY];
+        if (archived) archived.automaticSwipeExecution=value;
+        if (current) current.automaticSwipeExecution=value;
+        if (value.outcome!=='running') touch(id);
+    };
+    return runAdditional('automaticSwipe',{authorization:'automatic',target,mainOnly:true,onReceipt:saveReceipt},async ({receipt})=>{
+        if (typeof c.swipe?.right!=='function') {
+            receipt.attempts=0;
+            throw new Error('The host does not expose an automatic swipe that waits for the reply.');
+        }
+        receipt.route='Host swipe';
+        await withSingleHostRequest(()=>triggerSwipe({append:true}));
+        if (ctx().chat!==chat || chat[id]!==message) throw new DOMException('The chat changed during the automatic swipe.','AbortError');
+        if (message.swipe_id===swipe || !message.extra?.[KEY]) throw new Error('The host did not accept an automatic replacement.');
+        receipt.result='The host accepted a replacement swipe.';
+    });
 }
 
 // ---------- "Saved in the message" display mode ----------
@@ -1276,7 +1336,7 @@ function onPromptReady(data) {
             // An update block that was left in an older reply is kept out of the prompt. The request itself shows the form, so only replies are cleaned.
             if (msg.role === 'assistant') {
                 const cleanAssistant = value => {
-                    const prose = stripUpdateBlock(paired ? separateReply(value).text : value);
+                    const prose = stripUpdateBlock(splitQuickEvidence(paired ? separateReply(value).text : value).text);
                     return plainDialogue ? proseDialogue(prose) : prose;
                 };
                 if (typeof msg.content === 'string') msg.content = cleanAssistant(msg.content);
@@ -1589,10 +1649,14 @@ export function init() {
     });
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
         if (dryRun || !settings().enabled) return;
-        if (!gen?.skip) await flushStoryDeletion();
-        if (!chatState()?.worldDetached && enabledV10() && !gen?.skip && !isOocTurn() && isChatOpen()) await ensureWorld().catch(e => console.warn(LOG,'v10 story world',e));
-        if (!chatState()?.worldDetached && (gen?.memory || chatState()?.carried) && !gen?.skip && memoryComponents().chapters && isChatOpen()) await ensureWorld().catch(e=>console.warn(LOG,'chapter story world',e));
-        if (gen?.memory || !checkPromise) return;
+        const owner = executionScope(), turn = gen;
+        const isCurrent = () => gen === turn && executionScope() === owner;
+        if (!turn?.skip) await flushStoryDeletion();
+        if (!isCurrent()) return;
+        if (!chatState()?.worldDetached && enabledV10() && !turn?.skip && !isOocTurn() && isChatOpen()) await ensureWorld().catch(e => console.warn(LOG,'v10 story world',e));
+        if (!isCurrent()) return;
+        if (!chatState()?.worldDetached && (turn?.memory || chatState()?.carried) && !turn?.skip && memoryComponents().chapters && isChatOpen()) await ensureWorld().catch(e=>console.warn(LOG,'chapter story world',e));
+        if (!isCurrent() || turn?.memory || !checkPromise) return;
         // Let a running check finish first, so an instruction that did not happen can be sent again with this reply.
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
@@ -1603,7 +1667,8 @@ export function init() {
         const progress = replyProgress();
         if (!gen || progress?.turn !== gen || typeof text !== 'string' || !text.trim()) return;
         const paired = gen.paired ??= pairedPreset();
-        const cleanText = gen.prosePlan?.candidates.length ? extractProseNotes(text,{streaming:true}).text : text;
+        const noEvidence = pending?.quickPlan?.confirmed ? splitQuickEvidence(text,{streaming:true}).text : text;
+        const cleanText = gen.prosePlan?.candidates.length ? extractProseNotes(noEvidence,{streaming:true}).text : noEvidence;
         const partial = paired ? trimPartialReplyTag(cleanText) : cleanText;
         const tracker = paired && pending?.v10?.modules?.state;
         const previewNeeded = cleanText!==text || paired && (partial!==text || progress.preview!==undefined || hasReplyScaffolding(partial) ||
@@ -1643,11 +1708,17 @@ export function init() {
     });
     on('GENERATION_STOPPED', () => { failQuickReply(pending?.quickPlan || gen?.quickPlan, 'cancelled'); clearReplyProgress(); const attempt = guided; guided = null; gen = null; pending = null; pickAgain = false; rerollCat = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
     on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);
+    on('GENERATE_BEFORE_COMBINE_PROMPTS', data => {
+        if (gen && !gen.skip && gen.type==='normal' && ctx().mainApi!=='openai') observeQuickTextAnchor(data,pending?.quickPlan);
+    });
     on('GENERATE_AFTER_COMBINE_PROMPTS', data => {
         const attempt = gen?.guided;
         if (typeof data?.prompt !== 'string' || ctx().mainApi === 'openai') return;
         data.prompt = stripStoredQuickText(data.prompt);
-        if (!data.dryRun && pending?.quickPlan?.freshStart) pending.quickPlan.history={mode:'retained',removed:0};
+        if (!data.dryRun && gen && !gen.skip && gen.type==='normal') {
+            if (pending?.quickPlan?.freshStart) pending.quickPlan.history={mode:'retained',removed:0};
+            data.prompt=applyQuickText(data.prompt,pending?.quickPlan);
+        }
         if (!data.dryRun && attempt?.receipt) {
             attempt.receipt.attempts = Math.max(1,attempt.receipt.attempts || 0);
             attempt.receipt.observedRoute = 'Text Completion';
@@ -1660,7 +1731,7 @@ export function init() {
         const attempt = guided; guided = null; if (attempt && !attempt.completed) { pending = null; ctx().stopGeneration?.(); cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); }
         gen = null; pending = null; pickAgain = false; checkPromise = null;
         rawByKey.clear();
-        if (isChatOpen()) { if (!memoryOnly()) applyPronouns(); if (settings().enabled) { reconcile(); refreshAfterChatOpen(() => changed('messages')); } }
+        if (isChatOpen()) { if (!memoryOnly()) applyPronouns(); if (settings().enabled) { reconcileQuickDelivery(); reconcile(); refreshAfterChatOpen(() => changed('messages')); } }
         changed('chat');
         // Former keys of moved sets are read in the background, then this chat's state is brought in line.
         if (isChatOpen() && settings().enabled) refreshAliases().then(() => { const cs = chatState(); if (cs) { syncChat(cs); reconcile(); changed('messages'); } }).catch(e => console.warn(LOG, 'aliases', e));
@@ -1672,6 +1743,8 @@ export function init() {
     on('MESSAGE_EDITED', (id) => {
         // Editing the newest reply by hand can make an instruction happen, or remove it. Check that reply again.
         id = Number(id);
+        const edited=ctx().chat?.[id];
+        if (edited?.extra?.[KEY]?.quickActions) updateQuickVerification(edited.extra[KEY],edited.mes);
         if (guided?.started && guided.target?.index === id && !guided.completed) {
             guided.targetEdited = true;
             ctx().stopGeneration?.();

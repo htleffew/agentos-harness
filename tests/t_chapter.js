@@ -17,7 +17,7 @@ const logs = (page) => page.evaluate(async (B) => (await import(`${B}/src/log.js
     const { browser, page, errors } = await L.open({ width: 1100, height: 1500 });
     try {
         await L.setupApi(page);
-        await L.setSettings(page, { check: { mode: 'off' }, summary: { on: true, onSceneEnd: true, minReplies: 2, every: 0, keep: 2, roll: 8, budget: 800 }, world: { budget: 800, place: 'depth', depth: 4, lookback: 4, update: 'all', build: 0, head: 0 } });
+        await L.setSettings(page, { check: { mode: 'off' }, summary: { on: true, retire: true, onSceneEnd: true, minReplies: 2, every: 0, everyTokens: 0, keep: 2, roll: 8, budget: 800 }, world: { budget: 800, place: 'depth', depth: 4, lookback: 4, update: 'all', build: 0, head: 0 } });
         await page.evaluate(async (B) => { (await import(`${B}/src/log.js`)).clearLog(); }, L.BASE);
         const t = Date.now();
         const S = 'Chapter book ' + t;

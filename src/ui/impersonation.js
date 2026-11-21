@@ -80,7 +80,7 @@ export function impersonationInspector({ operation = 'playerDraft', guidance = (
         const blocks=[];
         if (current.kind==='opaque') blocks.push(h('p',{class:'ri-help'},`${current.source}: ${current.status}.`));
         else if (current.source!==active.source || current.text!==active.text) blocks.push(readout(current.source,current.text || '(blank)'));
-        blocks.push(readout(`Base used · ${active.source}`,active.text ?? '(unavailable)'));
+        blocks.push(readout(`Base used · ${active.source}`,active.text==='' ? '(blank)' : active.text ?? '(unavailable)'));
         if (active.text!==active.expanded) blocks.push(readout('Preview with this chat’s macros',active.expanded || '(blank)'));
         if (['playerChoices','playerExpansion'].includes(selectedOperation)) {
             const instruction=playerPrompt(selectedOperation,{count:3});

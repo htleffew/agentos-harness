@@ -1,6 +1,6 @@
 import {
     actionLibrary, applyQuickActionVariation, editQuickActionSource, linkedQuickAction, listQuickActions, loadQuickActionSources, moveQuickAction,
-    QUICK_ACTION_FAMILIES, QUICK_ACTION_VARIABLES, quickActionRestorePreview, quickActionScope, readQuickAction, recoverQuickAction,
+    QUICK_ACTION_FAMILIES, QUICK_ACTION_VARIABLES, quickActionOwner, quickActionRestorePreview, quickActionScope, readQuickAction, recoverQuickAction,
     relinkQuickAction, removeQuickAction, resolveQuickAction, restoreQuickAction, restoreQuickActionLibrary, rollQuickAction,
     resolveQuickActionText, saveQuickAction, saveQuickActionVariation, standaloneQuickAction, undoQuickActionLibrary,
 } from '../quick-actions.js';
@@ -16,6 +16,16 @@ const check = (label, checked, onChange) => {
     return h('label', { class: 'ri-qa-library-check' }, input, label);
 };
 const details = (label, ...children) => h('details', { class: 'ri-qa-library-details' }, h('summary', {}, label), children);
+
+function actionMatches(query) {
+    const words = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return item => {
+        const fields = [item.title, item.text, item.category, item.book, item.setName, item.categoryName,
+            item.source?.book, item.source?.set, item.source?.snapshot, quickActionOwner(item)];
+        const text = fields.join(' ').toLowerCase();
+        return words.every(word => text.includes(word));
+    };
+}
 
 function nextGroup(map, key, value) {
     if (!map.has(key)) map.set(key, []);
@@ -45,7 +55,7 @@ function actionOptions(action) {
 /** Mount the library inside the existing Quick actions sheet. The caller retains its draft and selection. */
 export function renderQuickActionLibrary(host, {
     family = 'steer', mode = 'browse', state = {}, onSelect, onChange, onPin, onCancelPending,
-    onRestore, onUndo, onOpenTool, onClose, initialDirection = '',
+    onRestore, onUndo, onOpenTool, onClose, getPins = () => [], initialDirection = '',
 } = {}) {
     const library = h('section', { class: 'ri-qa-library', 'aria-label': 'Quick action library' });
     const status = h('p', { class: 'ri-qa-library-status', role: 'status', ariaLive: 'polite' });
@@ -73,6 +83,13 @@ export function renderQuickActionLibrary(host, {
         info(message);
         draw();
     };
+    const pinned = action => getPins().some(pin => pin.reference === action.id);
+    const setPin = action => {
+        const remove = pinned(action);
+        onPin(action.id, action.title, action.family);
+        changed((remove ? 'Unpinned ' : 'Pinned ') + action.title + '.', action);
+    };
+    const pinButton = action => onPin && button((pinned(action) ? 'Unpin ' : 'Pin ') + action.title, run(() => setPin(action)));
     const initial = mode === 'add' ? 'editor' : mode;
     if (!ui.page || ui.family !== family || ui.root !== initial) {
         Object.assign(ui, { family, root: initial, page: initial, search: '', preview: null, error: '' });
@@ -82,6 +99,7 @@ export function renderQuickActionLibrary(host, {
     const back = (page = ui.root === 'editor' ? 'manage' : ui.root) => button('Back to library', () => next(page));
     const addButtons = () => (family ? [family] : Object.keys(QUICK_ACTION_FAMILIES)).map(destination =>
         button(QUICK_ACTION_FAMILIES[destination].add, () => edit({ family: destination, text: initialDirection })));
+    const destinationLabel = action => !family && h('span', { class: 'ri-help' }, QUICK_ACTION_FAMILIES[action.family]?.name);
 
     function mountSources(onLoaded) {
         if (ui.sources) return;
@@ -159,8 +177,7 @@ export function renderQuickActionLibrary(host, {
         function renderPool() {
             clear(pool);
             const query = ui.search.trim().toLowerCase();
-            const matches = item => !query || [item.title, item.text, item.category, item.book, item.setName, item.categoryName]
-                .some(value => String(value || '').toLowerCase().includes(query));
+            const matches = actionMatches(query);
             const actions = listQuickActions(family).filter(matches);
             const sources = ui.sources || [];
             if (!ui.relink) {
@@ -170,8 +187,10 @@ export function renderQuickActionLibrary(host, {
                         if (action.source && !ui.sources) throw new Error('Wait for sources to finish loading.');
                         exactSource(action);
                     })),
+                    h('span', { class: 'ri-help' }, quickActionOwner(action)),
+                    destinationLabel(action),
                     button('Edit ' + action.title, () => edit(action)),
-                    onPin && button('Pin ' + action.title, run(() => onPin(action.id, action.title, action.family))),
+                    pinButton(action),
                 ));
                 if (direct.length) {
                     const group = details('Buttons · ' + direct.length, direct);
@@ -187,7 +206,11 @@ export function renderQuickActionLibrary(host, {
                 pool.append(h('p', {}, 'Import a World Info book or create a button to add a source.'));
                 return;
             }
-            if (!ui.relink) pool.append(button('Roll across everything', run(() => roll({}))));
+            if (!ui.relink) {
+                const count = sources.filter(entry => entry.enabled && entry.version === undefined && !entry.itemId).length;
+                pool.append(row(button('Roll across everything', run(() => roll({})), { disabled: !count }),
+                    h('span', { class: 'ri-help' }, count + ' eligible source entries')));
+            }
             if (ui.relink) pool.append(h('p', {}, 'Choose the exact entry, version or ingredient to link.'));
             const categories = new Map();
             for (const source of sources) nextGroup(categories, source.category, source);
@@ -234,10 +257,12 @@ export function renderQuickActionLibrary(host, {
         const { source, resolved, scope, options } = current;
         append(body, row(back('browse'), h('strong', {}, resolved?.title || source?.title || 'Roll')));
         const reference = source || ui.sources?.find(value => value.key === resolved?.sources[0]?.key && value.version === undefined && !value.itemId);
-        if (reference?.book) append(body, h('p', {}, [reference.book, reference.setName, reference.categoryName].filter(Boolean).join(' · ')));
+        if (reference) append(body, h('p', {}, [quickActionOwner(reference), reference.setName, reference.categoryName].filter(Boolean).join(' · ')));
+        if (resolved) append(body, destinationLabel(resolved));
         if (resolved) {
             append(body, field('Exact direction', 'Edit this copy for this selection.', textArea(current.edited, value => { current.edited = value; })),
                 h('p', {}, 'Runs in code · 0 model calls'),
+                resolved.draw?.size && h('p', {}, 'Draw from ' + resolved.draw.size + ' eligible source ' + (resolved.draw.size === 1 ? 'entry' : 'entries')),
                 row(button('Select direction', run(() => {
                     if (!current.edited.trim()) throw new Error('Enter a direction before selecting it.');
                     if (!onSelect) throw new Error('Open this library from a quick action destination.');
@@ -245,8 +270,8 @@ export function renderQuickActionLibrary(host, {
                 }), { kind: 'primary' }),
                 source && onPin && button('Pin this direction', run(() => {
                     const action = source.origin === 'source' ? linkedQuickAction(source, resolved.text) : source;
-                    onPin(action.id, action.title, action.family);
-                    changed('Pinned ' + action.title + '.', action);
+                    if (!pinned(action)) setPin(action);
+                    else info(action.title + ' is already pinned.');
                 }))),
                 row(scope && button('Reroll this scope', run(() => roll(scope, options.allowLiteral))),
                     scope && onPin && button('Pin this roll scope', run(() => {
@@ -335,7 +360,7 @@ export function renderQuickActionLibrary(host, {
             }), { kind: 'primary' }),
             onClose && button('Return to direction', onClose)));
         if (!item) return;
-        append(body, h('p', {}, item.status + ' · ' + item.origin),
+        append(body, h('p', {}, item.status + ' · ' + quickActionOwner(item)),
             row(button('Compare changes', () => { ui.compare = !ui.compare; draw(); }),
                 button(restoreName(item), () => next('restore-item', { restore: item.id })),
                 button('Duplicate', run(() => {
@@ -344,7 +369,7 @@ export function renderQuickActionLibrary(host, {
                     edit(saved);
                     changed('Created independent copy.', saved);
                 })),
-                onPin && button('Pin button', run(() => onPin(item.id, item.title, item.family))),
+                onPin && button(pinned(item) ? 'Unpin button' : 'Pin button', run(() => setPin(item))),
                 item.source && button('Relink source', () => next('browse', { relink: item.id })),
                 item.source && draft.text.trim() && button('Follow live source wording', run(() => {
                     const saved = saveQuickAction({ id: item.id, text: '' });
@@ -358,16 +383,23 @@ export function renderQuickActionLibrary(host, {
                 ['Button name', item.baseline.title, values.title],
                 ['Direction', item.baseline.text, values.text],
                 ['Category', item.baseline.category, values.category],
-                ['Delivery', item.baseline.delivery, values.delivery],
+                ['Delivery', item.baseline.delivery?.visibility, values.delivery.visibility],
+                ['Required direction', !!item.baseline.delivery?.required, !!values.delivery.required],
                 ['Enabled', item.baseline.enabled, values.enabled],
                 ['Hidden', item.baseline.hidden, values.hidden],
                 ['Source', item.baseline.source, values.source],
                 ['Twist types', item.baseline.twistTypes, values.twistTypes],
+                ['Keep unresolved variables literally', !!item.baseline.literalMacros, !!values.literalMacros],
             ].filter(([, original, value]) => JSON.stringify(original) !== JSON.stringify(value));
-            const show = value => value === undefined || value === '' ? 'Empty' : typeof value === 'string' ? value : JSON.stringify(value);
+            const show = (label, value) => {
+                if (label === 'Delivery') return value === 'visible' ? 'Visible OOC' : 'Private system note';
+                if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+                if (value === undefined || value === '') return 'Empty';
+                return typeof value === 'string' ? value : JSON.stringify(value);
+            };
             append(body, block(h('strong', {}, 'Saved changes'),
                 differences.length ? differences.map(([label, original, value]) => block(h('strong', {}, label),
-                    h('span', {}, 'Original'), readOnly(show(original)), h('span', {}, 'Current'), readOnly(show(value)))) : h('p', {}, 'All fields match their baseline.')));
+                    h('span', {}, 'Original'), readOnly(show(label, original)), h('span', {}, 'Current'), readOnly(show(label, value)))) : h('p', {}, 'All fields match their baseline.')));
         }
         append(body, details('Named variations',
             field('Variation name', '', textInput(ui.variant, value => { ui.variant = value; })),
@@ -385,6 +417,7 @@ export function renderQuickActionLibrary(host, {
 
     function renderManage() {
         const actions = listQuickActions(family, { includeHidden: true });
+        const results = block();
         append(body, row(tab('browse'), addButtons()),
             row(button('Import JSON', () => next('import')),
                 button('Export library', () => next('export')),
@@ -392,26 +425,41 @@ export function renderQuickActionLibrary(host, {
                     const undoId = actionLibrary().undo?.id;
                     if (undoQuickActionLibrary()) onUndo?.(undoId);
                     changed('Previous library restored.');
-                }))));
-        const active = actions.filter(action => !action.removed);
-        for (const [index, item] of active.entries()) {
-            append(body, block(row(h('strong', {}, item.title), h('span', {}, item.hidden ? 'Hidden built-in' : !item.enabled ? 'Disabled' : item.status)),
-                row(button('Edit ' + item.title, () => edit(item)),
-                    button('Move up', () => { if (moveQuickAction(item.id, -1)) changed('Moved ' + item.title + ' up.'); }, { disabled: index === 0 }),
-                    button('Move down', () => { if (moveQuickAction(item.id, 1)) changed('Moved ' + item.title + ' down.'); }, { disabled: index + 1 === active.length })),
-                row(button(item.hidden ? 'Show button' : item.origin === 'built-in' ? 'Hide button' : 'Remove button', run(() => {
-                    if (item.hidden) recoverQuickAction(item.id);
-                    else removeQuickAction(item.id);
-                    changed(item.hidden ? 'Button restored.' : 'Button removed from the menu.');
-                })),
-                onPin && item.enabled && !item.hidden && button('Pin ' + item.title, run(() => onPin(item.id, item.title, item.family))))));
+                }))),
+            field('Find a button to manage', '', textInput(ui.manageSearch || '', value => {
+                ui.manageSearch = value;
+                renderManagedButtons();
+            }, { type: 'search' })), results);
+        function renderManagedButtons() {
+            clear(results);
+            const matches = actionMatches(ui.manageSearch);
+            const active = actions.filter(action => !action.removed);
+            const groups = new Map();
+            for (const action of active) nextGroup(groups, action.family, action);
+            for (const item of active.filter(matches)) {
+                const siblings = groups.get(item.family);
+                const index = siblings.indexOf(item);
+                append(results, block(row(h('strong', {}, item.title), h('span', {}, item.hidden ? 'Hidden built-in' : !item.enabled ? 'Disabled' : item.status)),
+                    row(h('span', { class: 'ri-help' }, quickActionOwner(item)), destinationLabel(item)),
+                    row(button('Edit ' + item.title, () => edit(item)),
+                        button('Move up', () => { if (moveQuickAction(item.id, -1)) changed('Moved ' + item.title + ' up.'); }, { disabled: index === 0 }),
+                        button('Move down', () => { if (moveQuickAction(item.id, 1)) changed('Moved ' + item.title + ' down.'); }, { disabled: index + 1 === siblings.length })),
+                    row(button(item.hidden ? 'Show button' : item.origin === 'built-in' ? 'Hide button' : 'Remove button', run(() => {
+                        if (item.hidden) recoverQuickAction(item.id);
+                        else removeQuickAction(item.id);
+                        changed(item.hidden ? 'Button restored.' : 'Button removed from the menu.');
+                    })),
+                    item.enabled && !item.hidden && pinButton(item))));
+            }
+            const removed = actions.filter(item => item.removed && matches(item));
+            if (removed.length) append(results, details('Recently removed · ' + removed.length,
+                removed.map(item => row(h('span', {}, item.title), button('Recover ' + item.title, run(() => {
+                    recoverQuickAction(item.id);
+                    changed('Recovered ' + item.title + '.');
+                }))))));
+            if (!results.childElementCount) append(results, h('p', {}, 'No buttons match your search.'));
         }
-        const removed = actions.filter(item => item.removed);
-        if (removed.length) append(body, details('Recently removed · ' + removed.length,
-            removed.map(item => row(h('span', {}, item.title), button('Recover ' + item.title, run(() => {
-                recoverQuickAction(item.id);
-                changed('Recovered ' + item.title + '.');
-            }))))));
+        renderManagedButtons();
         if (actionLibrary().imports.length) append(body, details('Imported Quick Reply files',
             actionLibrary().imports.map(item => row(h('span', {}, item.name), button('Inspect ' + item.name, run(() => {
                 next('import', { inspection: inspectQuickActionImport(item.original), selected: new Set() });
@@ -423,12 +471,15 @@ export function renderQuickActionLibrary(host, {
     function renderRestore() {
         const scope = ui.scope;
         const preview = quickActionRestorePreview(scope, ui.layout);
+        const pins = getPins().filter(pin => !scope || pin.family === scope);
         append(body, row(back('manage'), h('strong', {}, scope ? 'Restore ' + QUICK_ACTION_FAMILIES[scope].name : 'Restore the entire library')),
             field('Restore mode', '', select([
                 { label: 'Restore built-in buttons only', value: 'buttons' }, { label: 'Return to shipped layout', value: 'layout' },
             ], ui.layout ? 'layout' : 'buttons', value => next('restore', { layout: value === 'layout' }))),
             h('p', {}, 'Restore built-ins: ' + (preview.restore.map(item => item.title).join(', ') || 'None')),
-            ui.layout && h('p', {}, 'Archive custom buttons and reset ordering and pins in this scope: ' + (preview.archive.map(item => item.title).join(', ') || 'No custom buttons')),
+            ui.layout && h('p', {}, 'Reset button order and archive ' + (preview.archive.map(item => item.title).join(', ') || 'no custom buttons') + '.'),
+            ui.layout && h('p', {}, pins.length ? 'Pins removed from this chat · ' + pins.map(pin => pin.title).join(', ')
+                : 'This chat has no pins in the selected scope.'),
             button('Apply library restore', run(() => {
                 const result = restoreQuickActionLibrary(scope, { layout: ui.layout });
                 if (ui.layout) onRestore?.({ family: scope, undoId: actionLibrary().undo?.id, ...result });
@@ -441,7 +492,11 @@ export function renderQuickActionLibrary(host, {
         const item = readQuickAction(ui.restore);
         append(body, row(button('Back to editor', () => next('editor')), h('strong', {}, restoreName(item)),
             ), h('p', {}, 'This restores the name, wording and settings of ' + item.title + '. Named variations remain available.'),
+            field('Baseline name', '', readOnly(item.baseline.title)),
             field('Baseline wording', '', readOnly(item.baseline.text || 'Follow live source')),
+            item.family === 'steer' && field('Baseline delivery', '', readOnly(
+                (item.baseline.delivery?.visibility === 'visible' ? 'Visible OOC' : 'Private system note') +
+                (item.baseline.delivery?.required ? ' · Required direction' : ' · Nudge'))),
             button('Confirm button restore', run(() => {
                 restoreQuickAction(item.id);
                 edit(readQuickAction(item.id));
@@ -455,12 +510,16 @@ export function renderQuickActionLibrary(host, {
     }
 
     function renderImport() {
-        const upload = h('input', { type: 'file', accept: '.json,application/json', onchange: run(async event => {
+        const upload = h('input', { type: 'file', accept: '.json,application/json', hidden: true, onchange: run(async event => {
             const file = event.target.files[0];
             if (file) inspect(await file.text(), file.name);
         }) });
         append(body, row(back('manage'), h('strong', {}, 'Import JSON')),
-            field('Select a JSON file', 'Roleplay Instructions library, World Info, or Quick Reply export.', upload),
+            field('Select a JSON file', 'Roleplay Instructions library, World Info, or Quick Reply export.',
+                button('Choose JSON file', () => {
+                    upload.value = '';
+                    upload.click();
+                }), upload),
             details('Paste JSON instead', textArea(ui.pasted || '', value => { ui.pasted = value; }, { 'aria-label': 'Paste import JSON' }),
                 button('Inspect pasted JSON', run(() => inspect(ui.pasted || '', '')))));
         const preview = ui.inspection;

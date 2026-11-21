@@ -3,9 +3,9 @@ import { settings } from './store.js';
 import { memoryOnly } from './components.js';
 import { guideContinuation, guideSwipe } from './engine.js';
 import { isOwnPrompt, request } from './ai.js';
-import { amendExecutionReceipt, executionPreview, executionSetting, runAdditional } from './execution.js';
+import { amendExecutionReceipt, executionPreview, executionScope, executionSetting, runAdditional } from './execution.js';
 import { draftImpersonation, playerPrompt } from './impersonation.js';
-import { cleanGuidedProse, freshGuidance, freshHistoryCapability, guidedContext, guidedDirection, guidedTarget, hasUnscopedMacro, literalGuidedInput, scopedGuidedTemplate, validateGuidedTarget } from './guided-context.js';
+import { cleanGuidedProse, freshGuidance, freshHistoryCapability, guidedContext, guidedDirection, guidedTarget as readGuidedTarget, hasUnscopedMacro, literalGuidedInput, scopedGuidedTemplate, validateGuidedTarget } from './guided-context.js';
 import { promptText } from './prompts.js';
 import { presetRows } from './preset-workbench.js';
 import { timelineDependents } from './reply-world.js';
@@ -15,13 +15,26 @@ import { changesFromProfiles, sceneAt, sceneUpdate, storyMinuteAt } from './stat
 import { defaultWritingGuidance, effectiveModules, enabledV10, prefs, recordMap, sceneCheckPrompt, updateContract } from './v10.js';
 import { rememberStoryTimeline } from './story-refresh.js';
 
-export { guidedTarget };
-
 const modelFunctions = { draft: 'playerDraft', choices: 'playerChoices', expand: 'playerExpansion' };
 const modes = { swipe: 'Guide a swipe', continue: 'Continue this reply', draft: 'Generate my draft', choices: 'Give me choices', expand: 'Draft from this choice' };
 const labels = { substituted: 'Earlier prose replaced with factual context', retained: 'Host retains earlier prose', bounded: 'Selected earlier exchanges included' };
 const choiceCount = 3;
 let running;
+
+// Hosts can reuse the same chat array on a switch. The scoped identity
+// distinguishes its contents and the array guard still detects replacement.
+const chatOwner = () => ({ chat: ctx().chat, scope: executionScope() });
+const ownsChat = owner => ctx().chat === owner.chat && executionScope() === owner.scope;
+
+export function guidedTarget(index) {
+    const target = readGuidedTarget(index);
+    return target && { ...target, scope: executionScope() };
+}
+
+function validateTurnTarget(target) {
+    if (target?.scope && target.scope !== executionScope()) throw new Error('The selected reply belongs to a different chat.');
+    return validateGuidedTarget(target);
+}
 
 function nativeDraftAvailable(base) {
     const host = ctx();
@@ -71,36 +84,46 @@ export function guidedPreview(family, { target, freshStart = false, mode = 'draf
             draft && !nativeDraft ? 'This helper sends the player’s perspective on the saved connection. The chat composer retains its current draft.' : '' };
 }
 
-const candidateText = value => {
-    const text = String(value ?? '').trim().replace(/^(?:\*\*[^*\n]+\*\*\s*[:—-]\s*|(?:choice|option)\s+\d+\s*[:—-]\s*)/i, '').trim();
+const firstPersonSubject = /\b(?:i|we)(?:['’](?:m|ll|d|ve|re)\b|\s+\p{L})/iu;
+const sentenceEnd = /[.!?…]["'’”)\]*_]*$/u;
+
+const candidateText = (value, { line = false } = {}) => {
+    let text = typeof value === 'string' ? value.trim() : '';
+    const heading = text.match(/^(\*\*[^*\n]{1,75}\*\*|[^:\n—–]{1,75})\s*[:—–]\s+(\S[\s\S]*)$/u);
+    if (heading && !firstPersonSubject.test(heading[1]) && firstPersonSubject.test(heading[2])) text = heading[2];
     if (text.length < 4 || text.length > 4000 || /```|<\/?[a-z][\w_-]*(?:\s[^<>]*|\/?)>|^[\[{]|[\]}]$/i.test(text)) return '';
-    const subject = /\b(?:i|we)(?:['’](?:m|ll|d|ve|re)\b|\s+\p{L})/iu;
-    const dialogue = /\b(?:my|me|mine|myself|our)\b/i.test(text) && /[.!?]["'’”]*$/.test(text) && text.split(/\s+/).length >= 3;
-    return subject.test(text) || dialogue ? text : '';
+    // A plain list has no JSON string boundary. A complete sentence is a
+    // conservative way to retain earlier bullets from a cut-off answer.
+    if (line && !sentenceEnd.test(text)) return '';
+    const dialogue = /\b(?:my|me|mine|myself|our)\b/i.test(text) && sentenceEnd.test(text) && text.split(/\s+/).length >= 3;
+    return firstPersonSubject.test(text) || dialogue ? text : '';
 };
 
 export function parsePlayerChoices(raw) {
     const text = String(raw ?? '').trim();
     const start = text.indexOf('['), stop = text.lastIndexOf(']');
     let values = [];
+    let repaired = false;
+    const wording = item => typeof item === 'string' ? item : item?.text;
     if (start >= 0 && stop > start) {
         try {
             const array = JSON.parse(text.slice(start, stop + 1));
-            if (Array.isArray(array)) values = array.map(item => typeof item === 'string' ? item : item?.text);
+            if (Array.isArray(array)) values = array.map(wording);
         } catch { /* Other readable response formats are checked next. */ }
     }
     if (!values.length && start >= 0) {
         // A truncated JSON batch can still contain complete, independently readable entries.
-        const source = text.slice(start);
-        const objects = [...source.matchAll(/"text"\s*:\s*("(?:[^"\\]|\\.)*")\s*\}/g)];
-        const strings = [...source.matchAll(/(?:\[|,)\s*("(?:[^"\\]|\\.)*")\s*(?=[,\]])/g)];
-        for (const [, json] of objects.length ? objects : strings) {
-            try { values.push(JSON.parse(json)); } catch { /* Keep other complete choices. */ }
+        const source = text.slice(start + 1);
+        const entries = source.matchAll(/(?:^|,)\s*("(?:[^"\\]|\\.)*"|\{(?:[^"{}]|"(?:[^"\\]|\\.)*")*\})\s*(?=,|\]|$)/g);
+        for (const [, json] of entries) {
+            try { values.push(wording(JSON.parse(json))); } catch { /* Keep other complete choices. */ }
         }
+        repaired = values.length > 0;
     }
-    if (!values.length) values = [...text.matchAll(/^\s*(?:[-*•]|\d+[.)])\s+(\S[^\n]*)/gm)].map(match => match[1]);
-    const choices = [...new Set(values.map(candidateText).filter(Boolean))].slice(0, choiceCount);
-    return { choices, partial: choices.length < choiceCount, raw: text };
+    const line = !values.length;
+    if (line) values = [...text.matchAll(/^[ \t]*(?:[-*•]|\d+[.)]|\(\d+\))[ \t]+(\S[^\n]*)/gm)].map(match => match[1]);
+    const choices = [...new Set(values.map(value => candidateText(value, { line })).filter(Boolean))].slice(0, choiceCount);
+    return { choices, partial: repaired || choices.length < choiceCount || values.length > choices.length, raw: text };
 }
 
 function playerRequest(mode, route, context, direction, choice, freshStart) {
@@ -119,20 +142,38 @@ function playerRequest(mode, route, context, direction, choice, freshStart) {
 }
 
 async function nativePlayerDraft(prompt, options) {
-    const host = ctx(), chat = host.chat, events = eventTypes(), source = host.eventSource;
+    const host = ctx(), owner = chatOwner(), events = eventTypes(), source = host.eventSource;
     const snapshot = readComposer();
     return runAdditional('playerDraft', { ...options, mainOnly: true }, async ({ receipt }) => {
         receipt.route = 'Native impersonation';
         receipt.history = { mode: 'substituted', observed: false };
         const expected = prompt.base.expanded || '';
-        let observed = false, mismatch = false, output = '', switched = false;
-        const cancel = () => { switched = true; host.stopGeneration(); };
+        let observed = false, mismatch = false, output = '', received = '', switched = false;
+        const canRestore = () => !switched && ownsChat(owner);
+        const cancel = () => {
+            if (canRestore() || switched) return;
+            switched = true;
+            host.stopGeneration();
+        };
+        const stream = value => {
+            if (observed && !mismatch && canRestore() && typeof value === 'string') received = value;
+        };
+        const partialText = () => {
+            if (!canRestore() || !observed || mismatch) return '';
+            const current = readComposer()?.text;
+            return received || (current !== snapshot?.text ? current : '') || '';
+        };
         const restore = value => {
+            if (!canRestore()) return;
             output = String(value || '');
-            if (ctx().chat === chat) writeComposer(snapshot);
+            writeComposer(snapshot);
         };
         const prepare = data => {
             if (data.dryRun || !Array.isArray(data.chat) || isOwnPrompt(data.chat)) return;
+            if (!canRestore()) {
+                cancel();
+                return;
+            }
             const full = data.chat.filter(message => message.role === 'system').map(message => message.content).join('\n');
             mismatch = !!expected && !full.includes(expected);
             const system = prompt.instructions.filter(instruction => instruction !== expected || !mismatch).join('\n\n');
@@ -143,34 +184,39 @@ async function nativePlayerDraft(prompt, options) {
             receipt.history.observed = !mismatch;
             if (mismatch || switched || options.signal?.aborted) host.stopGeneration();
         };
-        const handlers = [[events.CHAT_COMPLETION_PROMPT_READY, prepare], [events.IMPERSONATE_READY, restore], [events.CHAT_CHANGED, cancel]].filter(([event]) => event);
+        const handlers = [[events.CHAT_COMPLETION_PROMPT_READY, prepare], [events.STREAM_TOKEN_RECEIVED, stream],
+            [events.IMPERSONATE_READY, restore], [events.CHAT_CHANGED, cancel]].filter(([event]) => event);
         for (const [event, handler] of handlers) source.on(event, handler);
         try {
             try { await withSingleHostRequest(() => host.generate('impersonate', { skipWIAN: true, depth: 1 })); }
             catch (cause) {
                 if (!observed || mismatch) receipt.attempts = 0;
                 options.signal?.throwIfAborted();
-                const current = readComposer()?.text;
+                if (!canRestore()) throw new DOMException('The chat changed during drafting.', 'AbortError');
                 if (!mismatch) throw Object.assign(cause instanceof Error ? cause : new Error(String(cause)), {
-                    partialText: ctx().chat === chat && current !== snapshot?.text ? current : '',
+                    partialText:partialText(),
                 });
             }
             if (!observed || mismatch) receipt.attempts = 0;
             options.signal?.throwIfAborted();
-            if (switched || ctx().chat !== chat) throw new DOMException('The chat changed during drafting.', 'AbortError');
+            if (!canRestore()) throw new DOMException('The chat changed during drafting.', 'AbortError');
             if (!observed || mismatch) throw Object.assign(new Error('The host impersonation prompt could not be verified. Retry through the player-only helper.'),
                 { code: 'native-impersonation-unverified' });
-            if (!output.trim()) throw new Error('The model returned an empty draft. Run the action again to retry.');
+            if (!output.trim()) {
+                const partial = partialText();
+                if (partial.trim()) throw Object.assign(new Error('The stream stopped before the draft finished. Review the partial text or retry.'),{partialText:partial});
+                throw new Error('The model returned an empty draft. Run the action again to retry.');
+            }
             return output;
         } finally {
             for (const [event, handler] of handlers) source.removeListener(event, handler);
-            if (ctx().chat === chat) writeComposer(snapshot);
+            if (canRestore()) writeComposer(snapshot);
         }
     });
 }
 
 async function runPlayer(preview, context, options) {
-    const { mode, target, direction, choice, freshStart, onReceipt, chat, signal } = options;
+    const { mode, target, direction, choice, freshStart, onReceipt, owner, signal } = options;
     if (mode === 'expand' && !String(choice ?? '').trim()) throw new Error('Select wording to expand first.');
     const payload = playerRequest(mode, preview.nativeDraft ? 'native' : 'helper', context, direction, choice, freshStart);
     const callOptions = { authorization: 'manual', target: preview.target, onReceipt, signal };
@@ -184,7 +230,7 @@ async function runPlayer(preview, context, options) {
         signal.throwIfAborted();
         // A helper result is an editable draft owned by the originating chat.
         // The sheet retains it in that editor even when another chat is open.
-        if (ctx().chat === chat && target) validateGuidedTarget(target);
+        if (ownsChat(owner) && target) validateTurnTarget(target);
     } catch (error) {
         amendExecutionReceipt(receipt, { ...details, outcome: 'cancelled', result: error.message, partialText: raw }, onReceipt);
         note?.(error.message, false);
@@ -213,10 +259,21 @@ function historicalSystem(family, context, modules) {
         sceneCheckPrompt(context.scene, { modules, type: family }), updateContract(modules)].filter(Boolean).map(scopedGuidedTemplate).join('\n\n');
 }
 
-async function applyHistorical(family, target, output, context, modules, { roll, direction, history }) {
-    validateGuidedTarget(target);
-    const host = ctx(), chat = host.chat, { index } = target, append = family === 'continue';
+function selectedSourceLabels(cues) {
+    const labels = new Map();
+    for (const source of cues.flatMap(cue => Array.isArray(cue?.sources) ? cue.sources : [])) {
+        if (!source?.book || source.uid == null) continue;
+        const item = { book: source.book, title: source.title, set: source.set, uid: source.uid };
+        labels.set(JSON.stringify(item), item);
+    }
+    return [...labels.values()];
+}
+
+async function applyHistorical(family, target, output, context, modules, { owner, roll, direction, history, additionalSources }) {
+    validateTurnTarget(target);
+    const host = ctx(), { chat } = owner, { index } = target, append = family === 'continue';
     const { message, before } = setReplyVersion(index, output, { append });
+    const isCurrent = () => ownsChat(owner) && chat[index] === message;
     let appliedMark;
     try {
         const parsed = liftBlock(index, false, modules), earlier = append ? before.extra?.[KEY] : null;
@@ -231,68 +288,76 @@ async function applyHistorical(family, target, output, context, modules, { roll,
             stateChanges: [...(earlier?.stateChanges || []), ...changesFromProfiles(parsed.profiles || [])],
             v10Minutes: parsed.minutes ?? earlier?.v10Minutes ?? storyMinuteAt(index),
             v10SceneId: earlier?.v10SceneId ?? chat[index - 1]?.extra?.[KEY]?.v10SceneId,
-            guided: { historical: true, direction, history, ...(roll && { roll: structuredClone(roll) }) },
+            guided: { historical: true, direction, history, additionalSources, ...(roll && { roll: structuredClone(roll) }) },
         };
         message.extra[KEY] = rec;
         updateReplyVersion(index);
         appliedMark = guidedTarget(index)?.fingerprint;
         await host.saveChat?.();
-        if (ctx().chat === chat && chat[index] === message) {
+        if (isCurrent()) {
             rememberStoryTimeline();
             const records = context.world.rows?.length ? recordMap(context.world.rows) : new Map((context.world.records || []).map(record => [record.id, record]));
             await afterReply(index, rec, parsed, chat.slice(1, index + 1).filter(isReply).length, null,
                 { v10: { modules, records }, historical: true, prior: before.extra?.[KEY], propagate: true });
-            if (ctx().chat === chat) {
+            if (isCurrent() && message.extra?.[KEY] === rec) {
                 updateReplyVersion(index);
                 await host.saveChat?.();
                 const event = eventTypes().MESSAGE_SWIPED;
-                if (event) await host.eventSource?.emit(event, index);
+                if (event && isCurrent()) await host.eventSource?.emit(event, index);
             }
         }
         return before;
     } catch (error) {
-        if (ctx().chat === chat && chat[index] === message && (!appliedMark || guidedTarget(index)?.fingerprint === appliedMark)) {
+        if (isCurrent() && (!appliedMark || guidedTarget(index)?.fingerprint === appliedMark)) {
             restoreReplySnapshot(index, before, message);
             rememberStoryTimeline();
             await host.saveChat?.();
-            await syncWorld();
+            if (isCurrent()) await syncWorld();
         }
         throw error;
     }
 }
 
-async function runHistorical(family, preview, context, { target, direction, freshStart, onReceipt, chat, roll, signal }) {
+async function runHistorical(family, preview, context, { target, direction, freshStart, onReceipt, owner, roll, signal, cues }) {
     const modules = { ...effectiveModules(), roast: false, roastFeedback: false };
+    const additionalSources = selectedSourceLabels(cues);
     const prose = cleanGuidedProse(target.text);
     const user = [context.text, family === 'continue' && `Passage to continue\n${prose}`,
         family === 'swipe' && !freshStart && `Version to revise\n${prose}`,
         freshStart && scopedGuidedTemplate(freshGuidance()), direction && `Direction for this reply\n${direction}`].filter(Boolean).join('\n\n');
-    const result = await request({ operation: preview.operation, what: preview.label, authorization: 'manual', target: preview.target,
-        system: literalGuidedInput(historicalSystem(family, context, modules)), user: literalGuidedInput(user),
-        tokens: 1000, onReceipt, useProfilePreset: false, signal });
+    let result;
     try {
+        result = await request({ operation: preview.operation, what: preview.label, authorization: 'manual', target: preview.target,
+            system: literalGuidedInput(historicalSystem(family, context, modules)), user: literalGuidedInput(user),
+            tokens: 1000, onReceipt, useProfilePreset: false, signal });
         signal.throwIfAborted();
-        if (ctx().chat !== chat) throw new DOMException('The chat changed during generation.', 'AbortError');
-        const before = await applyHistorical(family, target, result.text, context, modules, { roll, direction, history: preview.history });
+        if (!ownsChat(owner)) throw new DOMException('The chat changed during generation.', 'AbortError');
+        const before = await applyHistorical(family, target, result.text, context, modules,
+            { owner, roll, direction, history: preview.history, additionalSources });
         amendExecutionReceipt(result.receipt, { route: preview.route, history: { mode: preview.history, observed: true },
-            result: 'Saved on the selected reply.' }, onReceipt);
+            additionalSources, result: 'Saved on the selected reply.' }, onReceipt);
         return { ok: true, receipt: result.receipt, before };
     } catch (error) {
-        const receipt = result.receipt;
-        amendExecutionReceipt(receipt, { route: preview.route, outcome: error.name === 'AbortError' ? 'cancelled' : 'failed',
-            result: error.message, partialText: result.text }, onReceipt);
-        result.note(error.message, false);
+        const receipt = result?.receipt || error.receipt;
+        if (!receipt) throw error;
+        const change = { route: preview.route, additionalSources };
+        if (result) {
+            Object.assign(change, { outcome: error.name === 'AbortError' ? 'cancelled' : 'failed', result: error.message, partialText: result.text });
+            result.note(error.message, false);
+        }
+        amendExecutionReceipt(receipt, change, onReceipt);
         throw Object.assign(error, { receipt });
     }
 }
 
-async function runNativeStory(family, preview, context, { target, direction, freshStart, onReceipt, repeatOrders, rerollDice, keepManualEdits, repair, roll, signal }) {
-    const receipt = { ...preview, chat: target.chatId, authorization: 'manual', attempts: 0, outcome: 'running', result: '' };
+async function runNativeStory(family, preview, context, { target, direction, freshStart, onReceipt, repeatOrders, rerollDice, keepManualEdits, repair, roll, signal, owner }) {
+    const receipt = { ...preview, chat: target.chatId, scope: owner.scope, authorization: 'manual', attempts: 0, outcome: 'running', result: '' };
     onReceipt?.(receipt);
     try {
         const options = { target, freshStart, facts: context.facts, waitForResult: true, receipt, repeatOrders: repeatOrders && !freshStart,
             rerollDice, keepManualEdits: keepManualEdits || !!repair?.correction, correction: repair?.correction, roll, signal };
         const result = family === 'continue' ? await guideContinuation(direction, options) : await guideSwipe(direction, options);
+        if (!result.accepted && !ownsChat(owner)) throw new DOMException('The chat changed during generation.', 'AbortError');
         if (!result.accepted) signal.throwIfAborted();
         if (!result.accepted) throw new Error('No generated version was accepted. Retry on the same reply or choose a new target.');
         receipt.outcome = 'completed';
@@ -311,33 +376,38 @@ export async function runGuidedTurn(family, { target = guidedTarget(), cues = []
     composer = readComposer()?.text ?? '', choice = '', fixFacts = false, repairOnly = false, repair, repeatOrders = false,
     rerollDice = false, keepManualEdits = false, quickCheck = '', roll, forceHelper = false, onReceipt } = {}) {
     if (!['swipe', 'continue', 'draft'].includes(family)) throw new Error('Select a guided reply action.');
-    const host = ctx(), chat = host.chat;
+    const owner = chatOwner();
+    const requireOwner = () => {
+        if (!ownsChat(owner)) throw new DOMException('The chat changed while preparing the guided action.', 'AbortError');
+    };
     const preview = guidedPreview(family, { target, mode, freshStart, fixFacts, forceHelper });
     if (!preview.available && !repairOnly) throw new Error(preview.reason);
     if (isGenerating() || running) throw new Error('Wait for the current guided action to finish.');
-    if (target) validateGuidedTarget(target);
+    if (target) validateTurnTarget(target);
     const controller = new AbortController();
     const signal = controller.signal;
-    running = { chat, controller, native: preview.nativeStory || preview.nativeDraft, profile: !!preview.profileId, dispatching: false };
+    running = { owner, controller, native: preview.nativeStory || preview.nativeDraft, profile: !!preview.profileId, dispatching: false };
     try {
         if ((fixFacts || repairOnly || cues.some(cue => cue?.operation === 'repair')) && !repair) {
             if (!target) throw new Error('Select a reply to repair.');
             repair = await runFactRepair({ focus: target.index, truth: direction, direction: true });
         }
+        requireOwner();
         if (repairOnly) return { ok: true, repair, receipt: { ...executionPreview('factRepair', { stage: 'code', target: preview.target }), attempts: 0, outcome: 'completed' } };
-        if (target) validateGuidedTarget(target);
+        if (target) validateTurnTarget(target);
         const combined = guidedDirection([...cues, quickCheck || roll?.text], direction);
         const correction = repair?.correction?.truth;
         const complete = [combined, correction && !combined.includes(correction) && `${promptText('correctionCanon')} ${correction}`].filter(Boolean).join('\n\n');
         const context = await guidedContext({ family, target, freshStart, fragment: family === 'draft' ? composer : '' });
         signal.throwIfAborted();
+        requireOwner();
         running.dispatching = true;
-        const options = { target, direction: complete, freshStart, mode, choice, onReceipt, repair, repeatOrders, rerollDice, keepManualEdits, chat, roll, signal };
+        const options = { target, direction: complete, freshStart, mode, choice, onReceipt, repair, repeatOrders, rerollDice, keepManualEdits, owner, roll, signal, cues };
         if (family === 'draft') return await runPlayer(preview, context, options);
         const defaultDirection = 'Write a new version of this reply from the current point in the story.';
         const result = preview.nativeStory ? await runNativeStory(family, preview, context, { ...options,
             direction: complete || (family === 'swipe' ? defaultDirection : '') }) : await runHistorical(family, preview, context, options);
-        if (family === 'continue' && ctx().chat === chat) {
+        if (family === 'continue' && ownsChat(owner)) {
             result.undo = { before: result.before, target: guidedTarget(target.index) };
         }
         delete result.before;
@@ -349,7 +419,7 @@ export async function runGuidedTurn(family, { target = guidedTarget(), cues = []
 }
 
 export function cancelGuidedTurn() {
-    if (!running || running.chat !== ctx().chat) return '';
+    if (!running || !ownsChat(running.owner)) return '';
     if (running.controller.signal.aborted) return '';
     running.controller.abort(new DOMException('The guided action was cancelled.', 'AbortError'));
     if (!running.dispatching) return 'Cancelled before the model request.';
@@ -363,39 +433,44 @@ export function cancelGuidedTurn() {
 
 export async function undoGuidedContinuation(undo) {
     if (!undo?.target || !undo.before) throw new Error('No continuation is available to undo.');
-    const target = validateGuidedTarget(undo.target);
+    const target = validateTurnTarget(undo.target);
     if (isGenerating()) throw new Error('Wait for the current generation to finish.');
-    const host = ctx(), message = host.chat[target.index];
+    const host = ctx(), owner = chatOwner(), message = owner.chat[target.index];
+    const isCurrent = () => ownsChat(owner) && owner.chat[target.index] === message;
     await undoContinuationEffects(target.index, undo.before.extra?.[KEY], target.fingerprint);
-    validateGuidedTarget(target);
+    if (!isCurrent()) throw new Error('The chat changed while undoing the continuation.');
+    validateTurnTarget(undo.target);
     if (!restoreReplySnapshot(target.index, undo.before, message)) throw new Error('The selected reply changed.');
     await host.saveChat?.();
+    if (!isCurrent()) return;
     await syncWorld();
     const event = eventTypes().MESSAGE_SWIPED;
-    if (event && ctx().chat === host.chat) await host.eventSource?.emit(event, target.index);
+    if (event && isCurrent()) await host.eventSource?.emit(event, target.index);
 }
 
 export function guidedVersions(target) {
-    if (!target) return [];
+    if (!target || target.scope && target.scope !== executionScope() || target.chatId !== String(ctx().getCurrentChatId?.() ?? '')) return [];
     const message = ctx().chat?.[target.index];
     return (message?.swipes || []).flatMap((text, swipe) => typeof text === 'string' && text.trim() ?
         [{ swipe, text: cleanGuidedProse(text) }] : []);
 }
 
 export async function selectGuidedVersion(target, swipe) {
-    validateGuidedTarget(target);
+    validateTurnTarget(target);
     if (isGenerating()) throw new Error('Wait for the current generation to finish.');
-    const host = ctx(), chat = host.chat, message = chat[target.index], before = structuredClone(message);
+    const host = ctx(), owner = chatOwner(), message = owner.chat[target.index], before = structuredClone(message);
+    const isCurrent = () => ownsChat(owner) && owner.chat[target.index] === message;
     if (!Number.isInteger(swipe)) throw new Error('Select a swipe.');
     try {
         selectReplyVersion(target.index, swipe);
         await host.saveChat?.();
     } catch (error) {
-        if (ctx().chat === chat) restoreReplySnapshot(target.index, before, message);
+        if (isCurrent()) restoreReplySnapshot(target.index, before, message);
         throw error;
     }
-    if (ctx().chat !== chat) throw new Error('The chat changed while switching swipes.');
+    if (!isCurrent()) throw new Error('The chat changed while switching swipes.');
     const event = eventTypes().MESSAGE_SWIPED;
     if (event) await host.eventSource?.emit(event, target.index);
+    if (!isCurrent()) throw new Error('The chat changed while switching swipes.');
     return guidedTarget(target.index);
 }

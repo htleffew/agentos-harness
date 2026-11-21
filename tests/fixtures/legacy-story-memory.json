@@ -1,0 +1,19 @@
+{
+  "format": "Legacy Story World rows and accepted chat evidence",
+  "managed": [
+    {"kind":"place","name":"Gate","fields":{"what":"The gate is open."},"auto":true,"sourceReply":1},
+    {"kind":"place","name":"Compass","fields":{"what":"The compass points north."},"locked":true}
+  ],
+  "unrelated": [
+    {"kind":"place","name":"Gate","fields":{"what":"The gate is open."},"locked":true}
+  ],
+  "replies": [
+    {"player":"I walk toward the stone gate.","story":"The gate is open."},
+    {"player":"I look for guards.","story":"The tower guard stands at the rail."},
+    {"player":"I check the steps.","story":"Rain pools in the chipped steps."},
+    {"player":"I wait on the landing.","story":"The captain waves from the hallway."},
+    {"player":"I listen.","story":"A bell sounds from the quay."},
+    {"player":"I return to the gate.","story":"The captain carries a lantern."},
+    {"player":"I watch the gate.","story":"The gate is open.","scene":{"environment":"The gate is open."}}
+  ]
+}

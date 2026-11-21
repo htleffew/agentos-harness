@@ -223,10 +223,11 @@ export function presetWorkbench(preset,app,profile) {
                 button(keys.includes(item.module) ? 'Already matched' : 'Use this match',()=>{savePair(preset,item.id,[...keys,item.module]);redraw();},{disabled:keys.includes(item.module)})));
         }
         if(ui.message==='Comparison complete.' && !ui.matches.length) compare.append(hint('No matching functions were suggested.'));
-        const file=h('input',{type:'file',accept:'.json,application/json','aria-label':'Original preset JSON',style:{maxWidth:'100%',minHeight:'44px'}});
+        const file=h('input',{type:'file',accept:'.json,application/json','aria-label':'Original preset JSON',hidden:true});
         const originalFileName=presetRestoreFileName(preset);
         const restoreFile=h('details',{},h('summary',{},'Attach an original preset file'),
-            hint(originalFileName ? `Restore source for ${preset}: ${originalFileName}.` : `Attach the original JSON for ${preset} to make its matching blocks available as restore sources.`),file);
+            hint(originalFileName ? `Restore source for ${preset}: ${originalFileName}.` : `Attach the original JSON for ${preset} to make its matching blocks available as restore sources.`),
+            button('Choose original preset JSON',()=>file.click()),file);
         file.onchange=()=>{
             const source=file.files?.[0];
             if (!source) return;

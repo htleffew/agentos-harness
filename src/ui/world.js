@@ -2,7 +2,7 @@ import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { promptGroup } from './prompts.js';
 import { loadEffectiveWorld, recordManualWorldChange } from '../worldflow.js';
-import { storyJournalStatus } from '../memory-journal.js';
+import { reserveStoryUids, storyJournalStatus } from '../memory-journal.js';
 // Story World tab: the people, places, groups, secrets, open threads, planted details and things going on
 // elsewhere of one story, and how they are sent as story notes.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, chip, download } from './dom.js';
@@ -85,13 +85,14 @@ function summarySection(app, id) {
                 components.hide ? field('Messages never hidden this way', 'The newest messages always stay visible to the AI, whether a chapter covers them or not.', numberInput(o.keepShown ?? 30, { min: 4, max: 400, unit: 'messages' }, (n) => { o.keepShown = n; save(); })) : null,
                 field('Room for the story so far (tokens)', 'Separate from the room for the rest of the story notes.', numberInput(o.budget, { min: 100, max: 6000, unit: 'tokens' }, (n) => { o.budget = n; save(); }))) : null,
             ui.error ? h('div', { class: 'ri-note ri-note-warn' }, ui.error) : null,
-            components.chapters ? h('div', { class: 'ri-row' }, button(ui.busy || chapterBusy() ? 'Writing the chapter...' : 'Write a chapter now', async () => {
+            components.chapters ? h('div', { class: 'ri-row' }, executionAction(button(ui.busy || chapterBusy() ? 'Writing the chapter...' : 'Write a chapter now', async () => {
                 if (ui.busy) return;
                 ui.busy = true; ui.error = ''; app.render();
                 try { const name = await writeChapterNow(); toast('success', `Chapter "${name}" was written.`); }
                 catch (e) { ui.error = e.message; }
                 ui.busy = false; app.render();
-            }, { disabled: ui.busy || chapterBusy(), title: 'Summarise everything since the last chapter, with one AI request' })) : null,
+            }, { disabled: ui.busy || chapterBusy(), title: 'Summarise the filed replies since the last chapter' }))) : null,
+            components.chapters && functionExecution('chapterSummary',{receipt:executionReceipt('chapterSummary')}),
         ] : h('div', { class: 'ri-muted' }, 'Chapters are kept in a story world. Choose or make one above to have the story so far written as you play.'),
         h('div', { class: 'ri-label' }, 'A new chapter in a new chat'),
         h('div', { class: 'ri-help' }, 'When a chat has grown long, carry the story into a brand new chat. One AI request writes a very detailed summary and a first message, which you can change. The new chat has its own Story World book with the approved summary and a copy of this world’s records. The active reusable books, sets, goal and pronouns carry forward.'),
@@ -399,7 +400,7 @@ function renderEdit(body, app) {
         try {
             const data = await loadWorld(id);
             if (!data) throw new Error('The lorebook could not be read.');
-            if (draft.isNew && data.entries[draft.uid]) draft.uid = newWorldEntry(data, draft.kind).uid;
+            if (draft.isNew) draft.uid = newWorldEntry(reserveStoryUids(data,id), draft.kind).uid;
             const before = data.entries[draft.uid] ? structuredClone(data.entries[draft.uid]) : null;
             draft.auto = false;   // saved by hand: it is yours now
             writeWorldEntry(data, draft, id);

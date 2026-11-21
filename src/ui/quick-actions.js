@@ -1,4 +1,4 @@
-import { ctx, isChatOpen, isGenerating, KEY, on } from '../st.js';
+import { ctx, heldGroupContinuationComposer, isChatOpen, isGenerating, KEY, on } from '../st.js';
 import { saveChatState, settings } from '../store.js';
 import { memoryOnly } from '../components.js';
 import { app } from './panel.js';
@@ -6,12 +6,12 @@ import { button, field, h, select, textArea, textInput } from './dom.js';
 import { executionDetails, executionSettings } from './execution.js';
 import { executionPreview } from '../execution.js';
 import { impersonationInspector } from './impersonation.js';
-import { listQuickActions, loadQuickActionSources, readQuickAction, resolveQuickAction, rollQuickActionDie } from '../quick-actions.js';
+import { listQuickActions, loadQuickActionSources, quickActionOwner, readQuickAction, resolveQuickAction, rollQuickActionDie } from '../quick-actions.js';
 import { renderQuickActionLibrary } from './quick-action-library.js';
 import { cancelGuidedTurn, guidedPreview, guidedTarget, guidedVersions, runGuidedTurn, selectGuidedVersion, undoGuidedContinuation } from '../guided-turns.js';
 import { freshHistoryCapability } from '../guided-context.js';
 import { armFreshStart, cancelQueued, freshRemaining, moveQuickPin, pinQuickAction, queueCapability,
-    queueDirections, queuedRetry, quickChat, quickChatIdentity, rememberQuickActions, retryQueuedReply, stopFreshStart } from '../quick-action-chat.js';
+    queueDirections, queuedRetry, quickChat, quickChatIdentity, rememberQuickActions, restoreHeldRetryDraft, retryQueuedReply, stopFreshStart } from '../quick-action-chat.js';
 
 const families = {
     steer: { title:'Steer the next reply', primary:'Queue with my next message', add:'Add nudge' },
@@ -28,6 +28,7 @@ let focusComposer;
 let knownChat;
 let composer;
 const composerDrafts = new Map();
+const isolated = new Set();
 const actionRow = (...children) => h('div', {class:'ri-quick-row'}, children);
 const info = value => h('p', {class:'ri-help'}, value);
 const status = value => h('p', {class:'ri-quick-status', role:'status'}, value);
@@ -63,9 +64,34 @@ function resizeSheet() {
     });
 }
 
+function releaseBackground() {
+    for (const node of isolated) node.inert=false;
+    isolated.clear();
+}
+
+function isolateBackground(preserveComposer=false) {
+    const input=preserveComposer ? openComposer() : null;
+    releaseBackground();
+    const isolate=(parent)=>{
+        for (const node of parent.children) {
+            if (node===overlay || node===input || node.inert) continue;
+            if (input && node.contains(input)) { isolate(node); continue; }
+            node.inert=true;
+            isolated.add(node);
+        }
+    };
+    isolate(document.body);
+}
+
+function enterSheet() {
+    isolateBackground();
+}
+
 function closeSheet({restore = true} = {}) {
     if (!overlay) return;
+    overlay.removeEventListener('focusin',enterSheet);
     overlay.remove();
+    releaseBackground();
     overlay = null;
     document.removeEventListener('keydown',tabInSheet,true);
     globalThis.visualViewport?.removeEventListener('resize', resizeSheet);
@@ -108,6 +134,8 @@ export function openQuickActions(family, index, trigger = document.activeElement
         session = {chat:knownChat, view:'root', editors:{}};
         sessions.set(knownChat, session);
     }
+    const drafts = session.editors.draft;
+    if (drafts) saveDraftBatches(drafts,session);
     opener = trigger;
     const input = openComposer();
     composerAtOpen = snapshot(input);
@@ -115,6 +143,7 @@ export function openQuickActions(family, index, trigger = document.activeElement
     if (!overlay) {
         overlay = h('div',{class:'ri-quick-overlay',onclick:event=>{ if (event.target === overlay) closeSheet(); }});
         document.body.append(overlay);
+        overlay.addEventListener('focusin',enterSheet,{once:true});
         document.addEventListener('keydown',tabInSheet,true);
         globalThis.visualViewport?.addEventListener('resize', resizeSheet);
         globalThis.visualViewport?.addEventListener('scroll', resizeSheet);
@@ -126,6 +155,7 @@ export function openQuickActions(family, index, trigger = document.activeElement
         renderSheet();
     }
     if (!focusComposer) overlay.querySelector('[data-quick-close]')?.focus({preventScroll:true});
+    else isolateBackground(true);
 }
 
 function show(view) {
@@ -193,7 +223,7 @@ async function selectFavorite(edit, shortcut, customize = false) {
         if (!hasInput && shortcut.pinned) await submit(edit);
         else renderSheet();
     } catch (error) {
-        edit.error = error.message;
+        edit.error = `${shortcut.title || 'This action'}: ${error.message}`;
         if (session === owner) renderSheet();
     }
 }
@@ -213,13 +243,18 @@ function shelf(entries, edit) {
             !definition?.operation && !definition?.requiresDirection && !definition?.twistTypes?.length;
         const label = canRun ? immediateLabel({...entry,family:edit.family},preview.stages.at(-1)?.stage) : entry.title;
         const pick = button(label, () => selectFavorite(edit, entry));
+        if (entry.pinned && !definition?.operation && !definition?.requiresDirection && !definition?.twistTypes?.length) {
+            pick.dataset.favoriteLabel=entry.title;
+            pick.dataset.favoriteRun=immediateLabel({...entry,family:edit.family},preview.stages.at(-1)?.stage);
+        }
         if (!canRun) {
             pick.setAttribute('aria-label',label);
             pick.setAttribute('aria-pressed',String(chosen));
         }
-        return actionRow(pick, entry.pinned && button('Customize', () => selectFavorite(edit, entry, true)),
-            button(pinLabel(entry.reference, quickChat()?.pins || []), () => { pinQuickAction(entry.reference, entry.title, edit.family); renderSheet(); }, {title:entry.title}),
-        );
+        return h('div',{class:'ri-quick-shelf-option'},actionRow(pick, entry.pinned && button('Customize', () => selectFavorite(edit, entry, true)),
+            button(pinLabel(entry.reference, quickChat()?.pins || []), () => { pinQuickAction(entry.reference, entry.title, edit.family); renderSheet(); }, {title:entry.title})),
+            definition && info(quickActionOwner(definition)));
+
     }));
 }
 
@@ -264,6 +299,7 @@ function catalogView(mode) {
     renderQuickActionLibrary(host,{
         family:owner.family || '', mode,
         initialDirection:owner.family ? editorFor(owner.family).direction : '',
+        getPins:()=>quickChat()?.pins || [],
         state:mode==='add' ? (owner.actionEditor ||= {}) : (owner.library ||= {}),
         onSelect:(resolved, action) => {
             if (session !== owner || owner.chat !== quickChatIdentity()) return;
@@ -301,6 +337,24 @@ function catalogView(mode) {
     return host;
 }
 
+function pinRow(pin,index,count) {
+    const move=(offset,control)=>{
+        moveQuickPin(index,offset);
+        renderSheet();
+        const row=[...overlay.querySelectorAll('[data-quick-pin]')].find(node=>node.dataset.quickPin===pin.key);
+        const preferred=row?.querySelector(`[data-move="${control}"]:enabled`) || row?.querySelector('[data-move]:enabled');
+        preferred?.focus({preventScroll:true});
+    };
+    const up=button('Move up',()=>move(-1,'up'),{disabled:index===0});
+    const down=button('Move down',()=>move(1,'down'),{disabled:index===count-1});
+    up.dataset.move='up';
+    down.dataset.move='down';
+    const row=actionRow(h('span',{class:'ri-quick-pin-label'},pin.title),up,down,
+        button('Unpin',()=>{pinQuickAction(pin.reference,pin.title,pin.family);renderSheet();}));
+    row.dataset.quickPin=pin.key;
+    return row;
+}
+
 function rootView() {
     const state = quickChat();
     const remaining = freshRemaining();
@@ -332,17 +386,15 @@ function rootView() {
                 !definition?.requiresDirection && !definition?.twistTypes?.length && !definition?.operation;
             const target=['swipe','continue'].includes(row.family) ? field.target || guidedTarget() : undefined;
             const stage=previewFor({...field,target}).stages.at(-1)?.stage;
-            return button(canRun ? immediateLabel(row,stage) : `${row.title} · ${families[row.family].title}`,()=>{
+            return h('div',{},button(canRun ? immediateLabel(row,stage) : `${row.title} · ${families[row.family].title}`,()=>{
                 chooseFamily(row.family);
                 selectFavorite(field, {...row,pinned:pinned.includes(row)});
-            });
+            }),definition && info(quickActionOwner(definition)));
         })),
         field('Search', '', query), hits,
         actionRow(button('Browse all',()=>{ session.family=''; show('browse'); }),button('Manage',()=>{ session.family=''; show('manage'); })),
-        h('details',{},h('summary',{},'Pins and order'), pinned.length ? pinned.map((pin,index)=>actionRow(h('span',{},pin.title),
-            button('Move up',()=>{moveQuickPin(index,-1);renderSheet();},{disabled:index===0}),
-            button('Move down',()=>{moveQuickPin(index,1);renderSheet();},{disabled:index===pinned.length-1}),
-            button('Unpin',()=>{pinQuickAction(pin.reference,pin.title,pin.family);renderSheet();}))) : info('Pin a direction from its action menu.')),
+        h('details',{},h('summary',{},'Pins and order'), pinned.length ? pinned.map((pin,index)=>pinRow(pin,index,pinned.length))
+            : info('Pin a direction from its action menu.')),
         actionRow(button('Chapter tools',()=>openPanel('context')),button('Reply Notes',()=>openPanel('sent')),button('Prompt and preset tools',()=>openPanel('v10'))));
 }
 
@@ -367,23 +419,83 @@ function previewFor(edit, mode = 'draft') {
     return {...preview,available:repairOnly ? !!edit.target : preview.available,repairOnly,stages};
 }
 
+function useDraftWording(text) {
+    if (!text.trim()) return;
+    const state=quickChat();
+    state.draftRecovery=snapshot(openComposer());
+    saveChatState();
+    restoreComposer({value:text});
+    composerAtOpen=snapshot(openComposer());
+    focusComposer=true;
+    closeSheet();
+}
+
+function partialResult(edit) {
+    const canUse=edit.family==='draft';
+    const original=edit.partial;
+    const use=canUse && button('Use edited wording',()=>useDraftWording(edit.partialEdit),{disabled:true});
+    return h('details',{},h('summary',{},'Raw output and recovery'),
+        info(canUse ? 'Edit the output into the wording you want in the composer.' : 'Copy or edit this output for use in another attempt.'),
+        field('Partial result','',textArea(edit.partialEdit ?? original,value=>{
+            edit.partialEdit=value;
+            if (use) use.disabled=!value.trim() || value.trim()===original.trim();
+        })),
+        use);
+}
+
 function renderCandidate(edit, candidate, index) {
-    const textarea = textArea(candidate.text,value=>{ candidate.text = value; },{'aria-label':candidate.title || `Choice ${index + 1}`});
+    const textarea = textArea(candidate.text,value=>{
+        candidate.text=value;
+        const saved=edit.batch.history?.candidates[candidate.historyIndex];
+        if (saved) { saved.text=value; saveChatState(); }
+    },{'aria-label':candidate.title || `Choice ${index + 1}`,disabled:edit.running});
     textarea.rows = 4;
     return h('article',{class:'ri-quick-card'},h('strong',{},candidate.title || (edit.batch.mode==='choices' ? `Choice ${index + 1}` : 'Your draft')),
         textarea,actionRow(button('Use this wording',()=>{
             if (!candidate.text.trim()) { edit.error='Enter wording to use first.'; renderSheet(); return; }
-            const state = quickChat();
-            const original = snapshot(openComposer());
-            state.draftRecovery = original;
-            saveChatState();
-            restoreComposer({value:candidate.text});
-            composerAtOpen = snapshot(openComposer());
-            focusComposer = true;
-            closeSheet();
-        },{kind:'primary'}),
-        edit.batch.mode==='choices' && button('Draft from this choice · 1 model call',()=>submit(edit,'expand',candidate.text,edit.batch.input)),
-        button('Dismiss',()=>{edit.batch.candidates.splice(index,1);renderSheet();})));
+            useDraftWording(candidate.text);
+        },{kind:'primary',disabled:edit.running}),
+        edit.batch.mode==='choices' && button('Draft from this choice · 1 model call',()=>submit(edit,'expand',candidate.text,edit.batch.input),{disabled:edit.running}),
+        button('Dismiss',()=>{edit.batch.candidates.splice(index,1);renderSheet();},{disabled:edit.running})));
+}
+
+function saveDraftBatches(edit, owner) {
+    if (!edit.newDraftBatches?.length || owner.chat!==quickChatIdentity()) return;
+    const state = quickChat();
+    if (!state) return;
+    state.draftBatches = [...edit.newDraftBatches,...(state.draftBatches || [])].slice(0,6);
+    edit.newDraftBatches = [];
+    saveChatState();
+}
+
+function rememberDraftBatch(edit, owner, batch) {
+    const {mode,candidates,input:{cues,direction,freshStart}} = batch;
+    const saved = structuredClone({mode,candidates,input:{cues,direction,freshStart}});
+    batch.history = saved;
+    candidates.forEach((candidate,index)=>{ candidate.historyIndex=index; });
+    (edit.newDraftBatches ||= []).unshift(saved);
+    saveDraftBatches(edit,owner);
+}
+
+function draftHistory(edit, state) {
+    if (!state?.draftBatches?.length) return null;
+    return h('details',{},h('summary',{},'Recent drafts and choices'),state.draftBatches.map((batch,index)=>{
+        const label=batch.mode==='choices' ? 'Player choices' : batch.mode==='expand' ? 'Expanded choice' : 'Player draft';
+        return h('details',{class:'ri-quick-card'},h('summary',{},label+' · '+batch.candidates[0]?.text.slice(0,65)),
+            batch.candidates.map(candidate=>info(candidate.text)),
+            actionRow(button('Restore for editing',()=>{
+                edit.batch=structuredClone(batch);
+                edit.batch.history=batch;
+                edit.batch.candidates.forEach((candidate,index)=>{ candidate.historyIndex=index; });
+                edit.message=batch.mode==='choices' ? 'Choices restored for editing.' : 'Draft restored for editing.';
+                edit.showResults=true;
+                renderSheet();
+            },{disabled:edit.running}),button('Remove from history',()=>{
+                state.draftBatches.splice(index,1);
+                saveChatState();
+                renderSheet();
+            })));
+    }));
 }
 
 function optionEditor(edit, chosen, index) {
@@ -397,7 +509,7 @@ function optionEditor(edit, chosen, index) {
 }
 
 async function submit(edit, mode = 'draft', choice = '', replay = null) {
-    if (edit.running || isGenerating()) return;
+    if (edit.running || edit.switching || isGenerating()) return;
     const owner = session;
     const origin = owner.chat;
     const currentPreview = previewFor(edit,mode);
@@ -407,6 +519,8 @@ async function submit(edit, mode = 'draft', choice = '', replay = null) {
         roll:edit.die ? structuredClone(edit.die) : null, repairOnly:currentPreview.repairOnly, repeatOrders:edit.repeatOrders, keepManualEdits:edit.keepManualEdits, rerollDice:edit.rerollDice};
     edit.running = true;
     edit.partial = '';
+    edit.partialEdit = null;
+    edit.repair = input.repair || null;
     edit.message = '';
     edit.error = '';
     edit.lastAttempt = {input,mode,choice};
@@ -420,17 +534,19 @@ async function submit(edit, mode = 'draft', choice = '', replay = null) {
             const outcome = await runGuidedTurn(edit.family,{...input,freshStart:!!input.freshStart,mode,choice,
                 onReceipt:receipt=>{edit.receipt=receipt;}});
             edit.repair = outcome.repair;
-            if (outcome.raw && !outcome.ok) edit.partial=outcome.raw;
+            if (outcome.raw && (outcome.partial || !outcome.ok)) edit.partial=outcome.raw;
             edit.receipt = outcome.receipt;
             edit.undo = outcome.undo;
             const candidates = (outcome.choices || (outcome.text ? [outcome.text] : [])).map(candidate=>typeof candidate==='string'?{text:candidate}:{...candidate});
             if (edit.family === 'draft' && !candidates.length) throw Object.assign(new Error('No playable wording was returned. Write your own or retry.'),{receipt:outcome.receipt});
             if (edit.family === 'draft') {
-                if (mode === 'expand') edit.batch.expanded = {candidates,input,mode};
-                else edit.batch = {candidates,input,mode};
+                const batch = {candidates,input,mode};
+                if (mode === 'expand') edit.batch.expanded = batch;
+                else edit.batch = batch;
+                rememberDraftBatch(edit,owner,batch);
                 edit.showResults=true;
                 edit.message = mode === 'choices' ? `${candidates.length} of 3 choices received.` : 'Draft ready to edit.';
-            } else edit.message = outcome.repair && !outcome.text ? 'Source repair reviewed.' : 'Reply updated.';
+            } else edit.message = input.repairOnly ? 'Source repair reviewed.' : 'Reply updated.';
             if (!outcome.ok && outcome.ok !== undefined) throw Object.assign(new Error(outcome.reason || 'The action did not finish.'),{receipt:outcome.receipt});
             if (origin === quickChatIdentity() && input.freshStart === 'five') armFreshStart();
         }
@@ -456,6 +572,17 @@ async function submit(edit, mode = 'draft', choice = '', replay = null) {
     }
 }
 
+function unavailableAction(preview, label = '') {
+    if (!preview || preview.available) return null;
+    const rejected=preview.stages.find(stage=>stage.problem || stage.profileId);
+    const reason=preview.reason || rejected?.problem || 'This route is unavailable.';
+    return h('div',{},status(label ? `${label} · ${reason}` : reason),
+        rejected?.profileId && button('Connection settings',()=>{
+            session.operation=rejected.operation;
+            show('connections');
+        }));
+}
+
 function familyView(edit) {
     const config = families[edit.family];
     const group = quickChat();
@@ -472,7 +599,7 @@ function familyView(edit) {
     function updateControls() {
         const fresh = previewFor(edit);
         const noInput = edit.family === 'steer' && !edit.direction.trim() && !edit.cues.length && !edit.freshStart && !edit.die;
-        primary.disabled = !!edit.running || !fresh.available || noInput;
+        primary.disabled = !!edit.running || !!edit.switching || !fresh.available || noInput;
         primary.textContent = edit.running ? 'Running…' : fresh.repairOnly ? 'Audit world facts' : config.primary + (fresh.stages.at(-1).stage==='additional'?' · 1 model call':'');
         if (choices) choices.disabled = !!edit.running || !previewFor(edit,'choices').available;
     }
@@ -480,24 +607,51 @@ function familyView(edit) {
         edit.direction=value;
         edit.lastAttempt=null;
         updateControls();
+        for (const favorite of detailNodes.querySelectorAll('[data-favorite-run]')) {
+            const selects=edit.mode==='select' || !!edit.direction.trim() || !!edit.cues.length;
+            favorite.textContent=selects ? favorite.dataset.favoriteLabel : favorite.dataset.favoriteRun;
+            if (selects) {
+                favorite.setAttribute('aria-pressed',String(edit.cues.some(cue=>cue.title===favorite.dataset.favoriteLabel)));
+                favorite.setAttribute('aria-label',favorite.dataset.favoriteLabel);
+            } else {
+                favorite.removeAttribute('aria-pressed');
+                favorite.removeAttribute('aria-label');
+            }
+        }
     },{'aria-label':'Your direction',placeholder:'Optional details for this action'});
     const choicesPreview = edit.family==='draft' ? previewFor(edit,'choices') : null;
-    const stage = edit.receipt || (choicesPreview ? [...preview.stages,...choicesPreview.stages] : preview.stages);
+    const repairStage = edit.repair && edit.receipt?.operation!=='factRepair' && {
+        ...executionPreview('factRepair',{stage:'code',label:'Audit world facts'}),
+        attempts:0,outcome:'completed',
+        result:edit.repair.repaired?.length ? `${edit.repair.repaired.length} updated sources`
+            : edit.repair.unresolved?.[0] || 'Reviewed available evidence',
+    };
+    const stage = edit.receipt ? [repairStage,edit.receipt].filter(Boolean)
+        : choicesPreview ? [...preview.stages,...choicesPreview.stages] : preview.stages;
     const twistCue = edit.cues.find(cue=>readQuickAction(cue.reference)?.twistTypes?.length);
     const detailNodes = h('div',{class:'ri-quick-content'},
         reference && info(`${reference.name} · swipe ${reference.swipe + 1} · revision ${String(reference.fingerprint).slice(-8)}`),
         reference && h('details',{},h('summary',{},'Selected reply'),h('p',{},reference.text)),
         reference && versions.length>1 && field('Selected swipe','',
             select(versions.map(({swipe})=>({value:String(swipe),label:`Swipe ${swipe + 1}`})),String(reference.swipe),async value=>{
+                if (edit.switching || edit.running) return;
+                const owner=session;
+                edit.switching=true;
+                renderSheet();
                 try { edit.target=await selectGuidedVersion(reference,Number(value));edit.error='';edit.lastAttempt=null; }
                 catch(error) { edit.error=error.message; }
-                renderSheet();
-            },{disabled:edit.running})),
-        reference && !reference.latest && button('Use latest reply',()=>{edit.target=guidedTarget();edit.lastAttempt=null;renderSheet();}),
+                finally {
+                    edit.switching=false;
+                    if (session===owner) renderSheet();
+                }
+            },{'aria-label':'Selected swipe',disabled:edit.running || edit.switching})),
+        edit.switching && status('Switching to the selected swipe…'),
+        reference && !reference.latest && button('Use latest reply',()=>{edit.target=guidedTarget();edit.lastAttempt=null;renderSheet();},
+            {disabled:edit.running || edit.switching}),
         preview.dependent?.replies > 0 && info(`${preview.dependent.replies} later replies and ${preview.dependent.cards} dependent cards. Later prose stays saved. Affected facts will be reconciled from surviving evidence.`),
         preview.fallback && info(preview.fallback),
-        !preview.available && status(preview.reason || preview.stages.find(item=>item.problem)?.problem || 'This route is unavailable.'),
-        choicesPreview && !choicesPreview.available && status('Give me choices · '+ choicesPreview.reason),
+        unavailableAction(preview),
+        unavailableAction(choicesPreview,'Give me choices'),
         edit.family==='steer' && button(`Pending directions · ${group.pending.length}`,()=>show('pending')),
         (pinned.length || recent.length) ? shelf([...pinned,...recent],edit) : null,
         actionRow(button('Browse all',()=>show('browse')),button(config.add,()=>show('add')),button('Manage',()=>show('manage'))),
@@ -552,19 +706,27 @@ function familyView(edit) {
             edit.repair.repaired?.length ? info('Updated sources · '+edit.repair.repaired.join(', ')) : null,
             edit.repair.unresolved?.map(issue=>status(issue)),
             button('Review source facts and Undo',()=>openPanel('corrections'))),
-        edit.partial && field('Partial result','',textArea(edit.partial,value=>{edit.partial=value;})),
+        edit.partial && partialResult(edit),
         edit.lastQueued && button('Undo queue',()=>{cancelQueued(edit.lastQueued);edit.lastQueued=null;edit.message='Direction removed.';renderSheet();}),
         edit.undo && button('Undo continuation',async()=>{
-            try { await undoGuidedContinuation(edit.undo); edit.undo=null; edit.message='Continuation undone.'; }
+            const owner=session;
+            const undo=edit.undo;
+            try {
+                await undoGuidedContinuation(undo);
+                if (session===owner && owner.chat===quickChatIdentity()) edit.target=guidedTarget(undo.target.index);
+                edit.undo=null;
+                edit.message='Continuation undone.';
+            }
             catch(error) { edit.error=error.message; }
-            renderSheet();
-        }),
+            if (session===owner) renderSheet();
+        },{disabled:edit.running || edit.switching}),
         edit.batch && h('div',{class:'ri-quick-shelf','data-quick-results':true},
             h('h3',{},edit.batch.expanded ? 'Expanded draft and choices' : edit.batch.mode==='choices' ? 'Your choices' : 'Your draft'),
             edit.batch.expanded?.candidates.map((candidate,index)=>renderCandidate({...edit,batch:edit.batch.expanded},candidate,index)),
             edit.batch.candidates.map((candidate,index)=>renderCandidate(edit,candidate,index)),
             h('details',{},h('summary',{},'Directions used'),info(joinGuidance(edit.batch.input))),
             button('Use these directions again',()=>{edit.cues=structuredClone(edit.batch.input.cues);edit.direction=edit.batch.input.direction;edit.mode='select';renderSheet();})),
+        edit.family==='draft' && draftHistory(edit,group),
         group?.draftRecovery && edit.family==='draft' && button('Recover previous composer draft',()=>{
             restoreComposer(group.draftRecovery);group.draftRecovery=null;saveChatState(); composerAtOpen=snapshot(openComposer());focusComposer=true;closeSheet();
         }));
@@ -592,11 +754,31 @@ function renderSheet() {
         h('h2',{id:'ri-quick-heading'},({root:'Quick actions',pending:'Pending directions',browse:'Browse all',manage:'Manage quick actions',add:families[family]?.add,connections:'Saved connections'})[view] || families[family].title),
         h('button',{type:'button',class:'ri-btn','data-quick-close':'',onclick:()=>closeSheet()},'Close'));
     const old = overlay.querySelector('.ri-quick-scroll');
-    const scroll = old?.dataset.view===view ? old.scrollTop : 0;
+    const continuing = old?.dataset.view===view;
+    const scroll = continuing ? old.scrollTop : 0;
+    const active = document.activeElement;
+    const restore = continuing && overlay.contains(active) && active?.getAttribute('aria-label')
+        ? {label:active.getAttribute('aria-label'), tag:active.tagName, input:snapshot(active)} : null;
+    const openFolds = new Set(continuing ? [...old.querySelectorAll('details[open] > summary')].map(summary=>summary.textContent) : []);
     const body = h('div',{class:'ri-quick-scroll','data-view':view},session.notice && status(session.notice),content);
     const sheet = h('section',{class:'ri-root ri-quick-sheet',role:'dialog','aria-modal':'true','aria-labelledby':'ri-quick-heading','data-accent':'sky'},header,body,footer);
     overlay.replaceChildren(sheet);
+    for (const summary of body.querySelectorAll('details > summary')) {
+        if (openFolds.has(summary.textContent)) summary.parentElement.open=true;
+    }
     body.scrollTop=scroll;
+    if (old) {
+        const field=restore && [...body.querySelectorAll('[aria-label]')]
+            .find(node=>node.tagName===restore.tag && node.getAttribute('aria-label')===restore.label);
+        if (field) {
+            field.focus({preventScroll:true});
+            if (restore.input?.start!=null) field.setSelectionRange?.(restore.input.start,restore.input.end,restore.input.direction);
+        } else if (!overlay.contains(active) || !active.isConnected) {
+            const title=sheet.querySelector('#ri-quick-heading');
+            title.tabIndex=-1;
+            title.focus({preventScroll:true});
+        }
+    }
     if (view==='family' && editorFor(family).showResults) {
         editorFor(family).showResults=false;
         const results=body.querySelector(editorFor(family).error?'[data-quick-error]':'[data-quick-results]');
@@ -618,7 +800,11 @@ function attachToHost() {
     entry.hidden = !available;
     if (composer!==input) {
         composer=input;
-        const capture = () => { if (knownChat) composerDrafts.set(knownChat,snapshot(input)); };
+        const capture = () => {
+            if (!knownChat || knownChat !== quickChatIdentity()) return;
+            const held = !input.value && heldGroupContinuationComposer();
+            composerDrafts.set(knownChat, held ? { value: held.text, start: held.start, end: held.end, direction: held.direction } : snapshot(input));
+        };
         input.addEventListener('input',capture);
         input.addEventListener('select',capture);
     }
@@ -627,6 +813,7 @@ function attachToHost() {
 export function mountQuickActions() {
     knownChat=quickChatIdentity();
     attachToHost();
+    restoreHeldRetryDraft();
     for (const name of ['CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MORE_MESSAGES_LOADED','GENERATION_ENDED']) on(name,attachToHost);
     on('CHAT_CHANGED',()=>{
         const next=quickChatIdentity();
@@ -635,10 +822,13 @@ export function mountQuickActions() {
             const old=knownChat;
             const previous=composerDrafts.get(old);
             knownChat=next;
+            const returning=sessions.get(next);
+            if (returning?.editors.draft) saveDraftBatches(returning.editors.draft,returning);
             const saved=composerDrafts.get(next);
             const current=openComposer();
             if (saved) restoreComposer(saved);
             else if (previous?.value && current?.value===previous.value) restoreComposer({value:''});
+            restoreHeldRetryDraft();
         }
         attachToHost();
     });

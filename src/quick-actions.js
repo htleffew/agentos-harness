@@ -101,7 +101,7 @@ function publicAction(id, saved) {
     const shipped = builtinById.get(id);
     if (!shipped && !saved) return null;
     const base = saved?.baseline || actionFields(shipped || saved);
-    const current = { ...actionFields(shipped || saved), ...(saved || {}) };
+    const current = { ...actionFields(shipped || saved), ...clone(saved || {}) };
     const fields = actionFields(current);
     const changed = [...new Set([...Object.keys(fields), ...Object.keys(base)])].some(key => JSON.stringify(fields[key]) !== JSON.stringify(base[key]));
     const updated = shipped && saved && saved.baselineRevision < shipped.templateRevision;
@@ -130,6 +130,15 @@ export function listQuickActions(family = '', { includeHidden = false } = {}) {
     const ids = [...new Set([...library.order, ...builtinById.keys(), ...Object.keys(library.actions)])];
     return ids.map(readQuickAction).filter(action => action && (!family || action.family === family)
         && (includeHidden || (action.enabled && !action.hidden && !action.removed)));
+}
+
+export function quickActionOwner(action) {
+    if (action?.book || action?.source?.book) return 'World Info · ' + (action.book || action.source.book);
+    if (action?.source?.scope) return 'Roleplay Instructions · Saved source roll';
+    if (action?.origin === 'built-in') return 'Roleplay Instructions · Built-in';
+    if (action?.origin === 'translated') return 'Roleplay Instructions · Translated import';
+    if (action?.origin === 'imported') return 'Your library · Imported';
+    return 'Your library';
 }
 
 function snapshotLibrary(state, label) {
@@ -326,6 +335,7 @@ function worldRows(entry, family) {
     if (!text) return null;
     return { text: kind === 'secret' && row.status !== 'out' ? 'Foreshadow this detail: ' + text : text,
         enabled: row.on && !row.locked, sourceKind: kind, secret: kind === 'secret', worldKind: WORLD_KINDS[kind]?.label,
+        unavailable: !row.on ? 'Disabled in this source book' : row.locked ? 'Locked in this story world' : '',
         secretText: kind === 'secret' && row.status !== 'out' ? row.fields.secret : '', locked: !!tags.locked };
 }
 
@@ -342,7 +352,9 @@ function historyForSources(cs) {
         const record = turn.extra?.[KEY];
         for (const [key, value] of Object.entries(record?.states || {})) recipes.set(key, value);
         for (const item of record?.items || []) {
-            if (item.event) recipes.set(item.key, item.event);
+            if (item.event && (!item.quickAction || item.status === 'done' || item.requiresEventEvidence === false)) {
+                recipes.set(item.key, item.event);
+            }
             if (item.status !== 'done' && !(!item.quickAction && (checkingOff || item.noCheck) && item.status === 'sent')) continue;
             if (cs?.unburn?.[item.key] && Number(record.time) <= Number(cs.unburn[item.key])) continue;
             completed.add(item.key);
@@ -366,6 +378,7 @@ function readSourceRows(entry, info, family, options) {
         key, uid: entry.uid, family, title: entry.comment || info.name,
         category: groups[info.kind], set: info.id, setName: info.name, book: info.book,
         formerKeys: aliases, origin: 'source', enabled: !entry.disable,
+        unavailable: entry.disable ? 'Disabled in this source book' : '',
         fingerprint: quickActionFingerprint([entry.content, entry.extensions?.ri?.type]),
     };
     if (info.kind === 'world') {
@@ -381,7 +394,7 @@ function readSourceRows(entry, info, family, options) {
         const pick = aliases.map(alias => options.cs?.picks?.[alias]).find(Boolean);
         const once = instruction.once && aliases.some(alias => options.history.completed.has(alias));
         const row = { ...base, sourceKind: 'instruction', delivery, versions, used, pick,
-            enabled: base.enabled && !once, unavailable: once ? 'Already happened in this chat' : '' };
+            enabled: base.enabled && !once, unavailable: base.unavailable || (once ? 'Already happened in this chat' : '') };
         return [row, ...versions.map(({ index, text }) => ({
             ...row, id: base.id + ':version:' + index, version: index,
             versionFingerprint: quickActionFingerprint(text), text,
@@ -404,11 +417,12 @@ function readSourceRows(entry, info, family, options) {
     const available = choices.some(hasChoices) && choices.every(category => !category.required || hasChoices(category));
     const root = { ...base, sourceKind: type, recipe, recipeOpts, previous,
         delivery: { visibility: recipe.sentAs === 'ooc' ? 'visible' : 'private', required: type === 'event' },
-        enabled: base.enabled && available, unavailable: available ? '' : 'No ingredients fit the current scene and locks', choices };
+        enabled: base.enabled && available,
+        unavailable: base.unavailable || (available ? '' : 'No ingredients fit the current scene and locks'), choices };
     return [root, ...choices.flatMap(category => category.items.map(item => ({
         ...root, id: base.id + ':ingredient:' + quickActionFingerprint([category.id, item.id]),
         categoryId: category.id, categoryName: category.name, itemId: item.id, text: item.text,
-        enabled: base.enabled && item.available, unavailable: item.reason,
+        enabled: base.enabled && item.available, unavailable: base.unavailable || item.reason,
     })))];
 }
 
@@ -613,7 +627,7 @@ export function standaloneQuickAction(action, exact = '') {
 
 export async function editQuickActionSource(source, text) {
     if (!text.trim() || (source.version === undefined && !source.itemId)) throw new Error('Choose a version or recipe ingredient and enter its wording.');
-    return editSet(source.set, data => {
+    const data = await editSet(source.set, data => {
         const entry = entriesOf(data, source.set).find(row => String(row.uid) === String(source.uid));
         if (!entry) throw new Error('This source was removed. Refresh Browse.');
         if (source.version !== undefined) {
@@ -630,4 +644,28 @@ export async function editQuickActionSource(source, text) {
             writeEvent(data, recipe, source.set);
         }
     });
+    const entry = entriesOf(data, source.set).find(row => String(row.uid) === String(source.uid));
+    const fingerprint = quickActionFingerprint([entry.content, entry.extensions?.ri?.type]);
+    const library = actionLibrary();
+    let changed = false;
+    const refresh = fields => {
+        const pointer = fields?.source;
+        if (!pointer || pointer.book !== source.book || pointer.set !== source.set || String(pointer.uid) !== String(source.uid)) return;
+        const sameVersion = pointer.version !== undefined && pointer.version === source.version && pointer.versionFingerprint === source.versionFingerprint;
+        const sameIngredient = pointer.itemId && pointer.categoryId === source.categoryId && pointer.itemId === source.itemId;
+        const sameEntry = pointer.version === undefined && !pointer.itemId && pointer.fingerprint === source.fingerprint;
+        if (sameVersion || sameIngredient) {
+            pointer.snapshot = text;
+            if (sameVersion) pointer.versionFingerprint = quickActionFingerprint(text);
+        } else if (!sameEntry) return;
+        pointer.fingerprint = fingerprint;
+        changed = true;
+    };
+    for (const record of [...Object.values(library.actions), ...Object.values(library.undo?.actions || {})]) {
+        refresh(record);
+        refresh(record.baseline);
+        for (const variation of record.variations || []) refresh(variation.fields);
+    }
+    if (changed) saveSettings();
+    return data;
 }

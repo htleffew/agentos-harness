@@ -46,7 +46,7 @@ http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Headers', '*');
         if (req.method === 'OPTIONS') { res.end(); return; }
-        if (req.url.includes('/models')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ object: 'list', data: [{ id: 'mock-model', object: 'model' }] })); return; }
+        if (req.url.includes('/models')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ object: 'list', data: [{ id: process.env.RI_MOCK_MODEL || 'mock-model', object: 'model' }] })); return; }
         let body = {};
         try { body = JSON.parse(data || '{}'); } catch { }
         if (req.url.endsWith('/v1/internal/encode')) {
@@ -57,7 +57,8 @@ http.createServer((req, res) => {
         const textCompletion = typeof body.prompt === 'string' && !Array.isArray(body.messages);
         const messages = textCompletion ? [{ role: 'text', content: body.prompt }] : body.messages;
         const text = answer({ ...body, messages });
-        fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), url: req.url, stream: !!body.stream, max_tokens: body.max_tokens || body.max_completion_tokens, messages, answer: text }) + '\n');
+        const model = process.env.RI_MOCK_MODEL ? { model:body.model } : {};
+        fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), url: req.url, stream: !!body.stream, max_tokens: body.max_tokens || body.max_completion_tokens, ...model, messages, answer: text }) + '\n');
         if (mode().fail) {
             res.writeHead(503, { 'Content-Type':'application/json' });
             res.end(JSON.stringify({ error:{ message:'Fixture provider unavailable' } }));
@@ -67,19 +68,30 @@ http.createServer((req, res) => {
             res.setHeader('Content-Type', 'text/event-stream');
             const parts = text.match(/.{1,40}/gs) || [''];
             const gap = Number(mode().chunkMs) || 0;
+            const failAfter = Number(mode().streamFailAfter) || 0;
             (async () => {
-                for (const p of parts) {
+                for (const [index,p] of parts.entries()) {
                     if (gap) await new Promise(resolve => setTimeout(resolve,gap));
                     if (res.destroyed) return;
                     res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: p } }] })}\n\n`);
+                    if (failAfter===index+1) {
+                        if (gap) await new Promise(resolve=>setTimeout(resolve,gap));
+                        res.end('data: {interrupted\n\n');
+                        return;
+                    }
                 }
                 res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
                 res.end('data: [DONE]\n\n');
             })();
         } else {
-            res.setHeader('Content-Type', 'application/json');
-            const choice = textCompletion ? { text } : { message: { role: 'assistant', content: text } };
-            res.end(JSON.stringify({ id: 'x', object: textCompletion ? 'text_completion' : 'chat.completion', choices: [{ index: 0, ...choice, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
+            const send = () => {
+                if (res.destroyed) return;
+                res.setHeader('Content-Type', 'application/json');
+                const choice = textCompletion ? { text } : { message: { role: 'assistant', content: text } };
+                res.end(JSON.stringify({ id: 'x', object: textCompletion ? 'text_completion' : 'chat.completion', choices: [{ index: 0, ...choice, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
+            };
+            const delay = Number(mode().delayMs) || 0;
+            if (delay > 0) setTimeout(send, delay); else send();
         }
     });
 }).listen(Number(process.env.RI_MOCK_PORT || 8124), '127.0.0.1', function () { console.log('mock on',this.address().port); });
