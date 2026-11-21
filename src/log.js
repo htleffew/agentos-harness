@@ -35,9 +35,9 @@ const clip = (s) => {
  * Add one entry and return it. The caller may change it afterwards and call update().
  * what: plain name of the job. ok: true, false, or null while it is still running.
  */
-export function addLog({ what, ok = null, result = '', details = [], sent = '', got = '' }) {
+export function addLog({ what, ok = null, status = '', result = '', details = [], sent = '', got = '' }) {
     load();
-    const entry = { time: Date.now(), what: String(what), ok, result: String(result), details: details.map(String), sent: clip(sent), got: clip(got) };
+    const entry = { time: Date.now(), what: String(what), ok, status, result: String(result), details: details.map(String), sent: clip(sent), got: clip(got) };
     entries.push(entry);
     if (entries.length > MAX) entries.splice(0, entries.length - MAX);
     save();
@@ -61,11 +61,13 @@ export function clearLog() { entries = []; save(); }
 export function onLog(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
 const stamp = (t) => { try { return new Date(t).toLocaleString(); } catch { return String(t); } };
+export const logStatus = entry => entry.status || (entry.ok===true ? 'Worked' : entry.ok===false ? 'Failed' :
+    entry.result && !entry.sent ? 'Recorded' : 'Running');
 
 /** The whole log as plain text, newest first, for copying or saving. */
 export function logText() {
     return logEntries().map(e => [
-        `${stamp(e.time)}  ${e.what}  ${e.ok === true ? 'Worked' : e.ok === false ? 'Failed' : 'Running'}`,
+        `${stamp(e.time)}  ${e.what}  ${logStatus(e)}`,
         e.result ? `Result: ${e.result}` : '',
         ...e.details.map(d => `- ${d}`),
         e.sent ? `--- What was sent ---\n${e.sent}` : '',

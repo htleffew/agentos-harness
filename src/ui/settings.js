@@ -9,6 +9,8 @@ import { listProfiles, names, isChatOpen, hasEvent, toast, inputBox } from '../s
 import { ensureRegexScript, setsMoved } from '../engine.js';
 import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '../books.js';
 import { refreshUnderReplies } from './sent.js';
+import { enabledV10 } from '../v10.js';
+import { memoryOnly } from '../components.js';
 
 function pronounControl(role, app) {
     const p = chatPronouns()[role];
@@ -222,12 +224,26 @@ export function renderSettings(body, app) {
         field('How many new things can start in one reply', 'Counted across every instruction set, every story event set and the goal task together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
             numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
 
-    body.appendChild(sceneSection(app));
-    body.appendChild(promptGroup(['scene'], 'Customize scene instruction'));
-    body.appendChild(cardsSection(app));
-    body.appendChild(promptGroup(['profile', 'stateContext'], 'Customize character-state instructions'));
-    body.appendChild(diceSection(app));
-    body.appendChild(promptGroup(['dice'], 'Customize dice instruction'));
+    const native = enabledV10();
+    const legacy = [sceneSection(app),promptGroup(['scene'],'Customize scene instruction'),cardsSection(app),
+        promptGroup(native ? ['profile'] : ['profile','stateContext'],'Customize character-state instructions'),
+        diceSection(app),promptGroup(['dice'],'Customize dice instruction')];
+    if (native || memoryOnly()) {
+        body.append(section(native ? 'Structured reply controls' : 'Memory only workflow',
+            h('p',{class:'ri-help'},native
+                ? 'Open the module settings for Roast and scene tracking. Use Action Checks to queue a roll.'
+                : 'The active host preset controls writing and reply cards. Use Preset & Extension to change the workflow.'),
+            h('div',{class:'ri-row'},
+                button('Preset & Extension',()=>app.openPage('v10'),{kind:'ghost'}),
+                native && button('Reply Display',()=>app.openPage('display'),{kind:'ghost'}),
+                native && button('Action Checks',()=>app.openPage('checks'),{kind:'ghost'})),
+            native && field('Current state prompt budget','The approximate room for scene and character state in each prompt.',
+                numberInput(st.cards.stateBudget || 350,{min:100,max:1000,unit:'tokens'},value=>{st.cards.stateBudget=value;save();})),
+            native && promptGroup(['stateContext'],'Customize current-state guidance')));
+        body.append(h('details',{class:'ri-section',open:!!app.legacyControlsOpen,
+            ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},h('summary',{},'Legacy scene, character cards and dice'),
+            h('p',{class:'ri-help'},'These defaults include the old reply cards, Roast and automatic rolls for Legacy chats. The named stats are shared with Action Checks.'),legacy));
+    } else body.append(...legacy);
     body.appendChild(paceSection(app));
     body.appendChild(writerSection(app));
 
@@ -271,6 +287,6 @@ export function renderSettings(body, app) {
 
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
     body.appendChild(section('About',
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.19: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
+        h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.20: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
         h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
 }

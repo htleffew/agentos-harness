@@ -264,9 +264,11 @@
 .ri-state-lock { color: var(--ri-text-2); font-size: .85em; }
 
 /* Optional direction for a replacement reply */
-.ri-guided { margin-top: 7px; font-size: .88em; }
+.ri-guided { margin-top: 7px; font-size: .88em; min-width:0; max-width:100%; }
 .ri-guided-summary { cursor: pointer; color: var(--ri-accent); font-weight: 600; }
-.ri-guided-body { display: grid; gap: 7px; margin-top: 7px; padding: 10px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }
+.ri-guided-body { display: grid; grid-template-columns:minmax(0,1fr); gap: 7px; margin-top: 7px; padding: 10px; border: 1px solid var(--ri-line); border-radius: 10px; background: var(--ri-card); }
+.ri-guided-body > * { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.ri-guided-body select.ri-input { width:100%; min-width:0; }
 
 /* Feature-local AI instruction editors */
 .ri-choice-list { padding: 0.65rem 0.75rem; border: 1px solid var(--ri-line); border-radius: 8px; background: var(--ri-bg); }
@@ -387,6 +389,15 @@
 .ri-world-meter meter::-moz-meter-bar { background:var(--axis-color,#7bbde1); }
 .ri-world-evidence { margin-top:10px; color:#afc9df; font-size:.84em; }
 .ri-world-evidence blockquote { margin:6px 0 0; padding-left:8px; border-left:2px solid #6fa3c9; color:#e5eaf2; }
+.ri-correction-editor { min-width:0; overflow-wrap:anywhere; }
+.ri-correction-sources, .ri-correction-edit { border:1px solid var(--ri-line); border-radius:9px; padding:10px; }
+.ri-correction-editor summary { cursor:pointer; }
+.ri-correction-source > summary strong { line-height:1.45; }
+.ri-correction-excerpt { display:block; color:var(--ri-text-2); font-size:.86em; margin:5px 0; white-space:pre-wrap; }
+.ri-correction-diff { display:grid; grid-template-columns:5.5rem minmax(0,1fr); gap:8px; padding:10px; background:var(--ri-bg); border-radius:8px; }
+.ri-correction-diff dt { color:var(--ri-label); }
+.ri-correction-diff dd { margin:0; white-space:pre-wrap; }
+.ri-correction-edit { margin-top:8px; }
 .ri-speaker-text { overflow-wrap:anywhere; }
 .mes_text .ri-speaker-text q { color: inherit !important; }
 .mes_text .ri-speaker-label[hidden] { display: none !important; }

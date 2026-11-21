@@ -34,11 +34,14 @@ export function keptIn(id) {
 function onForChat(name) {
     const cs = chatState();
     if (!cs) return h('span', { class: 'ri-muted' }, 'Open a chat to turn this on');
+    const active = cs.activeSets.includes(name);
+    const status = h('span',{},active ? 'On for this chat' : 'Off for this chat');
     return h('label', { class: 'ri-switch-row' },
-        h('span', {}, 'On for this chat'),
-        toggle(cs.activeSets.includes(name), (v) => {
+        status,
+        toggle(active, (v) => {
             cs.activeSets = cs.activeSets.filter(n => n !== name);
             if (v) cs.activeSets.push(name);
+            status.textContent=v ? 'On for this chat' : 'Off for this chat';
             saveChatState();
         }, `Turn ${setName(name)} on or off for this chat`));
 }

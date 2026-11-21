@@ -11,8 +11,12 @@ Setup used for 1.0.0:
 4. `lib.js` copies the extension into SillyTavern. Set `RI_ST_DIR` to the SillyTavern directory, `RI_EXTENSION_SOURCE` to this checkout, and `RI_CHROME` to the browser executable to override the legacy paths.
 5. Run `node tests/t_guided_v7.js`, `node tests/t_v6.js` and `node tests/t_history_v6.js` for the v6 host integrations; run `node tests/unit/state.mjs`, `node tests/unit/state_history.mjs`, `node tests/unit/state_parse.mjs`, `node tests/unit/event_limits.mjs`, `node tests/unit/state_ui.cjs`, `node tests/unit/branch_failure.mjs`, `node tests/unit/world_rollback.mjs`, and `node tests/unit/guided_v7.mjs` for focused tests.
 
+Use `RI_HOST_URL` to point Playwright at an isolated SillyTavern instance. Run browser suites that use the same mock one at a time. The correction and navigation audits click the extension from the host's Extensions drawer. They cover the visible routes and controls for their fixtures. For a release, also run the populated workflow tests and have a reviewer try the extension without setup instructions. Keep physical TauriTavern devices and live model connections separate from results obtained with Chromium emulation and the mock.
+
 | Script | Covers |
 | --- | --- |
+| `t_extension_ui_audit.js` | All 22 navigation pages, reachable disclosures on phone and desktop, both extension module settings scopes, mode and memory selections, keyboard focus and unsaved record navigation |
+| `t_correction_ui.js` | Phone-width source search and manual edits, optional one-click AI source repairs, default guided generation, existing swipes, failed generation and retry |
 | `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |
 | `t_reply_cards.js` | Independent reply cards, snapshot editing, visibility settings and responsive layout |
 | `t_context_v9.js` | Real-host request breakdown, context controls, persistence and no extra requests |

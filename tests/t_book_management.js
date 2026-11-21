@@ -129,6 +129,10 @@ const L = require('./lib.js');
             } finally { V.prefs().base = null; }
         }, [L.BASE, pinnedCopy]);
         assert.deepEqual(cached, { pin: null, entries: [] });
+        await card(names.odds).getByRole('button',{name:'Open in World Info',exact:true}).click();
+        await page.locator('#WorldInfo').waitFor({state:'visible'});
+        assert.equal(await root.evaluate(node=>node.classList.contains('ri-expanded')),false);
+        assert.equal(await page.locator('#world_editor_select option:checked').textContent(),names.odds);
         assert.deepEqual(errors, []);
         console.log('PASS book odds, numeric contrast, removal, historical cards and confirmed host deletion');
     } finally { await browser.close(); }

@@ -24,3 +24,14 @@ const realTimeout=globalThis.setTimeout;globalThis.setTimeout=fn=>{timer=fn;retu
 try { cs.manualWorldChanges=[{anchor:'record:100'}];await assert.rejects(E.guideSwipe('A different direction'),/manually edited/);assert.equal(W.listWorld(book,'World')[0].fields.wants,'Wrong'); await E.guideSwipe('A different direction',{keepManualEdits:true});assert(E.guidedSwipeActive());assert.equal(W.listWorld(book,'World')[0].fields.wants,'Before');timer();await F.worldIdle();assert(!E.guidedSwipeActive());assert.equal(W.listWorld(book,'World')[0].fields.wants,'Wrong'); }
 finally {globalThis.setTimeout=realTimeout;}
 console.log('guided swipe that does not start restores the world and clears direction: passed');
+chat.unshift({is_user:true,is_system:true,send_date:'hidden-by-chapter'});
+const hide = {type:'hide',dates:['hidden-by-chapter']};
+rec.update.changes = [change,hide];
+cs.worldLog.items['100'] = {world:'World',changes:[change,hide]};
+tx = await F.prepareGuidedSwipe(1,{correction:{sources:[]}});
+assert.equal(chat[0].is_system,false);
+assert.equal(W.listWorld(book,'World')[0].fields.wants,'Before');
+await F.restoreGuidedSwipe(tx);
+assert.equal(chat[0].is_system,true);
+assert.equal(W.listWorld(book,'World')[0].fields.wants,'Wrong');
+console.log('a stopped correction swipe restores the original chapter’s hidden messages: passed');

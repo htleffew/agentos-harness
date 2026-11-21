@@ -199,8 +199,14 @@ export function regexScripts() {
     } catch { return []; }
 }
 
-export async function triggerSwipe() {
+export async function triggerSwipe({ append = false } = {}) {
     const c = ctx();
+    const message = c.chat?.at(-1);
+    if (append && message?.swipes?.length && Number(message.swipe_id || 0)<message.swipes.length-1) {
+        if (typeof c.swipe?.to!=='function') throw new Error('This host needs the newest swipe selected to generate another one.');
+        await c.swipe.to(null,'right',{message,forceSwipeId:message.swipes.length});
+        return true;
+    }
     try {
         if (typeof c.swipe?.right === 'function') { await c.swipe.right(); return true; }
     } catch (e) { console.warn(LOG, 'swipe.right failed', e); }

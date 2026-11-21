@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.0.20
+
+- Saving a story correction can immediately generate a guided swipe. The original swipe remains available. Failed generations preserve the correction and offer a retry.
+- Correct sources with AI applies supported edits in one optional tracing request. Manual searching shows matching source passages and keeps edit controls inside the source card.
+- Give unavailable Structured pages a direct path to workflow settings and give empty-chat pages instructions specific to their controls.
+- Fix fullscreen keyboard navigation, the World Info handoff, narrow-phone swipe layout, misleading activation labels and Review reply numbers. Keep unsaved record edits until the player chooses to discard them.
+- Make record IDs optional for new records, keep opening source labels in sync, and identify legacy controls and completed log entries accurately.
+
 ## 10.0.19
 
 - Open Story State under a reply to inspect saved portrayals, emotion scores, relationships, character knowledge, facts and plot records. The viewer reads the book on demand and uses the saved history for earlier replies. Disabled modules stay out of the tab list.

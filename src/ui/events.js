@@ -45,16 +45,23 @@ const go = (app, route, c = cfg) => { app[c.route] = route; app.resetScroll = tr
 function onForChat(name) {
     const cs = chatState();
     if (!cs) return h('span', { class: 'ri-muted' }, 'Open a chat to turn this on');
-    return h('label', { class: 'ri-switch-row' }, h('span', {}, 'On for this chat'),
-        toggle(cs.activeSets.includes(name), (v) => { cs.activeSets = cs.activeSets.filter(n => n !== name); if (v) cs.activeSets.push(name); saveChatState(); }, `Turn ${setName(name)} on or off for this chat`));
+    const active = cs.activeSets.includes(name);
+    const status = h('span',{},active ? 'On for this chat' : 'Off for this chat');
+    return h('label', { class: 'ri-switch-row' }, status,
+        toggle(active, (v) => {
+            cs.activeSets = cs.activeSets.filter(n => n !== name);
+            if (v) cs.activeSets.push(name);
+            status.textContent=v ? 'On for this chat' : 'Off for this chat';
+            saveChatState();
+        }, `Turn ${setName(name)} on or off for this chat`));
 }
 
-async function openSet(app, name) {
+async function openSet(app, name, {created=false} = {}) {
     const c = cfg;
     const data = await loadSet(name);
     const entry = findEventEntry(data, c.type, name);
     if (!entry) { toast('error', `This lorebook is not a ${c.set}.`); return; }
-    go(app, { view: 'edit', name, draft: readEvent(entry, setName(name)), open: {} }, c);
+    go(app, { view: 'edit', name, draft: readEvent(entry, setName(name)), open: {}, created }, c);
 }
 
 // ---------- list of event sets ----------
@@ -62,6 +69,7 @@ async function openSet(app, name) {
 function renderList(body, app) {
     const sets = knownSets(cfg.kind);
     body.appendChild(h('div', { class: 'ri-intro' }, cfg.intro));
+    if (app[cfg.route].notice) body.append(h('p',{class:'ri-note',role:'status'},app[cfg.route].notice));
     body.appendChild(h('div', { class: 'ri-row' }, button(`Add ${cfg.set}`, async () => {
         const c = cfg;
         const name = await inputBox(`Name for the new ${c.set}:`);
@@ -72,7 +80,7 @@ function renderList(body, app) {
             writeEvent(data, ev);
             const made = await createSet(name, c.kind, data);
             cfg = c;
-            await openSet(app, made);
+            await openSet(app, made,{created:true});
         } catch (e) { toast('error', e.message); }
     }, { kind: 'primary' })));
     if (!sets.length) { body.appendChild(h('div', { class: 'ri-empty' }, `No ${cfg.sets} yet. Press "Add ${cfg.set}" to make the first one.`)); return; }
@@ -347,6 +355,7 @@ function renderEdit(body, app) {
         go(app, { view: 'list' });
     }, { kind: 'ghost' })));
     body.appendChild(h('div', { class: 'ri-card ri-setcard' }, h('div', { class: 'ri-card-top' }, h('div', { class: 'ri-h2' }, name), onForChat(name))));
+    if (r.created) body.append(h('p',{class:'ri-note',role:'status'},`${c.Set} created. Save any changes you make below.`));
 
     if (cfg.kind === 'style') body.appendChild(section('When it is sent',
         h('div', { class: 'ri-help' }, 'With every reply, while this set is on for the chat. Each category below decides for itself how long its pick lasts. Writing style is sent as a style order and is not checked afterwards.'),
@@ -436,13 +445,15 @@ function renderEdit(body, app) {
             });
             r.dirty = false;
             const ready = draft.categories.some(c => c.on && c.items.some(i => i.on));
-            toast('success', ready ? `${c.Set} saved.` : 'Saved. It has no items to pick yet, so it sends nothing.');
-            go(app, { view: 'list' }, c);
+            go(app, {view:'list',notice:ready ? `${c.Set} saved.` : 'Saved. It has no items to pick yet, so it sends nothing.'},c);
         } catch (e) { toast('error', `Could not save: ${e.message}`); }
     };
     body.appendChild(h('div', { class: 'ri-row ri-savebar' },
         button(`Save ${cfg.set}`, save, { kind: 'primary' }),
-        button('Cancel', () => go(app, { view: 'list' }), { kind: 'ghost' }),
+        button('Back to sets', async () => {
+            if (r.dirty && !await confirmBox('Discard unsaved changes to this set?')) return;
+            go(app, { view: 'list' }, c);
+        }, { kind: 'ghost' }),
         deleteButton(app, name, `Delete ${c.set}`, () => {
             if (app[c.route] === r) go(app, { view: 'list' }, c);
             else app.render();

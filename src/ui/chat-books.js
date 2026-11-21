@@ -34,7 +34,8 @@ export function renderChatBooks(app, { assignedEditors = false } = {}) {
                 },{kind:'ghost'}),
                 book.exists && button('Delete book everywhere',()=>change(book,true),{kind:'danger'})),
             book.exists ? h('div',{class:'ri-row'},
-                button('Open in World Info',()=>{
+                button('Open in World Info',async()=>{
+                    if (app.root.classList.contains('ri-expanded') && !await app.setExpanded(false)) return;
                     if (!openHostBook(book.name)) toast('info',`Select “${book.name}” in the host World Info editor.`);
                 },{kind:'ghost'}),
                 button('Export JSON',async()=>{

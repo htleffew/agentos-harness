@@ -25,7 +25,7 @@ const errorText = (e) => String(e?.cause?.message || e?.message || e || 'unknown
  * note(result, ok, details) writes how the answer was used into the same log entry.
  * Throws an Error whose message says in plain words what went wrong.
  */
-export async function request({ what, system = '', user = '', tokens = 600, profileId = '', promptSystemId = '' }) {
+export async function request({ what, system = '', user = '', tokens = 600, profileId = '', promptSystemId = '', retryEmpty = true }) {
     const st = settings();
     const systemId = promptSystemId || (/^Write \d+ versions? for /.test(what) ? 'systemVersions'
         : /^Write \d+ items for the list /.test(what) ? 'systemItems'
@@ -42,7 +42,8 @@ export async function request({ what, system = '', user = '', tokens = 600, prof
     const via = connectionName(profileId);
     let room = st.writer.moreRoom ? MORE_ROOM(tokens) : tokens;
     let last = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    const attempts = retryEmpty ? 2 : 1;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
         const entry = addLog({
             what: attempt === 1 ? what : `${what} (second try, more room)`,
             details: [`Sent through ${via}.`, `Room for the answer: ${room} tokens.`, `Size of what was sent: about ${Math.round((system.length + user.length) / 4)} tokens.`],
@@ -85,5 +86,5 @@ export async function request({ what, system = '', user = '', tokens = 600, prof
         if (room >= 8000) break;
         room = MORE_ROOM(room);
     }
-    throw new Error(`${last} A second try with more room was also empty. Pick another AI connection in Settings, or look at the Log tab to see what came back.`);
+    throw new Error(`${last}${retryEmpty ? ' A retry with more room could not produce an answer.' : ''} See the Log tab for details.`);
 }

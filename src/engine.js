@@ -23,7 +23,7 @@ import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
 import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile, parseUpdate } from './worldflow.js';
-import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
+import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, acceptGuidedSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, parseContent, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
 
@@ -286,7 +286,7 @@ async function onEntriesLoaded(lore) {
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
         // Dice: rolled in code for every reply while they are on (not for background requests or out-of-character turns).
         if (cs && !native && settings().dice?.on && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) lore.chatLore.push(diceEntry());
-        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: native ? modules.state : cardsOn(), excludeTargetOverrides: !!gen?.guided }) : '';
+        const stateText = cs && !quiet && !isOocTurn() ? statePrompt(kind, Math.max(100, Math.min(1000, Number(settings().cards?.stateBudget) || 350)) * 4, { includeCharacters: native ? modules.state : cardsOn(), excludeTargetOverrides: !!gen?.guided && !gen.guided.correction }) : '';
         const direction = gen?.guided && kind === 'swipe' ? `[${promptText('guided', { direction: gen.guided.direction })}]` : '';
         const corrections = !quiet && !isOocTurn() ? storyCorrectionPrompt(activeScene?.present,activeScene?.location) : '';
         const notes = flow?.notes || null;
@@ -785,7 +785,8 @@ function onScanDone(args) {
         const guidanceSelected = askE && map.has(keyOf(askE));
         pending = { items, type, states, pace, v10:plan.v10Turn,
             recall:{book:plan.flow?.id,fresh:[...new Set([...notesFresh,...(guidanceSelected ? plan.v10Turn?.recallFresh || [] : [])])]}, progressTurn:replyProgress()?.turn, offer:offer?.id,
-            lore:plan.v10Turn ? loreReceipt(map.values(),receiptNotes,plan.v10Rows,plan.flow?.id,guidanceSelected ? plan.v10Turn.recalled : []) : null, usedUp: gen.usedUp || null, guided: gen.guided ? { direction: gen.guided.direction, repeatOrders: gen.guided.repeatOrders } : null };
+            lore:plan.v10Turn ? loreReceipt(map.values(),receiptNotes,plan.v10Rows,plan.flow?.id,guidanceSelected ? plan.v10Turn.recalled : []) : null, usedUp: gen.usedUp || null,
+            guided: gen.guided ? {direction:gen.guided.direction,repeatOrders:gen.guided.repeatOrders,correctionId:gen.guided.correction?.id} : null };
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
         saveChatState();
@@ -848,7 +849,7 @@ function onMessageReceived(id, type) {
         if (pending.states && Object.keys(pending.states).length) rec.states = pending.states;
         if (pending.pace && (pending.pace.phase || pending.pace.quiet)) rec.pace = pending.pace;
         if (pending.usedUp) rec.usedUp = pending.usedUp;
-        if (pending.guided) { rec.guided = pending.guided; if (guided) guided.completed = true; }
+        if (pending.guided) rec.guided = pending.guided;
         // Who is present, where and when, from the reply's own block. A continued reply keeps what its first part said.
         const previousRecord = [...(ctx().chat || []).slice(0,id)].reverse()
             .map(row=>row?.extra?.[KEY]).find(record=>record?.scene && !record.stateStale);
@@ -916,6 +917,21 @@ function onMessageReceived(id, type) {
         pending = null;
         // A reply that carried nothing still gets an (empty) record, so a later swipe knows to send nothing again.
         attach(m, rec);
+        const guidedAttempt = rec.guided && guided;
+        if (guidedAttempt) {
+            guidedAttempt.completed = true;
+            if (guidedAttempt.correction) {
+                const meta = chatState();
+                const anchor = `record:${rec.time}`;
+                const previousAnchor = `record:${guidedAttempt.tx.time}`;
+                if (guidedAttempt.correction.anchor===previousAnchor) guidedAttempt.correction.anchor=anchor;
+                for (const change of meta?.manualWorldChanges || []) {
+                    if (change.anchor===previousAnchor && guidedAttempt.correction.sources.some(source=>source.kind==='world' && source.uid===change.uid)) change.anchor=anchor;
+                }
+                reanchorRemovedCorrections();
+                acceptGuidedSwipe(guidedAttempt.tx);
+            }
+        }
         if (rewrittenDialogue) {
             try { ctx().updateMessageBlock?.(id,m); } catch { /* drawn on the next redraw */ }
         }
@@ -928,6 +944,7 @@ function onMessageReceived(id, type) {
             if (!parsed.found || rec.v10Invalid) { clearReplyProgress(progressTurn); return; }
             showReplyProgress(progressTurn,'ready');
         }, { v10:turn }).finally(() => {
+            guidedAttempt?.finish?.(true);
             if (progressTurn && replyProgress()?.turn === progressTurn) {
                 if (replyProgress().phase === 'ready') setTimeout(()=>clearReplyProgress(progressTurn),520);
                 else clearReplyProgress(progressTurn);
@@ -1267,17 +1284,51 @@ export const guidedSwipeActive = () => !!guided || guidedPreparing;
 
 async function cancelGuided(attempt) {
     if (!attempt) return;
-    const restored = await restoreGuidedSwipe(attempt.tx);
-    if (!restored || String(ctx().getCurrentChatId?.() || '') !== attempt.chatId) return;
-    const cs = chatState();
-    if (!cs) return;
-    if (attempt.afterLastScan && JSON.stringify(cs.lastScan) === JSON.stringify(attempt.afterLastScan)) cs.lastScan = attempt.beforeLastScan;
-    if (attempt.afterOverdue && JSON.stringify(cs.overdue) === JSON.stringify(attempt.afterOverdue)) cs.overdue = attempt.beforeOverdue;
-    saveChatState();
+    try {
+        const restored = await restoreGuidedSwipe(attempt.tx);
+        if (!restored || String(ctx().getCurrentChatId?.() || '') !== attempt.chatId) return;
+        const cs = chatState();
+        if (!cs) return;
+        if (attempt.afterLastScan && JSON.stringify(cs.lastScan) === JSON.stringify(attempt.afterLastScan)) cs.lastScan = attempt.beforeLastScan;
+        if (attempt.afterOverdue && JSON.stringify(cs.overdue) === JSON.stringify(attempt.afterOverdue)) cs.overdue = attempt.beforeOverdue;
+        saveChatState();
+    } finally { attempt.finish?.(false); }
+}
+
+export function correctionSwipeTarget() {
+    const c = ctx(), index = (c.chat?.length || 0)-1, message = c.chat?.[index];
+    if (memoryOnly() || !settings().enabled || !isReply(message) || message.is_system || !message.extra?.[KEY]) return null;
+    return {chatId:c.getCurrentChatId?.(), index, message, swipe:message.swipe_id};
+}
+
+export async function regenerateStoryCorrection(correction, target) {
+    const latest = correctionSwipeTarget();
+    if (!latest || !target || latest.chatId!==target.chatId || latest.message!==target.message || latest.swipe!==target.swipe) {
+        throw new Error('The selected reply changed. Open Corrections on the reply you want to regenerate.');
+    }
+    const recordTime = latest.message.extra[KEY].time;
+    const note = (status) => {
+        if (ctx().getCurrentChatId?.()!==target.chatId) return;
+        correction.regeneration = {status,recordTime};
+        saveChatState();
+    };
+    const facts = correction.truth;
+    const direction = 'Regenerate this reply using the following accepted correction. Keep the same point in the story and retain unrelated established details. Apply the correction in the fiction without discussing the edit.\n\n'+facts;
+    note('running');
+    try {
+        if (!await guideSwipe(direction,{correction,keepManualEdits:true})) {
+            if (ctx().getCurrentChatId?.()===target.chatId && target.message===ctx().chat?.at(-1) &&
+                Number.isInteger(target.swipe) && target.message.swipe_id!==target.swipe && typeof ctx().swipe?.to==='function') {
+                await ctx().swipe.to(null,'left',{message:target.message,forceSwipeId:target.swipe});
+            }
+            throw new Error('The guided reply stopped before a replacement was saved.');
+        }
+        note('ready');
+    } catch(error) { note('failed'); throw error; }
 }
 
 /** Guide one newly generated swipe of the latest character reply. */
-export async function guideSwipe(direction, { repeatOrders = false, keepManualEdits = false, rerollDice = false } = {}) {
+export async function guideSwipe(direction, { repeatOrders = false, keepManualEdits = false, rerollDice = false, correction } = {}) {
     const c = ctx(), chat = c.chat || [], id = chat.length - 1, m = chat[id];
     const value = String(direction || '').trim();
     if (!settings().enabled) throw new Error('Turn the extension on first.');
@@ -1285,30 +1336,32 @@ export async function guideSwipe(direction, { repeatOrders = false, keepManualEd
     if (!value || value.length > 2000) throw new Error('Enter a direction of at most 2,000 characters.');
     if (guided || guidedPreparing || isGenerating()) throw new Error('Wait for the current generation to finish.');
     if (!m || m.is_user || m.is_system || !m.extra?.[KEY]) throw new Error('A recorded character reply must be the latest message.');
-    if (Array.isArray(m.swipes) && Number(m.swipe_id || 0) < m.swipes.length - 1) throw new Error('Move to the newest existing swipe first, then use Guide a swipe.');
+    if (!correction && Array.isArray(m.swipes) && Number(m.swipe_id || 0) < m.swipes.length - 1) throw new Error('Move to the newest existing swipe first, then use Guide a swipe.');
     const anchors = new Set([m.extra[KEY].time ? `record:${m.extra[KEY].time}` : '', m.send_date ? `message:${m.send_date}` : '']);
     const meta = c.chatMetadata?.[KEY] || {};
-    if ([...Object.values(meta.stateOverrides || {}), ...Object.values(meta.sceneOverrides || {})].some(x => !x?.anchor || anchors.has(x.anchor))) throw new Error('A protected state or scene correction was made on this reply. Review or unlock it in Current State before replacing the reply; include any desired correction in the direction.');
+    if (!correction && [...Object.values(meta.stateOverrides || {}), ...Object.values(meta.sceneOverrides || {})].some(x => !x?.anchor || anchors.has(x.anchor))) throw new Error('A protected state or scene correction was made on this reply. Review or unlock it in Current State before replacing the reply; include any desired correction in the direction.');
     if (!keepManualEdits && (meta.manualWorldChanges || []).some(x => x?.anchor && anchors.has(x.anchor))) throw new Error('The story world was manually edited after this reply. Review those edits, then select “Keep my manual world edits” if you want them to remain.');
     const chatId = String(c.getCurrentChatId?.() || ''), selectedTime = m.extra[KEY].time;
     guidedPreparing = true;
-    let tx;
+    let tx, completion, attempt;
     try {
         await worldIdle();
-        tx = await prepareGuidedSwipe(id,{keepManualEdits});
+        tx = await prepareGuidedSwipe(id,{keepManualEdits,correction});
         if (String(ctx().getCurrentChatId?.() || '') !== chatId || ctx().chat?.[id]?.extra?.[KEY]?.time !== selectedTime) { await restoreGuidedSwipe(tx); throw new Error('The chat changed. Try again on the intended reply.'); }
         const cs = chatState();
         pickAgain = false; rerollCat = null;
-        guided = { direction: value, check:rerollDice && m.extra[KEY].v10Check ? resolveCheck(m.extra[KEY].v10Check) : undefined, repeatOrders: !!repeatOrders, prior: structuredClone(m.extra[KEY]), tx, chatId, started: false, completed: false, beforeLastScan: structuredClone(cs?.lastScan), beforeOverdue: structuredClone(cs?.overdue || []) };
+        attempt = guided = { direction: value, check:rerollDice && m.extra[KEY].v10Check ? resolveCheck(m.extra[KEY].v10Check) : undefined, repeatOrders: !!repeatOrders, prior: structuredClone(m.extra[KEY]), tx, chatId, started: false, completed: false, beforeLastScan: structuredClone(cs?.lastScan), beforeOverdue: structuredClone(cs?.overdue || []), correction };
+        if (correction) completion = new Promise(resolve=>{attempt.finish=resolve;});
     } finally { guidedPreparing = false; }
     try {
-        const ok = await triggerSwipe();
+        const ok = await triggerSwipe({append:!!correction});
         if (!ok) throw new Error('Could not start the swipe.');
         if (guided && !guided.started) {
             const attempt = guided;
             setTimeout(() => { if (guided === attempt && !attempt.started) { guided = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); toast('warning', 'The swipe did not start. The extension is restoring the earlier world state.'); } }, 10000);
         }
-    } catch (e) { const attempt = guided; guided = null; if (attempt) await cancelGuided(attempt); throw e; }
+    } catch (e) { if (guided===attempt) { guided = null; await cancelGuided(attempt); } throw e; }
+    return completion;
 }
 
 export async function pickAgainNow() {

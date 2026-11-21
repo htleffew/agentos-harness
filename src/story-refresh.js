@@ -4,6 +4,7 @@ import { memoryComponents, memoryOnly } from './components.js';
 import { enabledV10 } from './v10.js';
 import { chapterBusy, refreshEditedStory } from './chapters.js';
 import { historySourceMark } from './history-source.js';
+import { chatWorld } from './world.js';
 import { invalidateAfterEdit, syncWorld } from './worldflow.js';
 import { addLog } from './log.js';
 
@@ -14,7 +15,7 @@ let deletionTimer;
 let deletion;
 
 const active = () => settings().enabled && !chatState()?.worldDetached && (!memoryOnly() && memoryComponents().world &&
-    (enabledV10() || settings().world.update!=='off') || memoryComponents().chapters);
+    (enabledV10() || chatWorld() && settings().world.update!=='off') || memoryComponents().chapters);
 const identity = message => message.send_date || message.extra?.[KEY]?.time || message;
 const chatKey = () => ctx().getCurrentChatId?.();
 

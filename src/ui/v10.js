@@ -5,7 +5,7 @@ import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
-import { ctx, KEY, isChatOpen, toast, isGenerating } from '../st.js';
+import { ctx, KEY, isChatOpen, toast, isGenerating, confirmBox } from '../st.js';
 import { settings, chatState, saveSettings, saveChatState } from '../store.js';
 import { acceptV10Opening, guideSwipe } from '../engine.js';
 import { saveV10Record } from '../worldflow.js';
@@ -43,16 +43,19 @@ function renderOpening(local, redraw) {
     },{'aria-label':'Opening source'});
     area.value = list[0] || '';
     const run = async (event, stateOnly) => {
+        if (card.disabled) return;
         const trigger = event.currentTarget;
-        trigger.disabled = true;
+        trigger.disabled = card.disabled = accept.disabled = area.disabled = direction.disabled = true;
         state.textContent = 'Preparing opening…';
         try {
             if (stateOnly && !area.value.trim()) throw new Error('Choose or enter a greeting first.');
             area.dataset.v10Draft='';
             draft = await draftOpening(stateOnly ? {text:area.value} : {direction:direction.value});
+            if (!stateOnly) card.value='new';
             area.value = draft.prose;
             state.textContent = 'Review the draft before using it. Edits are checked against the proposed story facts.';
-        } catch (error) { state.textContent = error.message; } finally { trigger.disabled = false; }
+        } catch (error) { state.textContent = error.message; }
+        finally {trigger.disabled=card.disabled=accept.disabled=area.disabled=direction.disabled=false;}
     };
     const accept = button('Use this opening',async () => {
         accept.disabled = true;
@@ -217,11 +220,14 @@ function editRecord(original, save, cancel, kinds) {
     const type = select(options(kinds.filter(k=>k===original?.kind || modules[KIND_MODULE[k]])),original?.kind || kinds.find(k=>modules[KIND_MODULE[k]]),render,{'aria-label':'Record type'});
     type.disabled = !!original;
     const root = h('div',{class:'ri-state-editor'});
-    const id = textInput(original?.id || '',()=>{}, {'aria-label':'Record ID'});
+    const id = textInput(original?.id || '',()=>{}, {'aria-label':'Record ID',disabled:!!original,maxLength:64});
     const subject = textInput(original?.subject || '',()=>{}, {'aria-label':'Subject or speaker'});
     const text = textArea(original?.text || '',()=>{}, {'aria-label':'Record text'});
     const lock = h('input',{type:'checkbox',checked:original?.protected ?? !original});
     const chosenLocks = new Set();
+    const dirty = () => {root.dataset.riDirty='';};
+    root.addEventListener('input',dirty);
+    root.addEventListener('change',dirty);
     function render() {
         const k = type.value;
         const inputs = {};
@@ -240,7 +246,7 @@ function editRecord(original, save, cancel, kinds) {
         };
         const axes = {};
         const profileLocks = {};
-        root.replaceChildren(scoped('Record type',type),scoped('Stable ID (letters, digits, hyphens)',id),scoped('Subject',subject),scoped('Record',text),
+        root.replaceChildren(scoped('Record type',type),scoped(original ? 'Record ID' : 'Record ID (optional)',id),scoped('Subject',subject),scoped('Record',text),
             h('label',{},lock,' Protect this record from automatic changes'));
         if (k === 'knowledge') root.append(choice('basis','Source type',['observed','reported','rumor','belief'],'observed'),flag('private','Limit to relevant character',true));
         if (k === 'fact') {
@@ -265,6 +271,7 @@ function editRecord(original, save, cancel, kinds) {
                     target.value = Array.isArray(source) ? source.join(', ') : source;
                     profileLocks[key].checked = false;
                     chosenLocks.add(key);
+                    dirty();
                 },{kind:'ghost'}) : null;
                 root.append(h('div',{class:'ri-row'},h('label',{},profileLocks[key],` Protect ${label.toLowerCase()}`),
                     info ? h('span',{class:'ri-help'},`Revision ${info.revision} · ${info.source}`) : null,reset));
@@ -293,6 +300,11 @@ function editRecord(original, save, cancel, kinds) {
             submit.disabled=true;
             try {
                 const value = {kind:k,id:id.value.trim(),subject:subject.value,text:text.value,protected:lock.checked};
+                if (!value.text.trim()) {text.focus();throw new Error('Enter the record text.');}
+                if (value.id && !/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(value.id)) {id.focus();throw new Error('Use a letter or number to start the record ID. Use letters, numbers, hyphens, or underscores.');}
+                if (['profile','knowledge','emotion','relationship','agenda'].includes(k) && !value.subject.trim()) {
+                    subject.focus();throw new Error('Enter the character’s name in Subject.');
+                }
                 for (const [key,input] of Object.entries(inputs)) {
                     if (key.startsWith('travel.')) {
                         if (!input.value.trim()) continue;
@@ -312,7 +324,7 @@ function editRecord(original, save, cancel, kinds) {
                     });
                     value.baseline=original?.baseline;
                 }
-                await save(value);
+                await save(value,{create:!original});
             } catch(error) {failure.textContent=error.message;submit.disabled=false;}
         },{kind:'primary'});
         root.append(h('div',{class:'ri-row'},submit,button('Cancel',cancel)),failure);
@@ -324,7 +336,11 @@ function editRecord(original, save, cancel, kinds) {
 function renderRecords(redraw, title, kinds) {
     const list = h('div');
     const editor = h('div');
-    const save = async value=>{await saveV10Record(value);redraw();};
+    const save = async (value,options)=>{await saveV10Record(value,options);redraw();};
+    const open = async record=>{
+        if (editor.querySelector('[data-ri-dirty]') && !await confirmBox('Discard your unsaved record edits?')) return;
+        editor.replaceChildren(editRecord(record,save,()=>editor.replaceChildren(),kinds));
+    };
     list.append(h('p',{class:'ri-help'},'Loading…'));
     rowsForWorld().then(rows=>{
         const records=rows.map(readRecord).filter(Boolean);
@@ -347,11 +363,11 @@ function renderRecords(redraw, title, kinds) {
             record.baseline?.sources?.length && h('p',{class:'ri-help'},`Sources · ${record.baseline.sources.join(' · ')}`),
             record.baseEntry && record.baseRelation==='contradicts' && h('p',{class:'ri-note'},'Base World conflict. This correction applies in this chat.'),
             h('p',{class:'ri-help'},[record.id,record.basis,record.status,record.protected?'Protected':'',record.source==='user'?'Edited by player':record.quote].filter(Boolean).join(' · ')),
-            button('Edit',()=>editor.replaceChildren(editRecord(record,save,()=>editor.replaceChildren(),kinds)))))
+            button('Edit',()=>open(record))))
             : [h('p',{class:'ri-help'},'No records yet.')]));
     }).catch(error=>list.replaceChildren(h('p',{role:'status'},error.message)));
     const canAdd = kinds.some(kind=>effectiveModules()[KIND_MODULE[kind]]);
-    return section(title,list,canAdd ? button('Add record',()=>editor.replaceChildren(editRecord(null,save,()=>editor.replaceChildren(),kinds))) : null,editor);
+    return section(title,list,canAdd ? button('Add record',()=>open(null)) : null,editor);
 
 }
 
@@ -538,7 +554,7 @@ export function renderV10(body, app, page) {
     if (page === 'v10') {
         body.append(presetDetails(preset,app));
         body.append(section('Roleplay Instructions extension',field('Story workflow for this chat',
-            'Memory only leaves writing, planning, checks, and reply rendering to the host preset. The structured and legacy workflows also run their enabled story features.',
+            'Structured enables the extension’s continuity controls and reply cards. Legacy uses the older story tools. Memory only keeps lore, summaries and auto-hiding active while the host preset handles writing and display.',
             select([{value:'inherit',label:`Automatic (${isCompanionPreset(preset) ? 'structured' : 'legacy'})`},
                 {value:'memory',label:'Memory only'}, {value:'on',label:'Structured story workflow'},
                 {value:'off',label:'Legacy story workflow'}],memoryOnly() ? 'memory' : mode(local.enabled),value=>{
@@ -558,7 +574,9 @@ export function renderV10(body, app, page) {
         return;
     }
     if (!enabledV10()) {
-        body.append(h('p',{class:'ri-note'},'Choose the Structured story workflow in Setup → Preset & Extension.'));
+        body.append(h('div',{class:'ri-note'},
+            h('p',{},'Choose the Structured story workflow to use this page.'),
+            button('Open workflow settings',()=>app.openPage('v10'),{kind:'ghost'})));
         return;
     }
     switch (page) {

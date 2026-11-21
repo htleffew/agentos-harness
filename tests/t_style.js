@@ -21,6 +21,7 @@ async function makeStyle(page, name) {
     const { browser, page, errors } = await L.open({ width: 1000, height: 1400 });
     try {
         await L.setupApi(page);
+        await page.evaluate(async B => (await import(`${B}/src/prompts.js`)).restorePrompt('style'), L.BASE);
         await L.setSettings(page, { showUnder: 'off', check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'off' } });
         // ---- A: style alone ----
         await L.openChat(page); L.resetLog();
@@ -87,7 +88,7 @@ async function makeStyle(page, name) {
         const content = await page.evaluate(async (n) => Object.values((await globalThis.SillyTavern.getContext().loadWorldInfo(n)).entries)[0].content, nm);
         assert(/write the story prose in this style: \{\{char\}\}'s mood: \{\{random::curious::focused/.test(content), 'C: the saved lorebook entry works with the extension off');
         await page.screenshot({ path: '/tmp/st2.png' });
-    } catch (e) { console.log('TEST ERROR', e.stack); await page.screenshot({ path: '/tmp/st_err.png' }); }
+    } catch (e) { process.exitCode = 1; console.log('TEST ERROR', e.stack); await page.screenshot({ path: '/tmp/st_err.png' }); }
     L.mode({});
     console.log('ERRORS', errors.slice(0, 10));
     await browser.close();

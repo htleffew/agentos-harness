@@ -177,9 +177,11 @@ export function renderSent(body, app) {
         body.appendChild(h('div', { class: 'ri-empty' }, 'Nothing has been sent in this chat yet. Turn an instruction set on for this chat in the Random Instructions tab, then send a message.'));
         return;
     }
+    let reply = 0;
+    const labels = (ctx().chat || []).map((message,index)=>index && isReply(message) ? 'Reply '+(++reply) : 'Opening');
     records.forEach((r, i) => {
         body.appendChild(foldCard(
-            [h('span', { class: 'ri-sent-title' }, `Reply ${r.id}${r.isLast ? ' (newest)' : ''}`), h('span', { class: 'ri-sent-sub' }, summaryLine(r.rec))],
+            [h('span', { class: 'ri-sent-title' }, labels[r.id]+(r.isLast ? ' (newest)' : '')), h('span', { class: 'ri-sent-sub' }, summaryLine(r.rec))],
             recordBody(r.id, r.rec, r.isLast, true), { open: i === 0, cls: 'ri-sentcard' }));
     });
 }

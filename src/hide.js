@@ -44,6 +44,17 @@ export function showAgain(marks, { persist = true } = {}) {
     return n;
 }
 
+/** Restore the exact hidden messages from a transaction that stopped. */
+export function hideAgain(marks) {
+    const wanted = new Set(marks || []);
+    (ctx().chat || []).forEach((m,index)=>{
+        if (!m || m.is_system || !wanted.has(messageMark(m,index))) return;
+        m.is_system = true;
+        try {globalThis.$?.(`.mes[mesid="${index}"]`)?.attr('is_system','true');}
+        catch { /* the screen catches up on reload */ }
+    });
+}
+
 
 /** Restore only messages previously hidden by this extension. */
 export function restoreChapterHistory({ persist = true } = {}) {

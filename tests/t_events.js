@@ -23,6 +23,7 @@ async function makeEvents(page, name, opts = {}) {
     const { browser, page, errors } = await L.open({ width: 1000, height: 1400 });
     try {
         await L.setupApi(page);
+        await page.evaluate(async B => (await import(`${B}/src/prompts.js`)).restorePrompt('event'), L.BASE);
         await L.setSettings(page, { showUnder: 'off', check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'off' } });
         // ---- A: dice and category rules ----
         await L.openChat(page); L.resetLog();
@@ -87,7 +88,7 @@ async function makeEvents(page, name, opts = {}) {
         await page.screenshot({ path: '/tmp/e3_list.png' });
         const wreq = L.requests().find(r => /story ingredients/.test(L.text(r)));
         console.log('--- items prompt ---\n' + L.text(wreq).slice(0, 1200));
-    } catch (e) { console.log('TEST ERROR', e.stack); await page.screenshot({ path: '/tmp/e_err.png' }); }
+    } catch (e) { process.exitCode = 1; console.log('TEST ERROR', e.stack); await page.screenshot({ path: '/tmp/e_err.png' }); }
     console.log('ERRORS', errors.slice(0, 10));
     await browser.close();
 })();

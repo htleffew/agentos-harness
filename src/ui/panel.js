@@ -14,7 +14,7 @@ import { renderContext } from './context-dashboard.js';
 import { renderCorrections } from './corrections.js';
 import { renderLog } from './log.js';
 import { onLog } from '../log.js';
-import { isChatOpen } from '../st.js';
+import { ctx, confirmBox, isChatOpen } from '../st.js';
 
 const GROUPS = [
     { id:'story', label:'Story', accent:'green', tabs:[
@@ -35,8 +35,12 @@ const GROUPS = [
 ];
 const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','portrayal','emotion','speakers','writing','checks']);
 
-function navigate(id, groupId) {
+async function navigate(id, groupId) {
     if (app.tab !== id) {
+        if (app.root?.querySelector('[data-ri-dirty]')) {
+            const chat = ctx().getCurrentChatId?.();
+            if (!await confirmBox('Discard your unsaved record edits?') || ctx().getCurrentChatId?.()!==chat) return;
+        }
         app.tab = id;
         app.resetScroll = true;
         render();
@@ -56,11 +60,13 @@ export const app = {
     home: null,
     missing: [],
     render,
+    setExpanded,
     openPage: navigate,
     go(route) { app.route = route; app.resetScroll = true; render(); app.root?.scrollIntoView?.({ block: 'start' }); },
 };
 
-function setExpanded(on) {
+async function setExpanded(on) {
+    if (app.root?.querySelector('[data-ri-dirty]') && !await confirmBox('Discard your unsaved record edits?')) return false;
     const st = settings();
     st.expanded = !!on;
     saveSettings();
@@ -69,12 +75,34 @@ function setExpanded(on) {
         if (!overlay) { overlay = h('div', { id: 'ri_overlay', class: 'ri-overlay' }); document.body.appendChild(overlay); }
         overlay.appendChild(app.root);
         app.root.classList.add('ri-expanded');
+        app.root.setAttribute('role','dialog');
+        app.root.setAttribute('aria-modal','true');
+        app.root.setAttribute('aria-label','Roleplay Instructions');
     } else {
         app.home.appendChild(app.root);
         app.root.classList.remove('ri-expanded');
+        for (const name of ['role','aria-modal','aria-label']) app.root.removeAttribute(name);
         document.getElementById('ri_overlay')?.remove();
     }
     render();
+    app.root.querySelector('[data-ri-expand]')?.focus({preventScroll:true});
+    return true;
+}
+
+function expandedKeyboard(event) {
+    if (!app.root.classList.contains('ri-expanded') || event.defaultPrevented) return;
+    if (event.key==='Escape' && event.target.tagName!=='SELECT') {
+        event.preventDefault();event.stopPropagation();
+        setExpanded(false);
+    }
+    if (event.key!=='Tab') return;
+    const tabbable = [...app.root.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]')]
+        .filter(node=>!node.disabled && node.tabIndex>=0 && node.getClientRects().length);
+    const first = tabbable[0], last = tabbable.at(-1);
+    if (event.shiftKey && event.target===first || !event.shiftKey && event.target===last) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+    }
 }
 
 export function render() {
@@ -90,12 +118,15 @@ export function render() {
     app.root.style.minHeight = `${app.root.offsetHeight}px`;
     clear(app.root);
 
+    const expand = button(expanded ? 'Close full screen' : 'Expand', () => setExpanded(!expanded),
+        {kind:'ghost',title:expanded ? 'Go back to the small panel' : 'Show this panel full screen'});
+    expand.dataset.riExpand='';
     const head = h('div', { class: 'ri-head' },
         h('div', { class: 'ri-title' }, 'Roleplay Instructions'),
         h('div', { class: 'ri-head-right' },
             h('span', { class: 'ri-onoff' }, st.enabled ? 'On' : 'Off'),
             toggle(st.enabled, (v) => { st.enabled = v; saveSettings(); render(); }, 'Turn the whole extension on or off'),
-            button(expanded ? 'Close full screen' : 'Expand', () => setExpanded(!expanded), { kind: 'ghost', title: expanded ? 'Go back to the small panel' : 'Show this panel full screen' })));
+            expand));
 
     const categories = h('nav',{class:'ri-categories','aria-label':'Roleplay sections'},
         GROUPS.map(item=>h('button',{type:'button',class:'ri-category','data-ri-group':item.id,
@@ -109,7 +140,8 @@ export function render() {
     app.body = h('div', { id:'ri_panel_page', class: 'ri-body' });
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));
-    if (!isChatOpen() && app.tab !== 'settings' && app.tab !== 'log') app.body.appendChild(h('div', { class: 'ri-note' }, 'No chat is open. Open a chat to turn instruction sets on for it and to see what was sent.'));
+    if (!isChatOpen() && app.tab !== 'settings' && app.tab !== 'log') app.body.appendChild(h('div', { class: 'ri-note' },
+        'Open a character chat to use the '+(group.tabs.find(([id])=>id===app.tab)?.[1] || 'story')+' controls.'));
 
     if (app.tab === 'instructions') renderInstructions(app.body, app);
     else if (app.tab === 'events') renderEvents(app.body, app);
@@ -136,6 +168,7 @@ export function mount(missing) {
         if (!host) { setTimeout(tryMount, 400); return; }
         if (document.getElementById('ri_drawer')) return;
         app.root = h('div', { id: 'ri_root', class: 'ri-root' });
+        app.root.addEventListener('keydown',expandedKeyboard);
         app.home = h('div', { class: 'inline-drawer-content ri-home' }, app.root);
         const drawer = h('div', { id: 'ri_drawer', class: 'ri-drawer' },
             h('div', { class: 'inline-drawer' },

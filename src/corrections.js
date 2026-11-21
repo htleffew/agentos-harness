@@ -24,14 +24,24 @@ function origins(chat, wid) {
     const map = new Map();
     chat.forEach((message,index)=>{
         const rec = message.extra?.[KEY];
-        if (!rec?.update || rec.update.world!==wid) return;
+        if (!rec?.update || rec.update.undone || rec.stateStale || rec.update.world!==wid) return;
         for (const change of rec.update.changes || []) {
             const values = map.get(change.uid) || [];
-            if (!values.includes(index)) values.push(index);
+            values.push({index,change});
             map.set(change.uid,values);
         }
     });
     return map;
+}
+
+function fieldOrigins(history, field, structured) {
+    const read = value => parseJson(String(value || ''),{object:true})?.[field];
+    return [...new Set(history.filter(({change})=>{
+        if (change.type==='create') return structured ? !!read(change.entry?.fields?.data) : !!change.entry?.fields?.[field];
+        return change.type==='set' && (structured
+            ? change.field==='data' && read(change.before)!==read(change.after)
+            : change.field===field);
+    }).map(({index})=>index))];
 }
 
 async function sourceInventory(target) {
@@ -47,14 +57,16 @@ async function sourceInventory(target) {
     for (const row of rows) {
         const record = readRecord(row);
         const sourceIndex = chat.findIndex(message=>record?.source && String(message.extra?.[KEY]?.time)===String(record.source));
-        const history = ledger.get(row.uid) || [];
-        const evidenceAt = sourceIndex>=0 ? sourceIndex : (history[0] ?? -1);
         const extra = {kind:'world',book:worldName,uid:row.uid,record:record?.id,subject:record?.subject || row.name,
-            evidenceAt,copies:history,quote:record?.quote,span:row.span,active:row.on};
+            span:row.span,active:row.on};
         const fields = record ? structuredFields.map(key=>[key,key[0].toUpperCase()+key.slice(1),record[key]]) :
             WORLD_KINDS[row.kind].fields.map(spec=>[spec.key,spec.label,row.fields[spec.key]]);
-        for (const [field,label,value] of fields) add(['world',row.uid,field].join(':'),
-            [worldName,row.name,label].join(' / '),value,{...extra,field});
+        for (const [field,label,value] of fields) {
+            const copies = fieldOrigins(ledger.get(row.uid) || [],field,!!record);
+            const evidenceAt = sourceIndex>=0 && field==='text' ? sourceIndex : (copies.at(-1) ?? -1);
+            add(['world',row.uid,field].join(':'),[worldName,row.name,label].join(' / '),value,
+                {...extra,field,evidenceAt,copies,quote:field==='text' ? record?.quote : ''});
+        }
     }
     chat.forEach((message,index)=>{
         if (!isStory(message) || !message.mes) return;
@@ -67,7 +79,7 @@ async function sourceInventory(target) {
             record?.sceneSnapshotEdits?.[field] ?? record?.scene?.[field],{kind:'scene',index,field,identity,evidenceAt:index});
     });
     const base = baseWorld(target.root?.v10);
-    const books = chatBooks().filter(book=>book.name!==worldName && book.name!==base?.name && book.exists &&
+    const books = chatBooks().filter(book=>book.name!==worldName && book.name!==base?.name && book.exists && book.active &&
         book.roles.some(role=>/^Host |^Knowledge & Reference$|^Behavior & Guidelines$/.test(role)));
     const data = await Promise.all(books.map(async book=>({book:book.name,entries:(await loadBook(book.name).catch(()=>null))?.entries})));
     if (base) data.unshift({book:base.name,entries:base.entries});
@@ -82,28 +94,38 @@ async function sourceInventory(target) {
     return {sources,worldData};
 }
 
-export async function findCorrectionSources({ truth, wording = '', focus = -1 } = {}) {
+export function beginStoryCorrection({ truth, wording = '', focus = -1 } = {}) {
     const target = scope();
     if (!target.root || !settings().enabled) throw new Error('Open a chat with the extension enabled.');
     if (!trim(truth)) throw new Error('Describe the correction first.');
-    await worldIdle();
-    const {sources} = await sourceInventory(target);
-    const wanted = correctionTerms(truth+' '+wording);
-    const exact = trim(wording).toLowerCase();
-    const number = focus>=0 ? target.chat.slice(1,focus+1).filter(isReply).length : -1;
-    const ranked = sources.map(source=>{
-        const words = new Set(correctionTerms(source.label+' '+source.before));
-        let score = wanted.reduce((total,word)=>total+Number(words.has(word)),0);
-        if (exact && source.before.toLowerCase().includes(exact)) score+=50;
-        if (focus>=0 && source.evidenceAt===focus) score+=15;
-        if (focus>=0 && source.copies?.includes(focus)) score+=12;
-        if (number>=0 && source.span?.chat===target.id && source.span.from<=number && source.span.to>=number) score+=3;
-        return {...source,score};
-    }).filter(source=>source.score>0).sort((a,b)=>b.score-a.score || Number(a.active===false)-Number(b.active===false));
-    return {target,truth:trim(truth).slice(0,1000),wording:trim(wording),focus,sources:ranked};
+    return {target,truth:trim(truth).slice(0,1000),wording:trim(wording),focus,sources:[],candidates:[]};
 }
 
-function excerpt(source, terms, max = 900) {
+export async function findCorrectionSources(options) {
+    const review = beginStoryCorrection(options);
+    const {target,truth,wording,focus} = review;
+    await worldIdle();
+    const {sources} = await sourceInventory(target);
+    const wanted = correctionTerms(truth);
+    const exact = wording.toLowerCase();
+    const focusIndex = focus>=0 ? focus : target.chat.findLastIndex(isReply);
+    const ranked = sources.map(source=>{
+        const terms = new Set(correctionTerms(source.before));
+        const matches = wanted.filter(term=>terms.has(term));
+        const exactMatch = exact && source.before.toLowerCase().includes(exact);
+        const focusMatch = source.evidenceAt===focusIndex || source.copies?.includes(focusIndex);
+        const labelMatch = correctionTerms(source.subject || source.label).some(term=>wanted.includes(term));
+        return {...source,exactMatch,matches,focusMatch,labelMatch};
+    }).sort((a,b)=>Number(!!b.exactMatch)-Number(!!a.exactMatch) || b.matches.length-a.matches.length ||
+        Number(!!b.focusMatch)-Number(!!a.focusMatch) || Number(a.active===false)-Number(b.active===false));
+    review.sources = ranked.filter(source=>exact ? source.exactMatch :
+        source.matches.length>=2 || wanted.length===1 && source.matches.length===1);
+    review.candidates = ranked.filter(source=>source.exactMatch || source.matches.length ||
+        source.kind==='message' && source.focusMatch || source.labelMatch && source.focusMatch);
+    return review;
+}
+
+export function correctionExcerpt(source, terms, max = 900) {
     if (source.before.length<=max) return source.before;
     const lower = source.before.toLowerCase();
     const points = terms.map(term=>lower.indexOf(term)).filter(i=>i>=0);
@@ -116,8 +138,8 @@ export async function suggestCorrectionEdits(review) {
     const probes = [];
     const terms = [review.wording.toLowerCase(),...correctionTerms(review.truth)].filter(Boolean);
     let total = 0;
-    for (const source of review.sources) {
-        const probe = {id:source.id,source:source.label,text:excerpt(source,terms),evidence:source.quote};
+    for (const source of review.candidates) {
+        const probe = {id:source.id,source:source.label,text:correctionExcerpt(source,terms),evidence:source.quote};
         total += JSON.stringify(probe).length;
         if (total>30000) break;
         probes.push(probe);
@@ -125,7 +147,7 @@ export async function suggestCorrectionEdits(review) {
     if (!probes.length) return [];
     const result = await request({what:'Trace a story correction',system:promptText('traceCorrection'),
         user:JSON.stringify({correction:review.truth,wrongWording:review.wording,sourceExcerpts:probes}),
-        tokens:2000,profileId:settings().profileId});
+        tokens:2000,profileId:settings().profileId,retryEmpty:false});
     if (!matchesScope(review.target)) throw new Error('The chat changed while tracing this correction.');
     const value = parseJson(result.text,{object:true});
     if (!Array.isArray(value?.edits)) {
@@ -135,7 +157,7 @@ export async function suggestCorrectionEdits(review) {
     const edits = [];
     for (const draft of value.edits.slice(0,50)) {
         const probe = probes.find(item=>item.id===draft?.id);
-        const source = review.sources.find(item=>item.id===draft?.id);
+        const source = review.candidates.find(item=>item.id===draft?.id);
         if (!probe || typeof draft.quote!=='string' || !draft.quote.trim() || !probe.text.includes(draft.quote) ||
             typeof draft.replacement!=='string' || draft.replacement.length>5000 || edits.some(edit=>edit.id===source.id)) continue;
         if (draft.quote!==draft.replacement && replaceUnique(source.before,draft.quote,draft.replacement)!==null) {
@@ -162,10 +184,11 @@ export async function applyStoryCorrection(review, edits, truth = review.truth) 
     return enqueue(async () => {
         const target = review.target, {root,chat,world} = target;
         if (!matchesScope(target) || root.branchPendingWorld) throw new Error('The Story World changed. Trace the correction again.');
-        const {sources,worldData} = await sourceInventory(target);
+        if (isGenerating()) throw new Error('Wait for the current reply to finish.');
+        const {sources,worldData} = edits.length ? await sourceInventory(target) : {sources:[]};
         const changes = [];
         for (const edit of edits) {
-            const expected = review.sources.find(source=>source.id===edit.id);
+            const expected = [...review.sources,...review.candidates].find(source=>source.id===edit.id);
             const source = sources.find(item=>item.id===edit.id);
             if (!expected || !source || expected.before!==source.before || expected.identity!==source.identity ||
                 changes.some(change=>change.id===source.id)) throw new Error('A proposed source changed. Trace the correction again.');

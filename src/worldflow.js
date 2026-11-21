@@ -16,7 +16,7 @@ import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
 import { rollInt, pickWeighted, setInfo, entriesOf, createSet, knownSets } from './books.js';
 import { worldOffers, rememberStory } from './pacing.js';
-import { showAgain } from './hide.js';
+import { showAgain, hideAgain, messageMark } from './hide.js';
 import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, isWorldEntry, readWorldEntry, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
@@ -743,7 +743,7 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
         try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
         const shown = shownChanges(changes);
         if (options.v10 && parsed.modern) {
-            addLog({what:'Story state update',ok:rec.v10Invalid ? null : true,
+            addLog({what:'Story state update',ok:rec.v10Invalid ? null : true,status:rec.v10Invalid ? 'Partial update' : '',
                 result:rec.v10Invalid ? 'Some update fields failed validation. Affected records kept their last valid value.' : `${shown.length} world changes recorded.`,
                 details:shown.map(describeChange),got:''});
         } else if (parsed.found || shown.length) {
@@ -752,7 +752,7 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
                 : `${shown.length} ${shown.length === 1 ? 'change was' : 'changes were'} made by the clock. The reply had no update block.`,
                 details: shown.map(describeChange), got: parsed.block });
         } else if (o.update !== 'off' && !ooc) {
-            addLog({ what: 'Story world update', ok: null, result: 'The reply had no update block, so nothing was filed from it. This is normal now and then. If it happens every time, the model is leaving the block out.', details: [], got: '' });
+            addLog({what:'Story world update',status:'No changes',result:'The reply had no update block, so nothing was filed.'});
         }
         onDone?.();
     }, options);
@@ -1120,7 +1120,7 @@ export function undoForSwipe() {
 }
 
 /** Prepare a guided swipe transaction without overwriting user-edited world facts. */
-export function prepareGuidedSwipe(id, {keepManualEdits = false} = {}) {
+export function prepareGuidedSwipe(id, {keepManualEdits = false, correction} = {}) {
     return enqueue(async () => {
         const c = ctx(), cs = chatState(), m = c.chat?.[id], rec = m?.extra?.[KEY];
         if (!cs || !m || id !== c.chat.length - 1 || m.is_user || m.is_system) throw new Error('The latest character reply is no longer selected.');
@@ -1139,17 +1139,32 @@ export function prepareGuidedSwipe(id, {keepManualEdits = false} = {}) {
         const data = await loadWorld(item.world);
         if (!data) throw new Error('The story world could not be read.');
         const before = structuredClone(data), after = structuredClone(data);
-        const unsupported = item.changes.find(x => !['set', 'status', 'off', 'create', 'clock'].includes(x.type) || (x.type === 'clock' && !Object.hasOwn(x, 'afterAt')) || (x.type === 'status' && !Object.hasOwn(x, 'afterAt') && !/ordered into the scene/.test(x.why || '')));
+        const unsupported = item.changes.find(x => !['set','status','off','create','clock'].includes(x.type) && !(correction && x.type==='hide') || (x.type === 'clock' && !Object.hasOwn(x, 'afterAt')) || (x.type === 'status' && !Object.hasOwn(x, 'afterAt') && !/ordered into the scene/.test(x.why || '')));
         if (unsupported) throw new Error('This reply changed chapter or timing data that cannot be safely reversed automatically. Review the story world before guiding a swipe.');
         const corrections = keepManualEdits && rec?.v10
             ? new Set((cs.manualWorldChanges || []).filter(change=>change.world===item.world && change.anchor===`record:${rec.time}`).map(change=>change.uid))
             : new Set();
-        const reversible = item.changes.filter(x => ['set','status','off','create','clock'].includes(x.type) && !corrections.has(x.uid));
+        const reviewed = (correction?.sources || []).filter(source=>source.kind==='world');
+        const preserve = change => reviewed.some(source=>source.uid===change.uid &&
+            (change.type==='create' || change.field==='data' || change.field===source.field));
+        for (const source of reviewed) corrections.delete(source.uid);
+        const reversible = item.changes.filter(x=>x.type!=='hide' && !corrections.has(x.uid) && !preserve(x));
         if (revertChanges(after, item.world, reversible) !== reversible.length) throw new Error('Some world facts were changed since this reply. Review them in Story World before guiding a swipe; nothing was changed.');
         await saveWorld(item.world, after);
-        Object.assign(tx, { world: item.world, before, after: structuredClone(after) });
+        const hides = new Set(item.changes.filter(change=>change.type==='hide').flatMap(change=>change.dates || []));
+        const hidden = (c.chat || []).flatMap((message,index)=>message.is_system && hides.has(messageMark(message,index)) ? [messageMark(message,index)] : []);
+        showAgain(hidden,{persist:false});
+        Object.assign(tx, { world: item.world, before, after: structuredClone(after), hidden });
         return tx;
     }, { propagate: true });
+}
+
+export function acceptGuidedSwipe(tx) {
+    return enqueue(async()=>{
+        if (!tx || String(ctx().getCurrentChatId?.() || '')!==tx.chat || !chatState()) return;
+        delete worldLog(chatState()).items[tx.time];
+        saveChatState();
+    });
 }
 
 /** On an aborted guided swipe, restore only if the world has not changed since rollback. */
@@ -1167,7 +1182,10 @@ export function restoreGuidedSwipe(tx) {
             await saveWorld(tx.world, tx.before);
         }
         if (cs && tx.item) worldLog(cs).items[tx.time] = tx.item;
-        if (cs) saveChatState();
+        if (cs) {
+            hideAgain(tx.hidden);
+            saveChatState();
+        }
         return true;
     }, { propagate: true });
 }
@@ -1189,7 +1207,7 @@ export function undoReplyChanges(id, onDone) {
 }
 
 /** Explicit character/plot edits use the same native book and branch history. */
-export async function saveV10Record(input) {
+export async function saveV10Record(input, {create = false} = {}) {
     if (!enabledV10()) throw new Error('Enable the v10 story tools first.');
     const cs = chatState();
     const wid = await ensureWorld();
@@ -1199,7 +1217,19 @@ export async function saveV10Record(input) {
         if (!data) throw new Error('Could not load the story world.');
         if (chatState() !== cs) throw new Error('The chat changed.');
         const rows = listWorld(data,wid);
-        const record = normalizeRecord(input,{ modules:effectiveModules(), rows:recordMap(rows), sceneId:(ctx().chat || []).map(message=>message.extra?.[KEY]?.v10SceneId).filter(Boolean).at(-1), base:baseWorld(), manual:true });
+        const records = recordMap(rows);
+        if (create) {
+            const ids = new Set(rows.map(row=>readRecord(row)?.id).filter(Boolean));
+            if (input.id && ids.has(input.id)) throw new Error('That record ID is already used. Choose a different ID.');
+            if (!input.id) {
+                const slug = String(input.subject || input.text || '').toLowerCase().replace(/[^a-z0-9]+/g,'-')
+                    .replace(/^-+|-+$/g,'').slice(0,42).replace(/-$/,'') || input.kind;
+                let id = slug;
+                for (let number=2;ids.has(id);number++) id=`${slug}-${number}`;
+                input = {...input,id};
+            }
+        }
+        const record = normalizeRecord(input,{ modules:effectiveModules(), rows:records, sceneId:(ctx().chat || []).map(message=>message.extra?.[KEY]?.v10SceneId).filter(Boolean).at(-1), base:baseWorld(), manual:true });
         if (!record) throw new Error('The record has missing or invalid fields.');
         const kind = record.kind === 'seed' ? 'payoff' : record.kind;
         const w = rows.find(row => readRecord(row)?.id === record.id) || newWorldEntry(data,kind);

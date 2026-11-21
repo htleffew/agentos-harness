@@ -77,7 +77,7 @@ const progress = (page) => page.evaluate(async (BASE) => { const G = await impor
         assert(state.on && state.steps === 5 && state.actions === 5 && state.goal === '{{char}} wants {{user}} to trust {{char.them}}', 'E: "Use this goal" fills the goal, 5 steps and 5 actions and turns it on');
         await page.evaluate(() => document.querySelector('#ri_root .ri-body').scrollTo(0, 0));
         await page.screenshot({ path: '/tmp/g2.png' });
-    } catch (e) { console.log('TEST ERROR', e.stack); await page.screenshot({ path: '/tmp/g_err.png' }); }
+    } catch (e) { process.exitCode = 1; console.log('TEST ERROR', e.stack); await page.screenshot({ path: '/tmp/g_err.png' }); }
     L.mode({});
     console.log('ERRORS', errors.slice(0, 10));
     await browser.close();
