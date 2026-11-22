@@ -41,7 +41,7 @@ export function renderLog(body,app) {
             redrawLog('#ri-clear-log');
         },{kind:'primary'})));
     body.appendChild(h('div', { class: 'ri-intro' }, 'See what the extension sent, what came back, and why a request failed. The last 120 entries stay on this device.'));
-    body.appendChild(h('div', { class: 'ri-row' },
+    const controls=h('div', { class: 'ri-row' },
         button('Copy the log', async () => {
             const text = logText();
             try { await navigator.clipboard.writeText(text); report('Copied the complete request log.'); }
@@ -53,7 +53,10 @@ export function renderLog(body,app) {
         button('Save the log as a file', () => {
             report(download('roleplay-instructions-log.txt',logText()) ? 'Requested a download of the complete log.' : 'The file could not be saved.');
         }, { kind: 'ghost', disabled: !list.length }),
-        clear),confirmation,status);
+        clear);
+    body.append(controls);
+    if (confirmation) body.append(confirmation);
+    body.append(status);
     if (!list.length) {
         body.appendChild(h('div', { class: 'ri-empty' }, 'The log is empty. It fills in when you press one of the "with AI" buttons, or when a reply is checked.'));
         return;
