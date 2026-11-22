@@ -55,16 +55,16 @@ function nativeStoryAvailable(family, target) {
     return typeof host.swipe?.right === 'function';
 }
 
-export function guidedPreview(family, { target, freshStart = false, mode = 'draft', fixFacts = false, forceHelper = false } = {}) {
+export function guidedPreview(family, { target, freshStart = false, mode = 'draft', fixFacts = false, forceHelper = false, suggestions } = {}) {
     const host = ctx(), draft = family === 'draft';
-    const label = modes[draft ? mode : family];
+    const label = suggestions?.label || modes[draft ? mode : family];
     const story = family === 'swipe' || family === 'continue';
     const base = draft && draftImpersonation({ mode: 'helper', operation: modelFunctions[mode] });
     const nativeDraft = draft && mode === 'draft' && !forceHelper && nativeDraftAvailable(base);
     const nativeStory = story && nativeStoryAvailable(family, target);
     const operation = draft ? modelFunctions[mode] : nativeStory ? family : family === 'continue' ? 'historicalContinue' : 'historicalSwipe';
     const route = nativeDraft ? 'Native impersonation' : nativeStory ? family === 'swipe' ? 'Host swipe' : 'Host continuation' :
-        draft ? 'Player-only helper' : 'Bounded reply helper';
+        suggestions ? 'Composer suggestions' : draft ? 'Player-only helper' : 'Bounded reply helper';
     const history = freshStart ? (nativeStory ? freshHistoryCapability() : 'substituted') : (nativeStory ? 'ordinary' : 'bounded');
     const targetPreview = target && { chatId: target.chatId, index: target.index, swipe: target.swipe,
         fingerprint: target.fingerprint, label: `${target.name} · swipe ${target.swipe + 1}` };
@@ -99,7 +99,7 @@ const candidateText = (value, { line = false } = {}) => {
     return firstPersonSubject.test(text) || dialogue ? text : '';
 };
 
-export function parsePlayerChoices(raw) {
+export function parsePlayerChoices(raw, count = choiceCount, general = false) {
     const text = String(raw ?? '').trim();
     const start = text.indexOf('['), stop = text.lastIndexOf(']');
     let values = [];
@@ -122,8 +122,9 @@ export function parsePlayerChoices(raw) {
     }
     const line = !values.length;
     if (line) values = [...text.matchAll(/^[ \t]*(?:[-*•]|\d+[.)]|\(\d+\))[ \t]+(\S[^\n]*)/gm)].map(match => match[1]);
-    const choices = [...new Set(values.map(value => candidateText(value, { line })).filter(Boolean))].slice(0, choiceCount);
-    return { choices, partial: repaired || choices.length < choiceCount || values.length > choices.length, raw: text };
+    const clean = general ? value => typeof value === 'string' ? value.trim() : '' : value => candidateText(value, { line });
+    const choices = [...new Set(values.map(clean).filter(Boolean))].slice(0, count);
+    return { choices, partial: repaired || choices.length < count || values.length > choices.length, raw: text };
 }
 
 function playerRequest(mode, route, context, direction, choice, freshStart) {
@@ -216,15 +217,19 @@ async function nativePlayerDraft(prompt, options) {
 }
 
 async function runPlayer(preview, context, options) {
-    const { mode, target, direction, choice, freshStart, onReceipt, owner, signal } = options;
+    const { mode, target, direction, choice, freshStart, onReceipt, owner, signal, suggestions } = options;
     if (mode === 'expand' && !String(choice ?? '').trim()) throw new Error('Select wording to expand first.');
-    const payload = playerRequest(mode, preview.nativeDraft ? 'native' : 'helper', context, direction, choice, freshStart);
+    const count = suggestions?.count || choiceCount;
+    const payload = suggestions ? {
+        instructions:[suggestions.prompt, `Return a JSON array of exactly ${count} distinct suggestions as strings.`],
+        user:[context.text,direction].filter(Boolean).join('\n\n'),
+    } : playerRequest(mode, preview.nativeDraft ? 'native' : 'helper', context, direction, choice, freshStart);
     const callOptions = { authorization: 'manual', target: preview.target, onReceipt, signal };
     let raw, note, receipt;
     if (preview.nativeDraft) ({ value: raw, receipt } = await nativePlayerDraft(payload, callOptions));
     else ({ text: raw, note, receipt } = await request({ ...callOptions, operation: preview.operation, what: preview.label,
         system: literalGuidedInput(payload.instructions.join('\n\n')), user: literalGuidedInput(payload.user),
-        tokens: mode === 'choices' ? 900 : 650, useProfilePreset: false }));
+        tokens: suggestions ? Math.max(900,count * 250) : mode === 'choices' ? 900 : 650, useProfilePreset: false }));
     const details = { route: preview.route, history: receipt.history || { mode: preview.history, observed: true } };
     try {
         signal.throwIfAborted();
@@ -237,9 +242,9 @@ async function runPlayer(preview, context, options) {
         throw Object.assign(error, { receipt });
     }
     if (mode === 'choices') {
-        const result = parsePlayerChoices(raw);
+        const result = parsePlayerChoices(raw,count,!!suggestions);
         const ok = result.choices.length > 0;
-        amendExecutionReceipt(receipt, { ...details, result: `${result.choices.length} of ${choiceCount} playable choices.`,
+        amendExecutionReceipt(receipt, { ...details, result: `${result.choices.length} of ${count} ${suggestions?'options':'playable choices'}.`,
             ...(!ok && { outcome: 'failed', partialText: raw }) }, onReceipt);
         note?.(receipt.result, ok);
         return { ok, receipt, ...result };
@@ -374,13 +379,13 @@ async function runNativeStory(family, preview, context, { target, direction, fre
 
 export async function runGuidedTurn(family, { target = guidedTarget(), cues = [], direction = '', freshStart = false, mode = 'draft',
     composer = readComposer()?.text ?? '', choice = '', fixFacts = false, repairOnly = false, repair, repeatOrders = false,
-    rerollDice = false, keepManualEdits = false, quickCheck = '', roll, forceHelper = false, onReceipt } = {}) {
+    rerollDice = false, keepManualEdits = false, quickCheck = '', roll, forceHelper = false, onReceipt, suggestions } = {}) {
     if (!['swipe', 'continue', 'draft'].includes(family)) throw new Error('Select a guided reply action.');
     const owner = chatOwner();
     const requireOwner = () => {
         if (!ownsChat(owner)) throw new DOMException('The chat changed while preparing the guided action.', 'AbortError');
     };
-    const preview = guidedPreview(family, { target, mode, freshStart, fixFacts, forceHelper });
+    const preview = guidedPreview(family, { target, mode, freshStart, fixFacts, forceHelper, suggestions });
     if (!preview.available && !repairOnly) throw new Error(preview.reason);
     if (isGenerating() || running) throw new Error('Wait for the current guided action to finish.');
     if (target) validateTurnTarget(target);
@@ -402,7 +407,7 @@ export async function runGuidedTurn(family, { target = guidedTarget(), cues = []
         signal.throwIfAborted();
         requireOwner();
         running.dispatching = true;
-        const options = { target, direction: complete, freshStart, mode, choice, onReceipt, repair, repeatOrders, rerollDice, keepManualEdits, owner, roll, signal, cues };
+        const options = { target, direction: complete, freshStart, mode, choice, onReceipt, repair, repeatOrders, rerollDice, keepManualEdits, owner, roll, signal, cues, suggestions };
         if (family === 'draft') return await runPlayer(preview, context, options);
         const defaultDirection = 'Write a new version of this reply from the current point in the story.';
         const result = preview.nativeStory ? await runNativeStory(family, preview, context, { ...options,

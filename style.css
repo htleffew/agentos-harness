@@ -677,8 +677,10 @@ button.ri-glance-card:hover { border-color: var(--card-ink); }
 }
 .ri-quick-toolbar {
     display: flex;
-    justify-content: center;
-    gap: 4px;
+    justify-content: safe center;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 0;
     box-sizing: border-box;
     width: 100%;
     padding-inline: 6px;
@@ -705,11 +707,11 @@ button.ri-glance-card:hover { border-color: var(--card-ink); }
     line-height: 1.2;
     cursor: pointer;
 }
-.ri-quick-toolbar button { flex: 0 1 auto; max-width: 11em; }
+.ri-quick-toolbar button { flex: 0 0 44px; position: relative; font-size: 1rem; }
+.ri-quick-generates::after { content: ''; position: absolute; right: 8px; top: 8px; width: 5px; height: 5px; transform: rotate(45deg); background: #efbb67; }
 .ri-quick-toolbar .fa-solid, .ri-quick-entry .fa-solid { color: var(--ri-toolbar-icon); }
 .ri-quick-entry { align-self: center; color: var(--SmartThemeBodyColor, #fff); }
 .ri-quick-entry[aria-expanded='true'] { background: color-mix(in srgb, currentColor 12%, transparent); }
-.ri-quick-shortcut-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ri-quick-toolbar button:active, .ri-quick-entry:active {
     background: color-mix(in srgb, currentColor 16%, transparent);
 }
@@ -720,7 +722,11 @@ button.ri-glance-card:hover { border-color: var(--card-ink); }
 }
 .ri-quick-toolbar[hidden], .ri-quick-entry[hidden] { display: none !important; }
 #ri-composer-settings summary { min-height: 44px; white-space: normal; }
-#ri-composer-settings .ri-quick-row { align-items: center; }
+#ri-composer-settings .ri-quick-row { align-items: flex-start; }
+.ri-composer-slot { flex: 1 1 15rem; min-width: 0; }
+.ri-composer-suggestion-settings { margin-block-end: 12px; }
+.ri-suggestion-placeholder { min-height: 68px; }
+.ri-suggestion-text { white-space: pre-wrap; }
 /* The sheet follows the visual viewport when the keyboard is present. */
 .ri-quick-overlay {
     position: fixed;

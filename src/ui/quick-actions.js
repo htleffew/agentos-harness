@@ -1,5 +1,6 @@
 import { ctx, heldGroupContinuationComposer, isChatOpen, isGenerating, KEY, on } from '../st.js';
-import { saveChatState, saveSettings, settings } from '../store.js';
+import { canonSet, knownSets, setName } from '../books.js';
+import { chatState, saveChatState, saveSettings, settings } from '../store.js';
 import { memoryOnly } from '../components.js';
 import { app } from './panel.js';
 import { taskLabels } from './destinations.js';
@@ -7,7 +8,7 @@ import { button, field, h, select, textArea, textInput, captureView, restoreView
 import { executionDetails } from './execution.js';
 import { executionPreview } from '../execution.js';
 import { impersonationInspector } from './impersonation.js';
-import { listQuickActions, loadQuickActionSources, quickActionOwner, QUICK_ACTION_FAMILIES, readQuickAction, resolveQuickAction, rollQuickActionDie } from '../quick-actions.js';
+import { listQuickActions, loadQuickActionSources, quickActionOwner, QUICK_ACTION_FAMILIES, readQuickAction, resolveQuickAction, rollQuickAction, rollQuickActionDie } from '../quick-actions.js';
 import { renderQuickActionLibrary } from './quick-action-library.js';
 import { cancelGuidedTurn, guidedPreview, guidedTarget, guidedVersions, runGuidedTurn, selectGuidedVersion, undoGuidedContinuation } from '../guided-turns.js';
 import { freshHistoryCapability } from '../guided-context.js';
@@ -89,6 +90,7 @@ function enterSheet() {
 
 function closeSheet({restore = true} = {}) {
     if (!overlay) return;
+    if (session?.view==='suggestions') stopSuggestions(session.suggestions);
     const resume=returnToPanel;
     returnToPanel=null;
     overlay.removeEventListener('focusin',enterSheet);
@@ -129,7 +131,7 @@ function tabInSheet(event) {
     }
 }
 
-export function openQuickActions(family, index, trigger = document.activeElement, returning, resumePanel, action) {
+export function openQuickActions(family, index, trigger = document.activeElement, returning, resumePanel, action, suggestions) {
     if (!isChatOpen() || !settings().enabled) return;
     knownChat = quickChatIdentity();
     session = sessions.get(knownChat);
@@ -166,7 +168,11 @@ export function openQuickActions(family, index, trigger = document.activeElement
         restoreView(overlay.querySelector('.ri-quick-scroll'),returning.snapshot,overlay.querySelector('#ri-quick-heading'));
         return;
     }
-    if (family) chooseFamily(family, index);
+    if (suggestions) {
+        session.suggestions = {config:suggestions,composer:input?.value || ''};
+        session.view = 'suggestions';
+        generateSuggestions(session.suggestions);
+    } else if (family) chooseFamily(family, index);
     else renderSheet();
     if (action) selectFavorite(editorFor(family), {reference:action.id,title:action.title}, true);
     // Move from a focused composer into an editor when the shortcut has one.
@@ -786,10 +792,11 @@ function renderSheet() {
     if (view==='root') content=rootView();
     else if (view==='family') ({content,footer}=familyView(editorFor(family)));
     else if (view==='pending') content=pendingView();
+    else if (view==='suggestions') content=suggestionResults(session.suggestions);
     else content=catalogView(view);
     const header = h('header',{class:'ri-quick-header'},
         session.history.length>0 && button('Back',backInSheet),
-        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',browse:taskLabels.browse,add:QUICK_ACTION_FAMILIES[family]?.add})[view] || families[family].title),
+        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',suggestions:session.suggestions?.config.label,browse:taskLabels.browse,add:QUICK_ACTION_FAMILIES[family]?.add})[view] || families[family].title),
         h('button',{type:'button',class:'ri-btn','data-quick-close':'',onclick:()=>closeSheet()},'Close'));
     const old = overlay.querySelector('.ri-quick-scroll');
     const continuing = old?.dataset.view===view;
@@ -824,6 +831,86 @@ function renderSheet() {
     }
 }
 
+function stopSuggestions(result) {
+    if (!result?.running) return;
+    result.cancelled = true;
+    if (result.dispatched) cancelGuidedTurn();
+}
+
+async function generateSuggestions(result) {
+    const owner = session;
+    const current = () => session===owner && owner.chat===quickChatIdentity();
+    result.running = true;
+    result.cancelled = false;
+    result.dispatched = false;
+    result.error = '';
+    result.receipt = null;
+    result.choices = [];
+    renderSheet();
+    try {
+        const {config,composer} = result;
+        const preview = guidedPreview('draft',{mode:'choices',suggestions:config});
+        result.connectionProblem = !preview.available && !!preview.profileId;
+        if (!preview.available) throw new Error(preview.reason);
+        if (!config.prompt.trim()) throw new Error('Enter a generation prompt in Composer quick actions.');
+        if (config.set) {
+            const set = canonSet(config.set);
+            if (!activeInstructionSets().includes(set)) throw new Error('Activate the configured Random Instruction Set in this chat.');
+            if (!result.cue) {
+                const sources = await loadQuickActionSources({family:'draft',sets:[set]});
+                if (!current() || result.cancelled) return;
+                result.cue = rollQuickAction(sources,{scope:{set}});
+            }
+        }
+        result.dispatched = true;
+        const response = await runGuidedTurn('draft',{mode:'choices',composer,
+            target:guidedTarget(), cues:result.cue ? [result.cue] : [], suggestions:config,
+            onReceipt:receipt=>{result.receipt=receipt;}});
+        result.choices = response.choices || [];
+        if (!response.ok) throw new Error('The model returned no usable options.');
+    } catch (error) {
+        result.error = result.cancelled ? '' : error.message;
+    } finally {
+        result.running = false;
+        result.dispatched = false;
+        if (current() && overlay && session.view==='suggestions' && session.suggestions===result) renderSheet();
+    }
+}
+
+function suggestionResults(result) {
+    const {config,choices,running,error,receipt,cancelled} = result;
+    return h('div',{},
+        status(running ? (cancelled ? 'Cancelling…' : `Generating ${config.count} ${config.count===1?'option':'options'}…`) :
+            cancelled ? 'Generation cancelled.' : error || `${choices.length} of ${config.count} options ready.`),
+        running && button('Cancel request',()=>{stopSuggestions(result);renderSheet();},{disabled:cancelled}),
+        running && h('div',{'aria-hidden':'true'},Array.from({length:config.count},()=>h('div',{class:'ri-quick-card ri-suggestion-placeholder'}))),
+        choices.map((text,index)=>h('article',{class:'ri-quick-card'},h('strong',{},`Option ${index+1}`),
+            h('p',{class:'ri-suggestion-text'},text),button('Use as direction',()=>{
+                const edit = editorFor('steer');
+                edit.direction = [edit.direction,text].filter(Boolean).join('\n\n');
+                show('family','steer');
+            }))),
+        result.connectionProblem && button('Connection settings',()=>openConnection('playerChoices')),
+        !running && button(error || cancelled ? 'Retry · 1 model call' : 'Generate again · 1 model call',()=>{
+            if (!error && !cancelled) result.cue=null;
+            generateSuggestions(result);
+        }),receipt && executionDetails(receipt));
+}
+
+function activeInstructionSets() {
+    const active = new Set((chatState()?.activeSets || []).map(canonSet));
+    return knownSets('instructions').filter(set=>active.has(set));
+}
+
+const suggestionIconNames = {
+    'fa-lightbulb':'Lightbulb', 'fa-user-plus':'New character', 'fa-compass':'Compass', 'fa-bolt':'Lightning',
+    'fa-dice':'Dice', 'fa-masks-theater':'Masks', 'fa-map':'Map', 'fa-feather':'Feather',
+    'fa-comment-dots':'Dialogue', 'fa-star':'Star', 'fa-key':'Key', 'fa-gem':'Gem',
+};
+const suggestionDefaults = {label:'Introduce an NPC',icon:'fa-user-plus',count:4,
+    prompt:'Suggest a new NPC who can enter the current scene. Give each option a name, a concrete reason to arrive, and an opening action.',set:''};
+const iconOptions = Object.entries(suggestionIconNames).map(([value,label])=>({value,label}));
+
 const defaultShortcuts = ['steer','draft'];
 const familyButtons = {
     steer: ['Steer','fa-signs-post'],
@@ -838,7 +925,8 @@ const keepComposerFocus = event => {
 
 function shortcutAssignments() {
     const saved = settings().quickToolbarShortcuts;
-    return defaultShortcuts.map((value,index)=>typeof saved?.[index] === 'string' ? saved[index] : value);
+    const length = Array.isArray(saved) ? Math.max(2,Math.min(8,saved.length)) : 2;
+    return Array.from({length},(_,index)=>typeof saved?.[index] === 'string' ? saved[index] : defaultShortcuts[index] || '');
 }
 
 function composerMenuFamilies() {
@@ -855,26 +943,59 @@ export function refreshComposerToolbar() {
     composerLauncher.setAttribute('aria-expanded',String(expanded));
     composerLauncher.title = expanded ? 'Collapse Quick actions' : 'Expand Quick actions';
     if (!enabled || !expanded) return;
-    const shortcuts = shortcutAssignments().flatMap(value=>{
-        if (Object.hasOwn(families,value)) return [{family:value,label:families[value].title}];
+    const shortcuts = shortcutAssignments().flatMap((value,index)=>{
+        if (value==='suggestions') return [{index,...suggestionConfig(index)}];
+        const override = settings().quickToolbarSuggestions?.[index]?.icon;
+        const icon = Object.hasOwn(suggestionIconNames,override) ? override : undefined;
+        if (Object.hasOwn(families,value)) return [{family:value,label:families[value].title,icon}];
         if (!value.startsWith('action:')) return [];
         const action = readQuickAction(value.slice(7));
-        return action?.enabled && !action.hidden && !action.removed ? [{family:action.family,label:action.title,action}] : [];
+        return action?.enabled && !action.hidden && !action.removed ? [{family:action.family,label:action.title,action,icon}] : [];
     });
-    const signature = JSON.stringify(shortcuts.map(({family,label,action})=>[family,label,action?.id]));
+    const signature = JSON.stringify(shortcuts);
     if (signature === renderedShortcuts) return;
     renderedShortcuts = signature;
-    function shortcut(label, text, icon, family, actionId) {
-        return h('button',{type:'button',class:family ? '' : 'ri-quick-more','aria-label':label,title:label,'aria-haspopup':'dialog',
-            onpointerdown:keepComposerFocus,onclick:event=>{
-                const action = actionId && readQuickAction(actionId);
-                openQuickActions(family,undefined,event.currentTarget,undefined,undefined,action);
-            }},composerIcon(icon),h('span',{class:'ri-quick-shortcut-label'},text));
+    function shortcut(label, icon, launch, extra = '') {
+        return h('button',{type:'button',class:extra,'aria-label':label,title:label,'aria-haspopup':'dialog',
+            onpointerdown:keepComposerFocus,onclick:event=>launch(event.currentTarget)},composerIcon(icon));
     }
-    composerToolbar.replaceChildren(...shortcuts.map(({family,label,action})=>{
-        const [text,icon] = familyButtons[family];
-        return shortcut(label,action ? label : text,icon,family,action?.id);
-    }),shortcut('More actions','More','fa-ellipsis'));
+    composerToolbar.replaceChildren(...shortcuts.map(({family,label,action,index,icon})=>{
+        if (index!==undefined) return shortcut(`${label} · 1 model call`,icon,
+            trigger=>openQuickActions(undefined,undefined,trigger,undefined,undefined,undefined,suggestionConfig(index)),'ri-quick-generates');
+        return shortcut(label,icon || familyButtons[family][1],
+            trigger=>openQuickActions(family,undefined,trigger,undefined,undefined,action && readQuickAction(action.id)));
+    }),shortcut('More actions','fa-ellipsis',trigger=>openQuickActions(undefined,undefined,trigger),'ri-quick-more'));
+}
+
+function suggestionConfig(index) {
+    const saved = settings().quickToolbarSuggestions?.[index];
+    return {...suggestionDefaults,...saved, label:typeof saved?.label==='string' && saved.label.trim() || suggestionDefaults.label,
+        icon:Object.hasOwn(suggestionIconNames,saved?.icon) ? saved.icon : suggestionDefaults.icon,
+        set:typeof saved?.set==='string' && saved.set ? canonSet(saved.set) : '',
+        prompt:typeof saved?.prompt==='string' ? saved.prompt : suggestionDefaults.prompt,
+        count:Math.min(12,Math.max(1,Math.round(Number(saved?.count) || 4)))};
+}
+
+function saveSuggestionSetting(index,key,value) {
+    const stored = settings().quickToolbarSuggestions ||= {};
+    stored[index] = {...stored[index],[key]:value};
+    saveSettings();
+    refreshComposerToolbar();
+}
+
+function suggestionSettings(index) {
+    const config = suggestionConfig(index);
+    const active = activeInstructionSets();
+    const available = [{value:'',label:'None'},...active.map(value=>({value,label:setName(value)}))];
+    if (config.set && !active.includes(config.set)) available.push({value:config.set,label:`${setName(config.set)} (inactive in this chat)`});
+    const save = (key,value)=>saveSuggestionSetting(index,key,value);
+    return h('div',{class:'ri-composer-suggestion-settings'},
+        field('Button name','',textInput(config.label,value=>save('label',value))),
+        field('Icon','',select(iconOptions,config.icon,value=>save('icon',value))),
+        field('Number of options','',select(Array.from({length:12},(_,i)=>({value:i+1,label:String(i+1)})),config.count,value=>save('count',Number(value)))),
+        field('Generation prompt','',textArea(config.prompt,value=>save('prompt',value))),
+        field('Active Random Instruction Set','Roll one eligible instruction and include it in this request.',select(available,config.set,value=>save('set',value))),
+        info('A tap starts one model request on the Player choices connection.'));
 }
 
 function composerLibrarySettings(scope) {
@@ -889,18 +1010,27 @@ export function renderComposerSettings() {
     const library = h('details',{id:'ri-composer-library'},h('summary',{},taskLabels.manage),libraryHost);
     const slots = h('div',{class:'ri-quick-row'});
     function renderSlots() {
-        const options = [{value:'',label:'None'},...Object.entries(families).map(([value,{title:label}])=>({value,label})),
+        const options = [{value:'',label:'None'},{value:'suggestions',label:'Generate options immediately'},...Object.entries(families).map(([value,{title:label}])=>({value,label})),
             ...listQuickActions().map(action=>({value:`action:${action.id}`,label:`${action.title} · ${familyButtons[action.family][0]}`}))];
         slots.replaceChildren(...shortcutAssignments().map((value,index)=>{
             const choices = options.some(option=>option.value===value) ? options : [...options,{value,label:'Unavailable saved action'}];
             const label = `Composer shortcut ${index+1}`;
-            return field(label,'',select(choices,value,next=>{
+            return h('div',{class:'ri-composer-slot'},field(label,'',select(choices,value,next=>{
                 const assignments = shortcutAssignments();
                 assignments[index] = next;
                 settings().quickToolbarShortcuts = assignments;
                 saveSettings();
-                refreshComposerToolbar();
-            },{'aria-label':label}));
+                renderSlots();
+                slots.querySelector(`[aria-label="${label}"]`)?.focus({preventScroll:true});
+            },{'aria-label':label})),value==='suggestions' ? suggestionSettings(index) : value && field('Icon','',select(
+                [{value:'',label:'Action default'},...iconOptions],settings().quickToolbarSuggestions?.[index]?.icon || '',
+                icon=>saveSuggestionSetting(index,'icon',icon))));
+        }));
+        if (shortcutAssignments().length<8) slots.append(button('Add composer icon',()=>{
+            settings().quickToolbarShortcuts = [...shortcutAssignments(),'suggestions'];
+            saveSettings();
+            renderSlots();
+            slots.querySelectorAll('.ri-composer-slot > .ri-field select')[shortcutAssignments().length-1]?.focus();
         }));
         refreshComposerToolbar();
     }
@@ -964,7 +1094,7 @@ export function renderComposerSettings() {
     library.addEventListener('toggle',()=>{if (library.open && !libraryHost.firstChild) mountLibrary();});
     return h('details',{id:'ri-composer-settings',class:'ri-card'},
         h('summary',{},'Composer quick actions'),
-        info('Assign shortcuts across chats. Saved directions open for review before you queue or generate.'),
+        info('Choose the composer icons and their actions across chats.'),
         slots,
         h('details',{},h('summary',{},'Actions in More'),Object.entries(families).map(([id,{title}])=>
             h('label',{class:'ri-qa-library-check'},h('input',{type:'checkbox',checked:composerMenuFamilies().includes(id),onchange:event=>{

@@ -41,9 +41,9 @@ The extension requests and files generated story state only under the applicable
 
 ## Quick actions
 
-Tap the lightning bolt beside the message field to reveal **Steer**, **Draft**, and **More**. Tap it again to remove the entire shortcut row. **More** opens the action menu, with other reply actions, pending directions and chat pins.
+Tap the lightning bolt beside the message field to reveal the composer icons. The default icons open **Steer**, **Draft**, and **More**. Tap the lightning bolt again to remove the entire shortcut row.
 
-Open **Setup → Preset & Extension → Composer quick actions** to assign either shortcut to a reply action or a saved direction, choose which reply actions appear in **More**, reorder chat pins, or manage the library. Opening an assigned saved direction lets you review it before queueing or generating.
+Open **Setup → Preset & Extension → Composer quick actions** to choose the icon and action for each shortcut, choose which reply actions appear in **More**, reorder chat pins, or manage the library. Add a shortcut and select **Generate options immediately** to run one request straight from the composer. Set its name, icon, option count, and prompt. You can also pick a Random Instruction Set active in this chat. The shortcut rolls one eligible instruction from that set and includes it with the request. The options open for review and can be used as directions for the next reply.
 
 | Action | What it does | Requests |
 | --- | --- | --- |
