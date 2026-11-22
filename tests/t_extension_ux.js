@@ -15,6 +15,14 @@ const L = require('./lib.js');
         await L.setupApi(page,{legacyAutomation:false});
         if (process.env.RI_UX_PRESET) await L.usePreset(page,process.env.RI_UX_PRESET);
         await L.openChat(page);
+        await page.evaluate(async base=>{
+            const {settings,saveSettings}=await import(base+'/src/store.js');
+            const {refreshComposerToolbar}=await import(base+'/src/ui/quick-actions.js');
+            delete settings().quickToolbarShortcuts;
+            delete settings().quickToolbarHiddenFamilies;
+            saveSettings();
+            refreshComposerToolbar();
+        },L.BASE);
         L.mode({reply:'The keeper opens the eastern gate.'});
         await L.send(page,'I wait beside the gate.');
         L.mode({reply:'The keeper holds the lantern above the steps.'});
@@ -51,8 +59,8 @@ const L = require('./lib.js');
         const drawer=page.locator('#extensions-settings-button > .drawer-content.openDrawer');
         if (await drawer.count()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
 
-        const toolbar=page.getByRole('group',{name:'Quick actions toolbar'});
-        const entry=toolbar.getByRole('button',{name:'Quick actions',exact:true});
+        const toolbar=page.locator('#ri_quick_toolbar_actions');
+        const entry=page.getByRole('button',{name:'Quick actions',exact:true});
         const draftSelection=()=>composer.evaluate(input=>[document.activeElement===input,input.selectionStart,input.selectionEnd,input.selectionDirection]);
         const layout=()=>toolbar.evaluate(strip=>{
             const form=document.querySelector('#send_form').getBoundingClientRect();
@@ -60,12 +68,10 @@ const L = require('./lib.js');
             const send=document.getElementById('send_but');
             const {x,y,width,height}=send.getBoundingClientRect();
             const toolbar=strip.getBoundingClientRect();
-            const composerWidth=input.getBoundingClientRect().width;
-            strip.hidden=true;
-            const widthWithoutToolbar=input.getBoundingClientRect().width;
-            strip.hidden=false;
-            const controls=[...strip.querySelectorAll('button')].filter(button=>button.getClientRects().length);
-            return {above:toolbar.bottom<=form.top,composerWidth,widthWithoutToolbar,height:toolbar.height,
+            const launcher=document.querySelector('.ri-quick-entry');
+            const controls=[launcher,...strip.querySelectorAll('button')].filter(button=>button.getClientRects().length);
+            return {above:!toolbar.height || toolbar.bottom<=form.top,composerWidth:input.getBoundingClientRect().width,
+                height:toolbar.height,inline:launcher.closest('#send_form')?.id==='send_form',
                 sendReachable:send.contains(document.elementFromPoint(x+width/2,y+height/2)),
                 fits:controls.every(button=>button.scrollWidth<=button.clientWidth+1),
                 targets:controls.map(button=>[button.offsetWidth,button.offsetHeight])};
@@ -83,11 +89,14 @@ const L = require('./lib.js');
             assert.deepEqual(await draftSelection(),[true,2,9,'backward']);
             const expanded=await layout();
             for (const [state,size] of [['collapsed',collapsed],['expanded',expanded]]) {
-                assert.equal(size.composerWidth,size.widthWithoutToolbar,`${state} at ${width} px`);
+                assert.equal(size.composerWidth,collapsed.composerWidth,`${state} at ${width} px`);
+                assert.ok(size.inline);
                 assert.ok(size.above && size.sendReachable && size.fits,`${state} controls at ${width} px`);
                 assert.ok(size.targets.every(([w,h])=>w>=44 && h>=44),`${state} touch targets at ${width} px`);
             }
             assert.deepEqual([collapsed.targets.length,expanded.targets.length],[1,4]);
+            assert.equal(collapsed.height,0);
+            assert.ok(expanded.height<=45);
             for (const label of ['Steer the next reply','Draft my reply']) {
                 await tap(toolbar,label);
                 assert.equal(await sheet.getByRole('heading').innerText(),label);
@@ -130,20 +139,26 @@ const L = require('./lib.js');
 
         await composer.focus();
         await L.openQuickActions(page);
-        const manage=sheet.getByRole('button',{name:'Manage quick actions',exact:true});
-        assert.ok(await manage.evaluate(node=>{
+        const customize=sheet.getByRole('button',{name:'Customize quick actions',exact:true});
+        assert.ok(await customize.evaluate(node=>{
             const {x,y,width,height}=node.getBoundingClientRect();
             return node.contains(document.elementFromPoint(x+width/2,y+height/2));
         }),'Library management is tappable from the first view of More actions');
         await tap(sheet,'Browse directions');
         await sheet.getByRole('searchbox',{name:'Search quick actions'}).fill('forest');
-        await manage.tap();
-        assert.equal(await sheet.getByRole('heading').first().innerText(),'Manage quick actions');
-        await tap(sheet,'Back');
+        await tap(sheet,'Manage quick actions');
+        assert.equal(await title(),'Preset & Extension');
+        const library=panel.locator('#ri-composer-library');
+        await library.getByLabel('Find a button to manage').waitFor();
+        await panel.getByLabel('Composer shortcut 1').selectOption('continue');
+        await tap(panel,'Back to Quick actions');
         assert.equal(await sheet.getByRole('heading').first().innerText(),'Browse directions');
         assert.equal(await sheet.getByRole('searchbox',{name:'Search quick actions'}).inputValue(),'forest');
         await tap(sheet,'Close');
         assert.deepEqual(await draftSelection(),[true,2,9,'backward']);
+        await tap(toolbar,'Continue this reply');
+        await sheet.getByRole('heading',{name:'Continue this reply',exact:true}).waitFor();
+        await tap(sheet,'Close');
         assert.equal(L.requests().length,0);
         evidence.push({case:'library management initial reach and Browse directions return',viewport:[320,475],requests:0});
         await page.setViewportSize({width:390,height:475});
@@ -152,6 +167,7 @@ const L = require('./lib.js');
         await composer.evaluate(input=>input.setSelectionRange(2,9,'backward'));
         await L.openQuickActions(page);
         assert.equal(await sheet.getByRole('button',{name:'Close',exact:true}).evaluate(node=>document.activeElement===node),true);
+        await sheet.getByText('Review and settings',{exact:true}).tap();
         await tap(sheet,'Context & Memory');
         await panel.locator('#ri-memory-status').waitFor();
         assert.equal(await title(),'Context & Memory');
@@ -272,13 +288,13 @@ const L = require('./lib.js');
         assert.equal(L.requests().length,0);
         assert.deepEqual(errors,[]);
         evidence.push({case:'direct older reply actions',target:2,version:1,requests:0});
-        console.log('PASS phone-width collapsible toolbar, full composer width, saved preference, task finder, exact reply and draft recovery');
+        console.log('PASS phone-width collapsible toolbar, stable composer width, saved preference, task finder, exact reply and draft recovery');
     } catch(error) {
         await page.screenshot({path:'/tmp/ri-extension-ux-failure.png'}).catch(()=>{});
         throw error;
     } finally {
         if (process.env.RI_UX_CAPTURE) fs.writeFileSync(process.env.RI_UX_CAPTURE,JSON.stringify({
-            host:'SillyTavern 1.19.0',preset:process.env.RI_UX_PRESET || 'Default',viewport:[390,475],touch:true,evidence,errors,
+            host:'SillyTavern 1.19.x',preset:process.env.RI_UX_PRESET || 'Default',viewport:[390,475],touch:true,evidence,errors,
         },null,2)+'\n');
         await browser.close();
     }

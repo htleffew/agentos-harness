@@ -41,7 +41,9 @@ The extension requests and files generated story state only under the applicable
 
 ## Quick actions
 
-Tap **Quick actions** above the chat composer to expand its toolbar. Choose **Steer the next reply** or **Draft my reply** to open that editor. **More actions** opens the full sheet, including the library and saved directions. Tap the chevron to collapse the toolbar. Its display preference is saved across chats and reloads. The same sheet opens for a specific reply from **Generate an alternate reply** or **Continue this reply** below that reply.
+Tap the lightning bolt beside the message field to reveal **Steer**, **Draft**, and **More**. Tap it again to remove the entire shortcut row. **More** opens the action menu, with other reply actions, pending directions and chat pins.
+
+Open **Setup → Preset & Extension → Composer quick actions** to assign either shortcut to a reply action or a saved direction, choose which reply actions appear in **More**, reorder chat pins, or manage the library. Opening an assigned saved direction lets you review it before queueing or generating.
 
 | Action | What it does | Requests |
 | --- | --- | --- |

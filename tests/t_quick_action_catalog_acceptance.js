@@ -33,7 +33,10 @@ const recipe = (uid, comment, choices) => ({
         await page.route('**/api/horde/status', route => route.fulfill({ json: { ok: false } }));
     } });
     page.setDefaultTimeout(15000);
-    const sheet = page.locator('.ri-quick-sheet');
+    const quick = page.locator('.ri-quick-sheet');
+    const panel = page.locator('#ri_root');
+    const library = panel.locator('#ri-composer-library');
+    let sheet = quick;
     const composer = page.locator('#send_textarea');
     const evidence = { host: 'SillyTavern 1.19.0', browser: 'Chromium ' + browser.version(),
         mode: 'Touch emulation at 390 × 760 and 390 × 430', provider: 'Isolated OpenAI-compatible mock', cases: {} };
@@ -42,11 +45,30 @@ const recipe = (uid, comment, choices) => ({
     const tap = async (label, scope = sheet) => {
         current?.taps.push(label);
         await scope.getByRole('button', exact(label)).first().tap();
+        if (scope===quick && label==='Manage quick actions') {
+            await library.getByLabel('Action family').waitFor();
+            sheet = library;
+        }
     };
     const open = () => L.openQuickActions(page);
-    const close = () => tap('Close');
+    const close = async () => {
+        if (sheet===library) {
+            await panel.getByRole('button',exact('Back to Quick actions')).tap();
+            sheet = quick;
+        }
+        await tap('Close');
+    };
     const openFamily = async name => { await open(); await tap(name); };
-    const manage = async () => { await open(); await tap('Manage quick actions'); };
+    const manage = async () => {
+        await open();
+        await tap('Customize quick actions');
+        if (!await library.evaluate(node=>node.open)) await library.locator(':scope > summary').tap();
+        const family=library.getByLabel('Action family');
+        if (await family.inputValue()) await family.selectOption('');
+        sheet = library;
+        const manageButton=library.getByRole('button',exact('Manage quick actions'));
+        if (await manageButton.isVisible()) await manageButton.tap();
+    };
     const notice = (name, timeout = 25000) => sheet.getByRole('status').filter({ hasText: name }).first().waitFor({ timeout });
     const fill = (label, value) => sheet.getByLabel(label, { exact: true }).fill(value);
     const show = async (text, scope = sheet) => {

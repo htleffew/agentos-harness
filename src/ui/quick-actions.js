@@ -30,6 +30,8 @@ let returnToPanel;
 let knownChat;
 let composer;
 let composerToolbar;
+let composerLauncher;
+let renderedShortcuts;
 const composerDrafts = new Map();
 const isolated = new Set();
 const actionRow = (...children) => h('div', {class:'ri-quick-row'}, children);
@@ -127,7 +129,7 @@ function tabInSheet(event) {
     }
 }
 
-export function openQuickActions(family, index, trigger = document.activeElement, returning, resumePanel) {
+export function openQuickActions(family, index, trigger = document.activeElement, returning, resumePanel, action) {
     if (!isChatOpen() || !settings().enabled) return;
     knownChat = quickChatIdentity();
     session = sessions.get(knownChat);
@@ -166,6 +168,7 @@ export function openQuickActions(family, index, trigger = document.activeElement
     }
     if (family) chooseFamily(family, index);
     else renderSheet();
+    if (action) selectFavorite(editorFor(family), {reference:action.id,title:action.title}, true);
     // Move from a focused composer into an editor when the shortcut has one.
     // The original focus and selection are restored when the sheet closes.
     const direction=focusComposer && (family==='steer' || family==='draft') &&
@@ -180,8 +183,7 @@ function sheetLocation() {
 
 function show(view, family = session.family, replace = false) {
     if (!replace && (session.view!==view || session.family!==family)) session.history.push(sheetLocation());
-    const libraryPage = session.library?.[view];
-    if (libraryPage && session.view!==view) libraryPage.reenter=true;
+    if (view==='browse' && session.view!==view && session.library) session.library.reenter=true;
     session.view=view;
     session.family=family;
     renderSheet();
@@ -328,13 +330,20 @@ function pendingView() {
 function catalogView(mode) {
     const owner = session;
     const host = h('div');
-    const library = owner.library ||= {drafts:new Map()};
+    const library = owner.library ||= {};
     renderQuickActionLibrary(host,{
         family:owner.family || '', mode,
         initialDirection:owner.family ? editorFor(owner.family).direction : '',
         getPins:()=>quickChat()?.pins || [],
-        state:mode==='add' ? (owner.actionEditor ||= {}) : (library[mode] ||= {drafts:library.drafts}),
-        onNavigate:view=>show(view),
+        state:mode==='add' ? (owner.actionEditor ||= {}) : library,
+        onChange:()=>{
+            if (session!==owner || session.view!=='add') return;
+            owner.actionEditor=null;
+            refreshComposerToolbar();
+            backInSheet();
+        },
+        onNavigate:()=>openLibrarySettings(),
+        selectionOnly:true,
         onSelect:(resolved, action) => {
             if (session !== owner || owner.chat !== quickChatIdentity()) return;
             if (resolved.operation === 'queue') { show('pending'); return; }
@@ -345,24 +354,7 @@ function catalogView(mode) {
             addResolved(edit, {...resolved, reference:action?.origin==='source' ? undefined : action?.id || resolved.id, usesDirection:resolved.embedsDirection});
             show('family',family,true);
         },
-        onChange:()=>{ if (session===owner && session.view==='add') {
-            owner.actionEditor=null;
-            backInSheet();
-        } },
         onPin:pinQuickAction,
-        onRestore:({family,undoId})=>{
-            const state=quickChat();
-            state.pinUndo={id:undoId,pins:structuredClone(state.pins)};
-            state.pins=state.pins.filter(pin=>family && pin.family!==family);
-            saveChatState();
-        },
-        onUndo:undoId=>{
-            const state=quickChat();
-            if (!state?.pinUndo || state.pinUndo.id!==undoId) return;
-            state.pins=state.pinUndo.pins;
-            delete state.pinUndo;
-            saveChatState();
-        },
         onOpenTool:tool=>openPanel(tool==='Notes'?'sent':'context'),
         onClose:backInSheet,
         onCancelPending:()=>show('pending'),
@@ -370,28 +362,11 @@ function catalogView(mode) {
     return host;
 }
 
-function pinRow(pin,index,count) {
-    const move=(offset,control)=>{
-        moveQuickPin(index,offset);
-        renderSheet();
-        const row=[...overlay.querySelectorAll('[data-quick-pin]')].find(node=>node.dataset.quickPin===pin.key);
-        const preferred=row?.querySelector(`[data-move="${control}"]:enabled`) || row?.querySelector('[data-move]:enabled');
-        preferred?.focus({preventScroll:true});
-    };
-    const up=button('Move up',()=>move(-1,'up'),{disabled:index===0});
-    const down=button('Move down',()=>move(1,'down'),{disabled:index===count-1});
-    up.dataset.move='up';
-    down.dataset.move='down';
-    const row=actionRow(h('span',{class:'ri-quick-pin-label'},pin.title),up,down,
-        button('Unpin',()=>{pinQuickAction(pin.reference,pin.title,pin.family);renderSheet();}));
-    row.dataset.quickPin=pin.key;
-    return row;
-}
-
 function rootView() {
     const state = quickChat();
     const remaining = freshRemaining();
     const pinned = state?.pins || [];
+    const visibleFamilies = composerMenuFamilies();
     const query = textInput(session.query || '', value => {
         session.query = value;
         renderResults();
@@ -404,7 +379,7 @@ function rootView() {
         const found = listQuickActions().filter(action=>words.every(word=>`${action.title} ${action.category} ${action.text}`.toLowerCase().includes(word))).slice(0, 30);
         if (!found.length) hits.append(info('No saved actions match. Browse directions to search source books.'));
         else {
-            hits.append(info('Choose a result to preview its direction. Open Manage quick actions to edit a saved button.'));
+            hits.append(info('Choose a result to preview its direction. Manage saved buttons in Preset & Extension.'));
             for (const action of found) hits.append(button(`${action.title} · ${families[action.family].title}`, () => {
                 chooseFamily(action.family);
                 selectFavorite(editorFor(action.family), {reference:action.id,title:action.title}, true);
@@ -412,8 +387,9 @@ function rootView() {
         }
     }
     renderResults();
-    return h('div',{},h('div',{class:'ri-quick-families'},Object.entries(families).map(([id,family])=>button(family.title,()=>chooseFamily(id),{kind:'primary'}))),
-        actionRow(button(taskLabels.browse,()=>show('browse','')),button(taskLabels.manage,()=>show('manage',''))),
+    return h('div',{},h('div',{class:'ri-quick-families'},visibleFamilies.map(id=>
+        button([composerIcon(familyButtons[id][1]),h('span',{},families[id].title)],()=>chooseFamily(id)))),
+        actionRow(button(taskLabels.browse,()=>show('browse','')),button('Customize quick actions',()=>openLibrarySettings(false))),
         button(`Pending directions · ${state?.pending?.length || 0}`,()=>show('pending')),
         remaining > 0 && actionRow(info(`Fresh start · ${remaining} story replies remaining`),button('Stop',()=>{stopFreshStart();renderSheet();})),
         h('div',{class:'ri-quick-shelf'}, [...pinned, ...(state?.recent || []).filter(row=>!pinned.some(pin=>pin.key===row.key)).slice(0,4)].map(row=>{
@@ -428,10 +404,18 @@ function rootView() {
                 selectFavorite(field, {...row,pinned:pinned.includes(row)});
             }),definition && info(quickActionOwner(definition)));
         })),
-        field('Search', '', query), hits,
-        h('details',{},h('summary',{},'Pins and order'), pinned.length ? pinned.map((pin,index)=>pinRow(pin,index,pinned.length))
-            : info('Pin a direction from its action menu.')),
-        actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What Was Sent',()=>openPanel('sent')),button('Edit preset prompts',()=>openPanel('v10',null,'#ri-preset-workbench'))));
+        h('details',{},h('summary',{},'Search saved actions'), query, hits),
+        h('details',{},h('summary',{},'Review and settings'),
+            actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What Was Sent',()=>openPanel('sent')),button('Edit preset prompts',()=>openPanel('v10',null,'#ri-preset-workbench')))));
+}
+
+function openLibrarySettings(showLibrary = true) {
+    const library = composerLibrarySettings(quickChatIdentity());
+    library.family = session.family;
+    library.mode = 'manage';
+    const view = library.views.get(`${library.family}:manage`);
+    if (view) view.reenter = true;
+    return openPanel('v10',null,showLibrary ? '#ri-composer-library' : '#ri-composer-settings');
 }
 
 async function openPanel(page, reply = null, anchor = '') {
@@ -704,7 +688,9 @@ function familyView(edit) {
         draftPreview && execution,
         edit.family==='steer' && button(`Pending directions · ${group.pending.length}`,()=>show('pending')),
         (pinned.length || recent.length) ? shelf([...pinned,...recent],edit) : null,
-        actionRow(button(taskLabels.browse,()=>show('browse')),button(QUICK_ACTION_FAMILIES[edit.family].add,()=>show('add')),button(taskLabels.manage,()=>show('manage'))),
+        actionRow(button(taskLabels.browse,()=>show('browse')),
+            button(QUICK_ACTION_FAMILIES[edit.family].add,()=>show('add')),
+            button(taskLabels.manage,()=>openLibrarySettings())),
         edit.family==='swipe' && actionRow(button('Fix world facts',()=>selectFavorite(edit,{reference:'builtin:swipe:fix-facts',title:'Fix world facts'},true))),
         h('details',{open:!pinned.length},h('summary',{},'Available directions'),
             shelf(available.map(action=>({reference:action.id,title:action.title,operation:action.operation})),edit)),
@@ -803,7 +789,7 @@ function renderSheet() {
     else content=catalogView(view);
     const header = h('header',{class:'ri-quick-header'},
         session.history.length>0 && button('Back',backInSheet),
-        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',browse:taskLabels.browse,manage:taskLabels.manage,add:QUICK_ACTION_FAMILIES[family]?.add})[view] || families[family].title),
+        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',browse:taskLabels.browse,add:QUICK_ACTION_FAMILIES[family]?.add})[view] || families[family].title),
         h('button',{type:'button',class:'ri-btn','data-quick-close':'',onclick:()=>closeSheet()},'Close'));
     const old = overlay.querySelector('.ri-quick-scroll');
     const continuing = old?.dataset.view===view;
@@ -838,41 +824,180 @@ function renderSheet() {
     }
 }
 
-function createComposerToolbar() {
-    const keepComposerFocus=event=>{
-        if (document.activeElement===openComposer()) event.preventDefault();
-    };
-    const icon=name=>h('span',{class:`fa-solid ${name}`,'aria-hidden':'true'});
-    const shortcut=(label,symbol,family,className)=>h('button',{class:className,type:'button','aria-haspopup':'dialog',
-        onpointerdown:keepComposerFocus,onclick:event=>openQuickActions(family,undefined,event.currentTarget)},
-        icon(symbol),h('span',{},label));
-    const actions=h('div',{id:'ri_quick_toolbar_actions',class:'ri-quick-toolbar-actions'},
-        shortcut(families.steer.title,'fa-signs-post','steer'),shortcut(families.draft.title,'fa-pen','draft'),
-        shortcut('More actions','fa-ellipsis',undefined,'ri-quick-more'));
-    const toggle=h('button',{class:'ri-quick-entry',type:'button','aria-label':'Quick actions','aria-controls':actions.id,
-        onpointerdown:keepComposerFocus,onclick:()=>{
-            const st=settings();
-            st.quickToolbarExpanded=!st.quickToolbarExpanded;
-            setExpanded(st.quickToolbarExpanded);
-            saveSettings();
-        }},h('span',{class:'ri-quick-toolbar-handle'},
-        h('span',{class:'ri-quick-toolbar-label'},'Quick actions'),icon('fa-chevron-up')));
-    function setExpanded(expanded) {
-        actions.hidden=!expanded;
-        toggle.setAttribute('aria-expanded',String(expanded));
-        toggle.title=expanded ? 'Collapse Quick actions' : 'Expand Quick actions';
+const defaultShortcuts = ['steer','draft'];
+const familyButtons = {
+    steer: ['Steer','fa-signs-post'],
+    swipe: ['Alternate','fa-rotate'],
+    continue: ['Continue','fa-forward-step'],
+    draft: ['Draft','fa-pen'],
+};
+const composerIcon = name => h('span',{class:`fa-solid ${name}`,'aria-hidden':'true'});
+const keepComposerFocus = event => {
+    if (document.activeElement === openComposer()) event.preventDefault();
+};
+
+function shortcutAssignments() {
+    const saved = settings().quickToolbarShortcuts;
+    return defaultShortcuts.map((value,index)=>typeof saved?.[index] === 'string' ? saved[index] : value);
+}
+
+function composerMenuFamilies() {
+    const hidden = settings().quickToolbarHiddenFamilies;
+    return Object.keys(families).filter(id=>!Array.isArray(hidden) || !hidden.includes(id));
+}
+
+export function refreshComposerToolbar() {
+    if (!composerToolbar) return;
+    const enabled = isChatOpen() && settings().enabled;
+    const expanded = settings().quickToolbarExpanded === true;
+    composerLauncher.hidden = !enabled;
+    composerToolbar.hidden = !enabled || !expanded;
+    composerLauncher.setAttribute('aria-expanded',String(expanded));
+    composerLauncher.title = expanded ? 'Collapse Quick actions' : 'Expand Quick actions';
+    if (!enabled || !expanded) return;
+    const shortcuts = shortcutAssignments().flatMap(value=>{
+        if (Object.hasOwn(families,value)) return [{family:value,label:families[value].title}];
+        if (!value.startsWith('action:')) return [];
+        const action = readQuickAction(value.slice(7));
+        return action?.enabled && !action.hidden && !action.removed ? [{family:action.family,label:action.title,action}] : [];
+    });
+    const signature = JSON.stringify(shortcuts.map(({family,label,action})=>[family,label,action?.id]));
+    if (signature === renderedShortcuts) return;
+    renderedShortcuts = signature;
+    function shortcut(label, text, icon, family, actionId) {
+        return h('button',{type:'button',class:family ? '' : 'ri-quick-more','aria-label':label,title:label,'aria-haspopup':'dialog',
+            onpointerdown:keepComposerFocus,onclick:event=>{
+                const action = actionId && readQuickAction(actionId);
+                openQuickActions(family,undefined,event.currentTarget,undefined,undefined,action);
+            }},composerIcon(icon),h('span',{class:'ri-quick-shortcut-label'},text));
     }
-    setExpanded(settings().quickToolbarExpanded===true);
-    return h('div',{class:'ri-quick-toolbar',role:'group','aria-label':'Quick actions toolbar'},toggle,actions);
+    composerToolbar.replaceChildren(...shortcuts.map(({family,label,action})=>{
+        const [text,icon] = familyButtons[family];
+        return shortcut(label,action ? label : text,icon,family,action?.id);
+    }),shortcut('More actions','More','fa-ellipsis'));
+}
+
+function composerLibrarySettings(scope) {
+    const saved = app.composerLibrary ||= new Map();
+    if (!saved.has(scope)) saved.set(scope,{family:'',mode:'manage',views:new Map(),drafts:new Map()});
+    return saved.get(scope);
+}
+
+export function renderComposerSettings() {
+    const scope = quickChatIdentity();
+    const libraryHost = h('div');
+    const library = h('details',{id:'ri-composer-library'},h('summary',{},taskLabels.manage),libraryHost);
+    const slots = h('div',{class:'ri-quick-row'});
+    function renderSlots() {
+        const options = [{value:'',label:'None'},...Object.entries(families).map(([value,{title:label}])=>({value,label})),
+            ...listQuickActions().map(action=>({value:`action:${action.id}`,label:`${action.title} · ${familyButtons[action.family][0]}`}))];
+        slots.replaceChildren(...shortcutAssignments().map((value,index)=>{
+            const choices = options.some(option=>option.value===value) ? options : [...options,{value,label:'Unavailable saved action'}];
+            const label = `Composer shortcut ${index+1}`;
+            return field(label,'',select(choices,value,next=>{
+                const assignments = shortcutAssignments();
+                assignments[index] = next;
+                settings().quickToolbarShortcuts = assignments;
+                saveSettings();
+                refreshComposerToolbar();
+            },{'aria-label':label}));
+        }));
+        refreshComposerToolbar();
+    }
+    renderSlots();
+    const chat = quickChat();
+    const pins = h('div');
+    function renderPins(focusKey, direction) {
+        const list = quickChat()?.pins || [];
+        pins.replaceChildren(...list.map((pin,index)=>actionRow(h('span',{},pin.title),
+            ...[-1,1].map((step,control)=>button(control===0?'Move up':'Move down',()=>{
+                if (scope===quickChatIdentity() && moveQuickPin(index,step)) renderPins(pin.key,control);
+            },{disabled:!list[index+step]})),
+            button('Unpin',()=>{
+                if (scope!==quickChatIdentity()) return;
+                pinQuickAction(pin.reference,pin.title,pin.family);
+                renderPins();
+                mountLibrary();
+                pins.parentElement.querySelector('summary')?.focus({preventScroll:true});
+            }))));
+        if (!list.length) pins.append(info('Pin a saved direction to show it in More actions for this chat.'));
+        const row = pins.children[list.findIndex(pin=>pin.key===focusKey)];
+        const controls = row?.querySelectorAll('button');
+        (controls?.[direction]?.disabled ? controls[1-direction] : controls?.[direction])?.focus({preventScroll:true});
+    }
+    if (chat) renderPins();
+    const management = composerLibrarySettings(scope);
+    function mountLibrary() {
+        const {family,mode,views,drafts} = management;
+        const key = `${family}:${mode}`;
+        if (!views.has(key)) views.set(key,{drafts});
+        libraryHost.replaceChildren(field('Action family','',select([{value:'',label:'All actions'},
+            ...Object.entries(families).map(([value,{title:label}])=>({value,label}))],family,next=>{
+            management.family = next;
+            mountLibrary();
+            libraryHost.querySelector('select')?.focus({preventScroll:true});
+        },{'aria-label':'Action family'})));
+        renderQuickActionLibrary(libraryHost,{
+            family, mode, state:views.get(key),
+            onNavigate:next=>{ management.mode=next; mountLibrary(); },
+            onOpenTool:tool=>app.openPage(tool==='Notes'?'sent':'context',{focusPage:true}),
+            getPins:()=>scope===quickChatIdentity() ? quickChat()?.pins || [] : [],
+            onChange:()=>{renderSlots(); if (chat && scope===quickChatIdentity()) renderPins();},
+            onPin:chat && ((...args)=>{if (scope===quickChatIdentity()) pinQuickAction(...args);}),
+            onRestore:({family,undoId})=>{
+                if (!chat || scope!==quickChatIdentity()) return;
+                const current = quickChat();
+                current.pinUndo={id:undoId,pins:structuredClone(current.pins)};
+                current.pins=current.pins.filter(pin=>family && pin.family!==family);
+                saveChatState();
+            },
+            onUndo:undoId=>{
+                if (scope!==quickChatIdentity()) return;
+                const current = quickChat();
+                if (!current?.pinUndo || current.pinUndo.id!==undoId) return;
+                current.pins=current.pinUndo.pins;
+                delete current.pinUndo;
+                saveChatState();
+            },
+        });
+    }
+    library.addEventListener('toggle',()=>{if (library.open && !libraryHost.firstChild) mountLibrary();});
+    return h('details',{id:'ri-composer-settings',class:'ri-card'},
+        h('summary',{},'Composer quick actions'),
+        info('Assign shortcuts across chats. Saved directions open for review before you queue or generate.'),
+        slots,
+        h('details',{},h('summary',{},'Actions in More'),Object.entries(families).map(([id,{title}])=>
+            h('label',{class:'ri-qa-library-check'},h('input',{type:'checkbox',checked:composerMenuFamilies().includes(id),onchange:event=>{
+                const visible = new Set(composerMenuFamilies());
+                if (event.target.checked) visible.add(id);
+                else visible.delete(id);
+                settings().quickToolbarHiddenFamilies = Object.keys(families).filter(key=>!visible.has(key));
+                saveSettings();
+            }}),title))),
+        chat && h('details',{},h('summary',{},'Pins for this chat'),pins),library);
 }
 
 function attachToHost() {
     const input = openComposer();
     if (!input) return;
-    const anchor = input.closest('#send_form') || input.parentElement;
-    composerToolbar ||= createComposerToolbar();
+    const form = input.closest('#send_form');
+    const anchor = form || input.parentElement;
+    const left = form?.querySelector('#leftSendForm');
+    if (!composerToolbar) {
+        composerToolbar = h('div',{id:'ri_quick_toolbar_actions',class:'ri-quick-toolbar',role:'group','aria-label':'Quick actions toolbar'});
+        composerLauncher = h('button',{class:'ri-quick-entry',type:'button','aria-label':'Quick actions','aria-controls':composerToolbar.id,
+            onpointerdown:keepComposerFocus,onclick:()=>{
+                const st = settings();
+                st.quickToolbarExpanded = st.quickToolbarExpanded !== true;
+                saveSettings();
+                refreshComposerToolbar();
+            }},composerIcon('fa-bolt'));
+    }
+    if (left) {
+        if (composerLauncher.parentElement!==left) left.append(composerLauncher);
+    } else if (composerLauncher.nextElementSibling!==input) input.before(composerLauncher);
     if (composerToolbar.nextElementSibling!==anchor) anchor.before(composerToolbar);
-    composerToolbar.hidden = !isChatOpen() || !settings().enabled;
+    refreshComposerToolbar();
     if (composer!==input) {
         composer=input;
         const capture = () => {

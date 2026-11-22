@@ -44,7 +44,7 @@ const waitChecks = async (page) => { await page.waitForFunction(() => !globalThi
 const usePreset = (page, name) => page.evaluate(async (name) => { const $ = globalThis.jQuery; const sel = document.querySelector('#settings_preset_openai'); const opt = [...sel.options].find(o => o.textContent.trim() === name); if (!opt || sel.value === opt.value) return; $(sel).val(opt.value).trigger('change'); await new Promise(r => setTimeout(r, 1500)); }, name);
 async function openQuickActions(page) {
     const toolbar=page.getByRole('group',{name:'Quick actions toolbar'});
-    const toggle=toolbar.getByRole('button',{name:'Quick actions',exact:true});
+    const toggle=page.getByRole('button',{name:'Quick actions',exact:true});
     if (await toggle.getAttribute('aria-expanded')==='false') await toggle.tap();
     await toolbar.getByRole('button',{name:'More actions',exact:true}).tap();
 }

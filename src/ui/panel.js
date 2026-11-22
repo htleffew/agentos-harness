@@ -1,3 +1,4 @@
+import { renderComposerSettings, refreshComposerToolbar } from './quick-actions.js';
 import { renderV10 } from './v10.js';
 // The panel: one drawer in the Extensions menu, with an Expand button that shows the same panel full screen.
 import { h, clear, toggle, button, captureView, restoreView, textInput } from './dom.js';
@@ -351,8 +352,7 @@ export function render() {
         h('div', { class: 'ri-head-right' },
             h('span', { class: 'ri-onoff' }, st.enabled ? 'On' : 'Off'),
             toggle(st.enabled, (v) => { st.enabled = v; saveSettings(); render(); refreshUnderReplies();
-                const quickToolbar=document.querySelector('.ri-quick-toolbar');
-                if (quickToolbar) quickToolbar.hidden = !v || !isChatOpen(); }, 'Turn the whole extension on or off'),
+                refreshComposerToolbar(); }, 'Turn the whole extension on or off'),
             expand));
 
     const categories = h('nav',{class:'ri-categories','aria-label':'Roleplay sections'},
@@ -374,7 +374,7 @@ export function render() {
         finder,interruptedDrafts());
     if (!isChatOpen() && current.id==='v10') app.body.append(h('p',{class:'ri-help'},'Open a character chat to use Quick actions and chat settings.'));
     if (isChatOpen() && current.id==='state' && !app.userNavigated) app.body.append(h('p',{class:'ri-help'},
-        'Expand Quick actions above the composer for shortcuts. Use this panel to manage the story and settings.'));
+        'Tap Quick actions beside the message field for composer shortcuts.'));
 
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));
@@ -387,7 +387,10 @@ export function render() {
     else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
     else if (app.tab === 'corrections') renderCorrections(app.body,app.replyTarget,app);
-    else if (V10_PAGES.has(app.tab)) renderV10(app.body,app,app.tab);
+    else if (V10_PAGES.has(app.tab)) {
+        if (app.tab==='v10') app.body.append(renderComposerSettings());
+        renderV10(app.body,app,app.tab);
+    }
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);
     else if (app.tab === 'context') renderContext(app.body, app);

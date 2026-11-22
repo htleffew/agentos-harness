@@ -46,6 +46,8 @@ export const groups = [
 
 const pages = groups.flatMap(group => group.pages.map(page=>({...page,group:group.id,section:group.label})));
 const tools = [...pages,
+    {id:'composer-actions',label:'Composer quick actions',section:'Setup',page:'v10',anchor:'#ri-composer-settings',
+        help:'Assign shortcuts, choose menu actions and manage the library.',aliases:'toolbar buttons quick actions pins',withoutChat:true},
     {id:'alternate',label:taskLabels.alternate,section:'Chat',family:'swipe',help:'Guide a new version of a reply.',aliases:'swipe regenerate version'},
     {id:'steer',label:'Steer the next reply',section:'Chat',family:'steer',help:'Queue guidance for your next player message.',aliases:'nudge directions queue'},
     {id:'draft',label:'Draft my reply',section:'Chat',family:'draft',help:'Prepare editable wording or ask for choices.',aliases:'draft impersonation cyoa'},

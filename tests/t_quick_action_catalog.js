@@ -18,7 +18,9 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
     page.setDefaultTimeout(12000);
     try {
         await L.openChat(page);
-        const sheet = page.locator('.ri-quick-sheet');
+        const quick = page.locator('.ri-quick-sheet');
+        const panel = page.locator('#ri_root');
+        let sheet = quick;
         const tap = async label => sheet.getByRole('button', { name: label, exact: true }).tap();
         const chooseJSON = async (name, value) => {
             const chooser = page.waitForEvent('filechooser');
@@ -33,7 +35,9 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
         await composer.fill('Half a player reply');
         await composer.evaluate(node => node.setSelectionRange(5, 8));
         await L.openQuickActions(page);
-        await tap('Manage quick actions');
+        await tap('Customize quick actions');
+        await panel.locator('#ri-composer-library > summary').tap();
+        sheet = panel.locator('#ri-composer-library');
 
         await tap('Create saved nudge');
         await sheet.getByLabel('Button name', { exact: true }).fill(cueName);
@@ -109,6 +113,8 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
         assert.equal(await sheet.getByRole('button', { name: 'Edit Original title 15 ' + suffix, exact: true }).count(), 1);
         assert.equal(await sheet.getByRole('button', { name: 'Edit Original title 19 ' + suffix, exact: true }).count(), 0);
 
+        await panel.getByRole('button', { name: 'Back to Quick actions', exact: true }).tap();
+        sheet = quick;
         await tap('Browse directions');
         await sheet.getByLabel('Search quick actions', { exact: true }).fill(sourceName);
         await sheet.getByText('Versions and ingredients', { exact: true }).tap();

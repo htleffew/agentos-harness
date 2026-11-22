@@ -120,3 +120,11 @@ Recorded separately from automated tests. The reviewer started with task goals a
 ## Release gate
 
 The 54 in-scope acceptance IDs and the four handoff exercises pass on the stated fixtures. A18 is deferred by the handoff. Browser symptoms from injected mock failures and missing capabilities are captured with their workflow outcomes. The physical-phone and native TauriTavern release check remains open. Live draft and speaker quality and provider cache counters remain unverified because no live connection was configured. Imports used the documented synthetic fixtures. The original source JSON files were unavailable.
+
+## Composer collapse and preset controls
+
+Touch emulation on SillyTavern 1.19.1 with the Default preset and Roleplay Instructions at 320 × 475 and 390 × 475 measured the expanded shortcut strip at 45 CSS pixels and the collapsed strip at zero. The remaining launcher shared the host composer row. Each toolbar control measured at least 44 × 44 CSS pixels. Opening and closing Steer restored the focused multiline message and its backward selection.
+
+The preset panel created and assigned a saved nudge, changed the actions visible in More, and returned to the previous Browse search. The configured shortcut opened its editor with the saved cue selected, preserved the player message, and survived reload. Opening, configuring and previewing these controls made zero generation requests. The composer UX suite also verified keyboard toggling at 200% text, queue Undo, missing-connection recovery and historical reply review. The catalog suite passed at 390 × 820 and 320 × 430, including edits, named variations, restore, ordering, import, export, source selection and pins. The catalog acceptance suite passed all six cases on a fixture with Roleplay Instructions as the sole enabled extension, including the four action delivery paths and scoped and full library restore with Undo.
+
+The launcher and settings use local DOM and saved settings. Existing queue and generation handlers still own delivery. The TauriTavern source has the same composer attachment points. Physical Android and the native software keyboard remain unverified.
