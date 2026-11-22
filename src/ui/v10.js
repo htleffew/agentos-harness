@@ -352,7 +352,8 @@ function editRecord(original, save, cancel, kinds) {
         };
         const axes = {};
         const profileLocks = {};
-        root.replaceChildren(scoped('Record type',type),scoped(original ? 'Record ID' : 'Record ID (optional)',id),scoped('Subject',subject),scoped('Record',text),
+        root.replaceChildren(h('p',{class:'ri-help'},'This chat · Saves to the current story records.'),
+            scoped('Record type',type),scoped(original ? 'Record ID' : 'Record ID (optional)',id),scoped('Subject',subject),scoped('Record',text),
             h('label',{},lock,' Protect this record from automatic changes'));
         if (k === 'knowledge') root.append(choice('basis','Source type',['observed','reported','rumor','belief'],'observed'),flag('private','Limit to relevant character',true));
         if (k === 'fact') {

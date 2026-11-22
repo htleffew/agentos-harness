@@ -106,6 +106,24 @@ const L = require('./lib.js');
         assert.notEqual(await saved.inputValue(),'#111111');
         evidence.push({case:'speaker preview and automatic color'});
 
+        await click('Emotions & Relationships');
+        await click('Add record',body);
+        await body.getByLabel('Record type',{exact:true}).selectOption('relationship');
+        await body.getByLabel('Subject or speaker',{exact:true}).fill('Rowan');
+        await body.getByLabel('Other character',{exact:true}).fill('Mira');
+        await body.getByLabel('Record text',{exact:true}).fill('The gatekeeper is still deciding whether to trust the visitor.');
+        await body.getByText('This chat · Saves to the current story records.').waitFor();
+        await click('Save record',body);
+        const pair=body.getByText('Relationship · Rowan · Mira · Protected',{exact:true});
+        await pair.tap();
+        await click('Edit',pair.locator('..'));
+        await body.getByLabel('Subject or speaker',{exact:true}).fill('Mira');
+        await body.getByLabel('Other character',{exact:true}).fill('Rowan');
+        await click('Save record',body);
+        await body.getByText('Relationship · Mira · Rowan · Protected',{exact:true}).waitFor();
+        assert.equal(await pair.count(),0);
+        evidence.push({case:'relationship edit preserves scope and protection when reversing the pair'});
+
         const cdp=await page.context().newCDPSession(page);
         await cdp.send('Emulation.setEmulatedVisionDeficiency',{type:'achromatopsia'});
         await page.emulateMedia({reducedMotion:'reduce'});
