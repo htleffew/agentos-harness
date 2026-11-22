@@ -85,6 +85,7 @@ function panelLocation(view = captureView(app.body)) {
 }
 
 function applyLocation(location) {
+    if (location.id!=='log') app.logClearReviewed=null;
     app.tab=location.id;
     app.loreTarget=location.lore ?? null;
     app.replyTarget=location.reply ?? null;

@@ -17,6 +17,7 @@ const L = require('./lib.js');
             for (let i=0;i<160;i++) {
                 if (!present.has(prefix+i)) saveQuickAction({family:'steer',title:prefix+i,text:'Let the gate open quietly.'});
             }
+            const availableActions=listQuickActions().length;
             const button=(root,text)=>[...root.querySelectorAll('button')].find(node=>node.textContent.trim()===text);
             const layout=node=>node.getBoundingClientRect().height;
             const waitDOM=async predicate=>{
@@ -71,7 +72,7 @@ const L = require('./lib.js');
                 layout(document.querySelector('.ri-quick-sheet'));
                 return performance.now()-start;
             });
-            return {openSheet,switchPage,findTool,filterLibrary,fixtureActions:160};
+            return {openSheet,switchPage,findTool,filterLibrary,fixtureActions:160,availableActions};
         },L.BASE);
         assert.deepEqual(errors,[]);
         assert.equal(L.requests().length,0);

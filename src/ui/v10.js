@@ -109,7 +109,8 @@ function profileEditor(local, key, label, fallback, standalone=true, list=false)
 
 function renderOpening(local, redraw) {
     const list = greetings();
-    const state = h('div',{class:'ri-note','role':'status'});
+    const state = h('div',{class:'ri-note',id:'ri-opening-feedback',role:'status',hidden:true});
+    const notice = text=>{state.textContent=text;state.hidden=false;};
     const execution=h('div');
     const scope=executionScope(), preset=activePreset();
     const form=h('div');
@@ -136,15 +137,15 @@ function renderOpening(local, redraw) {
         if (card.disabled) return;
         const trigger = event.currentTarget;
         trigger.disabled = card.disabled = accept.disabled = area.disabled = direction.disabled = true;
-        state.textContent = 'Preparing opening…';
+        notice('Preparing opening…');
         try {
             if (stateOnly && !area.value.trim()) throw new Error('Choose or enter a greeting first.');
             draft = await requestOpening(stateOnly ? {text:area.value} : {direction:direction.value});
             if (!stateOnly) card.value='new';
             area.value = draft.prose;
             markDraft();
-            state.textContent = 'Review the draft before using it. Edits are checked against the proposed story facts.';
-        } catch (error) { state.textContent = error.message; }
+            notice('Review the draft before using it. Edits are checked against the proposed story facts.');
+        } catch (error) { notice(error.message); }
         finally {trigger.disabled=card.disabled=accept.disabled=area.disabled=direction.disabled=false;refreshExecution();}
     };
     const needsRead=()=>!!area.value.trim() && !draft && !/<story_update[ >]/i.test(area.value);
@@ -155,12 +156,17 @@ function renderOpening(local, redraw) {
             const text = area.value;
             if (!text.trim()) throw new Error('Choose, generate, or enter an opening first.');
             if (needsRead()) {
-                state.textContent = 'Reading opening state…';
+                notice('Reading opening state…');
                 draft = await requestOpening({text});
             }
             if (executionScope() !== scope || activePreset() !== preset) throw new Error('The chat or preset changed.');
             await acceptV10Opening(draft,text); redraw();
-        } catch(error) { state.textContent=error.message; accept.disabled=card.disabled=area.disabled=direction.disabled=false; refreshExecution(); }
+        } catch(error) {
+            notice(error.message);
+            state.scrollIntoView({block:'nearest'});
+            accept.disabled=card.disabled=area.disabled=direction.disabled=false;
+            refreshExecution();
+        }
     }, {kind:'primary'});
     function refreshExecution() {
         accept.textContent=needsRead() ? 'Read state and use this opening' : 'Use this opening';
@@ -174,8 +180,8 @@ function renderOpening(local, redraw) {
             h('label',{class:'ri-row'},h('input',{type:'checkbox',checked:local.openingPlayerThoughts===true,onchange:event=>{
                 local.openingPlayerThoughts=event.currentTarget.checked;saveChatState();
             }}),'Allow the generated opening to write my character’s internal thoughts'),
-            h('div',{class:'ri-row'},executionAction(button('Generate opening',event=>run(event,false))),executionAction(button('Read state from selected greeting',event=>run(event,true))),cancel),execution,
-            scoped('Review or edit opening',area),h('p',{class:'ri-help'},'Using this opening sets the first reply and files its story facts in this chat.'),accept,state);
+            h('div',{class:'ri-row'},executionAction(button('Generate opening',event=>run(event,false))),executionAction(button('Read state from selected greeting',event=>run(event,true))),cancel),state,execution,
+            scoped('Review or edit opening',area),h('p',{class:'ri-help'},'Using this opening sets the first reply and files its story facts in this chat.'),accept);
     return section('Opening setup',available ? form : h('p',{class:'ri-help'},'Opening setup is available at the start of a chat.'),
         profileEditor(local,'opening','Opening message guidance',OPENING),
         promptGroup(['systemOpening','readGreeting','openingPlayerThoughts','sceneOpening'],'Customize opening and greeting prompts'));
