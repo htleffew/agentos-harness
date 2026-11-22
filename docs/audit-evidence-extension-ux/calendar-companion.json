@@ -1,0 +1,39 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "preset": "Roleplay Instructions V10",
+  "viewport": [
+    320,
+    475
+  ],
+  "touch": true,
+  "contextTokens": 16384,
+  "cases": [
+    {
+      "action": "edit date and time",
+      "date": "Frostfall 30, 310",
+      "time": "11:58 PM",
+      "requests": 0
+    },
+    {
+      "action": "ordinary reply",
+      "requestDate": "Frostfall 30, 310",
+      "headerDate": "Deepwinter 1, 311",
+      "calendarGuidance": "Use the story calendar with 30 days in each month. Month order by season is Winter (Deepwinter, Snowfall, Wolfsblood), Spring (Snowmelt, Seedmoon, Blossomtide), Summer (Highsun, Solstice, Reaping), Autumn (Harvest, Leafturn, Frostfall). Advance the year after Frostfall 30.]",
+      "requests": 1
+    },
+    {
+      "action": "ordinary reply",
+      "requestDate": "Deepwinter 1, 311",
+      "headerDate": "Day 30 of Snowfall, Year 350",
+      "calendarGuidance": "Use the story calendar with 30 days in each month. Month order by season is Winter (Deepwinter, Snowfall, Wolfsblood), Spring (Snowmelt, Seedmoon, Blossomtide), Summer (Highsun, Solstice, Reaping), Autumn (Harvest, Leafturn, Frostfall). Advance the year after Frostfall 30.]",
+      "requests": 1
+    },
+    {
+      "action": "ordinary reply",
+      "requestDate": "Day 30 of Snowfall, Year 350",
+      "headerDate": "Wolfsblood 1, 350",
+      "calendarGuidance": "Use the story calendar with 30 days in each month. Month order by season is Winter (Deepwinter, Snowfall, Wolfsblood), Spring (Snowmelt, Seedmoon, Blossomtide), Summer (Highsun, Solstice, Reaping), Autumn (Harvest, Leafturn, Frostfall). Advance the year after Frostfall 30.]",
+      "requests": 1
+    }
+  ]
+}

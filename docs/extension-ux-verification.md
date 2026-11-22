@@ -115,3 +115,9 @@ An initial pass across different accumulated host fixtures measured 49.2 ms for 
 | Compatibility and request boundaries | The pinned baseline and feature suites ran. Captures include the placed prompts, attempts and state transitions for queueing, cancellation, alternate replies, preset edit and retry. |
 | Independent and release evidence | The goals-only cold review, its retest and the native desktop sample are recorded. The human study, native phone/webview release checks and further environment-specific verification remain open. |
 | Fixes and handoff | Cold-review findings and preset, opening and log follow-ups were applied. This audit links their checks, specification, help and resulting evidence. [Project help](../README.md#interface-map) · [Change notes](../CHANGELOG.md#unreleased) |
+
+## Fantasy calendar follow-up
+
+The story clock verifies all 492 month-end transitions in years 310–350, including season and year boundaries. The same unit tests cover Gregorian leap days, the existing numbered months, older saved date offsets, and non-calculable date anchors. [Clock tests](../tests/unit/story-clock.mjs) · [Header parsing tests](../tests/unit/state_parse.mjs)
+
+The SillyTavern 1.19.0 mock-provider tests used touch emulation at 320 × 475 and one active preset per run. Manual date and time editing took zero model requests. Each ordinary reply made one request and sent the current date and calendar rules together. The header and Current State matched after a year rollover and after reading a year-350 tracker. A 4,095-token companion fixture omitted the opening user turn and its state block. The verified wire runs allowed 16,384 context tokens on both presets. [Default capture](audit-evidence-extension-ux/calendar-default.json) · [Companion capture](audit-evidence-extension-ux/calendar-companion.json) · [Host test](../tests/t_fantasy_calendar.js)

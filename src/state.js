@@ -3,7 +3,7 @@ import { promptText } from './prompts.js';
 // they survive swiping or deleting the reply that happened to be newest when edited.
 import { ctx, KEY, isReply } from './st.js';
 import { separateReply } from './reply-format.js';
-import { recoverSceneDate, weekdayAtOffset } from './story-clock.js';
+import { fantasyCalendarGuidance, parseFantasyDate, recoverSceneDate, weekdayAtOffset } from './story-clock.js';
 
 export const STATE_FIELDS = [['mind', 'Mind'], ['heart', 'Heart'], ['body', 'Body'], ['psyche', 'Psyche']];
 export const SCENE_FIELDS = [['present', 'Present'], ['where', 'Where'], ['when', 'When'], ['time', 'Time'], ['date', 'Date'], ['weather', 'Weather'], ['environment', 'Environment']];
@@ -116,12 +116,24 @@ export function normalizeScene(fields = {}) {
     for (const key of ['time','when']) {
         const combined = String(out[key] ?? '');
         const chunks = combined.split(/\s*(?:[,;|·]+|\s+[-–—]\s+)\s*/u).filter(Boolean);
-        const dates = chunks.filter(part=>calendarDate.test(part) && !daypart.test(part));
-        const weather = chunks.filter(part=>weatherPhrase.test(part));
+        const dates = [], weather = [], timing = [];
+        for (let i=0;i<chunks.length;) {
+            // An optional weekday and written year can each be separated by a comma.
+            const named = [3,2,1].map(size=>chunks.slice(i,i+size)).find(parts=>parseFantasyDate(parts.join(', ')));
+            if (named) {
+                dates.push(named.join(', '));
+                i+=named.length;
+                continue;
+            }
+            const part=chunks[i++];
+            if (calendarDate.test(part) && !daypart.test(part)) dates.push(part);
+            else if (weatherPhrase.test(part)) weather.push(part);
+            else timing.push(part);
+        }
         if (!dates.length && !weather.length) continue;
         if (!out.date && dates.length) out.date = dates.join(', ');
         if (!out.weather && weather.length) out.weather = weather.join(', ');
-        const time = chunks.filter(part=>!dates.includes(part) && !weather.includes(part)).join(', ');
+        const time = timing.join(', ');
         if (time) out[key] = time;
         else delete out[key];
         if (time && key === 'when' && !out.time && /\b\d{1,2}:\d{2}\b/.test(time)) out.time = time;
@@ -137,7 +149,7 @@ export function sceneFromReplyHeader(prose) {
     const map = { time:'time',date:'date',calendar:'date',location:'where',loc:'where',where:'where',weather:'weather' };
     for (const line of lines) {
         if (/^\s*<(?:mobile_header|scene_header)\b/i.test(line)) {
-            for (const [,key,value] of line.matchAll(/\b(time|date|location|where|weather)\s*=\s*["']([^"']+)["']/gi)) header[map[key.toLowerCase()]] = text(value);
+            for (const [,key,value] of line.matchAll(/\b(time|date|calendar|location|where|weather)\s*=\s*["']([^"']+)["']/gi)) header[map[key.toLowerCase()]] = text(value);
             break;
         }
         if (/^\s*</.test(line)) continue;
@@ -271,6 +283,8 @@ export function statePrompt(type = 'normal', limit = 1400, { includeCharacters =
             `Last established date: ${date}. Supply the new date if the calendar establishes it.`);
     }
     if (sceneLine) add(`Scene: ${sceneLine}`);
+    const calendar = fantasyCalendarGuidance(scene.date || scene.lastKnownDate);
+    if (calendar) add(calendar);
     // Preserve complete fields rather than dropping an entire character when a long
     // field does not fit; physical conditions and goals take precedence.
     const ordered = ['body', 'mind', 'heart', 'psyche'];

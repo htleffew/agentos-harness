@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { advanceStoryClock, weekdayAtOffset } from '../../src/story-clock.js';
+import { advanceStoryClock, fantasyDateError, recoverSceneDate, weekdayAtOffset } from '../../src/story-clock.js';
 import { gate } from '../../src/v10.js';
 
 const base = {date:'2024-02-28',time:'11:58 PM',where:'Dock',weather:'Rain'};
@@ -50,3 +50,27 @@ assert.deepEqual(advanceStoryClock({date:'Wednesday, Day 14',time:'11:58 p.m.'},
     {date:'Thursday, Day 15',time:'12:02 AM'});
 assert.deepEqual(advanceStoryClock({date:'Wednesday, February 28, 2024',time:'23:58'},{},{elapsed:4}).scene,
     {date:'Thursday, February 29, 2024',time:'00:02'});
+
+const months=['Deepwinter','Snowfall','Wolfsblood','Snowmelt','Seedmoon','Blossomtide',
+    'Highsun','Solstice','Reaping','Harvest','Leafturn','Frostfall'];
+for (let year=310;year<=350;year++) for (const [index,month] of months.entries()) {
+    const anchor={date:`Day 30 of ${month}, Year ${year}`,time:'23:58'};
+    const nextMonth=months[index+1];
+    const expected=`${nextMonth || months[0]} 1, ${nextMonth ? year : year+1}`;
+    assert.deepEqual(advanceStoryClock(anchor,{}, {clock:18,elapsed:4}),
+        {scene:{date:expected,time:'00:02'},minutes:22,issues:[]},anchor.date);
+}
+const frostfall={date:'Saturday, 30th of Frostfall, 310',time:'23:58'};
+const deepwinter={date:'Sunday, Deepwinter 1, 311',time:'00:02'};
+assert.deepEqual(advanceStoryClock(frostfall,{date:'Tuesday, Deepwinter 1, 311',time:'00:02'}, {clock:18}),
+    {scene:deepwinter,minutes:22,issues:[]});
+assert.deepEqual(advanceStoryClock(frostfall,{date:'Frostfall 30, 310'}, {elapsed:4}).scene,deepwinter);
+assert.deepEqual(advanceStoryClock(frostfall,{date:'Saturday'}, {elapsed:4}).scene,deepwinter);
+assert.deepEqual(recoverSceneDate({time:deepwinter.time,lastKnownDate:frostfall.date,daysAfterKnownDate:1}),deepwinter);
+assert.equal(advanceStoryClock({date:'Deepwinter 1, 310',time:'00:00'}, {date:'Deepwinter 1, 350',time:'00:00'},
+    {clock:0}).minutes,40*360*1440);
+const invalidFantasy=advanceStoryClock(frostfall,{date:'Deepwinter 31, 311'}, {elapsed:4});
+assert.deepEqual(invalidFantasy.scene,deepwinter);
+assert.match(invalidFantasy.issues[0],/day from 1 to 30/);
+assert.equal(fantasyDateError('May 31, 2026'),'');
+assert.match(fantasyDateError('Snowfall 0, 350'),/day from 1 to 30/);

@@ -30,6 +30,12 @@ assert.deepEqual(sceneFromReplyHeader('[🕰️ 3:45 AM | 🗓️ Wednesday, Mon
     {time:'3:45 AM',date:'Wednesday, Month 7, Day 14',where:'Mountain road',weather:'Clear, 38°F'});
 assert.deepEqual(sceneFromReplyHeader('**Date:** May 2, 2024 | **Time:** 6:30 PM | **Location:** Wharf'),
     {date:'May 2, 2024',time:'6:30 PM',where:'Wharf'});
+assert.deepEqual(sceneFromReplyHeader('<scene_header time="06:30" calendar="Harvest 1, 333" location="Gate" weather="Clear">'),
+    {date:'Harvest 1, 333',time:'06:30',where:'Gate',weather:'Clear'});
+assert.deepEqual(sceneFromReplyHeader('<tracker>23:59 | Day 30 of Snowfall, Year 350 | Wharf | Snowfall</tracker>'),
+    {date:'Day 30 of Snowfall, Year 350',time:'23:59',where:'Wharf',weather:'Snowfall'});
+assert.deepEqual(sceneUpdate({time:'06:30, Monday, Snowfall 30, 315, Snowfall'}),
+    {date:'Monday, Snowfall 30, 315',time:'06:30',weather:'Snowfall'});
 assert.deepEqual(sceneUpdate({date:'—',weather:'Unknown',time:'',environment:''}),{environment:''});
 assert.deepEqual(sceneUpdate({when:'Monday evening'}),{when:'Monday evening'});
 context.chat.push({is_system:true,mes:'<tracker>9:00 AM | Tuesday, May 12, 2026 | Garden | Overcast</tracker>'},

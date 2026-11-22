@@ -6,6 +6,22 @@ const NUMBERED_FIRST_DAY = Date.UTC(NUMBERED_YEAR,0,1)/DAY_MS;
 const WEEK = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const weekdayPrefix = new RegExp(`^(${WEEK.join('|')})(?:,?\\s+|,?$)`,'i');
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const STORY_SEASONS = {
+    Winter:['Deepwinter','Snowfall','Wolfsblood'],
+    Spring:['Snowmelt','Seedmoon','Blossomtide'],
+    Summer:['Highsun','Solstice','Reaping'],
+    Autumn:['Harvest','Leafturn','Frostfall'],
+};
+const STORY_MONTHS = Object.values(STORY_SEASONS).flat();
+const STORY_MONTH_DAYS = 30;
+const STORY_YEAR_DAYS = STORY_MONTHS.length * STORY_MONTH_DAYS;
+const storyMonth = `(${STORY_MONTHS.join('|')})`;
+const storyDay = '(\\d{1,2})(?:st|nd|rd|th)?';
+const storyDatePattern = new RegExp(
+    `^(?:${storyMonth}\\s+(?:day\\s+)?${storyDay}|(?:day\\s+)?${storyDay}\\s+(?:of\\s+)?${storyMonth})(?:\\s*,\\s*|\\s+)(?:year\\s+)?(\\d{1,4})$`,'i');
+const storyCalendarGuidance = 'Use the story calendar with 30 days in each month. Month order by season is ' +
+    Object.entries(STORY_SEASONS).map(([season,months])=>`${season} (${months.join(', ')})`).join(', ') +
+    '. Advance the year after Frostfall 30.';
 
 export const validStoryMinute = value => Number.isSafeInteger(value) && value >= 0;
 export const validElapsed = value => validStoryMinute(value) && value <= 5256000;
@@ -34,10 +50,32 @@ export function weekdayAtOffset(date, days) {
     return weekday>=0 && Number.isSafeInteger(days) && days>=0 ? WEEK[(weekday+(days%7))%7] : '';
 }
 
+export function parseFantasyDate(value) {
+    const match = storyDatePattern.exec(String(value ?? '').trim().replace(weekdayPrefix,''));
+    if (!match) return null;
+    const monthName = (match[1] || match[4]).toLowerCase();
+    const month = STORY_MONTHS.findIndex(name=>name.toLowerCase()===monthName);
+    const day = Number(match[2] || match[3]), year = Number(match[5]);
+    return { month,day,year,valid:day>=1 && day<=STORY_MONTH_DAYS && year>=1 };
+}
+
+export function fantasyDateError(value) {
+    const date=parseFantasyDate(value);
+    if (!date || date.valid) return '';
+    return 'Use a day from 1 to 30 and a positive year for this story calendar.';
+}
+
+export function fantasyCalendarGuidance(date) {
+    return parseFantasyDate(date)?.valid ? storyCalendarGuidance : '';
+}
+
 function dayNumber(value) {
     const original = String(value || '').trim();
     const weekday = weekdayIndex(original);
     const date = original.replace(weekdayPrefix,'');
+    const fantasy = parseFantasyDate(date);
+    if (fantasy) return fantasy.valid ? {format:'fantasy',weekday,
+        day:(fantasy.year-1)*STORY_YEAR_DAYS+fantasy.month*STORY_MONTH_DAYS+fantasy.day-1} : null;
     const ordinal = /^Day\s+(\d{1,9})$/i.exec(date);
     if (ordinal) return { format:'ordinal', day:Number(ordinal[1]),weekday };
     const numbered = /^Month\s+(\d{1,2})\s*,\s*Day\s+(\d{1,2})$/i.exec(date);
@@ -71,6 +109,13 @@ function nextDate(date, days) {
         const numbered=new Date((NUMBERED_FIRST_DAY+offset)*DAY_MS);
         const weekday=weekdayAtOffset(date,days);
         return `${weekday ? `${weekday}, ` : ''}Month ${numbered.getUTCMonth()+1}, Day ${numbered.getUTCDate()}`;
+    }
+    if (current.format==='fantasy') {
+        const year=Math.floor(day/STORY_YEAR_DAYS)+1;
+        if (year>9999) return '';
+        const month=Math.floor((day%STORY_YEAR_DAYS)/STORY_MONTH_DAYS);
+        const weekday=weekdayAtOffset(date,days);
+        return `${weekday ? `${weekday}, ` : ''}${STORY_MONTHS[month]} ${day%STORY_MONTH_DAYS+1}, ${year}`;
     }
     const shifted = new Date(day*DAY_MS);
     if (!Number.isFinite(shifted.valueOf()) || shifted.getUTCFullYear()>9999) return '';
@@ -113,14 +158,16 @@ function rollDate(scene,previous,days) {
 export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, elapsed } = {}) {
     previous=recoverSceneDate(previous);
     const anchor=dayNumber(previous.date);
-    if (anchor?.format==='numbered' && anchor.weekday>=0 &&
-        WEEK.some(day=>day.toLowerCase()===String(update.date || '').trim().toLowerCase())) {
-        // A weekday alone adds no calendar information when the full date is already known.
+    const issue = [];
+    const invalidDate=fantasyDateError(update.date);
+    if (invalidDate) issue.push(invalidDate);
+    const tracksNamedDate=anchor?.format==='fantasy' || (anchor?.format==='numbered' && anchor.weekday>=0);
+    if (invalidDate || (tracksNamedDate && WEEK.some(day=>day.toLowerCase()===String(update.date || '').trim().toLowerCase()))) {
+        // A weekday alone adds no information to an established calendar date.
         const {date,...rest}=update;
         update=rest;
     }
     const scene = { ...previous,...update };
-    const issue = [];
     const start = clockTime(previous.time || previous.when);
     const end = clockTime(update.time);
     const distance=dateDistance(previous.date,update.date);
@@ -141,7 +188,7 @@ export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, 
         }
         duration=measured;
     }
-    if (distance?.from?.format==='numbered' && distance.from.weekday>=0 && distance.days>=0 && !(measured<0)) {
+    if (tracksNamedDate && anchor.weekday>=0 && distance?.from && distance.days>=0 && !(measured<0)) {
         scene.date=nextDate(previous.date,distance.days);
     }
     if (duration===undefined && start && end && !update.date && end.minutes>=start.minutes) {
@@ -167,7 +214,8 @@ export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, 
                 issue.push('The submitted clock time disagreed with the elapsed minutes. Used the elapsed minutes for the clock time.');
             }
             scene.time=formatTime(endMinute,(end || start).twelve);
-            if (days && (!Object.hasOwn(update,'date') || update.date===previous.date || measured<0)) {
+            if (days && (!Object.hasOwn(update,'date') || update.date===previous.date ||
+                (anchor?.format==='fantasy' && distance?.days===0) || measured<0)) {
                 rollDate(scene,previous,days);
             }
         } else {

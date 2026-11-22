@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added 30-day fantasy calendar rollover from Deepwinter through Frostfall. The scene editor, reply header, and ordinary reply context use the named story date.
 - Unified chat and panel navigation with Find a tool, page headings, contextual links and return focus. Added exact-reply review and scoped recovery for interrupted panel edits.
 - Updated model settings and reply display destinations, grouped chapter controls in Context & Memory, and added searchable story records and request logs. Shared controls have larger touch targets and clearer focus.
 - Put freeform direction entry first in Quick actions, keep queue confirmation and Undo visible, and show scope before saved-button editing. Historical corrections identify the reply and version and link to its receipt. [Extension UX verification](docs/extension-ux-verification.md)

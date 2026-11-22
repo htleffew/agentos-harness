@@ -8,6 +8,7 @@ import { buildAsk, buildSceneAsk, parseUpdate, afterReply, worldIdle, recordManu
 import { changesFromProfiles } from '../state.js';
 import { request } from '../ai.js';
 import { settings, saveChatState } from '../store.js';
+import { fantasyDateError } from '../story-clock.js';
 
 const lastReply = () => {
     const chat = ctx().chat || [];
@@ -96,15 +97,21 @@ export function sceneEditor(scene, refresh, { historicalId = null } = {}) {
     const form = h('div', { class: 'ri-state-editor' }), inputs = {}, locks = {};
     const advances = key => key==='time' || key==='date' || key==='when';
     for (const [key, label] of SCENE_FIELDS) {
-        const input = h('textarea', { class: 'ri-input ri-textarea', rows: 2 }); input.value = scene[key] || '';
+        const input = h('textarea', { class: 'ri-input ri-textarea', rows: 2, 'aria-label':label }); input.value = scene[key] || '';
         const lock = h('input', { type: 'checkbox', checked: sceneProtected(key) });
         inputs[key] = input; locks[key] = lock;
         if (!advances(key)) input.addEventListener('input', () => { lock.checked = true; });
         form.append(h('label', { class: 'ri-label' }, label), input);
         if (historicalId === null) form.append(h('label', { class: 'ri-state-lock' }, lock, ' Protect from automatic changes'));
     }
+    function validDate() {
+        if (inputs.date.value.trim()===(scene.date || '')) return true;
+        inputs.date.setCustomValidity(fantasyDateError(inputs.date.value));
+        return inputs.date.reportValidity();
+    }
     if (historicalId !== null) {
         const save = apply => {
+            if (!validDate()) return;
             for (const [key] of SCENE_FIELDS) if (inputs[key].value.trim() !== (scene[key] || '')) {
                 editSceneSnapshot(historicalId, key, inputs[key].value);
                 if (apply) editScene(key, inputs[key].value, !advances(key));
@@ -114,6 +121,7 @@ export function sceneEditor(scene, refresh, { historicalId = null } = {}) {
         form.append(h('div', { class: 'ri-help' }, 'Correct only this snapshot, or also apply the changes to the current scene. Later story text is not rewritten.'),
             button('Save snapshot only', () => save(false)), button('Save and apply to current scene', () => save(true), { kind: 'ghost' }));
     } else form.append(button('Save scene', () => {
+        if (!validDate()) return;
         for (const [key] of SCENE_FIELDS) if (inputs[key].value.trim() !== (scene[key] || '') || locks[key].checked !== sceneProtected(key)) editScene(key, inputs[key].value, locks[key].checked);
         refresh();
     }));
