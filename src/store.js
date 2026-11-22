@@ -61,6 +61,7 @@ const DEFAULTS = {
     writer: { count: 10, moreRoom: false, eventScene: false, rules: DEFAULT_WRITER_RULES, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },
     expanded: false,
+    quickToolbarExpanded: false,
 };
 
 function fill(target, defaults) {

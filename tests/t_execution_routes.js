@@ -38,7 +38,7 @@ const count = (request,text) => L.text(request).split(text).length-1;
         return {url,model,stream,messages:messages.filter(message=>/E_FIXTURE|thing A9|Return only playable|Return a JSON array of 3 strings|"done"/.test(String(message.content)))};
     }
     const openDraft=async()=>{
-        await tap(page.getByRole('button',{name:'Quick actions',exact:true}));
+        await L.openQuickActions(page);
         await tap(sheet.getByRole('button',{name:'Draft my reply',exact:true}));
     };
     const close=()=>tap(sheet.getByRole('button',{name:'Close',exact:true}));
@@ -73,7 +73,7 @@ const count = (request,text) => L.text(request).split(text).length-1;
         await returnToDraft();
     };
     const toggleAutomatic=async (label,value)=>{
-        await tap(page.getByRole('button',{name:'Quick actions',exact:true}));
+        await L.openQuickActions(page);
         await tap(sheet.getByRole('button',{name:'Edit preset prompts',exact:true}));
         await tap(panel.locator('[data-ri-page="settings"]'));
         const control=panel.getByRole('combobox',{name:label,exact:true});
@@ -102,7 +102,7 @@ const count = (request,text) => L.text(request).split(text).length-1;
         await L.send(page,'E_FIXTURE_PLAYER I watch the door.');
 
         reset();
-        await tap(page.getByRole('button',{name:'Quick actions',exact:true}));
+        await L.openQuickActions(page);
         await tap(sheet.getByRole('button',{name:'Steer the next reply',exact:true}));
         await tap(sheet.getByText('Action roll',{exact:true}));
         await tap(sheet.getByRole('button',{name:'Roll d20',exact:true}));
@@ -312,7 +312,7 @@ const count = (request,text) => L.text(request).split(text).length-1;
         assert.equal(blocked.attempts,0);
         assert.equal(L.requests().length,1);
         assert.equal(alternateRequests().length,0);
-        await tap(page.getByRole('button',{name:'Quick actions',exact:true}));
+        await L.openQuickActions(page);
         await tap(sheet.getByRole('button',{name:'What Was Sent',exact:true}));
         const newest=page.locator('#ri_root .ri-sentcard').first();
         await tap(newest.getByRole('button',{name:/Check this reply again/}));

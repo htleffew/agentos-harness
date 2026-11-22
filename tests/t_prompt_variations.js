@@ -22,7 +22,7 @@ const { setupApi: reconnectMain } = require('./h.js');
     };
     const root=page.locator('#ri_root');
     const openPanel=async()=>{
-        await tap(page.getByRole('button',{name:'Quick actions',exact:true}));
+        await L.openQuickActions(page);
         await tap(page.locator('.ri-quick-sheet').getByRole('button',{name:'Edit preset prompts',exact:true}));
         await root.waitFor();
     };

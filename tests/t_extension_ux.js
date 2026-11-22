@@ -51,32 +51,107 @@ const L = require('./lib.js');
         const drawer=page.locator('#extensions-settings-button > .drawer-content.openDrawer');
         if (await drawer.count()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
 
-        const entry=page.getByRole('button',{name:'Quick actions',exact:true});
+        const toolbar=page.getByRole('group',{name:'Quick actions toolbar'});
+        const entry=toolbar.getByRole('button',{name:'Quick actions',exact:true});
+        const draftSelection=()=>composer.evaluate(input=>[document.activeElement===input,input.selectionStart,input.selectionEnd,input.selectionDirection]);
+        const layout=()=>toolbar.evaluate(strip=>{
+            const form=document.querySelector('#send_form').getBoundingClientRect();
+            const input=document.getElementById('send_textarea');
+            const send=document.getElementById('send_but');
+            const {x,y,width,height}=send.getBoundingClientRect();
+            const toolbar=strip.getBoundingClientRect();
+            const composerWidth=input.getBoundingClientRect().width;
+            strip.hidden=true;
+            const widthWithoutToolbar=input.getBoundingClientRect().width;
+            strip.hidden=false;
+            const controls=[...strip.querySelectorAll('button')].filter(button=>button.getClientRects().length);
+            return {above:toolbar.bottom<=form.top,composerWidth,widthWithoutToolbar,height:toolbar.height,
+                sendReachable:send.contains(document.elementFromPoint(x+width/2,y+height/2)),
+                fits:controls.every(button=>button.scrollWidth<=button.clientWidth+1),
+                targets:controls.map(button=>[button.offsetWidth,button.offsetHeight])};
+        });
+        if (await entry.getAttribute('aria-expanded')==='true') await entry.tap();
         const multiline='I watch the gate.\nThe guard raises the lantern.\nI stay in the shadows.';
         for (const width of [320,390]) {
             await page.setViewportSize({width,height:475});
             await composer.fill(multiline);
             await composer.evaluate(input=>input.setSelectionRange(2,9,'backward'));
-            const layout=await entry.evaluate(button=>{
-                const input=document.getElementById('send_textarea').getBoundingClientRect();
-                const controls=document.getElementById('rightSendForm').getBoundingClientRect();
-                const {left,right,width,height}=button.getBoundingClientRect();
-                return {width,height,composerWidth:input.width,between:input.right<=left && right<=controls.left};
-            });
-            assert.equal(layout.width,44);
-            assert.equal(layout.height,44);
-            assert.equal(layout.between,true,'Quick actions must leave the text field and send controls clear');
+            assert.equal(await entry.getAttribute('aria-expanded'),'false');
+            const collapsed=await layout();
             await entry.tap();
-            await tap(sheet,'Close');
+            assert.equal(await entry.getAttribute('aria-expanded'),'true');
+            assert.deepEqual(await draftSelection(),[true,2,9,'backward']);
+            const expanded=await layout();
+            for (const [state,size] of [['collapsed',collapsed],['expanded',expanded]]) {
+                assert.equal(size.composerWidth,size.widthWithoutToolbar,`${state} at ${width} px`);
+                assert.ok(size.above && size.sendReachable && size.fits,`${state} controls at ${width} px`);
+                assert.ok(size.targets.every(([w,h])=>w>=44 && h>=44),`${state} touch targets at ${width} px`);
+            }
+            assert.deepEqual([collapsed.targets.length,expanded.targets.length],[1,4]);
+            for (const label of ['Steer the next reply','Draft my reply']) {
+                await tap(toolbar,label);
+                assert.equal(await sheet.getByRole('heading').innerText(),label);
+                const editor=sheet.getByRole('textbox',{name:'Your direction',exact:true});
+                assert.equal(await editor.evaluate(input=>document.activeElement===input),true);
+                await page.keyboard.type('A direction for the editor.');
+                assert.equal(await composer.inputValue(),multiline);
+                await editor.fill('');
+                if (label==='Draft my reply') {
+                    const costs=sheet.locator('summary').filter({hasText:'Draft and choice costs'});
+                    assert.ok(await costs.evaluate(node=>{
+                        const {x,y,width,height}=node.getBoundingClientRect();
+                        return node.contains(document.elementFromPoint(x+width/2,y+height/2));
+                    }),'Costs are reachable from the first draft view');
+                    await costs.tap();
+                    const preview=costs.locator('..');
+                    await preview.getByText('Give me choices',{exact:true}).waitFor();
+                    await preview.getByText(/Using the wording in the composer takes no model call/).waitFor();
+                    await costs.tap();
+                }
+                await tap(sheet,'Close');
+                assert.deepEqual(await draftSelection(),[true,2,9,'backward']);
+            }
+            await entry.tap();
             assert.equal(await composer.inputValue(),multiline);
-            assert.deepEqual(await composer.evaluate(input=>[document.activeElement===input,input.selectionStart,input.selectionEnd,input.selectionDirection]),
-                [true,2,9,'backward']);
-            evidence.push({case:'compact Quick actions with a focused multiline composer',viewport:[width,475],layout,requests:L.requests().length});
+            assert.deepEqual(await draftSelection(),[true,2,9,'backward']);
+            evidence.push({case:'expand, open shortcuts and collapse with a focused multiline composer',viewport:[width,475],collapsed,expanded,requests:L.requests().length});
         }
+        await page.setViewportSize({width:320,height:475});
+        await toolbar.evaluate(strip=>{strip.style.fontSize='200%';});
+        await entry.focus();
+        await entry.press('Enter');
+        assert.equal(await entry.getAttribute('aria-expanded'),'true');
+        const large=await layout();
+        assert.ok(large.sendReachable && large.fits && large.above,'Toolbar at 200% text');
+        await entry.press('Space');
+        assert.equal(await entry.getAttribute('aria-expanded'),'false');
+        await toolbar.evaluate(strip=>strip.style.removeProperty('font-size'));
+        evidence.push({case:'keyboard toggle at 200% text',viewport:[320,475],expanded:large,requests:L.requests().length});
+
+        await composer.focus();
+        await L.openQuickActions(page);
+        const manage=sheet.getByRole('button',{name:'Manage quick actions',exact:true});
+        assert.ok(await manage.evaluate(node=>{
+            const {x,y,width,height}=node.getBoundingClientRect();
+            return node.contains(document.elementFromPoint(x+width/2,y+height/2));
+        }),'Library management is tappable from the first view of More actions');
+        await tap(sheet,'Browse directions');
+        await sheet.getByRole('searchbox',{name:'Search quick actions'}).fill('forest');
+        await manage.tap();
+        assert.equal(await sheet.getByRole('heading').first().innerText(),'Manage quick actions');
+        await tap(sheet,'Back');
+        assert.equal(await sheet.getByRole('heading').first().innerText(),'Browse directions');
+        assert.equal(await sheet.getByRole('searchbox',{name:'Search quick actions'}).inputValue(),'forest');
+        await tap(sheet,'Close');
+        assert.deepEqual(await draftSelection(),[true,2,9,'backward']);
+        assert.equal(L.requests().length,0);
+        evidence.push({case:'library management initial reach and Browse directions return',viewport:[320,475],requests:0});
+        await page.setViewportSize({width:390,height:475});
 
         await composer.fill('I hold the original draft.');
         await composer.evaluate(input=>input.setSelectionRange(2,9,'backward'));
-        await tap(page,'Quick actions');
+        await L.openQuickActions(page);
+        assert.equal(await sheet.getByRole('button',{name:'Close',exact:true}).evaluate(node=>document.activeElement===node),true);
         await tap(sheet,'Context & Memory');
         await panel.locator('#ri-memory-status').waitFor();
         assert.equal(await title(),'Context & Memory');
@@ -88,7 +163,7 @@ const L = require('./lib.js');
         assert.deepEqual(await composer.evaluate(input=>[input.selectionStart,input.selectionEnd,input.selectionDirection]),[2,9,'backward']);
         evidence.push({case:'chat to memory and return',requests:L.requests().length,selection:[2,9,'backward']});
 
-        await tap(page,'Quick actions');
+        await L.openQuickActions(page);
         await tap(sheet,'Steer the next reply');
         const direction=sheet.getByRole('textbox',{name:'Your direction'});
         assert.equal(await direction.evaluate(node=>document.elementFromPoint(node.getBoundingClientRect().left+5,
@@ -109,7 +184,7 @@ const L = require('./lib.js');
             const {setExecutionSetting}=await import(base+'/src/execution.js');
             setExecutionSetting('playerDraft',{profileId:'missing-ux-route'});
         },L.BASE);
-        await tap(page,'Quick actions');
+        await L.openQuickActions(page);
         await tap(sheet,'Draft my reply');
         await sheet.getByLabel('Your direction').fill('Keep the original question.');
         const blocked=sheet.getByRole('status').filter({hasText:/saved connection profile.*unavailable/i});
@@ -181,10 +256,23 @@ const L = require('./lib.js');
         await tap(newest,'Dismiss recovered draft');
         assert.equal(await recovered.inputValue(),'The keeper left a sealed letter.');
         evidence.push({case:'independent unsaved edits recovered only in their originating chat',drafts:2,requests:L.requests().length});
+        await tap(panel,'Close full screen');
+        if (await drawer.count()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
+        for (const expanded of [false,true]) {
+            const saved=page.waitForResponse(response=>response.url().endsWith('/api/settings/save') && response.ok() &&
+                response.request().postDataJSON()?.extension_settings?.roleplay_instructions?.quickToolbarExpanded===expanded);
+            await entry.tap();
+            await saved;
+            await page.reload();
+            await page.waitForFunction(()=>globalThis.SillyTavern?.getContext()?.characters?.length>0);
+            await L.openChat(page,{fresh:false});
+            assert.equal(await entry.getAttribute('aria-expanded'),String(expanded));
+        }
+        evidence.push({case:'restore collapsed and expanded preferences on reload',requests:L.requests().length});
         assert.equal(L.requests().length,0);
         assert.deepEqual(errors,[]);
         evidence.push({case:'direct older reply actions',target:2,version:1,requests:0});
-        console.log('PASS phone-width task finder, return navigation, scoped receipt and correction, and composer ownership');
+        console.log('PASS phone-width collapsible toolbar, full composer width, saved preference, task finder, exact reply and draft recovery');
     } catch(error) {
         await page.screenshot({path:'/tmp/ri-extension-ux-failure.png'}).catch(()=>{});
         throw error;

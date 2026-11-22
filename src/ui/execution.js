@@ -30,10 +30,10 @@ export function functionExecution(operation, { receipt = false, ...options } = {
     });
 }
 
-export function executionDetails(stage, { onSettings, allowSettings = true } = {}) {
+export function executionDetails(stage, { onSettings, allowSettings = true, summary } = {}) {
     const stages = Array.isArray(stage) ? stage : [stage];
     const first = stages[0], style = EXECUTION_STAGES[first?.stage] || EXECUTION_STAGES.code;
-    const title = stages.length > 1 ? 'How it ran · multiple stages' : `How it ran · ${style.label}`;
+    const title = summary ?? (stages.length > 1 ? 'How it ran · multiple stages' : `How it ran · ${style.label}`);
     return h('details',{class:`ri-execution ri-execution-${first?.stage || 'code'}`},
         h('summary',{style:{minHeight:'44px',display:'flex',alignItems:'center',gap:'.5em'}},h('span',{'aria-hidden':'true'},style.icon),title),
         ...stages.filter(Boolean).map(item=>{

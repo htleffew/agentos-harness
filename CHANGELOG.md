@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Made Quick actions a compact lightning-bolt control beside the composer with a 44 px touch target.
+- Moved Quick actions to a collapsible rail above the composer. It remembers the display preference and gives direct access to steering and drafting. The draft editor shows choice and draft costs beside the direction field.
 - Added 30-day fantasy calendar rollover from Deepwinter through Frostfall. The scene editor, reply header, and ordinary reply context use the named story date.
 - Unified chat and panel navigation with Find a tool, page headings, contextual links and return focus. Added exact-reply review and scoped recovery for interrupted panel edits.
 - Updated model settings and reply display destinations, grouped chapter controls in Context & Memory, and added searchable story records and request logs. Shared controls have larger touch targets and clearer focus.

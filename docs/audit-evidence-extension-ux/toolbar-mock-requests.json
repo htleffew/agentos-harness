@@ -1,0 +1,236 @@
+[
+  {
+    "host": "SillyTavern 1.19.0",
+    "preset": "Default",
+    "viewport": [
+      390,
+      620
+    ],
+    "touch": true,
+    "errors": [
+      "PAGEERROR Service Unavailable"
+    ],
+    "cases": [
+      {
+        "name": "A26: draft before send",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      },
+      {
+        "name": "A24/A26: keyboard-free pinned swipe",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      },
+      {
+        "name": "A24/A26: two saved cues and free text",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      },
+      {
+        "name": "A26: failed ordinary send and explicit retry",
+        "requestCount": 2,
+        "requests": [
+          {
+            "QASYSTEM_CURRENT": 1,
+            "QAOOC_CURRENT": 1,
+            "QARESIN_LANTERN": 1
+          },
+          {
+            "QASYSTEM_CURRENT": 1,
+            "QAOOC_CURRENT": 1,
+            "QARESIN_LANTERN": 1
+          }
+        ],
+        "state": {
+          "observedRoute": "Chat Completion",
+          "queueLength": 0,
+          "playerText": "I ask what she can see.\n\n(OOC: QAOOC_CURRENT Let the night remain still.)"
+        }
+      },
+      {
+        "name": "A9: accepted event",
+        "requestCount": 1,
+        "requests": [
+          {
+            "QARESIN_LANTERN": 1
+          }
+        ],
+        "state": {
+          "observedRoute": "Chat Completion",
+          "queueLength": 0,
+          "playerText": "I stay by the quay."
+        }
+      },
+      {
+        "name": "A9: replacement removes event",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ],
+        "state": {
+          "queueLength": 0,
+          "playerText": "I stay by the quay."
+        }
+      },
+      {
+        "name": "A9: reselect accepted swipe",
+        "requestCount": 0,
+        "state": {
+          "observedRoute": "Chat Completion",
+          "queueLength": 0,
+          "playerText": "I stay by the quay."
+        }
+      },
+      {
+        "name": "A15: repair and inspect memory from the same chat",
+        "requestCount": 0,
+        "corrected": "The quay gate is closed."
+      },
+      {
+        "name": "A1: ordinary Text Completion sends both queued destinations",
+        "requestCount": 1,
+        "requests": [
+          {
+            "QATEXT_PRIVATE": 1,
+            "QATEXT_VISIBLE": 1
+          }
+        ],
+        "state": {
+          "observedRoute": "Text Completion",
+          "queueLength": 0,
+          "playerText": "I check the gate in the mist.\n\n(OOC: QATEXT_VISIBLE Keep the air still.)"
+        }
+      },
+      {
+        "name": "A1: subsequent Text Completion lacks spent directions",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      }
+    ]
+  },
+  {
+    "host": "SillyTavern 1.19.0",
+    "preset": "Roleplay Instructions V10",
+    "viewport": [
+      390,
+      620
+    ],
+    "touch": true,
+    "errors": [
+      "PAGEERROR Service Unavailable"
+    ],
+    "cases": [
+      {
+        "name": "A26: draft before send",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      },
+      {
+        "name": "A24/A26: keyboard-free pinned swipe",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      },
+      {
+        "name": "A24/A26: two saved cues and free text",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      },
+      {
+        "name": "A26: failed ordinary send and explicit retry",
+        "requestCount": 2,
+        "requests": [
+          {
+            "QASYSTEM_CURRENT": 1,
+            "QAOOC_CURRENT": 1,
+            "QARESIN_LANTERN": 1
+          },
+          {
+            "QASYSTEM_CURRENT": 1,
+            "QAOOC_CURRENT": 1,
+            "QARESIN_LANTERN": 1
+          }
+        ],
+        "state": {
+          "observedRoute": "Chat Completion",
+          "queueLength": 0,
+          "playerText": "I ask what she can see.\n\n(OOC: QAOOC_CURRENT Let the night remain still.)"
+        }
+      },
+      {
+        "name": "A9: accepted event",
+        "requestCount": 1,
+        "requests": [
+          {
+            "QARESIN_LANTERN": 1
+          }
+        ],
+        "state": {
+          "observedRoute": "Chat Completion",
+          "queueLength": 0,
+          "playerText": "I stay by the quay."
+        }
+      },
+      {
+        "name": "A9: replacement removes event",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ],
+        "state": {
+          "queueLength": 0,
+          "playerText": "I stay by the quay."
+        }
+      },
+      {
+        "name": "A9: reselect accepted swipe",
+        "requestCount": 0,
+        "state": {
+          "observedRoute": "Chat Completion",
+          "queueLength": 0,
+          "playerText": "I stay by the quay."
+        }
+      },
+      {
+        "name": "A15: repair and inspect memory from the same chat",
+        "requestCount": 0,
+        "corrected": "The quay gate is closed."
+      },
+      {
+        "name": "A1: ordinary Text Completion sends both queued destinations",
+        "requestCount": 1,
+        "requests": [
+          {
+            "QATEXT_PRIVATE": 1,
+            "QATEXT_VISIBLE": 1
+          }
+        ],
+        "state": {
+          "observedRoute": "Text Completion",
+          "queueLength": 0,
+          "playerText": "I check the gate in the mist.\n\n(OOC: QATEXT_VISIBLE Keep the air still.)"
+        }
+      },
+      {
+        "name": "A1: subsequent Text Completion lacks spent directions",
+        "requestCount": 1,
+        "requests": [
+          {}
+        ]
+      }
+    ]
+  }
+]

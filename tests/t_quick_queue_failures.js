@@ -12,7 +12,7 @@ const L=require('./lib.js');
         await root.getByRole('button',{name,exact:typeof name==='string'}).first().tap();
         taps.push(String(name));
     };
-    const open=()=>click('Quick actions',page);
+    const open=()=>L.openQuickActions(page);
     const close=()=>click('Close');
     const family=async label=>{await open();await click(label);};
     const direction=()=>sheet.getByRole('textbox',{name:'Your direction'});

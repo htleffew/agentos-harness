@@ -1,5 +1,5 @@
 import { ctx, heldGroupContinuationComposer, isChatOpen, isGenerating, KEY, on } from '../st.js';
-import { saveChatState, settings } from '../store.js';
+import { saveChatState, saveSettings, settings } from '../store.js';
 import { memoryOnly } from '../components.js';
 import { app } from './panel.js';
 import { taskLabels } from './destinations.js';
@@ -29,6 +29,7 @@ let focusComposer;
 let returnToPanel;
 let knownChat;
 let composer;
+let composerToolbar;
 const composerDrafts = new Map();
 const isolated = new Set();
 const actionRow = (...children) => h('div', {class:'ri-quick-row'}, children);
@@ -71,18 +72,13 @@ function releaseBackground() {
     isolated.clear();
 }
 
-function isolateBackground(preserveComposer=false) {
-    const input=preserveComposer ? openComposer() : null;
+function isolateBackground() {
     releaseBackground();
-    const isolate=(parent)=>{
-        for (const node of parent.children) {
-            if (node===overlay || node===input || node.inert) continue;
-            if (input && node.contains(input)) { isolate(node); continue; }
-            node.inert=true;
-            isolated.add(node);
-        }
-    };
-    isolate(document.body);
+    for (const node of document.body.children) {
+        if (node===overlay || node.inert) continue;
+        node.inert=true;
+        isolated.add(node);
+    }
 }
 
 function enterSheet() {
@@ -170,8 +166,11 @@ export function openQuickActions(family, index, trigger = document.activeElement
     }
     if (family) chooseFamily(family, index);
     else renderSheet();
-    if (!focusComposer) overlay.querySelector('[data-quick-close]')?.focus({preventScroll:true});
-    else isolateBackground(true);
+    // Move from a focused composer into an editor when the shortcut has one.
+    // The original focus and selection are restored when the sheet closes.
+    const direction=focusComposer && (family==='steer' || family==='draft') &&
+        overlay.querySelector('textarea[aria-label="Your direction"]');
+    (direction || overlay.querySelector('[data-quick-close]'))?.focus({preventScroll:true});
 }
 
 function sheetLocation() {
@@ -181,7 +180,8 @@ function sheetLocation() {
 
 function show(view, family = session.family, replace = false) {
     if (!replace && (session.view!==view || session.family!==family)) session.history.push(sheetLocation());
-    if (view==='manage' && session.view!=='manage' && session.library) session.library.reenter=true;
+    const libraryPage = session.library?.[view];
+    if (libraryPage && session.view!==view) libraryPage.reenter=true;
     session.view=view;
     session.family=family;
     renderSheet();
@@ -328,11 +328,13 @@ function pendingView() {
 function catalogView(mode) {
     const owner = session;
     const host = h('div');
+    const library = owner.library ||= {drafts:new Map()};
     renderQuickActionLibrary(host,{
         family:owner.family || '', mode,
         initialDirection:owner.family ? editorFor(owner.family).direction : '',
         getPins:()=>quickChat()?.pins || [],
-        state:mode==='add' ? (owner.actionEditor ||= {}) : (owner.library ||= {}),
+        state:mode==='add' ? (owner.actionEditor ||= {}) : (library[mode] ||= {drafts:library.drafts}),
+        onNavigate:view=>show(view),
         onSelect:(resolved, action) => {
             if (session !== owner || owner.chat !== quickChatIdentity()) return;
             if (resolved.operation === 'queue') { show('pending'); return; }
@@ -411,6 +413,7 @@ function rootView() {
     }
     renderResults();
     return h('div',{},h('div',{class:'ri-quick-families'},Object.entries(families).map(([id,family])=>button(family.title,()=>chooseFamily(id),{kind:'primary'}))),
+        actionRow(button(taskLabels.browse,()=>show('browse','')),button(taskLabels.manage,()=>show('manage',''))),
         button(`Pending directions · ${state?.pending?.length || 0}`,()=>show('pending')),
         remaining > 0 && actionRow(info(`Fresh start · ${remaining} story replies remaining`),button('Stop',()=>{stopFreshStart();renderSheet();})),
         h('div',{class:'ri-quick-shelf'}, [...pinned, ...(state?.recent || []).filter(row=>!pinned.some(pin=>pin.key===row.key)).slice(0,4)].map(row=>{
@@ -426,7 +429,6 @@ function rootView() {
             }),definition && info(quickActionOwner(definition)));
         })),
         field('Search', '', query), hits,
-        actionRow(button(taskLabels.browse,()=>show('browse','')),button(taskLabels.manage,()=>show('manage',''))),
         h('details',{},h('summary',{},'Pins and order'), pinned.length ? pinned.map((pin,index)=>pinRow(pin,index,pinned.length))
             : info('Pin a direction from its action menu.')),
         actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What Was Sent',()=>openPanel('sent')),button('Edit preset prompts',()=>openPanel('v10',null,'#ri-preset-workbench'))));
@@ -637,7 +639,7 @@ function familyView(edit) {
     const previous = reference && ctx().chat?.[reference.index]?.extra?.[KEY];
     const previousRoll = previous?.guided?.roll || previous?.quickActions?.rolls?.at(-1);
     const primary = button(config.primary,()=>submit(edit),{kind:'primary'});
-    const choices = edit.family==='draft' && button('Give me choices · 1 model call',()=>submit(edit,'choices'),{kind:'primary'});
+    const choices = edit.family==='draft' && button('Give me choices · 1 model call',()=>submit(edit,'choices'));
     function updateControls() {
         const fresh = previewFor(edit);
         const noInput = edit.family === 'steer' && !edit.direction.trim() && !edit.cues.length && !edit.freshStart && !edit.die;
@@ -670,6 +672,10 @@ function familyView(edit) {
     };
     const stage = edit.receipt ? [repairStage,edit.receipt].filter(Boolean)
         : choicesPreview ? [...preview.stages,...choicesPreview.stages] : preview.stages;
+    const draftPreview = choicesPreview && !edit.receipt;
+    const execution = executionDetails(stage,{onSettings:openConnection,summary:draftPreview ? 'Draft and choice costs' : undefined});
+    if (draftPreview) execution.firstElementChild.after(info(
+        'Get up to three editable choices. Using the wording in the composer takes no model call. Expanding a choice into a draft takes one.'));
     const twistCue = edit.cues.find(cue=>readQuickAction(cue.reference)?.twistTypes?.length);
     const detailNodes = h('div',{class:'ri-quick-content'},
         reference && info(`${reference.name} · swipe ${reference.swipe + 1} · revision ${String(reference.fingerprint).slice(-8)}`),
@@ -695,6 +701,7 @@ function familyView(edit) {
         unavailableAction(preview),
         unavailableAction(choicesPreview,'Give me choices'),
         field('Your direction','',direction),
+        draftPreview && execution,
         edit.family==='steer' && button(`Pending directions · ${group.pending.length}`,()=>show('pending')),
         (pinned.length || recent.length) ? shelf([...pinned,...recent],edit) : null,
         actionRow(button(taskLabels.browse,()=>show('browse')),button(QUICK_ACTION_FAMILIES[edit.family].add,()=>show('add')),button(taskLabels.manage,()=>show('manage'))),
@@ -734,7 +741,7 @@ function familyView(edit) {
         edit.family==='draft' && h('details',{},h('summary',{},'Choice and expansion prompts'),
             impersonationInspector({operation:'playerChoices',guidance:()=>joinGuidance(edit),mode:'helper'}),
             impersonationInspector({operation:'playerExpansion',guidance:()=>joinGuidance(edit),mode:'helper'})),
-        executionDetails(stage,{onSettings:openConnection}),
+        !draftPreview && execution,
         edit.error && h('div',{'data-quick-error':true},status(edit.error),
             edit.lastAttempt && edit.nativeFallback && button('Draft through direct helper · 1 model call',()=>{
                 const attempt=edit.lastAttempt;
@@ -831,19 +838,41 @@ function renderSheet() {
     }
 }
 
+function createComposerToolbar() {
+    const keepComposerFocus=event=>{
+        if (document.activeElement===openComposer()) event.preventDefault();
+    };
+    const icon=name=>h('span',{class:`fa-solid ${name}`,'aria-hidden':'true'});
+    const shortcut=(label,symbol,family,className)=>h('button',{class:className,type:'button','aria-haspopup':'dialog',
+        onpointerdown:keepComposerFocus,onclick:event=>openQuickActions(family,undefined,event.currentTarget)},
+        icon(symbol),h('span',{},label));
+    const actions=h('div',{id:'ri_quick_toolbar_actions',class:'ri-quick-toolbar-actions'},
+        shortcut(families.steer.title,'fa-signs-post','steer'),shortcut(families.draft.title,'fa-pen','draft'),
+        shortcut('More actions','fa-ellipsis',undefined,'ri-quick-more'));
+    const toggle=h('button',{class:'ri-quick-entry',type:'button','aria-label':'Quick actions','aria-controls':actions.id,
+        onpointerdown:keepComposerFocus,onclick:()=>{
+            const st=settings();
+            st.quickToolbarExpanded=!st.quickToolbarExpanded;
+            setExpanded(st.quickToolbarExpanded);
+            saveSettings();
+        }},h('span',{class:'ri-quick-toolbar-handle'},
+        h('span',{class:'ri-quick-toolbar-label'},'Quick actions'),icon('fa-chevron-up')));
+    function setExpanded(expanded) {
+        actions.hidden=!expanded;
+        toggle.setAttribute('aria-expanded',String(expanded));
+        toggle.title=expanded ? 'Collapse Quick actions' : 'Expand Quick actions';
+    }
+    setExpanded(settings().quickToolbarExpanded===true);
+    return h('div',{class:'ri-quick-toolbar',role:'group','aria-label':'Quick actions toolbar'},toggle,actions);
+}
+
 function attachToHost() {
     const input = openComposer();
     if (!input) return;
-    const available = isChatOpen() && settings().enabled;
-    const row = input.parentElement;
-    let entry = row.querySelector('.ri-quick-entry');
-    if (!entry) {
-        entry = h('button',{class:'ri-quick-entry',type:'button',title:'Quick actions','aria-label':'Quick actions','aria-haspopup':'dialog',
-            onpointerdown:event=>{if(document.activeElement===input)event.preventDefault();},
-            onclick:event=>openQuickActions(undefined,undefined,event.currentTarget)},h('span',{class:'fa-solid fa-bolt','aria-hidden':'true'}));
-        input.after(entry);
-    }
-    entry.hidden = !available;
+    const anchor = input.closest('#send_form') || input.parentElement;
+    composerToolbar ||= createComposerToolbar();
+    if (composerToolbar.nextElementSibling!==anchor) anchor.before(composerToolbar);
+    composerToolbar.hidden = !isChatOpen() || !settings().enabled;
     if (composer!==input) {
         composer=input;
         const capture = () => {

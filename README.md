@@ -41,7 +41,7 @@ The extension requests and files generated story state only under the applicable
 
 ## Quick actions
 
-Tap the lightning bolt beside the chat composer to open **Quick actions**. The same sheet opens for a specific reply from **Generate an alternate reply** or **Continue this reply** below that reply. Use one active host preset. The companion and other presets enter through the same controls.
+Tap **Quick actions** above the chat composer to expand its toolbar. Choose **Steer the next reply** or **Draft my reply** to open that editor. **More actions** opens the full sheet, including the library and saved directions. Tap the chevron to collapse the toolbar. Its display preference is saved across chats and reloads. The same sheet opens for a specific reply from **Generate an alternate reply** or **Continue this reply** below that reply.
 
 | Action | What it does | Requests |
 | --- | --- | --- |

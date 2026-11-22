@@ -61,7 +61,7 @@ const answer = (prose,...lines)=>prose+'\n<story_update>\n'+lines.join('\n')+'\n
         assert.equal(H.fact(continued.effective,'Tower Stair'),extra);
         assert.equal(continued.physical.length,0);
 
-        await page.getByRole('button',{name:'Quick actions',exact:true}).tap();
+        await H.openQuickActions(page);
         await page.getByRole('dialog',{name:'Quick actions'}).getByRole('button',{name:'Draft my reply',exact:true}).tap();
         const draft = page.getByRole('dialog',{name:'Draft my reply'});
         H.mode({});

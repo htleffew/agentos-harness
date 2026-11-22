@@ -19,7 +19,7 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
     try {
         await L.openChat(page);
         const sheet = page.locator('.ri-quick-sheet');
-        const tap = async label => (label === 'Quick actions' ? page : sheet).getByRole('button', { name: label, exact: true }).tap();
+        const tap = async label => sheet.getByRole('button', { name: label, exact: true }).tap();
         const chooseJSON = async (name, value) => {
             const chooser = page.waitForEvent('filechooser');
             await tap('Choose JSON file');
@@ -32,7 +32,7 @@ const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
         const composer = page.locator('#send_textarea');
         await composer.fill('Half a player reply');
         await composer.evaluate(node => node.setSelectionRange(5, 8));
-        await tap('Quick actions');
+        await L.openQuickActions(page);
         await tap('Manage quick actions');
 
         await tap('Create saved nudge');

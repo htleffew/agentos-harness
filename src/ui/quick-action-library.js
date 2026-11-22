@@ -56,7 +56,7 @@ function actionOptions(action) {
 /** Mount the library inside the existing Quick actions sheet. The caller retains its draft and selection. */
 export function renderQuickActionLibrary(host, {
     family = 'steer', mode = 'browse', state = {}, onSelect, onChange, onPin, onCancelPending,
-    onRestore, onUndo, onOpenTool, onClose, getPins = () => [], initialDirection = '',
+    onRestore, onUndo, onOpenTool, onClose, onNavigate, getPins = () => [], initialDirection = '',
 } = {}) {
     const library = h('section', { class: 'ri-qa-library', 'aria-label': 'Quick action library' });
     const status = h('p', { class: 'ri-qa-library-status', role: 'status', ariaLive: 'polite' });
@@ -106,7 +106,7 @@ export function renderQuickActionLibrary(host, {
         Object.assign(ui, { family, root: initial, page: initial, search: '', preview: null, error: '', reenter:false });
         if (initial === 'editor') Object.assign(ui,editorState({family:sourceFamily,text:initialDirection}));
     }
-    const tab = name => button(name === 'manage' ? taskLabels.manage : taskLabels.browse, () => next(name));
+    const tab = name => button(name === 'manage' ? taskLabels.manage : taskLabels.browse, () => onNavigate(name));
     const back = (page = ui.root === 'editor' ? 'manage' : ui.root) => button('Back to library', () => {
         const origin=ui.page==='editor' && ui.editorOrigin?.page===page && ui.editorOrigin.view;
         next(page);

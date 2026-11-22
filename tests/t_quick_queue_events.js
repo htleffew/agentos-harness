@@ -15,7 +15,7 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
     const sheet=page.locator('.ri-quick-sheet');
     const composer=page.locator('#send_textarea');
     const tap=(name,scope=sheet)=>scope.getByRole('button',{name,exact:typeof name==='string'}).first().tap();
-    const open=()=>tap('Quick actions',page);
+    const open=()=>L.openQuickActions(page);
     const close=()=>tap('Close');
     const family=async label=>{await open();await tap(label);};
     const type=text=>sheet.getByRole('textbox',{name:'Your direction'}).fill(text);
@@ -76,7 +76,10 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
     try {
         page.setDefaultTimeout(18000);
         await L.setupApi(page,{legacyAutomation:false});
-        if (process.env.RI_QUEUE_PRESET) await L.usePreset(page,process.env.RI_QUEUE_PRESET);
+        if (process.env.RI_QUEUE_PRESET) {
+            await L.usePreset(page,process.env.RI_QUEUE_PRESET);
+            await page.evaluate(()=>jQuery('#openai_max_context').val(16384).trigger('input'));
+        }
         await page.evaluate(async base=>{
             const {restoreQuickAction}=await import(base+'/src/quick-actions.js');
             for (const id of ['emotional','conflict']) restoreQuickAction(`builtin:swipe:${id}`);

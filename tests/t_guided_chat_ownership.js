@@ -11,7 +11,7 @@ const h = require('./lib.js');
     const sheet = page.locator('.ri-quick-sheet');
     const composer = page.locator('#send_textarea');
     const tap = (name, scope = sheet) => scope.getByRole('button', { name, exact: typeof name === 'string' }).first().tap();
-    const open = family => tap('Quick actions', page).then(() => family && tap(family));
+    const open = family => h.openQuickActions(page).then(() => family && tap(family));
     const close = () => tap('Close');
     const selectDraftSource = name => page.evaluate(async ({ base, name }) => {
         const { impersonationSource, setImpersonationSource } = await import(`${base}/src/impersonation.js`);

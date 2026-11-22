@@ -668,31 +668,75 @@ button.ri-glance-card:hover { border-color: var(--card-ink); }
 #ri_root .ri-preset-workbench .ri-block-pairs { display:block; font-size:.85em; font-weight:normal; opacity:.85; overflow-wrap:anywhere; }
 #ri_root .ri-preset-workbench summary { overflow-wrap:anywhere; }
 
-/* Quick actions stay in reach while the visual viewport shrinks around the keyboard. */
-.ri-quick-entry {
-    order: 3;
-    flex: 0 0 44px;
-    align-self: flex-start;
-    display: grid;
-    place-items: center;
+/* Composer rail. The small visible handle has a full-size touch area. */
+.ri-quick-toolbar {
+    --ri-toolbar-line: color-mix(in srgb, currentColor 16%, transparent);
+    --ri-toolbar-icon: color-mix(in srgb, currentColor 75%, #9987d9);
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding-inline: 6px;
     box-sizing: border-box;
-    width: 44px;
-    height: 44px;
+    width: 100%;
+    min-width: 0;
+    color: var(--SmartThemeBodyColor, #fff);
+    border-top: 1px solid var(--ri-toolbar-line);
+}
+.ri-quick-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+    max-width: 420px;
+}
+.ri-quick-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-sizing: border-box;
+    min-width: 44px;
+    min-height: 44px;
     margin: 0;
-    padding: 0;
+    padding: 4px;
     appearance: none;
     border: 0;
-    border-radius: 50%;
+    border-radius: 4px;
     background: transparent;
-    color: var(--SmartThemeBodyColor, #fff);
-    font-size: 18px;
+    color: inherit;
+    font-size: max(12px, .82em);
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
     cursor: pointer;
 }
-.ri-quick-entry:active { background: color-mix(in srgb, currentColor 20%, transparent); }
-@media (hover: hover) {
-    .ri-quick-entry:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.ri-quick-toolbar-actions button { flex: 1 1 5.9em; }
+.ri-quick-toolbar-actions button:first-child { flex-basis: 8.75em; }
+.ri-quick-toolbar-actions button span:not(.fa-solid) { min-width: 0; }
+.ri-quick-toolbar .fa-solid { color: var(--ri-toolbar-icon); font-size: .9em; }
+.ri-quick-toolbar .ri-quick-entry { align-self: start; padding-inline: 6px; }
+.ri-quick-toolbar-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 3px 9px;
+    border: 1px solid var(--ri-toolbar-line);
+    border-radius: 6px;
 }
-.ri-quick-entry[hidden] { display: none !important; }
+.ri-quick-entry[aria-expanded='true'] .ri-quick-toolbar-handle { padding-inline: 0; border-color: transparent; }
+.ri-quick-entry[aria-expanded='true'] .ri-quick-toolbar-label { display: none; }
+.ri-quick-entry[aria-expanded='true'] .fa-chevron-up { transform: rotate(180deg); }
+.ri-quick-toolbar-actions button:active, .ri-quick-entry:active .ri-quick-toolbar-handle {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+}
+@media (hover: hover) {
+    .ri-quick-toolbar-actions button:hover, .ri-quick-entry:hover .ri-quick-toolbar-handle {
+        background: color-mix(in srgb, currentColor 7%, transparent);
+    }
+}
+.ri-quick-toolbar[hidden], .ri-quick-toolbar-actions[hidden] { display: none !important; }
+/* The sheet follows the visual viewport when the keyboard is present. */
 .ri-quick-overlay {
     position: fixed;
     z-index: 30010;
@@ -761,7 +805,7 @@ button.ri-glance-card:hover { border-color: var(--card-ink); }
 .ri-quick-sheet :is(p,h3) { margin: 7px 0; overflow-wrap: anywhere; }
 .ri-quick-sheet h3 { font-size: .95em; }
 .ri-quick-status { color: var(--ri-sky); }
-.ri-quick-sheet :is(button,input,select,textarea,summary):focus-visible, .ri-quick-entry:focus-visible {
+.ri-quick-sheet :is(button,input,select,textarea,summary):focus-visible, .ri-quick-toolbar button:focus-visible {
     outline: 2px solid var(--ri-sky, #74d3eb);
     outline-offset: 1px;
 }

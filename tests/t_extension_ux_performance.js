@@ -33,9 +33,12 @@ const L = require('./lib.js');
                 for (let i=0;i<7;i++) values.push(Math.round(100*await measure())/100);
                 return {values,median:[...values].sort((a,b)=>a-b)[3]};
             }
+            const entry=document.querySelector('.ri-quick-entry');
+            if (entry.getAttribute('aria-expanded')==='false') entry.click();
+            const launcher=document.querySelector('.ri-quick-more') || entry;
             const openSheet=await sample(()=>{
                 const start=performance.now();
-                document.querySelector('.ri-quick-entry').click();
+                launcher.click();
                 const sheet=document.querySelector('.ri-quick-sheet');
                 layout(sheet);
                 sheet.querySelector('[data-quick-close]').click();
@@ -59,7 +62,7 @@ const L = require('./lib.js');
                 return performance.now()-start;
             });
             await app.setExpanded(false);
-            document.querySelector('.ri-quick-entry').click();
+            launcher.click();
             const sheet=document.querySelector('.ri-quick-sheet');
             (button(sheet,'Browse directions') || button(sheet,'Browse all')).click();
             const searchField=()=>document.querySelector('.ri-quick-scroll[data-view="browse"] input[type="search"]');

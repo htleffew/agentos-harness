@@ -1,0 +1,26 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "environment": "Headful Chromium on Linux X11 in Xvfb",
+  "viewport": [
+    390,
+    515
+  ],
+  "screenReader": "Orca 48.1",
+  "keyboard": "xvkbd 4.1-3",
+  "typed": [
+    "7",
+    1,
+    1,
+    true
+  ],
+  "restored": [
+    "7",
+    1,
+    1,
+    true
+  ],
+  "dialogFocusedDirection": true,
+  "softwareKeyboardStayedVisible": true,
+  "keyboardToggle": "Enter and Space restored expanded state with focus on the toggle",
+  "modelRequests": 0
+}

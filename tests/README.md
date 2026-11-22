@@ -17,7 +17,7 @@ Run `t_execution_routes.js` on a separate host fixture with SillyTavern’s bund
 
 | Script | Covers |
 | --- | --- |
-| `t_extension_ux.js` | Touch at 390 × 475, task finding, queue confirmation, composer ownership, exact historical receipts and corrections, and draft recovery. Set `RI_UX_PRESET` to activate the companion and `RI_UX_CAPTURE` to save observations. |
+| `t_extension_ux.js` | Touch at 320 × 475 and 390 × 475, collapsible toolbar, composer width and focus, preference reload, task finding, queue confirmation, exact historical receipts and corrections, and draft recovery. Set `RI_UX_PRESET` to activate the companion and `RI_UX_CAPTURE` to save observations. |
 | `t_extension_ux_editors.js` | Touch at 320 × 475, no-chat defaults, failed and cancelled openings, goal reordering, structured fact search, speaker colors, and count-confirmed log clearing. Includes grayscale, reduced motion and keyboard disclosure. Set `RI_UX_CAPTURE` to save observations. |
 | `t_fantasy_calendar.js` | Touch scene editing, invalid-day feedback, month and year rollover, legacy tracker parsing, header reflow and outgoing calendar context at 320 × 475. Set `RI_CALENDAR_PRESET` for the companion and `RI_CALENDAR_CAPTURE` to save observations. |
 | `t_extension_ux_performance.js` | Seven warmed samples and actual request count for the local sheet, page navigation, task finder and 160-action library filter. |

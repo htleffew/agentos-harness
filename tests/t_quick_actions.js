@@ -20,7 +20,7 @@ const fixtures = {
     const sheet = page.getByRole('dialog',{name:/Quick actions|Steer the next reply|Generate an alternate reply|Continue this reply|Draft my reply|Pending directions|Create saved nudge|Browse directions|Manage quick actions/});
     const composer = page.locator('#send_textarea');
     const tap = (name,scope=sheet) => scope.getByRole('button',{name,exact:typeof name==='string'}).first().tap();
-    const open = () => tap('Quick actions',page);
+    const open = () => L.openQuickActions(page);
     const close = () => tap('Close');
     const family = async label => { await open(); await tap(label); };
     const direct = text => sheet.getByRole('textbox',{name:'Your direction'}).fill(text);
@@ -64,6 +64,10 @@ const fixtures = {
             await page.waitForFunction(name=>document.querySelector('#settings_preset_openai option:checked')?.textContent.trim()===name,preset.name);
             await drawer.tap();
             await L.setupApi(page,{preset:null,legacyAutomation:false});
+            await page.evaluate(()=>{
+                jQuery('#oai_max_context_unlocked').prop('checked',true).trigger('change');
+                jQuery('#openai_max_context').val(16384).trigger('input');
+            });
         }
         await L.setSettings(page,{summary:{on:false},world:{editableReplies:5,head:0}});
         await L.openChat(page);

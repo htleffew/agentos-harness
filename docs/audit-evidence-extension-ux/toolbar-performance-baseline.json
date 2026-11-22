@@ -1,0 +1,61 @@
+{
+  "viewport": [
+    390,
+    475
+  ],
+  "unit": "milliseconds",
+  "host": "SillyTavern 1.19.0",
+  "samples": {
+    "openSheet": {
+      "values": [
+        26.7,
+        19.9,
+        23.2,
+        19.5,
+        21.2,
+        22.9,
+        25.4
+      ],
+      "median": 22.9
+    },
+    "switchPage": {
+      "values": [
+        47.2,
+        92.6,
+        62.3,
+        60,
+        45.6,
+        52.6,
+        51.9
+      ],
+      "median": 52.6
+    },
+    "findTool": {
+      "values": [
+        7.5,
+        6.5,
+        5.6,
+        4.5,
+        4.9,
+        7.1,
+        9.1
+      ],
+      "median": 6.5
+    },
+    "filterLibrary": {
+      "values": [
+        32.5,
+        18.5,
+        40.1,
+        21,
+        27.3,
+        28.8,
+        42.9
+      ],
+      "median": 28.8
+    },
+    "fixtureActions": 160,
+    "availableActions": 184
+  },
+  "requests": 0
+}

@@ -74,7 +74,7 @@ async function ordinaryInstruction(page, name) {
     const composer = page.locator('#send_textarea');
     const tap = (name, scope = sheet) => scope.getByRole('button', { name, exact: typeof name === 'string' }).first().tap();
     const exactText = (name, scope = sheet) => scope.getByText(name, { exact: true });
-    const open = family => tap('Quick actions', page).then(() => tap(family));
+    const open = family => h.openQuickActions(page).then(() => tap(family));
     const close = () => tap('Close');
     const direction = () => sheet.getByRole('textbox', { name: 'Your direction', exact: true });
     const chat = () => page.evaluate(() => SillyTavern.getContext().chat.map(message => message.mes));

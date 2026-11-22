@@ -43,7 +43,7 @@ const recipe = (uid, comment, choices) => ({
         current?.taps.push(label);
         await scope.getByRole('button', exact(label)).first().tap();
     };
-    const open = () => tap('Quick actions', page);
+    const open = () => L.openQuickActions(page);
     const close = () => tap('Close');
     const openFamily = async name => { await open(); await tap(name); };
     const manage = async () => { await open(); await tap('Manage quick actions'); };
@@ -93,7 +93,7 @@ const recipe = (uid, comment, choices) => ({
         await page.waitForFunction(() => globalThis.SillyTavern?.getContext && document.querySelector('#send_textarea') && !document.getElementById('preloader'));
         await L.openChat(page, { fresh: false });
         await L.setupApi(page, { legacyAutomation: false });
-        await page.locator('.ri-quick-entry:not([hidden])').waitFor();
+        await page.locator('.ri-quick-toolbar:not([hidden])').waitFor();
     };
     async function importFile(name, value, confirm = 'Import reviewed JSON') {
         await tap('Import JSON');

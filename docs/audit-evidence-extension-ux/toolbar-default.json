@@ -1,0 +1,193 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "preset": "Default",
+  "viewport": [
+    390,
+    475
+  ],
+  "touch": true,
+  "evidence": [
+    {
+      "case": "tool search and return",
+      "requests": 0,
+      "destinations": [
+        "Corrections",
+        "Reply Display",
+        "Reusable Lorebooks",
+        "Settings"
+      ]
+    },
+    {
+      "case": "expand, open shortcuts and collapse with a focused multiline composer",
+      "viewport": [
+        320,
+        475
+      ],
+      "collapsed": {
+        "above": true,
+        "composerWidth": 235,
+        "widthWithoutToolbar": 235,
+        "height": 45,
+        "sendReachable": true,
+        "fits": true,
+        "targets": [
+          [
+            127,
+            44
+          ]
+        ]
+      },
+      "expanded": {
+        "above": true,
+        "composerWidth": 235,
+        "widthWithoutToolbar": 235,
+        "height": 45,
+        "sendReachable": true,
+        "fits": true,
+        "targets": [
+          [
+            44,
+            44
+          ],
+          [
+            111,
+            44
+          ],
+          [
+            76,
+            44
+          ],
+          [
+            76,
+            44
+          ]
+        ]
+      },
+      "requests": 0
+    },
+    {
+      "case": "expand, open shortcuts and collapse with a focused multiline composer",
+      "viewport": [
+        390,
+        475
+      ],
+      "collapsed": {
+        "above": true,
+        "composerWidth": 305,
+        "widthWithoutToolbar": 305,
+        "height": 45,
+        "sendReachable": true,
+        "fits": true,
+        "targets": [
+          [
+            127,
+            44
+          ]
+        ]
+      },
+      "expanded": {
+        "above": true,
+        "composerWidth": 305,
+        "widthWithoutToolbar": 305,
+        "height": 45,
+        "sendReachable": true,
+        "fits": true,
+        "targets": [
+          [
+            44,
+            44
+          ],
+          [
+            135,
+            44
+          ],
+          [
+            100,
+            44
+          ],
+          [
+            100,
+            44
+          ]
+        ]
+      },
+      "requests": 0
+    },
+    {
+      "case": "keyboard toggle at 200% text",
+      "viewport": [
+        320,
+        475
+      ],
+      "expanded": {
+        "above": true,
+        "composerWidth": 235,
+        "widthWithoutToolbar": 235,
+        "height": 133,
+        "sendReachable": true,
+        "fits": true,
+        "targets": [
+          [
+            44,
+            44
+          ],
+          [
+            264,
+            44
+          ],
+          [
+            264,
+            44
+          ],
+          [
+            264,
+            44
+          ]
+        ]
+      },
+      "requests": 0
+    },
+    {
+      "case": "library management initial reach and Browse directions return",
+      "viewport": [
+        320,
+        475
+      ],
+      "requests": 0
+    },
+    {
+      "case": "chat to memory and return",
+      "requests": 0,
+      "selection": [
+        2,
+        9,
+        "backward"
+      ]
+    },
+    {
+      "case": "visible freeform direction, queue confirmation and Undo",
+      "requests": 0
+    },
+    {
+      "case": "blocked function settings and return",
+      "operation": "playerDraft",
+      "requests": 0
+    },
+    {
+      "case": "independent unsaved edits recovered only in their originating chat",
+      "drafts": 2,
+      "requests": 0
+    },
+    {
+      "case": "restore collapsed and expanded preferences on reload",
+      "requests": 0
+    },
+    {
+      "case": "direct older reply actions",
+      "target": 2,
+      "version": 1,
+      "requests": 0
+    }
+  ],
+  "errors": []
+}

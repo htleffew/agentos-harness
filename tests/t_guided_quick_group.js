@@ -33,7 +33,7 @@ async function verifyCastMatrix(page, type, preset) {
         }, { cast: scenario.cast, place });
         h.resetLog();
         h.mode({ reply: scenario.reply });
-        await page.getByRole('button', { name: 'Quick actions', exact: true }).tap();
+        await h.openQuickActions(page);
         const sheet = page.locator('.ri-quick-sheet');
         await sheet.getByRole('button', { name: 'Generate an alternate reply', exact: true }).tap();
         const exactDirection = `${scenario.direction} CAST_CURRENT_${scenario.id.toUpperCase()}`;
@@ -80,7 +80,7 @@ async function verifyGroupDraftOwnership(page, fixture, preset) {
 
     h.resetLog();
     h.mode({ reply: 'The bell keeper closes the iron door.', delayMs: 4500 });
-    await page.getByRole('button', { name: 'Quick actions', exact: true }).tap();
+    await h.openQuickActions(page);
     const sheet = page.locator('.ri-quick-sheet');
     await sheet.getByRole('button', { name: 'Continue this reply', exact: true }).tap();
     await sheet.getByRole('button', { name: 'Continue this reply', exact: true }).tap();
