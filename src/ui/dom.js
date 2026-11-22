@@ -33,6 +33,7 @@ export function clear(el) {
 const focusable = 'button, a[href], input, select, textarea, summary, [tabindex]';
 const controlName = node => node.getAttribute('aria-label') || node.getAttribute('title') ||
     node.labels?.[0]?.textContent.trim() || node.textContent.trim();
+const disclosureKey = node => node.id || node.dataset.riViewKey || node.querySelector(':scope > summary')?.textContent.trim();
 
 export function captureView(root) {
     if (!root) return null;
@@ -44,7 +45,7 @@ export function captureView(root) {
     if (focus) focus.index=[...root.querySelectorAll(focusable)]
         .filter(node=>node.tagName===focus.tag && controlName(node)===focus.name).indexOf(active);
     return {scroll:root.scrollTop,focus,folds:[...root.querySelectorAll('details')].map(node=>
-        [node.querySelector(':scope > summary')?.textContent.trim(),node.open])};
+        [disclosureKey(node),node.open])};
 }
 
 export function restoreView(root, view, fallback) {
@@ -55,8 +56,7 @@ export function restoreView(root, view, fallback) {
         folds.get(name).push(open);
     }
     for (const node of root.querySelectorAll('details')) {
-        const name=node.querySelector(':scope > summary')?.textContent.trim();
-        const states=folds.get(name);
+        const states=folds.get(disclosureKey(node));
         if (states?.length) node.open=states.shift();
     }
     root.scrollTop=view.scroll;

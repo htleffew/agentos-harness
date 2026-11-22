@@ -28,7 +28,7 @@ const L=require('./lib.js');
         await composer.fill('Unsent player draft.');
         await composer.evaluate(input=>input.setSelectionRange(2,8));
         await family('Steer the next reply');
-        await click('Add nudge');
+        await click('Create saved nudge');
         await sheet.getByLabel('Button name',{exact:true}).fill(title);
         await sheet.getByLabel('Direction',{exact:true}).fill('Let the cloud clear.');
         await click('Save button');

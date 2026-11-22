@@ -5,10 +5,10 @@ const L = require('./lib.js');
 const { syntheticKeel } = require('./fixtures/quick-action-keel.cjs');
 
 const families = [
-    ['steer', 'Steer the next reply', 'Add nudge', 'Queue with my next message'],
-    ['swipe', 'Generate an alternate reply', 'Add swipe option', 'Generate alternate reply'],
-    ['continue', 'Continue this reply', 'Add continuation option', 'Continue this reply'],
-    ['draft', 'Draft my reply', 'Add player draft option', 'Generate my draft · 1 model call'],
+    ['steer', 'Steer the next reply', 'Create saved nudge', 'Queue with my next message'],
+    ['swipe', 'Generate an alternate reply', 'Create saved alternate direction', 'Generate alternate reply'],
+    ['continue', 'Continue this reply', 'Create saved continuation direction', 'Continue this reply'],
+    ['draft', 'Draft my reply', 'Create saved draft direction', 'Generate my draft · 1 model call'],
 ];
 const words = marker => 'Use the established setting. ' + marker;
 const exact = text => ({ name: text, exact: true });

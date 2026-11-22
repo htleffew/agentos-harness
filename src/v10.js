@@ -974,8 +974,9 @@ export function greetings() {
     return [card?.first_mes || card?.data?.first_mes, ...alternatives].filter(value=>typeof value === 'string' && value.trim());
 }
 
-export async function draftOpening({ text = '', direction = '' } = {}) {
+export async function draftOpening({ text = '', direction = '', signal } = {}) {
     const local = prefs();
+    const preset = activePreset();
     if (!enabledV10() || !local || isGenerating()) throw new Error('Choose the Structured story workflow and wait for the current reply to finish.');
     const { request } = await import('./ai.js');
     const card = ctx().characters?.[ctx().characterId] || {};
@@ -1026,12 +1027,14 @@ export async function draftOpening({ text = '', direction = '' } = {}) {
         text && `Chosen greeting:\n${text}`, direction && `Opening direction:\n${safeText(direction,2000)}`,
         updateContract(modules,true),
     ].filter(Boolean).join('\n\n');
+    signal?.throwIfAborted();
+    if (prefs() !== local || activePreset() !== preset) throw new Error('The chat or preset changed.');
     const result = await request({ operation:'storyOpening',authorization:'manual',what:text ? 'Read greeting for story state' : 'Draft story opening',
-        system:promptText('systemOpening'),user,tokens:text ? 1200 : 2200 });
-    if (prefs() !== local) throw new Error('The chat changed.');
+        system:promptText('systemOpening'),user,tokens:text ? 1200 : 2200,signal });
+    if (prefs() !== local || activePreset() !== preset) throw new Error('The chat or preset changed.');
     const output = pairedPreset() ? separateReply(result.text).text : result.text;
     const parsed = extractUpdate(output,{sourceProse:text || undefined,allowPlayerThoughts:local.openingPlayerThoughts===true});
-    const prose = text || parsed?.clean || output.trim();
+    const prose = text || (parsed?.clean ?? output.replace(/<story_update\b[^>]*>[\s\S]*?(?:<\/story_update\s*>|$)/gi,'')).trim();
     result.note(prose ? 'Opening draft is ready for review.' : 'The result did not contain an opening.',!!prose);
     if (!prose) throw new Error('No opening was returned. Try a new draft.');
     return { prose, parsed, original:prose };

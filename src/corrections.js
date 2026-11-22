@@ -1,4 +1,4 @@
-import { ctx, KEY, isStory, isReply, isGenerating, loadBook, parseJson } from './st.js';
+import { ctx, KEY, isStory, isReply, isGenerating, loadBook, parseJson, replyLabels } from './st.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { setInfo } from './books.js';
 import { chatWorld, saveWorld, listWorld, writeWorldEntry, WORLD_KINDS } from './world.js';
@@ -356,7 +356,10 @@ export async function applyStoryCorrection(review, edits, truth = review.truth) 
         for (const {rec,start,end} of covered) {
             if ([...messageIndices].some(index=>index>=start && index<=end)) rec.historySource = chat.slice(start,end+1).map(historySourceMark);
         }
-        const correction = {id:correctionId,truth:corrected,anchor,replyNo:chat.slice(1).filter(isReply).length,
+        const focus=review.focus, selected=chat[focus];
+        const reply=isReply(selected) && {index:focus,swipe:Number(selected.swipe_id ?? 0),
+            fingerprint:historySourceMark(selected),label:replyLabels(chat)[focus]};
+        const correction = {id:correctionId,truth:corrected,anchor,replyNo:chat.slice(1).filter(isReply).length,...(reply && {reply}),
             terms:correctionTerms([corrected,review.wording,...changes.map(source=>source.subject)].join(' ')),
             sources:changes.map(({id,kind,label,book,uid,index,field,quote,replacement,evidenceAt,pending})=>
                 ({id,kind,label,book,uid,index,field,quote,replacement,evidenceAt,pending})),

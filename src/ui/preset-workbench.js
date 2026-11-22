@@ -43,6 +43,7 @@ export function presetWorkbench(preset,app,profile) {
         const row=element?.closest('[data-preset-block]');
         const id=row?.dataset.presetBlock, aria=element?.getAttribute('aria-label');
         const caption=element?.tagName==='BUTTON' ? element.textContent : '';
+        if (id) ui.current=id;
         app.render();
         if (!id) return;
         const next=app.root?.querySelector(`[data-preset-block="${CSS.escape(id)}"]`);
@@ -129,7 +130,7 @@ export function presetWorkbench(preset,app,profile) {
     }
     function row(block, index, total) {
         const id=block.id, customized=hasPresetEdit(preset,id), keys=blockCompanions(block,preset);
-        const card=h('details',{class:'ri-card ri-tight','data-preset-block':id,open:ui.current===id},
+        const card=h('details',{class:'ri-card ri-tight','data-preset-block':id,'data-ri-view-key':`preset-block:${id}`,open:ui.current===id},
             h('summary',{},block.name+' · '+(block.enabled ? 'On' : 'Off')+(customized ? ' · Edited' : ''),
                 keys.length ? h('small',{class:'ri-block-pairs'},keys.map(key=>MODULES[key]).join(' · ')) : null));
         const panel=h('div'); card.append(panel);

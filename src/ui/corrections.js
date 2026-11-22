@@ -1,6 +1,6 @@
 import { h, button, section, textArea, textInput } from './dom.js';
 import { promptGroup } from './prompts.js';
-import { ctx, KEY, isChatOpen, toast } from '../st.js';
+import { ctx, KEY, isChatOpen, replyLabels, toast } from '../st.js';
 import { chatState } from '../store.js';
 import { correctionSwipeTarget, regenerateStoryCorrection } from '../engine.js';
 import { applyStoryCorrection, beginStoryCorrection, correctionExcerpt, findCorrectionSources, runFactRepair, suggestCorrectionEdits, undoStoryCorrection } from '../corrections.js';
@@ -8,6 +8,7 @@ import { replaceUnique } from '../correction-rules.js';
 import { executionPreview, executionReceipt, executionScope } from '../execution.js';
 import { executionDetails, executionSettings } from './execution.js';
 import { guidedTarget } from '../guided-context.js';
+import { separateReply } from '../reply-format.js';
 
 function openMessage(index) {
     const host = ctx();
@@ -274,7 +275,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     return form;
 }
 
-export function renderCorrections(body, requested) {
+export function renderCorrections(body, requested, app) {
     if (!isChatOpen()) return;
     const selected=requested && guidedTarget(requested.index);
     if (requested && (!selected || selected.chatId!==requested.chatId || selected.fingerprint!==requested.fingerprint || selected.swipe!==requested.swipe)) {
@@ -284,20 +285,33 @@ export function renderCorrections(body, requested) {
     const list = h('div',{class:'ri-list'});
     const renderHistory = () => {
         const corrections = [...(chatState()?.storyCorrections || [])].reverse();
-        list.replaceChildren(...corrections.map(correction=>h('details',{class:'ri-card ri-tight'},
-            h('summary',{},correction.truth),
-            h('ul',{},correction.sources.map(source=>h('li',{},source.label+(['lore','card'].includes(source.kind) ? ' · this chat' : '')))),
-            correction.undo && button('Undo source repair',async()=>{
-                try { await undoRepair(correction.id); renderHistory(); }
-                catch (error) { toast('error',error.message); }
-            },{kind:'ghost'}))));
+        const labels=replyLabels();
+        list.replaceChildren(...corrections.map(correction=>{
+            const reply=correction.reply && guidedTarget(correction.reply.index);
+            const existing=reply && reply.fingerprint===correction.reply.fingerprint && reply.swipe===correction.reply.swipe;
+            const label=correction.reply && `${existing ? labels[reply.index] : correction.reply.label} · Version ${correction.reply.swipe+1}`;
+            const hasReceipt=existing && ctx().chat[reply.index]?.extra?.[KEY];
+            return h('details',{class:'ri-card ri-tight'},h('summary',{},correction.truth),
+                label && h('p',{class:'ri-help'},existing ? label : `${label} · This version has changed.`),
+                hasReceipt && button(`Review ${labels[reply.index].toLowerCase()}`,()=>app.openPage('sent',{
+                    reply,anchor:`#ri-review-reply-${reply.index}`,focusPage:true,
+                })),
+                h('ul',{},correction.sources.map(source=>h('li',{},source.label+(['lore','card'].includes(source.kind) ? ' · this chat' : '')))),
+                correction.undo && button('Undo source repair',async()=>{
+                    try { await undoRepair(correction.id); renderHistory(); }
+                    catch (error) { toast('error',error.message); }
+                },{kind:'ghost'}));
+        }));
         list.hidden=!corrections.length;
     };
     const form = correctionEditor({focus:selected?.index,onSaved:()=>{
         form.removeAttribute('data-ri-dirty');
         renderHistory();
     }});
+    const heading=selected && `${replyLabels()[selected.index]} · ${selected.name} · selected version ${selected.swipe+1}`;
     body.append(section('Correct story facts',
-        selected && h('p',{class:'ri-help'},`${selected.name} · selected version ${selected.swipe+1}`),form),list);
+        heading && h('p',{class:'ri-help',id:'ri-correction-target'},heading),form,
+        selected && h('details',{},h('summary',{},'Read the selected reply'),
+            h('p',{},separateReply(selected.text).text))),list);
     renderHistory();
 }

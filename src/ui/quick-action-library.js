@@ -6,7 +6,7 @@ import {
     resolveQuickActionText, saveQuickAction, saveQuickActionVariation, standaloneQuickAction, undoQuickActionLibrary,
 } from '../quick-actions.js';
 import { exportQuickActionLibrary, importQuickActionData, inspectQuickActionImport } from '../quick-action-import.js';
-import { add, button, clear, download, field, h, insertAtCursor, select, textArea, textInput } from './dom.js';
+import { add, button, captureView, clear, download, field, h, insertAtCursor, restoreView, select, textArea, textInput } from './dom.js';
 
 const append = (parent, ...children) => add(parent, children);
 const row = (...children) => h('div', { class: 'ri-qa-library-row' }, children);
@@ -69,10 +69,19 @@ export function renderQuickActionLibrary(host, {
     ui.mount = mount;
     ui.loading = false;
     ui.onSources = null;
+    const drafts=ui.drafts ||= new Map();
+    const draftKey=action=>action?.id || `new:${action.family}`;
+    const isEdited=()=>ui.page==='editor' && ui.edit && JSON.stringify(ui.edit)!==JSON.stringify(ui.original);
+    function keepDraft() {
+        if (isEdited()) drafts.set(draftKey(ui.edit),{edit:ui.edit,original:ui.original});
+    }
     const next = (page, properties = {}) => {
+        if (page!=='editor') keepDraft();
         if (page==='browse' && ui.page!=='browse') ui.sources = null;
         Object.assign(ui, { page, error: '', ...properties });
         draw();
+        library.closest('.ri-quick-scroll')?.scrollTo({top:0});
+        body.querySelector('[data-ri-library-editor-title]')?.focus({preventScroll:true});
     };
     const info = message => { ui.error = message; status.textContent = message; };
     const run = fn => async event => {
@@ -92,12 +101,17 @@ export function renderQuickActionLibrary(host, {
     };
     const pinButton = action => onPin && button((pinned(action) ? 'Unpin ' : 'Pin ') + action.title, run(() => setPin(action)));
     const initial = mode === 'add' ? 'editor' : mode;
-    if (!ui.page || ui.family !== family || ui.root !== initial) {
-        Object.assign(ui, { family, root: initial, page: initial, search: '', preview: null, error: '' });
-        if (initial === 'editor') ui.edit = { ...actionOptions({ family: sourceFamily }), text: initialDirection };
+    if (ui.reenter || !ui.page || ui.family !== family || ui.root !== initial) {
+        keepDraft();
+        Object.assign(ui, { family, root: initial, page: initial, search: '', preview: null, error: '', reenter:false });
+        if (initial === 'editor') Object.assign(ui,editorState({family:sourceFamily,text:initialDirection}));
     }
     const tab = name => button(name === 'manage' ? taskLabels.manage : taskLabels.browse, () => next(name));
-    const back = (page = ui.root === 'editor' ? 'manage' : ui.root) => button('Back to library', () => next(page));
+    const back = (page = ui.root === 'editor' ? 'manage' : ui.root) => button('Back to library', () => {
+        const origin=ui.page==='editor' && ui.editorOrigin?.page===page && ui.editorOrigin.view;
+        next(page);
+        if (origin) restoreView(library.closest('.ri-quick-scroll'),origin);
+    });
     const addButtons = () => (family ? [family] : Object.keys(QUICK_ACTION_FAMILIES)).map(destination =>
         button(QUICK_ACTION_FAMILIES[destination].add, () => edit({ family: destination, text: initialDirection })));
     const destinationLabel = action => !family && h('span', { class: 'ri-help' }, QUICK_ACTION_FAMILIES[action.family]?.name);
@@ -120,8 +134,18 @@ export function renderQuickActionLibrary(host, {
         });
     }
 
-    function edit(action) {
-        next('editor', { edit: actionOptions(action), variant: '', compare: false });
+    function editorState(action) {
+        const original=actionOptions(action);
+        return drafts.get(draftKey(original)) || {edit:structuredClone(original),original};
+    }
+
+    function edit(action,{replace=false}={}) {
+        if (['manage','browse'].includes(ui.page)) {
+            ui.editorOrigin={page:ui.page,view:captureView(library.closest('.ri-quick-scroll'))};
+        }
+        if (replace) drafts.delete(draftKey(action));
+        else keepDraft();
+        next('editor', { ...editorState(action), variant: '', compare: false });
     }
 
     function exactSource(source, options = {}) {
@@ -337,8 +361,17 @@ export function renderQuickActionLibrary(host, {
         const draft = ui.edit || (ui.edit = actionOptions({ family: sourceFamily, text: initialDirection }));
         const item = draft.id ? readQuickAction(draft.id) : null;
         const prompt = textArea(draft.text, value => { draft.text = value; });
+        const discard=button('Discard draft',()=>{
+            drafts.delete(draftKey(draft));
+            ui.edit=structuredClone(ui.original);
+            draw();
+        },{kind:'ghost'});
+        discard.dataset.riActionDiscard='';
+        discard.hidden=!isEdited();
         let variable = 'user';
-        append(body, row(back('manage'), h('strong', {}, item ? 'Edit button' : QUICK_ACTION_FAMILIES[draft.family].add)),
+        append(body, row(back('manage'), h('h3',{'data-ri-library-editor-title':'',tabIndex:-1},
+            item ? `Edit ${item.title}` : QUICK_ACTION_FAMILIES[draft.family].add)),
+            h('p',{class:'ri-help'},'Extension-wide · Saves to your library across chats. Pins and queued directions belong to this chat.'),
             field('Button name', '', textInput(draft.title, value => { draft.title = value; })),
             field('Direction', item?.source ? 'Leave empty to follow live source wording.' : '', prompt),
             details('Options',
@@ -356,9 +389,11 @@ export function renderQuickActionLibrary(host, {
                 button('Insert variable', () => insertAtCursor(prompt, '{{' + variable + '}}'))),
             row(button('Save button', run(() => {
                 const saved = saveQuickAction(draft);
+                drafts.delete(draftKey(draft));
+                ui.original=structuredClone(draft);
                 next('manage');
                 changed('Saved ' + saved.title + '.', saved);
-            }), { kind: 'primary' }),
+            }), { kind: 'primary' }),discard,
             onClose && button('Return to direction', onClose)));
         if (!item) return;
         append(body, h('p', {}, item.status + ' · ' + quickActionOwner(item)),
@@ -374,7 +409,7 @@ export function renderQuickActionLibrary(host, {
                 item.source && button('Relink source', () => next('browse', { relink: item.id })),
                 item.source && draft.text.trim() && button('Follow live source wording', run(() => {
                     const saved = saveQuickAction({ id: item.id, text: '' });
-                    edit(saved);
+                    edit(saved,{replace:true});
                     changed('The button follows its linked source.', saved);
                 })),
             ));
@@ -411,7 +446,7 @@ export function renderQuickActionLibrary(host, {
             })),
             item.variations.map(variant => row(h('span', {}, variant.name), button('Apply ' + variant.name, run(() => {
                 const saved = applyQuickActionVariation(item.id, variant.name);
-                edit(saved);
+                edit(saved,{replace:true});
                 changed('Applied ' + variant.name + '.', saved);
             }))))));
     }
@@ -419,18 +454,17 @@ export function renderQuickActionLibrary(host, {
     function renderManage() {
         const actions = listQuickActions(family, { includeHidden: true });
         const results = block();
-        append(body, row(tab('browse'), addButtons()),
+        append(body, field('Find a button to manage', '', textInput(ui.manageSearch || '', value => {
+            ui.manageSearch = value;
+            renderManagedButtons();
+        }, { type: 'search' })), row(tab('browse'), addButtons()),
             row(button('Import JSON', () => next('import')),
                 button('Export library', () => next('export')),
                 actionLibrary().undo && button('Undo last library change', run(() => {
                     const undoId = actionLibrary().undo?.id;
                     if (undoQuickActionLibrary()) onUndo?.(undoId);
                     changed('Previous library restored.');
-                }))),
-            field('Find a button to manage', '', textInput(ui.manageSearch || '', value => {
-                ui.manageSearch = value;
-                renderManagedButtons();
-            }, { type: 'search' })), results);
+                }))), results);
         function renderManagedButtons() {
             clear(results);
             const matches = actionMatches(ui.manageSearch);
@@ -441,7 +475,8 @@ export function renderQuickActionLibrary(host, {
                 const siblings = groups.get(item.family);
                 const index = siblings.indexOf(item);
                 append(results, block(row(h('strong', {}, item.title), h('span', {}, item.hidden ? 'Hidden built-in' : !item.enabled ? 'Disabled' : item.status)),
-                    row(h('span', { class: 'ri-help' }, quickActionOwner(item)), destinationLabel(item)),
+                    row(h('span', { class: 'ri-help' }, quickActionOwner(item)), destinationLabel(item),
+                        drafts.has(item.id) && h('span',{class:'ri-help'},'Unsaved draft')),
                     row(button('Edit ' + item.title, () => edit(item)),
                         button('Move up', () => { if (moveQuickAction(item.id, -1)) changed('Moved ' + item.title + ' up.'); }, { disabled: index === 0 }),
                         button('Move down', () => { if (moveQuickAction(item.id, 1)) changed('Moved ' + item.title + ' down.'); }, { disabled: index + 1 === siblings.length })),
@@ -500,7 +535,7 @@ export function renderQuickActionLibrary(host, {
                 (item.baseline.delivery?.required ? ' · Required direction' : ' · Nudge'))),
             button('Confirm button restore', run(() => {
                 restoreQuickAction(item.id);
-                edit(readQuickAction(item.id));
+                edit(readQuickAction(item.id),{replace:true});
                 changed('Restored ' + item.title + '.');
             }), { kind: 'primary' }));
     }
@@ -579,6 +614,10 @@ export function renderQuickActionLibrary(host, {
         clear(body);
         pages[ui.page]?.();
     }
+    for (const event of ['input','change']) body.addEventListener(event,()=>{
+        const discard=body.querySelector('[data-ri-action-discard]');
+        if (discard) discard.hidden=!isEdited();
+    });
     library.append(status, body);
     host.append(library);
     draw();

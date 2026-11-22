@@ -7,7 +7,7 @@ import { button, field, h, select, textArea, textInput, captureView, restoreView
 import { executionDetails } from './execution.js';
 import { executionPreview } from '../execution.js';
 import { impersonationInspector } from './impersonation.js';
-import { listQuickActions, loadQuickActionSources, quickActionOwner, readQuickAction, resolveQuickAction, rollQuickActionDie } from '../quick-actions.js';
+import { listQuickActions, loadQuickActionSources, quickActionOwner, QUICK_ACTION_FAMILIES, readQuickAction, resolveQuickAction, rollQuickActionDie } from '../quick-actions.js';
 import { renderQuickActionLibrary } from './quick-action-library.js';
 import { cancelGuidedTurn, guidedPreview, guidedTarget, guidedVersions, runGuidedTurn, selectGuidedVersion, undoGuidedContinuation } from '../guided-turns.js';
 import { freshHistoryCapability } from '../guided-context.js';
@@ -15,10 +15,10 @@ import { armFreshStart, cancelQueued, freshRemaining, moveQuickPin, pinQuickActi
     queueDirections, queuedRetry, quickChat, quickChatIdentity, rememberQuickActions, restoreHeldRetryDraft, retryQueuedReply, stopFreshStart } from '../quick-action-chat.js';
 
 const families = {
-    steer: { title:'Steer the next reply', primary:'Queue with my next message', add:'Add nudge' },
-    swipe: { title:taskLabels.alternate, primary:taskLabels.generateAlternate, add:'Add swipe option' },
-    continue: { title:taskLabels.continue, primary:taskLabels.continue, add:'Add continuation option' },
-    draft: { title:'Draft my reply', primary:'Generate my draft', add:'Add player draft option' },
+    steer: { title:'Steer the next reply', primary:'Queue with my next message' },
+    swipe: { title:taskLabels.alternate, primary:taskLabels.generateAlternate },
+    continue: { title:taskLabels.continue, primary:taskLabels.continue },
+    draft: { title:'Draft my reply', primary:'Generate my draft' },
 };
 const sessions = new Map();
 let session;
@@ -181,6 +181,7 @@ function sheetLocation() {
 
 function show(view, family = session.family, replace = false) {
     if (!replace && (session.view!==view || session.family!==family)) session.history.push(sheetLocation());
+    if (view==='manage' && session.view!=='manage' && session.library) session.library.reenter=true;
     session.view=view;
     session.family=family;
     renderSheet();
@@ -400,10 +401,13 @@ function rootView() {
         if (!words.length) return;
         const found = listQuickActions().filter(action=>words.every(word=>`${action.title} ${action.category} ${action.text}`.toLowerCase().includes(word))).slice(0, 30);
         if (!found.length) hits.append(info('No saved actions match. Browse directions to search source books.'));
-        else for (const action of found) hits.append(button(`${action.title} · ${families[action.family].title}`, () => {
-            chooseFamily(action.family);
-            selectFavorite(editorFor(action.family), {reference:action.id,title:action.title}, true);
-        }));
+        else {
+            hits.append(info('Choose a result to preview its direction. Open Manage quick actions to edit a saved button.'));
+            for (const action of found) hits.append(button(`${action.title} · ${families[action.family].title}`, () => {
+                chooseFamily(action.family);
+                selectFavorite(editorFor(action.family), {reference:action.id,title:action.title}, true);
+            }));
+        }
     }
     renderResults();
     return h('div',{},h('div',{class:'ri-quick-families'},Object.entries(families).map(([id,family])=>button(family.title,()=>chooseFamily(id),{kind:'primary'}))),
@@ -656,7 +660,7 @@ function familyView(edit) {
                 favorite.removeAttribute('aria-label');
             }
         }
-    },{'aria-label':'Your direction',placeholder:'Optional details for this action'});
+    },{'aria-label':'Your direction',placeholder:'Write a direction or choose a saved one below.'});
     const choicesPreview = edit.family==='draft' ? previewFor(edit,'choices') : null;
     const repairStage = edit.repair && edit.receipt?.operation!=='factRepair' && {
         ...executionPreview('factRepair',{stage:'code',label:'Audit world facts'}),
@@ -690,9 +694,10 @@ function familyView(edit) {
         preview.fallback && info(preview.fallback),
         unavailableAction(preview),
         unavailableAction(choicesPreview,'Give me choices'),
+        field('Your direction','',direction),
         edit.family==='steer' && button(`Pending directions · ${group.pending.length}`,()=>show('pending')),
         (pinned.length || recent.length) ? shelf([...pinned,...recent],edit) : null,
-        actionRow(button(taskLabels.browse,()=>show('browse')),button(config.add,()=>show('add')),button(taskLabels.manage,()=>show('manage'))),
+        actionRow(button(taskLabels.browse,()=>show('browse')),button(QUICK_ACTION_FAMILIES[edit.family].add,()=>show('add')),button(taskLabels.manage,()=>show('manage'))),
         edit.family==='swipe' && actionRow(button('Fix world facts',()=>selectFavorite(edit,{reference:'builtin:swipe:fix-facts',title:'Fix world facts'},true))),
         h('details',{open:!pinned.length},h('summary',{},'Available directions'),
             shelf(available.map(action=>({reference:action.id,title:action.title,operation:action.operation})),edit)),
@@ -702,7 +707,6 @@ function familyView(edit) {
             try { addResolved(edit, await resolveForSheet(edit,twistCue.reference)); } catch (error) { edit.error=error.message; }
             renderSheet();
         })),
-        field('Your direction','',direction),
         edit.awaiting && button(`Select ${edit.awaiting.title}`,()=>{ const next=edit.awaiting; edit.awaiting=null; selectFavorite(edit,next,true); }),
         edit.family==='steer' && actionRow(
             field('Delivery','',select([{value:'default',label:'Use cue defaults'},{value:'private',label:'Private guidance'},{value:'visible',label:'Visible OOC'}],edit.visibility,value=>{edit.visibility=value;})),
@@ -739,13 +743,12 @@ function familyView(edit) {
             edit.lastAttempt && !edit.nativeFallback && button(
                 'Retry with the same directions'+(previewFor(edit,edit.lastAttempt.mode).stages.at(-1).stage==='additional'?' · 1 model call':''),
                 ()=>submit(edit,edit.lastAttempt.mode,edit.lastAttempt.choice,edit.lastAttempt.input))),
-        edit.message && status(edit.message),
+        edit.family!=='steer' && edit.message && status(edit.message),
         edit.repair && h('details',{open:true},h('summary',{},'Fact repair result'),
             edit.repair.repaired?.length ? info('Updated sources · '+edit.repair.repaired.join(', ')) : null,
             edit.repair.unresolved?.map(issue=>status(issue)),
             button('Correct story facts',()=>openPanel('corrections',edit.target))),
         edit.partial && partialResult(edit),
-        edit.lastQueued && button('Undo queue',()=>{cancelQueued(edit.lastQueued);edit.lastQueued=null;edit.message='Direction removed.';renderSheet();}),
         edit.undo && button('Undo continuation',async()=>{
             const owner=session;
             const undo=edit.undo;
@@ -769,9 +772,15 @@ function familyView(edit) {
             restoreComposer(group.draftRecovery);group.draftRecovery=null;saveChatState(); composerAtOpen=snapshot(openComposer());focusComposer=true;closeSheet();
         }));
     updateControls();
-    const footer = actionRow(primary, choices,edit.running && edit.family!=='steer' && button('Cancel request',()=>{
-        edit.message=cancelGuidedTurn();renderSheet();
-    }));
+    const waiting=edit.lastQueued && group.pending.some(entry=>entry.id===edit.lastQueued);
+    const undoQueue=waiting && button('Undo queue',()=>{
+        cancelQueued(edit.lastQueued);edit.lastQueued=null;edit.message='Direction removed.';renderSheet();
+    });
+    const queueNotice=edit.family==='steer' && (!edit.lastQueued || waiting) && edit.message;
+    const footer = actionRow(queueNotice && status(queueNotice),undoQueue,
+        primary, choices,edit.running && edit.family!=='steer' && button('Cancel request',()=>{
+            edit.message=cancelGuidedTurn();renderSheet();
+        }));
     footer.classList.add('ri-quick-footer');
     return {content:detailNodes,footer};
 }
@@ -787,7 +796,7 @@ function renderSheet() {
     else content=catalogView(view);
     const header = h('header',{class:'ri-quick-header'},
         session.history.length>0 && button('Back',backInSheet),
-        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',browse:taskLabels.browse,manage:taskLabels.manage,add:families[family]?.add})[view] || families[family].title),
+        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',browse:taskLabels.browse,manage:taskLabels.manage,add:QUICK_ACTION_FAMILIES[family]?.add})[view] || families[family].title),
         h('button',{type:'button',class:'ri-btn','data-quick-close':'',onclick:()=>closeSheet()},'Close'));
     const old = overlay.querySelector('.ri-quick-scroll');
     const continuing = old?.dataset.view===view;

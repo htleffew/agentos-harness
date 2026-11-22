@@ -313,7 +313,7 @@ const count = (request,text) => L.text(request).split(text).length-1;
         assert.equal(L.requests().length,1);
         assert.equal(alternateRequests().length,0);
         await tap(page.getByRole('button',{name:'Quick actions',exact:true}));
-        await tap(sheet.getByRole('button',{name:'Reply Notes',exact:true}));
+        await tap(sheet.getByRole('button',{name:'What Was Sent',exact:true}));
         const newest=page.locator('#ri_root .ri-sentcard').first();
         await tap(newest.getByRole('button',{name:/Check this reply again/}));
         await L.waitChecks(page);
@@ -327,6 +327,7 @@ const count = (request,text) => L.text(request).split(text).length-1;
         assert.match(await reviewExecution.innerText(),/Additional model request[\s\S]*Unavailable profile[\s\S]*Attempts used[\s\S]*0/);
         captureRoute('E-50-MISSING',{automatic:blocked,manual,review:await reviewExecution.innerText()});
         await tap(page.locator('#ri_root').getByRole('button',{name:'Close full screen',exact:true}));
+        await close();
 
         await putProfile(false);
         setAlternate({done:false});

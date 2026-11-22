@@ -20,7 +20,7 @@ import { shownChanges, describeChange, undoReplyChanges } from '../worldflow.js'
 import { writeEvent, readEvent } from '../events.js';
 import { toast } from '../st.js';
 import { settings } from '../store.js';
-import { ctx, KEY, isChatOpen, isReply, loadBook } from '../st.js';
+import { ctx, KEY, isChatOpen, isReply, loadBook, replyLabels } from '../st.js';
 import { guidedTarget } from '../guided-context.js';
 import { executionScope } from '../execution.js';
 
@@ -244,8 +244,7 @@ export function renderSent(body, app) {
         body.appendChild(h('div', { class: 'ri-empty' }, 'No reply receipts yet. Receipts appear after the extension records a reply with story guidance, World Info, or other extension instructions.'));
         return;
     }
-    let reply = 0;
-    const labels = (ctx().chat || []).map((message,index)=>index && isReply(message) ? 'Reply '+(++reply) : 'Opening');
+    const labels=replyLabels(host.chat);
     records.forEach((r, i) => {
         const version=Number(host.chat[r.id]?.swipe_id || 0)+1;
         const card=foldCard([

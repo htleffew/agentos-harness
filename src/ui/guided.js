@@ -46,7 +46,7 @@ export function refreshGuidedControl() {
         block.append(h('div',{class:'ri-root ri-guided ri-guided-actions','data-accent':'sky','data-reply-key':revision,'data-selected-version':selected},
             h('div',{class:'ri-quick-row'},canGuide && direct('swipe',taskLabels.alternate),canGuide && direct('continue',taskLabels.continue),
                 record && button(taskLabels.review,event=>app.openReplyTask('sent',id,event.currentTarget,`#ri-review-reply-${id}`),{kind:'ghost'}),
-                canGuide && !latest && button(taskLabels.corrections,event=>app.openReplyTask('corrections',id,event.currentTarget),{kind:'ghost'})),
+                canGuide && !latest && button(taskLabels.corrections,event=>app.openReplyTask('corrections',id,event.currentTarget,'#ri-correction-target'),{kind:'ghost'})),
             execution && executionDetails(execution),
             deliveredDirections(delivery),
             canGuide && latest && h('details',{class:'ri-guided-correction'},h('summary',{class:'ri-guided-summary'},taskLabels.corrections),

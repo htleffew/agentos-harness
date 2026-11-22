@@ -54,6 +54,10 @@ export function setChatVariable(name, value) {
 export const isHidden = m => !!m && m.is_system === true && !m.extra?.type && m.role !== 'tool' && !(m.extra && 'tool_invocations' in m.extra);
 /** A reply of the story: a message that you did not write, whether or not it is hidden from the AI now. */
 export const isReply = m => !!m && !m.is_user && (!m.is_system || isHidden(m));
+export function replyLabels(chat = ctx().chat || []) {
+    let number = 0;
+    return chat.map((message, index) => index && isReply(message) ? `Reply ${++number}` : 'Opening');
+}
 /** A message of the story, yours or not, whether or not it is hidden from the AI now. */
 export const isStory = m => !!m && (!m.is_system || isHidden(m));
 

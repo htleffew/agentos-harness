@@ -9,10 +9,10 @@ import { chatWorld, DONE, isWorldEntry, listWorld, readScene, readWorldEntry, WO
 import { loadEffectiveWorld } from './worldflow.js';
 
 export const QUICK_ACTION_FAMILIES = {
-    steer: { name: 'Steer the next reply', add: 'Add nudge' },
-    swipe: { name: 'Guide a swipe', add: 'Add swipe option' },
-    continue: { name: 'Continue this reply', add: 'Add continuation option' },
-    draft: { name: 'Draft my reply', add: 'Add player draft option' },
+    steer: { name: 'Steer the next reply', add: 'Create saved nudge' },
+    swipe: { name: 'Generate an alternate reply', add: 'Create saved alternate direction' },
+    continue: { name: 'Continue this reply', add: 'Create saved continuation direction' },
+    draft: { name: 'Draft my reply', add: 'Create saved draft direction' },
 };
 
 export const QUICK_ACTION_VARIABLES = {

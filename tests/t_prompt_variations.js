@@ -23,7 +23,7 @@ const { setupApi: reconnectMain } = require('./h.js');
     const root=page.locator('#ri_root');
     const openPanel=async()=>{
         await tap(page.getByRole('button',{name:'Quick actions',exact:true}));
-        await tap(page.locator('.ri-quick-sheet').getByRole('button',{name:'Prompt and preset tools',exact:true}));
+        await tap(page.locator('.ri-quick-sheet').getByRole('button',{name:'Edit preset prompts',exact:true}));
         await root.waitFor();
     };
     const openWriter=async()=>{
@@ -243,6 +243,7 @@ const { setupApi: reconnectMain } = require('./h.js');
 
         const closePanel=root.getByRole('button',{name:'Close full screen',exact:true});
         if (await closePanel.isVisible()) await tap(closePanel);
+        await tap(page.locator('.ri-quick-sheet').getByRole('button',{name:'Close',exact:true}));
         const futureRoast='The second fixture reaction sees a different beat.';
         L.mode({reply:roastReply('Mira turns the key.',futureRoast)});
         await L.send(page,'I ask Mira to turn the key.');

@@ -77,6 +77,10 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
         page.setDefaultTimeout(18000);
         await L.setupApi(page,{legacyAutomation:false});
         if (process.env.RI_QUEUE_PRESET) await L.usePreset(page,process.env.RI_QUEUE_PRESET);
+        await page.evaluate(async base=>{
+            const {restoreQuickAction}=await import(base+'/src/quick-actions.js');
+            for (const id of ['emotional','conflict']) restoreQuickAction(`builtin:swipe:${id}`);
+        },L.BASE);
         await L.setSettings(page,{world:{editableReplies:5,update:'all',head:0,build:0},scene:{track:true},summary:{on:false}});
         await L.openChat(page);
         const disabled=await page.evaluate(()=>SillyTavern.getContext().extensionSettings.disabledExtensions);
@@ -103,7 +107,7 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
         await send('I stop by the quay.');
         L.resetLog();
         await family('Steer the next reply');
-        await tap('Add nudge');
+        await tap('Create saved nudge');
         await sheet.getByLabel('Button name',{exact:true}).fill(nudge);
         await sheet.getByLabel('Direction',{exact:true}).fill(privateMarker+' Ask her to check the quay.');
         await tap('Save button');
@@ -253,6 +257,7 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
         assert.equal(L.requests().length,0);
         capture.push({name:'A15: repair and inspect memory from the same chat',corrected,additionalRequests:0,preset:(await snapshot()).preset});
         await page.locator('#ri_root').getByRole('button',{name:'Close full screen',exact:true}).tap();
+        await close();
 
         await page.evaluate(port=>{
             const $=globalThis.jQuery;

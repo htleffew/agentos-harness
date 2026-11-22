@@ -8,23 +8,30 @@ import { taskLabels } from './destinations.js';
 
 export function renderLog(body,app) {
     const list = logEntries();
-    const status=h('p',{class:'ri-help',role:'status'});
+    const status=h('p',{class:'ri-help',id:'ri-log-feedback',role:'status'},app.logStatus || '');
+    const report=text=>{
+        app.logStatus=text;
+        const current=app.body?.querySelector('#ri-log-feedback');
+        if (current) current.textContent=text;
+    };
     body.appendChild(h('div', { class: 'ri-intro' }, 'Every time this extension asks the AI for something (writing versions, items or a goal, and checking a reply), it is written down here with what was sent, what came back and, when it failed, why. The log stays on this device. It keeps the last 120 requests.'));
     body.appendChild(h('div', { class: 'ri-row' },
         button('Copy the log', async () => {
             const text = logText();
-            try { await navigator.clipboard.writeText(text); status.textContent='Copied the complete request log.'; }
-            catch { if (download('roleplay-instructions-log.txt', text)) toast('info', 'Copying is not allowed here, so the log was saved as a file.'); else toast('error', 'The log could not be copied or saved.'); }
+            try { await navigator.clipboard.writeText(text); report('Copied the complete request log.'); }
+            catch { if (download('roleplay-instructions-log.txt', text)) report('Clipboard access is unavailable. A log download was requested.'); else toast('error', 'The log could not be copied or saved.'); }
         }, { kind: 'ghost', disabled: !list.length }),
         button('Save the log as a file', () => {
-            status.textContent=download('roleplay-instructions-log.txt',logText()) ? 'Requested a download of the complete log.' : 'The file could not be saved.';
+            report(download('roleplay-instructions-log.txt',logText()) ? 'Requested a download of the complete log.' : 'The file could not be saved.');
         }, { kind: 'ghost', disabled: !list.length }),
         button('Clear the log', async () => {
             const reviewed=logEntries();
             if (!await confirmBox(`Clear all ${reviewed.length} saved request log entries from this device?`)) return;
             const current=logEntries();
-            if (current.length===reviewed.length && current.every((entry,index)=>entry===reviewed[index])) clearLog();
-            else status.textContent='The log changed while you reviewed it. Open Clear the log again to see the current count.';
+            if (current.length===reviewed.length && current.every((entry,index)=>entry===reviewed[index])) {
+                clearLog();
+                report(`Cleared ${reviewed.length} request log ${reviewed.length===1?'entry':'entries'}.`);
+            } else report('The log changed while you reviewed it. Open Clear the log again to see the current count.');
         }, { kind: 'ghost', disabled: !list.length })),status);
     if (!list.length) {
         body.appendChild(h('div', { class: 'ri-empty' }, 'The log is empty. It fills in when you press one of the "with AI" buttons, or when a reply is checked.'));

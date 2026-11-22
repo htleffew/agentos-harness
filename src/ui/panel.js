@@ -36,27 +36,32 @@ function keepInterruptedDraft() {
             value:['checkbox','radio'].includes(node.type) ? (node.checked ? 'Selected' : 'Clear') : node.value,
         }));
     if (!editor && !fields.length) return;
-    app.interruptedDrafts.set(app.displayScope,{key,editor,fields,page:app.tab});
-    if (app.interruptedDrafts.size>20) app.interruptedDrafts.delete(app.interruptedDrafts.keys().next().value);
+    const drafts=app.interruptedDrafts.get(app.displayScope) || [];
+    app.interruptedDrafts.set(app.displayScope,[{editor,fields,page:app.tab},...drafts]);
 }
 
-function interruptedDraft() {
-    const scope=draftScope(), draft=app.interruptedDrafts.get(scope);
-    if (!draft) return null;
-    const page=destination(draft.page);
-    return h('details',{class:'ri-card ri-tight',open:true},h('summary',{},`Unsaved work from ${page.label}`),
-        h('p',{class:'ri-help'},draft.editor ? 'Review and save the reopened draft when ready.' : 'Copy the wording you want back into its editor.'),
-        draft.fields.map(field=>h('label',{class:'ri-field'},`Recovered ${field.label.toLowerCase()}`,
-            h('textarea',{class:'ri-input',readOnly:true,rows:2,value:field.value}))),
-        h('div',{class:'ri-row'},
-            button(draft.editor ? 'Reopen draft' : `Open ${page.label}`,async()=>{
-                if (scope!==draftScope()) return;
-                if (await navigate(draft.page,{editor:draft.editor || undefined,focusPage:true}) && draft.editor) {
-                    app.interruptedDrafts.delete(scope);
-                    render();
-                }
-            }),
-            button('Dismiss recovered draft',()=>{app.interruptedDrafts.delete(scope);render();},{kind:'ghost'})));
+function interruptedDrafts() {
+    const scope=draftScope(), drafts=app.interruptedDrafts.get(scope) || [];
+    return drafts.map((draft,index)=>{
+        const page=destination(draft.page);
+        const dismiss=()=>{
+            const remaining=(app.interruptedDrafts.get(scope) || []).filter(item=>item!==draft);
+            if (remaining.length) app.interruptedDrafts.set(scope,remaining);
+            else app.interruptedDrafts.delete(scope);
+            render();
+        };
+        const title=`Unsaved work from ${page.label}${drafts.length>1 ? ` (${index+1} of ${drafts.length})` : ''}`;
+        return h('details',{class:'ri-card ri-tight',open:index===0},h('summary',{},title),
+            h('p',{class:'ri-help'},draft.editor ? 'Review and save the reopened draft when ready.' : 'Copy the wording you want back into its editor.'),
+            draft.fields.map(field=>h('label',{class:'ri-field'},`Recovered ${field.label.toLowerCase()}`,
+                h('textarea',{class:'ri-input',readOnly:true,rows:2,value:field.value}))),
+            h('div',{class:'ri-row'},
+                button(draft.editor ? 'Reopen draft' : `Open ${page.label}`,async()=>{
+                    if (scope!==draftScope()) return;
+                    if (await navigate(draft.page,{editor:draft.editor || undefined,focusPage:true}) && draft.editor) dismiss();
+                }),
+                button('Dismiss recovered draft',dismiss,{kind:'ghost'})));
+    });
 }
 
 async function canLeaveDraft() {
@@ -64,10 +69,10 @@ async function canLeaveDraft() {
     const route = app[routeKey];
     if (!route?.dirty && !app.root?.querySelector('[data-ri-dirty]')) return true;
     if (app.confirmingDraft) return false;
-    const scope = executionScope();
+    const scope = draftScope();
     app.confirmingDraft=true;
     try {
-        if (!await confirmBox('Discard your unsaved changes?') || executionScope()!==scope) return false;
+        if (!await confirmBox('Discard your unsaved changes?') || draftScope()!==scope) return false;
         if (route?.dirty) app[routeKey] = routeKey==='route' ? {view:'set',name:route.name} : {view:'list'};
         return true;
     } finally { app.confirmingDraft=false; }
@@ -76,7 +81,7 @@ async function canLeaveDraft() {
 function panelLocation(view = captureView(app.body)) {
     const key=editorRoutes[app.tab];
     return {id:app.tab,view,lore:app.loreTarget,reply:app.replyTarget,anchor:app.anchor,
-        ...(key && {editor:app[key]}),scope:executionScope()};
+        ...(key && {editor:app[key]}),scope:draftScope()};
 }
 
 function applyLocation(location) {
@@ -106,10 +111,10 @@ function focusTarget(selector) {
 
 async function navigate(id, {group, lore, reply, anchor = '', external, editor, focusPage = false} = {}) {
     if (!destination(id) || !app.root) return false;
-    const view=captureView(app.body), scope=executionScope();
+    const view=captureView(app.body), scope=draftScope();
     if (app.tab!==id || app.loreTarget!== (lore ?? null) || app.replyTarget!== (reply ?? null) ||
         anchor!==app.anchor || external || editor) {
-        if (!await canLeaveDraft() || executionScope()!==scope) return false;
+        if (!await canLeaveDraft() || draftScope()!==scope) return false;
         const previous=panelLocation(view);
         if (external) {
             app.history=[];
@@ -130,7 +135,7 @@ async function navigate(id, {group, lore, reply, anchor = '', external, editor, 
 async function back() {
     const previous=app.history.at(-1);
     if (!previous) return app.external && setExpanded(false);
-    if (previous.scope!==executionScope() || !await canLeaveDraft() || previous.scope!==executionScope()) return false;
+    if (previous.scope!==draftScope() || !await canLeaveDraft() || previous.scope!==draftScope()) return false;
     app.history.pop();
     applyLocation(previous);
     restoreView(app.body,previous.view,app.body.querySelector('[data-ri-heading]'));
@@ -163,9 +168,9 @@ function toolFinder() {
 }
 
 async function openChatTool(family,trigger) {
-    const scope=executionScope(), view=captureView(app.body);
+    const scope=draftScope(), view=captureView(app.body);
     const {openQuickActions}=await import('./quick-actions.js');
-    if (scope!==executionScope() || !await canLeaveDraft()) return;
+    if (scope!==draftScope() || !await canLeaveDraft() || scope!==draftScope()) return;
     const expanded=app.root.classList.contains('ri-expanded');
     const returnToDrawer=app.restoreDrawer;
     const drawer=document.querySelector('#extensions-settings-button > .drawer-toggle');
@@ -173,7 +178,7 @@ async function openChatTool(family,trigger) {
     const restoreDrawer=!!app.home.getClientRects().length;
     if (restoreDrawer) drawer?.click();
     openQuickActions(family,undefined,trigger,undefined,async()=>{
-        if (scope!==executionScope()) return;
+        if (scope!==draftScope()) return;
         if (expanded) { await setExpanded(true); app.restoreDrawer=returnToDrawer; }
         else if (restoreDrawer && !app.home.getClientRects().length) drawer?.click();
         restoreView(app.body,view,app.body.querySelector('[data-ri-heading]'));
@@ -221,7 +226,9 @@ export const app = {
     async openReplyTask(page,index,trigger,anchor = '') {
         const reply=guidedTarget(index);
         if (!reply) return false;
-        const external={label:'Back to chat',returnFocus:trigger};
+        const external={label:'Back to chat',returnFocus:trigger,
+            fallbackFocus:()=>[...document.querySelectorAll(`#chat .mes[mesid="${index}"] .ri-guided-actions button`)]
+                .find(control=>control.textContent===trigger?.textContent)};
         if (!await navigate(page,{reply,anchor,external,focusPage:true})) return false;
         await setExpanded(true);
         if (!focusTarget(anchor)) app.body.querySelector('[data-ri-heading]')?.focus({preventScroll:true});
@@ -279,8 +286,11 @@ async function setExpanded(on, {handoff=false} = {}) {
     const control = app.root.querySelector('[data-ri-expand]');
     control.textContent = on ? 'Close full screen' : 'Expand';
     control.title = on ? 'Go back to the small panel' : 'Show this panel full screen';
-    const returnFocus = !on && app.returnFocus?.isConnected && app.returnFocus.getClientRects().length
-        ? app.returnFocus : control;
+    const source = app.returnFocus?.isConnected ? app.returnFocus : external?.fallbackFocus?.();
+    const returnFocus = !on && source?.getClientRects().length ? source : control;
+    if (external && external.scope===draftScope() && returnFocus===source) {
+        returnFocus.scrollIntoView({block:'nearest',inline:'nearest'});
+    }
     returnFocus.focus({preventScroll:true});
     if (!on) {
         app.returnFocus=null;
@@ -290,7 +300,7 @@ async function setExpanded(on, {handoff=false} = {}) {
             app.replyTarget=null;
             app.loreTarget=null;
             app.anchor='';
-            if (external.scope===executionScope()) external.resume?.();
+            if (external.scope===draftScope()) external.resume?.();
             render();
         }
     }
@@ -360,7 +370,7 @@ export function render() {
         h('div',{class:'ri-page-header'},
             h('div',{},h('div',{class:'ri-page-section'},group.label),heading),
             returnLabel && button(returnLabel,back,{kind:'ghost'})),
-        finder,interruptedDraft());
+        finder,interruptedDrafts());
     if (!isChatOpen() && current.id==='v10') app.body.append(h('p',{class:'ri-help'},'Open a character chat to use Quick actions and chat settings.'));
     if (isChatOpen() && current.id==='state' && !app.userNavigated) app.body.append(h('p',{class:'ri-help'},
         'Use Quick actions beside the composer for the next reply. Use this panel to manage the story and settings.'));
@@ -375,7 +385,7 @@ export function render() {
     else if (app.tab === 'style') renderStyle(app.body, app);
     else if (app.tab === 'goals') renderGoals(app.body, app);
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
-    else if (app.tab === 'corrections') renderCorrections(app.body,app.replyTarget);
+    else if (app.tab === 'corrections') renderCorrections(app.body,app.replyTarget,app);
     else if (V10_PAGES.has(app.tab)) renderV10(app.body,app,app.tab);
     else if (app.tab === 'world') renderWorld(app.body, app);
     else if (app.tab === 'sent') renderSent(app.body, app);

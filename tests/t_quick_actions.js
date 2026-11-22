@@ -17,7 +17,7 @@ const fixtures = {
     L.sync();
     const {browser,page,errors} = await L.open({width:390,height:740,hasTouch:true,isMobile:true});
     const evidence = { host:'SillyTavern 1.19.0', viewport:'390 × 740, touch emulation', provider:'Local Chat Completion mock', captures:[] };
-    const sheet = page.getByRole('dialog',{name:/Quick actions|Steer the next reply|Generate an alternate reply|Continue this reply|Draft my reply|Pending directions|Add nudge|Browse directions|Manage quick actions/});
+    const sheet = page.getByRole('dialog',{name:/Quick actions|Steer the next reply|Generate an alternate reply|Continue this reply|Draft my reply|Pending directions|Create saved nudge|Browse directions|Manage quick actions/});
     const composer = page.locator('#send_textarea');
     const tap = (name,scope=sheet) => scope.getByRole('button',{name,exact:typeof name==='string'}).first().tap();
     const open = () => tap('Quick actions',page);

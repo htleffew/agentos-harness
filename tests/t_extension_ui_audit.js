@@ -127,6 +127,11 @@ async function auditDisclosures(body) {
         const visited = [];
         const widths=Object.hasOwn(process.env,'RI_PANEL_WIDTHS')
             ? process.env.RI_PANEL_WIDTHS.split(',').filter(Boolean).map(Number) : [390,1280];
+        const textScale=Number(process.env.RI_PANEL_TEXT_SCALE || 0);
+        if (textScale) {
+            await page.evaluate(scale=>document.documentElement.style.setProperty('--fontScale',scale),textScale);
+            assert.equal(await root.evaluate(node=>parseFloat(getComputedStyle(node).fontSize)),15*textScale);
+        }
         for (const width of widths) {
             await page.setViewportSize({width,height:portraitHeight});
             let opened=0;
@@ -143,7 +148,7 @@ async function auditDisclosures(body) {
                     visited.push(label);
                 }
             }
-            console.log(`Audited all ${visited.length-firstPage} pages and ${opened} reachable disclosures at ${width}px.`);
+            console.log(`Audited all ${visited.length-firstPage} pages and ${opened} reachable disclosures at ${width}px${textScale ? ` and ${textScale*100}% text` : ''}.`);
         }
         await group('Story').tap();
         await click('Chat Facts');

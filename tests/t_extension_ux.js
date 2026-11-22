@@ -65,6 +65,23 @@ const L = require('./lib.js');
         assert.deepEqual(await composer.evaluate(input=>[input.selectionStart,input.selectionEnd,input.selectionDirection]),[2,9,'backward']);
         evidence.push({case:'chat to memory and return',requests:L.requests().length,selection:[2,9,'backward']});
 
+        await tap(page,'Quick actions');
+        await tap(sheet,'Steer the next reply');
+        const direction=sheet.getByRole('textbox',{name:'Your direction'});
+        assert.equal(await direction.evaluate(node=>document.elementFromPoint(node.getBoundingClientRect().left+5,
+            node.getBoundingClientRect().top+5)===node),true,'Freeform input is visible before scrolling past saved directions');
+        await direction.fill('Keep the next reply away from the gate.');
+        await tap(sheet,'Queue with my next message');
+        const queued=sheet.locator('.ri-quick-footer').getByRole('status');
+        assert.equal(await queued.innerText(),'Queued with your next player message.');
+        assert.equal(await queued.evaluate(node=>node.getBoundingClientRect().bottom<=visualViewport.height),true);
+        assert.equal(L.requests().length,0);
+        await tap(sheet,'Undo queue');
+        assert.equal(await queued.innerText(),'Direction removed.');
+        await tap(sheet,'Close');
+        assert.equal(await composer.inputValue(),'I hold the original draft.');
+        evidence.push({case:'visible freeform direction, queue confirmation and Undo',requests:0});
+
         await page.evaluate(async base=>{
             const {setExecutionSetting}=await import(base+'/src/execution.js');
             setExecutionSetting('playerDraft',{profileId:'missing-ux-route'});
@@ -94,9 +111,26 @@ const L = require('./lib.js');
         assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Review this reply');
         await tap(first,'Correct story facts');
         assert.equal(await title(),'Corrections');
-        assert.match(await panel.locator('.ri-body').innerText(),/selected version 1/);
+        assert.match(await panel.locator('#ri-correction-target').innerText(),/Reply 1[\s\S]*selected version 1/);
         assert.equal(await panel.getByLabel('Regenerate the latest reply',{exact:true}).count(),0);
+        const fact='The eastern gate stayed closed.';
+        await panel.getByLabel('Correct story fact',{exact:true}).fill(fact);
+        await tap(panel,'Apply correction');
+        const saved=panel.getByText(fact,{exact:true});
+        await saved.tap();
+        await tap(saved.locator('..'),'Review reply 1');
+        assert.equal(await receipt.evaluate(node=>node.open),true);
+        await tap(panel,'Back');
+        assert.equal(await title(),'Corrections');
+        const prose=panel.getByText('Read the selected reply',{exact:true});
+        await prose.tap();
+        assert.match(await prose.locator('..').innerText(),/The keeper opens the eastern gate/);
         await tap(panel,'Back to chat');
+        const replyOrigin=first.getByRole('button',{name:'Correct story facts',exact:true});
+        assert.equal(await replyOrigin.evaluate(node=>{
+            const {left,top,width,height}=node.getBoundingClientRect();
+            return node.contains(document.elementFromPoint(left+width/2,top+height/2));
+        }),true);
         await tap(first,'Generate an alternate reply');
         assert.match(await sheet.getByRole('heading').innerText(),/Generate an alternate reply/);
         await tap(sheet,'Close');
@@ -105,12 +139,25 @@ const L = require('./lib.js');
         const chat=await page.evaluate(()=>SillyTavern.getContext().getCurrentChatId());
         await page.evaluate(()=>SillyTavern.getContext().executeSlashCommandsWithOptions('/newchat'));
         await page.waitForFunction(()=>document.querySelector('#ri_root [aria-label="Correct story fact"]')?.value==='');
+        const otherChat=await page.evaluate(()=>SillyTavern.getContext().getCurrentChatId());
         assert.equal(await panel.getByLabel('Correct story fact',{exact:true}).inputValue(),'');
         assert.equal(await panel.getByLabel('Recovered correct story fact').count(),0);
         await page.evaluate(chat=>SillyTavern.getContext().openCharacterChat(chat),chat);
         await panel.getByLabel('Recovered correct story fact').waitFor();
         assert.equal(await panel.getByLabel('Recovered correct story fact').inputValue(),'The keeper left a sealed letter.');
-        evidence.push({case:'unsaved panel edit recovered only in its originating chat',requests:L.requests().length});
+        await panel.getByLabel('Correct story fact',{exact:true}).fill('The lantern was already lit.');
+        await page.evaluate(chat=>SillyTavern.getContext().openCharacterChat(chat),otherChat);
+        await panel.getByLabel('Recovered correct story fact').waitFor({state:'detached'});
+        await page.evaluate(chat=>SillyTavern.getContext().openCharacterChat(chat),chat);
+        const recovered=panel.getByLabel('Recovered correct story fact');
+        await recovered.first().waitFor();
+        assert.deepEqual(await recovered.evaluateAll(inputs=>inputs.map(input=>input.value)),[
+            'The lantern was already lit.','The keeper left a sealed letter.',
+        ]);
+        const newest=panel.getByText('Unsaved work from Corrections (1 of 2)',{exact:true}).locator('..');
+        await tap(newest,'Dismiss recovered draft');
+        assert.equal(await recovered.inputValue(),'The keeper left a sealed letter.');
+        evidence.push({case:'independent unsaved edits recovered only in their originating chat',drafts:2,requests:L.requests().length});
         assert.equal(L.requests().length,0);
         assert.deepEqual(errors,[]);
         evidence.push({case:'direct older reply actions',target:2,version:1,requests:0});

@@ -1,0 +1,157 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const L = require('./lib.js');
+
+(async()=>{
+    L.sync();
+    const {browser,page,errors}=await L.open({width:320,height:475,hasTouch:true,isMobile:true});
+    const panel=page.locator('#ri_root');
+    const body=panel.locator('#ri_panel_page');
+    const click=(name,root=panel)=>root.getByRole('button',{name,exact:true}).tap();
+    const scope=(name)=>panel.getByRole('navigation',{name:'Roleplay sections'}).getByRole('button',{name,exact:true}).tap();
+    const openDrawer=async()=>{
+        if (!await page.locator('#ri_drawer').isVisible()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
+        if (!await panel.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').tap();
+    };
+    const evidence=[];
+    try {
+        await L.setupApi(page,{legacyAutomation:false});
+        await page.evaluate(()=>SillyTavern.getContext().executeSlashCommandsWithOptions('/closechat'));
+        await page.waitForFunction(()=>!SillyTavern.getContext().getCurrentChatId());
+        await openDrawer();
+        assert.equal(await panel.locator('[data-ri-heading]').innerText(),'Preset & Extension');
+        assert.equal(await page.getByRole('button',{name:'Quick actions',exact:true}).count(),0);
+        await page.locator('#extensions-settings-button > .drawer-toggle').tap();
+
+        await L.usePreset(page,'Roleplay Instructions V10');
+        await L.openChat(page);
+        await openDrawer();
+        await click('Expand');
+        assert.equal(await panel.locator('[data-ri-heading]').innerText(),'Current State');
+        L.resetLog();
+        evidence.push({case:'first open with and without a chat',destinations:['Preset & Extension','Current State']});
+
+        await scope('Story');
+        await click('Opening');
+        const greeting=body.getByLabel('Opening preview',{exact:true});
+        const original=await greeting.inputValue();
+        const openingDirection=body.getByLabel('Opening direction',{exact:true});
+        await openingDirection.fill('Begin outside the eastern gate.');
+        assert.equal(L.requests().length,0);
+        L.mode({reply:'<story_update v="2">unreadable</story_update>'});
+        await click('Generate opening',body);
+        await body.getByText(/No opening was returned/).waitFor();
+        assert.equal(await greeting.inputValue(),original);
+        assert.equal(L.requests().length,1);
+        assert.match(L.text(L.requests()[0]),/Begin outside the eastern gate/);
+        L.mode({reply:'A reply that arrives after cancellation.',delayMs:2500});
+        const started=page.waitForRequest(request=>request.method()==='POST' && /\/generate\b/.test(request.url()));
+        await click('Generate opening',body);
+        await started;
+        for (let attempt=0; attempt<30 && L.requests().length<2; attempt++) await page.waitForTimeout(50);
+        await click('Cancel opening request',body);
+        await body.getByText(/Opening request cancelled/).first().waitFor();
+        assert.equal(await greeting.inputValue(),original);
+        assert.equal(await openingDirection.inputValue(),'Begin outside the eastern gate.');
+        assert.equal(L.requests().length,2);
+        evidence.push({case:'opening initialization, unreadable response and explicit cancellation',previewRequests:0,authorizedRequests:2});
+        await scope('Characters');
+        await page.locator('dialog[open] .popup-button-ok').tap();
+        await click('Character Goals');
+        L.mode({});
+        L.resetLog();
+        const step=body.getByRole('textbox',{name:'New one-time step'});
+        await step.fill('Show the keeper a red key');
+        await click('Add this step',body);
+        await step.fill('Greet the keeper');
+        await click('Add this step',body);
+        const rows=body.locator('[id^="ri-goal-"]');
+        assert.match(await rows.first().innerText(),/red key/);
+        await click('Move down',rows.first());
+        assert.match(await rows.first().innerText(),/Greet the keeper/);
+        assert.match(await rows.nth(1).innerText(),/red key/);
+        assert.match(await page.evaluate(()=>document.activeElement.closest('[id^="ri-goal-"]').textContent),/red key/);
+        evidence.push({case:'goal step reorder',focus:'moved step'});
+
+        await scope('Story');
+        await click('Chat Facts');
+        await click('Add record',body);
+        await body.getByLabel('Record text').fill('The eastern gate is locked.');
+        await click('Save record',body);
+        await body.getByText(/^Fact · the-eastern-gate-is-locked/i).waitFor();
+        const finder=body.getByRole('searchbox',{name:'Search chat facts'});
+        await finder.fill('purple hat');
+        await body.getByText('No records match the search.').waitFor();
+        await finder.fill('eastern gate');
+        await body.getByText(/^Fact · the-eastern-gate-is-locked/i).tap();
+        await body.getByText('This chat', {exact:false}).first().waitFor();
+        evidence.push({case:'local record creation and filtering',filter:'eastern gate'});
+
+        await page.evaluate(async base=>{
+            const {prefs}=await import(base+'/src/v10.js');
+            const {saveChatState}=await import(base+'/src/store.js');
+            (prefs().speakers ||= {})['speaker:keeper']={name:'Keeper',aliases:['keeper'],color:'#111111'};
+            saveChatState();
+        },L.BASE);
+        await scope('Characters');
+        await click('Dialogue Colors');
+        await body.getByLabel('Color for Keeper').waitFor();
+        const saved=body.getByLabel('Color for Keeper');
+        assert.equal(await saved.inputValue(),'#111111');
+        assert.equal(await body.locator('.ri-speaker-sample').innerText(),'I’m ready when you are.');
+        await click('Use automatic color',body);
+        assert.notEqual(await saved.inputValue(),'#111111');
+        evidence.push({case:'speaker preview and automatic color'});
+
+        const cdp=await page.context().newCDPSession(page);
+        await cdp.send('Emulation.setEmulatedVisionDeficiency',{type:'achromatopsia'});
+        await page.emulateMedia({reducedMotion:'reduce'});
+        const openFinder=body.locator('.ri-tool-finder summary');
+        if (await openFinder.evaluate(node=>node.parentElement.open)) await openFinder.tap();
+        await openFinder.focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await openFinder.evaluate(node=>node.parentElement.open),true);
+        await body.getByRole('searchbox',{name:'Find a tool'}).waitFor();
+        await page.keyboard.press('Space');
+        assert.equal(await openFinder.evaluate(node=>node.parentElement.open),false);
+        await page.evaluate(async base=>{
+            const {addLog,clearLog}=await import(base+'/src/log.js');
+            clearLog();
+            addLog({what:'Local fixture failure',ok:false,result:'The test connection closed.'});
+            addLog({what:'Local fixture success',ok:true,result:'Saved.'});
+        },L.BASE);
+        await scope('Review');
+        await click('Log');
+        await body.getByLabel('Request outcome').selectOption('2');
+        await body.getByText('Showing 1 of 2 logged requests.').waitFor();
+        assert.equal(await body.getByText('Local fixture success',{exact:true}).count(),0);
+        const [download]=await Promise.all([page.waitForEvent('download'),click('Save the log as a file',body)]);
+        assert.match(fs.readFileSync(await download.path(),'utf8'),/Local fixture failure[\s\S]*The test connection closed\./);
+        await click('Clear the log',body);
+        const dialog=page.locator('dialog[open]');
+        await dialog.getByText('Clear all 2 saved request log entries from this device?').waitFor();
+        await page.evaluate(async base=>(await import(base+'/src/log.js')).addLog({what:'Fixture entry added while reviewing',ok:true}),L.BASE);
+        await body.getByText('Showing 1 of 3 logged requests.').waitFor();
+        await dialog.locator('.popup-button-ok').tap();
+        await body.getByText(/The log changed while you reviewed it/).waitFor();
+        await click('Clear the log',body);
+        await dialog.getByText('Clear all 3 saved request log entries from this device?').waitFor();
+        await dialog.locator('.popup-button-ok').tap();
+        await body.getByText('Cleared 3 request log entries.').waitFor();
+        await body.getByText(/^The log is empty/).waitFor();
+        assert.equal(await body.getByRole('button',{name:'Clear the log'}).isDisabled(),true);
+        assert.equal(L.requests().length,0);
+        assert.deepEqual(errors,[]);
+        evidence.push({case:'keyboard disclosure in grayscale with reduced motion',requests:0});
+        evidence.push({case:'log filter, download and count-confirmed clear',original:2,cleared:3,requests:0});
+        console.log('PASS first open, goal ordering, chat fact search, dialogue preview, keyboard disclosure and request log');
+    } catch(error) {
+        await page.screenshot({path:'/tmp/ri-extension-ux-editors.png'}).catch(()=>{});
+        throw error;
+    } finally {
+        if (process.env.RI_UX_CAPTURE) fs.writeFileSync(process.env.RI_UX_CAPTURE,JSON.stringify({
+            host:'SillyTavern 1.19.0',preset:'Roleplay Instructions V10',viewport:[320,475],touch:true,evidence,errors,
+        },null,2)+'\n');
+        await browser.close();
+    }
+})().catch(error=>{console.error(error);process.exitCode=1;});
