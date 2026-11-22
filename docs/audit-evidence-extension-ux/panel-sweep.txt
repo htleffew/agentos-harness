@@ -1,0 +1,5 @@
+Audited all 22 pages and 898 reachable disclosures at 320px.
+Audited all 22 pages and 898 reachable disclosures at 390px.
+PASS extension navigation, nested disclosures, both settings scopes, all extension modules, memory components, draft recovery and receipt navigation
+Audited all 22 pages and 898 reachable disclosures at 320px and 200% text.
+PASS extension navigation, nested disclosures, both settings scopes, all extension modules, memory components, draft recovery and receipt navigation

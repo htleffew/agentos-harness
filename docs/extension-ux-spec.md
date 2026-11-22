@@ -1,6 +1,6 @@
 # Roleplay Instructions extension-wide UX specification
 
-**Status** Implementation in progress on `feature/extension-ux-consistency`
+**Status** Implementation and local QA recorded on `feature/extension-ux-consistency`. [Acceptance audit](extension-ux-verification.md)
 
 **Baseline** `feature/quick-replies-guided-turns` at `84225c07dabf298e0951247b1def19eac950ccc6`
 
@@ -45,7 +45,7 @@ Use these visible defaults across entry points. Keep familiar host wording such 
 | Review a specific reply | **Review this reply** opens the matching **What Was Sent** receipt. **Writing notes** opens its Notes section. The reply selector shows reply and version. |
 | Review story filing or chapter coverage | **Context & Memory** owns filing and chapter status. Contextual links from Story World, chat and receipts open the relevant section or supported operation. |
 | Change shared prompt or connection behavior | **Edit preset prompts** opens the active host preset workbench. **Model request settings** opens the relevant function and its resolved connection. Show the extension and host preset names separately. |
-| Author or manage saved quick actions | **Manage quick actions** opens the library manager. **Browse directions** opens choices for the current family and scope. Distinguish **Pin**, **Select** and the action that queues or generates. |
+| Author or manage saved quick actions | **Manage quick actions** opens the library manager. **Browse directions** opens choices for the current family and scope. Use **Create saved nudge** or **Create saved [family] direction** to author a shortcut. Distinguish **Pin**, **Select** and the action that queues or generates. |
 
 ## Opportunities and acceptance criteria
 

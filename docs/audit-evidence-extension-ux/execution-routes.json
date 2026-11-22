@@ -1,0 +1,834 @@
+{
+  "host": "1.19.0 7e8663c",
+  "viewport": [
+    390,
+    490
+  ],
+  "disabled": [
+    "assets",
+    "attachments",
+    "caption",
+    "expressions",
+    "gallery",
+    "memory",
+    "quick-reply",
+    "regex",
+    "stable-diffusion",
+    "token-counter",
+    "translate",
+    "tts",
+    "vectors"
+  ],
+  "capture": [
+    {
+      "id": "E-48-ROLL",
+      "execution": "◇\nHow it ran · Runs in code\nRoll d20\nExecution\nRuns in code\nCalls\n0 model calls\nTrigger\nWhen you run this action.\nAttempts used\n0\nOutcome\ncompleted",
+      "main": [],
+      "alternate": []
+    },
+    {
+      "id": "E-30-NATIVE",
+      "receipt": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m06s796ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:3061389429",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2e5ed-1",
+        "sequence": 1,
+        "chat": "Seraphina - 2026-11-21@23h54m06s796ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m06s796ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "One player draft is ready.",
+        "route": "Native impersonation",
+        "history": {
+          "mode": "substituted",
+          "observed": true
+        }
+      },
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_ALPHA Write my next action.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_PLAYER I watch the door.\n\nDirection for this draft\nE_FIXTURE_NATIVE Keep my answer brief."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-23-PARTIAL",
+      "receipt": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m06s796ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:3061389429",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2e5ur-2",
+        "sequence": 2,
+        "chat": "Seraphina - 2026-11-21@23h54m06s796ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m06s796ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "failed",
+        "result": "The stream stopped before the draft finished. Review the partial text or retry.",
+        "route": "Native impersonation",
+        "history": {
+          "mode": "substituted",
+          "observed": true
+        },
+        "partialText": "I tuck the brass key under the loose mat"
+      },
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": true,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_ALPHA Write my next action.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_PLAYER I watch the door.\n\nCurrent player draft\nE_FIXTURE original composer\n\nDirection for this draft\nE_FIXTURE_STREAM Keep the key near."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-23-RETRY",
+      "receipt": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m06s796ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:3061389429",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2e6gb-3",
+        "sequence": 3,
+        "chat": "Seraphina - 2026-11-21@23h54m06s796ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m06s796ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "One player draft is ready.",
+        "route": "Native impersonation",
+        "history": {
+          "mode": "substituted",
+          "observed": true
+        }
+      },
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": true,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_ALPHA Write my next action.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_PLAYER I watch the door.\n\nCurrent player draft\nE_FIXTURE original composer\n\nDirection for this draft\nE_FIXTURE_STREAM Keep the key near."
+            }
+          ]
+        },
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": true,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_ALPHA Write my next action.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_PLAYER I watch the door.\n\nCurrent player draft\nE_FIXTURE original composer\n\nDirection for this draft\nE_FIXTURE_STREAM Keep the key near."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-51-EMPTY",
+      "receipt": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m06s796ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:3061389429",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2e6w0-4",
+        "sequence": 4,
+        "chat": "Seraphina - 2026-11-21@23h54m06s796ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m06s796ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "failed",
+        "result": "The model returned an empty draft. Run the action again to retry.",
+        "route": "Native impersonation",
+        "history": {
+          "mode": "substituted",
+          "observed": true
+        }
+      },
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_ALPHA Write my next action.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_PLAYER I watch the door.\n\nCurrent player draft\nE_FIXTURE original composer\n\nDirection for this draft\nE_FIXTURE_EMPTY Try opening the door."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-30-NATIVE-BETA",
+      "receipt": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m06s796ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:3061389429",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2ebkr-5",
+        "sequence": 5,
+        "chat": "Seraphina - 2026-11-21@23h54m06s796ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m06s796ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "One player draft is ready.",
+        "route": "Native impersonation",
+        "history": {
+          "mode": "substituted",
+          "observed": true
+        }
+      },
+      "firstPresetSource": "extension",
+      "secondPresetSource": "host preset",
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_BETA Write my next words.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_PLAYER I watch the door.\n\nCurrent player draft\nE_FIXTURE original composer\n\nDirection for this draft\nE_FIXTURE_SWITCH Keep the unsaved direction."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-30-NAMED",
+      "receipt": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Connection profile: Fixture alternate",
+        "profileId": "ri-execution-alternate",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m06s796ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:3061389429",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2eda5-6",
+        "sequence": 6,
+        "chat": "Seraphina - 2026-11-21@23h54m06s796ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m06s796ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "One player draft is ready.",
+        "route": "Player-only helper",
+        "history": {
+          "mode": "bounded",
+          "observed": true
+        }
+      },
+      "main": [],
+      "alternate": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-alternate",
+          "stream": false,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_BETA Write my next words.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_PLAYER I watch the door.\n\nCurrent player draft\nE_FIXTURE original composer\n\nDirection for this draft\nE_FIXTURE_NAMED Keep my alternate draft concise."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E-50-RELOADED",
+      "draft": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Connection profile: Fixture alternate",
+        "profileId": "ri-execution-alternate",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m27s316ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:4272101748",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2ekku-1",
+        "sequence": 1,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "One player draft is ready.",
+        "route": "Player-only helper",
+        "history": {
+          "mode": "bounded",
+          "observed": true
+        }
+      },
+      "choices": {
+        "operation": "playerChoices",
+        "label": "Give me choices",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m27s316ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:4272101748",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2ekr6-2",
+        "sequence": 2,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "3 of 3 playable choices.",
+        "route": "Player-only helper",
+        "history": {
+          "mode": "bounded",
+          "observed": true
+        }
+      },
+      "execution": "▲\nHow it ran · Additional model request\nGive me choices\nExecution\nAdditional model request\nCalls\n1 model call expected\nConnection\nMain API (openai · custom · mock-model)\nRoute\nPlayer-only helper\nHistory\nbounded · observed\nTrigger\nWhen you run this action.\nTarget\nSeraphina · swipe 1\nAttempts used\n1\nOutcome\ncompleted\nResult\n3 of 3 playable choices.\nConnection settings",
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_BETA Write my next words.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nOffer 3 distinct and immediately playable choices for the player. Write each choice in first person and ground it in what the player knows and can perceive. Leave other characters’ reactions and the outcome open.\n\nReturn a JSON array of 3 strings. Each string is one playable first-person action or line of dialogue."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_SECOND_CHAT I check the door again."
+            }
+          ]
+        }
+      ],
+      "alternate": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-alternate",
+          "stream": false,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_BETA Write my next words.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_SECOND_CHAT I check the door again."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E-50-SWITCHED-API",
+      "receipt": {
+        "operation": "playerChoices",
+        "label": "Give me choices",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (textgenerationwebui · ooba)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m27s316ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:4272101748",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2elip-3",
+        "sequence": 3,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "3 of 3 playable choices.",
+        "route": "Player-only helper",
+        "history": {
+          "mode": "bounded",
+          "observed": true
+        }
+      },
+      "main": [
+        {
+          "url": "/v1/completions",
+          "stream": false,
+          "messages": [
+            {
+              "role": "text",
+              "content": "Write the player’s next action and dialogue in first person. Use what the player knows and can perceive in this scene. Give the player a playable action. Leave other characters’ reactions and the outcome open.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nOffer 3 distinct and immediately playable choices for the player. Write each choice in first person and ground it in what the player knows and can perceive. Leave other characters’ reactions and the outcome open.\n\nReturn a JSON array of 3 strings. Each string is one playable first-person action or line of dialogue.\nUser: Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_SECOND_CHAT I check the door again.\n\nDirection for this draft\nE_FIXTURE_TEXT_API I examine the door.\n"
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-50-RECOVER-MAIN",
+      "receipt": {
+        "operation": "playerDraft",
+        "label": "Generate my draft",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "chatId": "Seraphina - 2026-11-21@23h54m27s316ms",
+          "index": 2,
+          "swipe": 0,
+          "fingerprint": "131:4272101748",
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2ep1o-4",
+        "sequence": 4,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "manual",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "One player draft is ready.",
+        "route": "Native impersonation",
+        "history": {
+          "mode": "substituted",
+          "observed": true
+        }
+      },
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "system",
+              "content": "E_FIXTURE_BETA Write my next words.\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nPrior player contributions\nPlayer User: E_FIXTURE_SECOND_CHAT I check the door again.\n\nDirection for this draft\nE_FIXTURE_MISSING Preserve this direction."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-49-OFF",
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "E_FIXTURE_SECOND_CHAT I check the door again."
+            },
+            {
+              "role": "system",
+              "content": "[System note: In this reply, Seraphina must do thing A9 to User. User's words, choices and thoughts are theirs to write.]"
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_DISABLED I wait."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-50-MISSING",
+      "automatic": {
+        "operation": "instructionCheck",
+        "label": "Check that it happened",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "After a reply with at least one instruction that needs checking when reply checks are enabled.",
+        "connection": "Unavailable profile (ri-execution-alternate)",
+        "profileId": "ri-execution-alternate",
+        "target": {
+          "id": 6,
+          "swipe": 0,
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "The saved connection profile (ri-execution-alternate) is unavailable.",
+        "id": "mwr2erkd-5",
+        "sequence": 5,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "automatic",
+        "attempts": 0,
+        "outcome": "blocked",
+        "result": "The saved connection profile (ri-execution-alternate) is unavailable."
+      },
+      "manual": {
+        "operation": "instructionCheck",
+        "label": "Check that it happened",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "When you run this action.",
+        "connection": "Unavailable profile (ri-execution-alternate)",
+        "profileId": "ri-execution-alternate",
+        "target": {
+          "id": 6,
+          "swipe": 0,
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "The saved connection profile (ri-execution-alternate) is unavailable.",
+        "id": "mwr2esrq-6",
+        "sequence": 6,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "manual",
+        "attempts": 0,
+        "outcome": "blocked",
+        "result": "The saved connection profile (ri-execution-alternate) is unavailable."
+      },
+      "review": "▲\nHow it ran · Additional model request\nCheck that it happened\nExecution\nAdditional model request\nCalls\n1 model call expected\nConnection\nUnavailable profile (ri-execution-alternate)\nTrigger\nWhen you run this action.\nTarget\nSeraphina · swipe 1\nAttempts used\n0\nOutcome\nblocked\nResult\nThe saved connection profile (ri-execution-alternate) is unavailable.\n\nThe saved connection profile (ri-execution-alternate) is unavailable.\n\nConnection settings",
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "E_FIXTURE_SECOND_CHAT I check the door again."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_DISABLED I wait."
+            },
+            {
+              "role": "system",
+              "content": "[System note: In this reply, Seraphina must do thing A9 to User. User's words, choices and thoughts are theirs to write.]"
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_BLOCKED I wait for the cup."
+            }
+          ]
+        }
+      ],
+      "alternate": []
+    },
+    {
+      "id": "E-49-CHECK",
+      "receipt": {
+        "operation": "instructionCheck",
+        "label": "Check that it happened",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "After a reply with at least one instruction that needs checking when reply checks are enabled.",
+        "connection": "Connection profile: Fixture alternate",
+        "profileId": "ri-execution-alternate",
+        "target": {
+          "id": 8,
+          "swipe": 0,
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2eteu-7",
+        "sequence": 7,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "automatic",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "The AI marked 0 of 1 instruction as done. One is only counted when its quote is found in the reply."
+      },
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "E_FIXTURE_SECOND_CHAT I check the door again."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_DISABLED I wait."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_BLOCKED I wait for the cup."
+            },
+            {
+              "role": "system",
+              "content": "[System note: In this reply, Seraphina must do thing A9 to User. User's words, choices and thoughts are theirs to write.]"
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_CHECK I wait once more."
+            }
+          ]
+        }
+      ],
+      "alternate": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-alternate",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "Below is one reply from a roleplay and a list of instructions that were given for that reply. Decide for each instruction whether the reply carried it out.\n\nREPLY:\n\"\"\"\nThe captain studies his journal.\n\"\"\"\n\nINSTRUCTIONS:\nID a1: Seraphina must do thing A9 to User.\n\nAnswer with only a JSON list, one object per ID, in this form:\n[{\"id\": \"a1\", \"done\": true, \"quote\": \"words copied exactly from the REPLY that show it happened\"}]\nRules: \"quote\" is 3 to 25 words copied exactly from the REPLY. When an instruction was not carried out, use \"done\": false and \"quote\": \"\"."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E-49-REPLACEMENT",
+      "receipt": {
+        "operation": "automaticSwipe",
+        "label": "Automatically replace a missed reply",
+        "stage": "additional",
+        "expected": 1,
+        "trigger": "Once for an eligible reply when the enabled check finds an overdue instruction or player-agency issue and automatic replacement is selected.",
+        "connection": "Main API (openai · custom · mock-model)",
+        "profileId": "",
+        "target": {
+          "id": 10,
+          "swipe": 0,
+          "label": "Seraphina · swipe 1"
+        },
+        "problem": "",
+        "id": "mwr2evcq-9",
+        "sequence": 9,
+        "chat": "Seraphina - 2026-11-21@23h54m27s316ms",
+        "scope": "[\"char:default_Seraphina.png\",\"Seraphina - 2026-11-21@23h54m27s316ms\"]",
+        "authorization": "automatic",
+        "attempts": 1,
+        "outcome": "completed",
+        "result": "The host accepted a replacement swipe.",
+        "route": "Host swipe"
+      },
+      "acceptedSwipe": 1,
+      "main": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "E_FIXTURE_SECOND_CHAT I check the door again."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_DISABLED I wait."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_BLOCKED I wait for the cup."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_CHECK I wait once more."
+            },
+            {
+              "role": "system",
+              "content": "[System note: Overdue. This was ordered in the last reply and it did not happen. It must happen in this reply: Seraphina must do thing A9 to User. User's words, choices and thoughts are theirs to write.]"
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_REPLACEMENT I still wait for the cup."
+            }
+          ]
+        },
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-model",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "E_FIXTURE_SECOND_CHAT I check the door again."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_DISABLED I wait."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_BLOCKED I wait for the cup."
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_CHECK I wait once more."
+            },
+            {
+              "role": "system",
+              "content": "[System note: Final. This must happen early in this reply, before anything else develops: Seraphina must do thing A9 to User. User's words, choices and thoughts are theirs to write.]"
+            },
+            {
+              "role": "user",
+              "content": "E_FIXTURE_REPLACEMENT I still wait for the cup."
+            }
+          ]
+        }
+      ],
+      "alternate": [
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-alternate",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "Below is one reply from a roleplay and a list of instructions that were given for that reply. Decide for each instruction whether the reply carried it out.\n\nREPLY:\n\"\"\"\nThe captain studies his journal.\n\"\"\"\n\nINSTRUCTIONS:\nID a1: Seraphina must do thing A9 to User.\n\nAnswer with only a JSON list, one object per ID, in this form:\n[{\"id\": \"a1\", \"done\": true, \"quote\": \"words copied exactly from the REPLY that show it happened\"}]\nRules: \"quote\" is 3 to 25 words copied exactly from the REPLY. When an instruction was not carried out, use \"done\": false and \"quote\": \"\"."
+            }
+          ]
+        },
+        {
+          "url": "/v1/chat/completions",
+          "model": "mock-alternate",
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "Below is one reply from a roleplay and a list of instructions that were given for that reply. Decide for each instruction whether the reply carried it out.\n\nREPLY:\n\"\"\"\nThe captain studies his journal.\n\"\"\"\n\nINSTRUCTIONS:\nID a1: Seraphina must do thing A9 to User.\n\nAnswer with only a JSON list, one object per ID, in this form:\n[{\"id\": \"a1\", \"done\": true, \"quote\": \"words copied exactly from the REPLY that show it happened\"}]\nRules: \"quote\" is 3 to 25 words copied exactly from the REPLY. When an instruction was not carried out, use \"done\": false and \"quote\": \"\"."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

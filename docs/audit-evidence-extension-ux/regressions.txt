@@ -1,0 +1,116 @@
+Pinned GitHub baseline unit suite
+ℹ tests 21
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+
+Guided actions baseline unit suite
+ℹ tests 64
+ℹ pass 64
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+
+UX implementation unit suite
+ℹ tests 66
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+
+Touch navigation with Default
+PASS phone-width task finder, return navigation, scoped receipt and correction, and composer ownership
+
+Touch navigation with the companion preset
+PASS phone-width task finder, return navigation, scoped receipt and correction, and composer ownership
+
+Touch editors at 320 × 475
+PASS first open, goal ordering, chat fact search, dialogue preview, keyboard disclosure and request log
+
+Touch catalog edit, import and export
+Chromium 156.0.8078.79 touch emulation at 390×820 and 320×430. Created, recovered edits, varied, restored, reordered, inspected 23 Keel entries, imported, exported, searched, selected and pinned. Zero outgoing generation requests.
+
+Catalog acceptance cases
+A7, A25, A29, A41–A43 passed with touch emulation. 6 cases.
+
+Ordinary and guided queue with Default
+PASS queued event proof, swipe rollback, retry and Text Completion delivery
+
+Ordinary and guided queue with the companion preset
+PASS queued event proof, swipe rollback, retry and Text Completion delivery
+
+Quick actions with Default
+PASS phone-width composer, draft recovery, CYOA, queue delivery, Fresh start, guided swipe, continuation undo and explicit retry
+
+Quick actions with the companion preset
+PASS phone-width composer, draft recovery, CYOA, queue delivery, Fresh start, guided swipe, continuation undo and explicit retry
+
+Unavailable host routes and disabled sources
+PASS disconnected local workflow, disabled and missing sources, malformed macros, missing host events, and draft recovery
+
+Preset and writer variations
+PASS: touch preset and writer variations, order, neighbor edit, undo, source restore, field inspection, voice transfer, and ordinary reply using the imported voice. Editor actions made zero model requests.
+
+Story corrections
+PASS phone correction controls, zero/one/two requests, guided regeneration with and without streaming, selected swipe, retry and automatic AI source edits
+
+Existing guided swipe
+PASS guided swipe: isolated prompt, rollback, one-turn direction, swipe navigation and optional order repeat
+
+Historical memory
+PASS historical touch-guided replacement and filed source repair
+
+Native preset workbench
+PASS: native order, text, all four combinations on the wire, add, per-block restore and a customized commentator in a real request.
+
+Chapter controls
+PASS chapter: while the scene continues, no chapter is written and no extra request is made
+PASS chapter: when the block says the scene ended, one AI request writes a chapter for the replies since the last one
+PASS chapter: the request holds the messages of that stretch, without HUD or update blocks
+PASS chapter: the answer is filed as an entry with what happened, when, who and where
+PASS finished: a settled thread and a secret that came out are written into the chapter and turned off, and what is still open stays on
+PASS chapter: the Log says which replies the chapter covers and why it was written
+PASS sent: the newest chapter goes out in full at the top of the story notes
+PASS sent: what was finished is sent as part of the chapter and no longer as an open thread
+PASS chapter: a scene that ends before the set number of replies is joined to the next chapter
+PASS chapter: with "after this many replies" set to 2, replies 4 and 5 become the next chapter
+PASS finished: a planted detail that paid off is written into the chapter and turned off
+PASS chapter: deleting the last reply a chapter covers removes that chapter, and earlier chapters stay
+PASS finished: deleting that reply turns back on what its chapter had taken in, and what an earlier chapter took in stays off
+PASS panel: "Write a chapter now" summarises everything since the last chapter, and the tab lists the chapters with the replies they cover
+PASS panel: when every reply is already in a chapter, it says so and makes no request
+PASS warning: when SillyTavern's own summary is also in the prompt, the tab says so
+PASS combine: with more chapters than the setting allows, one request combines the older ones and the newest stays
+PASS combine: the combined account is sent first, then the newest chapter
+PASS older: a chapter from before is sent only when someone or somewhere in it comes up
+PASS carry: before the new chapter, the "only once" instruction is sent once
+PASS new chapter: one request gets the chapters, the story notes, your wish and the story since the last chapter
+PASS new chapter: the summary and the first message are shown for you to change
+PASS new chapter: a new chat opens with your edited first message in place of the greeting
+PASS new chapter: the active sets, an independent Story World, the pronouns, the goal with its finished step and what has happened for good are carried over
+PASS new chapter: the summary is kept in the world as "The story before this chat"
+PASS new chapter: the summary is sent with the first reply, and an instruction that had happened for good is still retired
+PASS new chapter: the chat you were in is still there: unknown
+PASS new chapter: going back, the old chat has every message it had and its own first message
+PASS new chapter: the source book retains its original combined summary
+PASS new chapter: creates a native Story World for a formerly worldless chat and recalls the summary
+PASS starter: one request reads the character card and the opening message of the chat
+PASS starter: nothing is added until you say so
+PASS starter: the ticked lines become entries, marked as automatic, and an unticked line is left out
+PASS no page errors:
+
+Reply card rendering and state
+PASS reply previews, direct tab jumps, formatted collapsed Roast, editable commentator voice, and chapter continuity
+
+Structured story, opening, streaming cancellation and preserved versions
+PASS v10 host: companion preset, native updates, pinned lore, guidelines, dice, repairs, plot gates, clock, speaker colors, streaming progress, cancellation, console, opening, saved-swipe navigation and branch rollback
+
+Reusable lorebook controls and host deletion
+PASS book odds, numeric contrast, removal, historical cards and confirmed host deletion
+
+Reusable lorebook triggers and assembled prompts
+PASS multiple guideline/reference imports, editable triggers and role-specific prompt delivery

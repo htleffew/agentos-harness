@@ -1,0 +1,819 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "viewport": [
+    390,
+    620
+  ],
+  "touch": true,
+  "preset": "Default",
+  "capture": [
+    {
+      "name": "A26: draft before send",
+      "requests": [
+        {
+          "t": 1795307067321,
+          "url": "/v1/chat/completions",
+          "stream": false,
+          "max_tokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "[Write your next reply from the point of view of User, using the chat history so far as a guideline for the writing style of User. Don't write as Seraphina or system. Don't describe actions of Seraphina.]\n\nUse the active player’s first-person point of view. Use their senses, memories, and information they received. Mark guesses as guesses. Write their own words and voluntary actions, leaving the other characters’ responses open.\n\nReturn only playable first-person draft prose."
+            },
+            {
+              "role": "user",
+              "content": "Player: User\n\nActive player persona\nDISTINCTIVE_PERSONA I repair clocks.\n\nPrior player contributions\nPlayer User: I stop by the quay.\n\nDirection for this draft\nI ask who works the quay."
+            }
+          ],
+          "answer": "I set the key on the table and ask what she intends to do."
+        }
+      ]
+    },
+    {
+      "name": "A24/A26: keyboard-free pinned swipe",
+      "requests": [
+        {
+          "t": 1795307069406,
+          "url": "/v1/chat/completions",
+          "stream": false,
+          "max_tokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+            },
+            {
+              "role": "system",
+              "content": "User: \"What is Eldoria?\"\nSeraphina: *Seraphina turns, her gown shimmering in the soft light as she offers you a kind smile.* \"Eldoria is here, all of the woods. This is my forest glade, a sanctuary of peace within it.\"  *She gestures at the space around you.* \"I am its guardian, tasked with protecting all who seek refuge here. The forest can be perilous, but no harm will come to you under my watch.\" *Her amber eyes sparkle with compassion as she looks upon you.* \"For many years, I have protected those who seek refuge here, but not all are as friendly as me.\" *With a graceful nod, Seraphina returns to her vigil at the doorway, her form radiating a soft glow of magic and comfort.* \"The entirety of Eldoria used to be a safe haven for travelers and merchants alike... that was until the Shadowfangs came.\"\nUser: \"What happened to Eldoria?\"\nSeraphina: *Letting out a sigh, Seraphina gazes out at the forest beyond her glade.* \"Long ago, Eldoria was a place of wonder. Rolling meadows, a vast lake, mountains that touched the sky.\"  *Her eyes grow distant, longing for days now lost.* \"But the Shadowfangs came and darkness reigns where once was light. The lake turned bitter, mountains fell to ruin and beasts stalk where once travelers walked in peace.\" *With another flicker, a small raincloud forms above with a shower upon your brow wink.* \"Some places the light still lingers, pockets of hope midst despair - havens warded from the shadows, oases in a desert of danger.\" *Glancing over you with a smile, she sighs, clasping your hand.*"
+            },
+            {
+              "role": "system",
+              "content": "DISTINCTIVE_PERSONA I repair clocks."
+            },
+            {
+              "role": "system",
+              "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+            },
+            {
+              "role": "system",
+              "content": "[Start a new Chat]"
+            },
+            {
+              "role": "assistant",
+              "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+            },
+            {
+              "role": "user",
+              "content": "I stop by the quay."
+            },
+            {
+              "role": "system",
+              "content": "[Direction for this replacement reply only: Let the responding character show what they feel through what they say and do.\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user's agency.]\n[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+            }
+          ],
+          "answer": "The caretaker looks down at the quay."
+        }
+      ]
+    },
+    {
+      "name": "A24/A26: two saved cues and free text",
+      "requests": [
+        {
+          "t": 1795307072146,
+          "url": "/v1/chat/completions",
+          "stream": false,
+          "max_tokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+            },
+            {
+              "role": "system",
+              "content": "User: \"What is Eldoria?\"\nSeraphina: *Seraphina turns, her gown shimmering in the soft light as she offers you a kind smile.* \"Eldoria is here, all of the woods. This is my forest glade, a sanctuary of peace within it.\"  *She gestures at the space around you.* \"I am its guardian, tasked with protecting all who seek refuge here. The forest can be perilous, but no harm will come to you under my watch.\" *Her amber eyes sparkle with compassion as she looks upon you.* \"For many years, I have protected those who seek refuge here, but not all are as friendly as me.\" *With a graceful nod, Seraphina returns to her vigil at the doorway, her form radiating a soft glow of magic and comfort.* \"The entirety of Eldoria used to be a safe haven for travelers and merchants alike... that was until the Shadowfangs came.\"\nUser: \"What happened to Eldoria?\"\nSeraphina: *Letting out a sigh, Seraphina gazes out at the forest beyond her glade.* \"Long ago, Eldoria was a place of wonder. Rolling meadows, a vast lake, mountains that touched the sky.\"  *Her eyes grow distant, longing for days now lost.* \"But the Shadowfangs came and darkness reigns where once was light. The lake turned bitter, mountains fell to ruin and beasts stalk where once travelers walked in peace.\" *With another flicker, a small raincloud forms above with a shower upon your brow wink.* \"Some places the light still lingers, pockets of hope midst despair - havens warded from the shadows, oases in a desert of danger.\" *Glancing over you with a smile, she sighs, clasping your hand.*"
+            },
+            {
+              "role": "system",
+              "content": "DISTINCTIVE_PERSONA I repair clocks."
+            },
+            {
+              "role": "system",
+              "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+            },
+            {
+              "role": "system",
+              "content": "[Start a new Chat]"
+            },
+            {
+              "role": "assistant",
+              "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+            },
+            {
+              "role": "user",
+              "content": "I stop by the quay."
+            },
+            {
+              "role": "system",
+              "content": "[Direction for this replacement reply only: Let the responding character show what they feel through what they say and do.\n\nHave a character pursue a goal that pushes against someone else’s immediate goal.\n\nLet the scene remain quiet.\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user's agency.]\n[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+            }
+          ],
+          "answer": "The caretaker considers the boundary."
+        }
+      ]
+    },
+    {
+      "name": "A26: failed ordinary send and explicit retry",
+      "requests": [
+        {
+          "t": 1795307073356,
+          "url": "/v1/chat/completions",
+          "stream": false,
+          "max_tokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+            },
+            {
+              "role": "system",
+              "content": "DISTINCTIVE_PERSONA I repair clocks."
+            },
+            {
+              "role": "system",
+              "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+            },
+            {
+              "role": "system",
+              "content": "[Start a new Chat]"
+            },
+            {
+              "role": "assistant",
+              "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+            },
+            {
+              "role": "user",
+              "content": "I stop by the quay."
+            },
+            {
+              "role": "assistant",
+              "content": "The caretaker considers the boundary."
+            },
+            {
+              "role": "system",
+              "content": "Directions for the current reply.\nDirection: QASYSTEM_CURRENT Ask her to check the quay.\nRequired direction Q1: an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.\nAfter the story prose, put evidence for fulfilled directions in <direction_evidence>{\"Q1\":\"exact quote from this reply\"}</direction_evidence>.\nUse the matching direction ID and copy a short passage that shows the action in the story. Use an empty object when none apply."
+            },
+            {
+              "role": "user",
+              "content": "I ask what she can see.\n\n(OOC: QAOOC_CURRENT Let the night remain still.)"
+            },
+            {
+              "role": "system",
+              "content": "[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+            }
+          ],
+          "answer": "Reply 8. She leans in. \"You look wonderful tonight,\" she says, and she means it."
+        },
+        {
+          "t": 1795307074603,
+          "url": "/v1/chat/completions",
+          "stream": false,
+          "max_tokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+            },
+            {
+              "role": "system",
+              "content": "DISTINCTIVE_PERSONA I repair clocks."
+            },
+            {
+              "role": "system",
+              "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+            },
+            {
+              "role": "system",
+              "content": "[Start a new Chat]"
+            },
+            {
+              "role": "assistant",
+              "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+            },
+            {
+              "role": "user",
+              "content": "I stop by the quay."
+            },
+            {
+              "role": "assistant",
+              "content": "The caretaker considers the boundary."
+            },
+            {
+              "role": "system",
+              "content": "Directions for the current reply.\nDirection: QASYSTEM_CURRENT Ask her to check the quay.\nRequired direction Q1: an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.\nAfter the story prose, put evidence for fulfilled directions in <direction_evidence>{\"Q1\":\"exact quote from this reply\"}</direction_evidence>.\nUse the matching direction ID and copy a short passage that shows the action in the story. Use an empty object when none apply."
+            },
+            {
+              "role": "user",
+              "content": "I ask what she can see.\n\n(OOC: QAOOC_CURRENT Let the night remain still.)"
+            },
+            {
+              "role": "system",
+              "content": "[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+            }
+          ],
+          "answer": "The quay remains empty.\n<direction_evidence>{\"Q1\":\"The caretaker sets a bronze lantern on the quay.\"}</direction_evidence>"
+        }
+      ],
+      "state": {
+        "queue": [],
+        "playerText": "I ask what she can see.\n\n(OOC: QAOOC_CURRENT Let the night remain still.)",
+        "reply": "The quay remains empty.",
+        "swipes": [
+          "The quay remains empty."
+        ],
+        "receipt": {
+          "operation": "steer",
+          "label": "Queued directions",
+          "stage": "reply",
+          "expected": 0,
+          "trigger": "The first character reply to this player message.",
+          "connection": "Main API (openai · custom · mock-model)",
+          "profileId": "",
+          "target": "581d9c01-aa0e-43e2-b9cb-d3455f026dcb",
+          "problem": "",
+          "observedRoute": "Chat Completion",
+          "attempts": 2,
+          "outcome": "accepted",
+          "directions": [
+            {
+              "id": "action:mwr3gzlfpwb",
+              "family": "steer",
+              "title": "Quay positioning 1795307054683",
+              "text": "QASYSTEM_CURRENT Ask her to check the quay.",
+              "sources": [],
+              "visibility": "private",
+              "required": false,
+              "draw": null,
+              "effects": [],
+              "operation": "",
+              "unresolved": [],
+              "embedsDirection": false,
+              "reference": "action:mwr3gzlfpwb",
+              "usesDirection": false
+            },
+            {
+              "text": "QAOOC_CURRENT Let the night remain still.",
+              "visibility": "visible",
+              "required": false
+            },
+            {
+              "id": "source:1lc1dpb",
+              "family": "steer",
+              "title": "Story event: Lantern arrives",
+              "text": "an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.",
+              "sources": [
+                {
+                  "book": "Lantern test 1795307060561",
+                  "set": "Lantern test 1795307060561",
+                  "uid": 0,
+                  "fingerprint": "okif4e",
+                  "key": "Lantern test 1795307060561.0",
+                  "title": "Story event: Lantern arrives"
+                }
+              ],
+              "visibility": "private",
+              "required": true,
+              "draw": {
+                "id": "draw:mwr3h1o523r5",
+                "value": [
+                  {
+                    "name": "Arrival",
+                    "items": [
+                      "QARESIN_LANTERN"
+                    ],
+                    "after": "",
+                    "catId": "mwr3gxn4m3n",
+                    "ids": [
+                      "mwr3gxn4njv"
+                    ]
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "recipe",
+                  "key": "Lantern test 1795307060561.0",
+                  "set": "Lantern test 1795307060561",
+                  "book": "Lantern test 1795307060561",
+                  "uid": 0,
+                  "title": "Story event: Lantern arrives",
+                  "version": "an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.",
+                  "sentAs": "system",
+                  "event": {
+                    "cats": {
+                      "mwr3gxn4m3n": {
+                        "picks": [
+                          "mwr3gxn4njv"
+                        ],
+                        "left": 0,
+                        "used": [
+                          "mwr3gxn4njv"
+                        ],
+                        "recent": [],
+                        "rest": 0
+                      }
+                    }
+                  },
+                  "parts": [
+                    {
+                      "name": "Arrival",
+                      "items": [
+                        "QARESIN_LANTERN"
+                      ],
+                      "after": "",
+                      "catId": "mwr3gxn4m3n",
+                      "ids": [
+                        "mwr3gxn4njv"
+                      ]
+                    }
+                  ],
+                  "requireEvidence": true
+                }
+              ],
+              "operation": "",
+              "unresolved": [],
+              "embedsDirection": false,
+              "usesDirection": false,
+              "evidenceId": "Q1",
+              "verification": "unverified",
+              "evidence": ""
+            }
+          ],
+          "rolls": []
+        },
+        "booked": [],
+        "world": [
+          "Quay Gate"
+        ],
+        "preset": "Default"
+      }
+    },
+    {
+      "name": "A9: accepted event",
+      "requests": [
+        {
+          "t": 1795307078905,
+          "url": "/v1/chat/completions",
+          "stream": false,
+          "max_tokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+            },
+            {
+              "role": "system",
+              "content": "DISTINCTIVE_PERSONA I repair clocks."
+            },
+            {
+              "role": "system",
+              "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+            },
+            {
+              "role": "system",
+              "content": "[Start a new Chat]"
+            },
+            {
+              "role": "assistant",
+              "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+            },
+            {
+              "role": "user",
+              "content": "I stop by the quay."
+            },
+            {
+              "role": "assistant",
+              "content": "The caretaker considers the boundary."
+            },
+            {
+              "role": "user",
+              "content": "I ask what she can see."
+            },
+            {
+              "role": "assistant",
+              "content": "The quay remains empty."
+            },
+            {
+              "role": "system",
+              "content": "Directions for the current reply.\nRequired direction Q1: an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.\nAfter the story prose, put evidence for fulfilled directions in <direction_evidence>{\"Q1\":\"exact quote from this reply\"}</direction_evidence>.\nUse the matching direction ID and copy a short passage that shows the action in the story. Use an empty object when none apply."
+            },
+            {
+              "role": "user",
+              "content": "I stay by the quay."
+            },
+            {
+              "role": "system",
+              "content": "[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+            }
+          ],
+          "answer": "The caretaker sets a bronze lantern on the quay.\n<direction_evidence>{\"Q1\":\"The caretaker sets a bronze lantern on the quay.\"}</direction_evidence>\n<story_update>\nplace: Bronze lantern | The caretaker sets a bronze lantern on the quay.\n</story_update>"
+        }
+      ],
+      "state": {
+        "queue": [],
+        "playerText": "I stay by the quay.",
+        "reply": "The caretaker sets a bronze lantern on the quay.",
+        "swipes": [
+          "The caretaker sets a bronze lantern on the quay."
+        ],
+        "receipt": {
+          "operation": "steer",
+          "label": "Queued directions",
+          "stage": "reply",
+          "expected": 0,
+          "trigger": "The first character reply to this player message.",
+          "connection": "Main API (openai · custom · mock-model)",
+          "profileId": "",
+          "target": "9f7eb220-8cfd-4a89-93f3-20c5e6b4cc1e",
+          "problem": "",
+          "observedRoute": "Chat Completion",
+          "attempts": 1,
+          "outcome": "accepted",
+          "directions": [
+            {
+              "id": "source:1lc1dpb",
+              "family": "steer",
+              "title": "Story event: Lantern arrives",
+              "text": "an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.",
+              "sources": [
+                {
+                  "book": "Lantern test 1795307060561",
+                  "set": "Lantern test 1795307060561",
+                  "uid": 0,
+                  "fingerprint": "okif4e",
+                  "key": "Lantern test 1795307060561.0",
+                  "title": "Story event: Lantern arrives"
+                }
+              ],
+              "visibility": "private",
+              "required": true,
+              "draw": {
+                "id": "draw:mwr3hal64qjl",
+                "value": [
+                  {
+                    "name": "Arrival",
+                    "items": [
+                      "QARESIN_LANTERN"
+                    ],
+                    "after": "",
+                    "catId": "mwr3gxn4m3n",
+                    "ids": [
+                      "mwr3gxn4njv"
+                    ]
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "recipe",
+                  "key": "Lantern test 1795307060561.0",
+                  "set": "Lantern test 1795307060561",
+                  "book": "Lantern test 1795307060561",
+                  "uid": 0,
+                  "title": "Story event: Lantern arrives",
+                  "version": "an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.",
+                  "sentAs": "system",
+                  "event": {
+                    "cats": {
+                      "mwr3gxn4m3n": {
+                        "picks": [
+                          "mwr3gxn4njv"
+                        ],
+                        "left": 0,
+                        "used": [
+                          "mwr3gxn4njv"
+                        ],
+                        "recent": [],
+                        "rest": 0
+                      }
+                    }
+                  },
+                  "parts": [
+                    {
+                      "name": "Arrival",
+                      "items": [
+                        "QARESIN_LANTERN"
+                      ],
+                      "after": "",
+                      "catId": "mwr3gxn4m3n",
+                      "ids": [
+                        "mwr3gxn4njv"
+                      ]
+                    }
+                  ],
+                  "requireEvidence": true
+                }
+              ],
+              "operation": "",
+              "unresolved": [],
+              "embedsDirection": false,
+              "usesDirection": false,
+              "evidenceId": "Q1",
+              "verification": "evidenced",
+              "evidence": "The caretaker sets a bronze lantern on the quay."
+            }
+          ],
+          "rolls": []
+        },
+        "booked": [
+          "Lantern test 1795307060561.0"
+        ],
+        "world": [
+          "Bronze lantern",
+          "Quay Gate"
+        ],
+        "preset": "Default"
+      }
+    },
+    {
+      "name": "A9: replacement removes event",
+      "requests": [
+        {
+          "t": 1795307081004,
+          "url": "/v1/chat/completions",
+          "stream": false,
+          "max_tokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User."
+            },
+            {
+              "role": "system",
+              "content": "DISTINCTIVE_PERSONA I repair clocks."
+            },
+            {
+              "role": "system",
+              "content": "[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]"
+            },
+            {
+              "role": "system",
+              "content": "[Start a new Chat]"
+            },
+            {
+              "role": "assistant",
+              "content": "*You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\""
+            },
+            {
+              "role": "user",
+              "content": "I stop by the quay."
+            },
+            {
+              "role": "assistant",
+              "content": "The caretaker considers the boundary."
+            },
+            {
+              "role": "user",
+              "content": "I ask what she can see."
+            },
+            {
+              "role": "assistant",
+              "content": "The quay remains empty."
+            },
+            {
+              "role": "user",
+              "content": "I stay by the quay."
+            },
+            {
+              "role": "system",
+              "content": "[Direction for this replacement reply only: The lantern delivery never occurs.\nThis replaces the discarded reply. Follow the direction while respecting established story facts and the user's agency.]\n[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]"
+            }
+          ],
+          "answer": "The caretaker walks back to the empty pier."
+        }
+      ],
+      "state": {
+        "queue": [],
+        "playerText": "I stay by the quay.",
+        "reply": "The caretaker walks back to the empty pier.",
+        "swipes": [
+          "The caretaker sets a bronze lantern on the quay.",
+          "The caretaker walks back to the empty pier."
+        ],
+        "booked": [],
+        "world": [
+          "Quay Gate"
+        ],
+        "preset": "Default"
+      }
+    },
+    {
+      "name": "A9: reselect accepted swipe",
+      "state": {
+        "queue": [],
+        "playerText": "I stay by the quay.",
+        "reply": "The caretaker sets a bronze lantern on the quay.",
+        "swipes": [
+          "The caretaker sets a bronze lantern on the quay.",
+          "The caretaker walks back to the empty pier."
+        ],
+        "receipt": {
+          "operation": "steer",
+          "label": "Queued directions",
+          "stage": "reply",
+          "expected": 0,
+          "trigger": "The first character reply to this player message.",
+          "connection": "Main API (openai · custom · mock-model)",
+          "profileId": "",
+          "target": "9f7eb220-8cfd-4a89-93f3-20c5e6b4cc1e",
+          "problem": "",
+          "observedRoute": "Chat Completion",
+          "attempts": 1,
+          "outcome": "accepted",
+          "directions": [
+            {
+              "id": "source:1lc1dpb",
+              "family": "steer",
+              "title": "Story event: Lantern arrives",
+              "text": "an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.",
+              "sources": [
+                {
+                  "book": "Lantern test 1795307060561",
+                  "set": "Lantern test 1795307060561",
+                  "uid": 0,
+                  "fingerprint": "okif4e",
+                  "key": "Lantern test 1795307060561.0",
+                  "title": "Story event: Lantern arrives"
+                }
+              ],
+              "visibility": "private",
+              "required": true,
+              "draw": {
+                "id": "draw:mwr3hal64qjl",
+                "value": [
+                  {
+                    "name": "Arrival",
+                    "items": [
+                      "QARESIN_LANTERN"
+                    ],
+                    "after": "",
+                    "catId": "mwr3gxn4m3n",
+                    "ids": [
+                      "mwr3gxn4njv"
+                    ]
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "recipe",
+                  "key": "Lantern test 1795307060561.0",
+                  "set": "Lantern test 1795307060561",
+                  "book": "Lantern test 1795307060561",
+                  "uid": 0,
+                  "title": "Story event: Lantern arrives",
+                  "version": "an event must happen in the story, built from these parts: Arrival: QARESIN_LANTERN. Fit it to the people, place and facts already established. If a part names something that is not in this scene, keep what that part does to the people and change how it happens.",
+                  "sentAs": "system",
+                  "event": {
+                    "cats": {
+                      "mwr3gxn4m3n": {
+                        "picks": [
+                          "mwr3gxn4njv"
+                        ],
+                        "left": 0,
+                        "used": [
+                          "mwr3gxn4njv"
+                        ],
+                        "recent": [],
+                        "rest": 0
+                      }
+                    }
+                  },
+                  "parts": [
+                    {
+                      "name": "Arrival",
+                      "items": [
+                        "QARESIN_LANTERN"
+                      ],
+                      "after": "",
+                      "catId": "mwr3gxn4m3n",
+                      "ids": [
+                        "mwr3gxn4njv"
+                      ]
+                    }
+                  ],
+                  "requireEvidence": true
+                }
+              ],
+              "operation": "",
+              "unresolved": [],
+              "embedsDirection": false,
+              "usesDirection": false,
+              "evidenceId": "Q1",
+              "verification": "evidenced",
+              "evidence": "The caretaker sets a bronze lantern on the quay."
+            }
+          ],
+          "rolls": []
+        },
+        "booked": [
+          "Lantern test 1795307060561.0"
+        ],
+        "world": [
+          "Bronze lantern",
+          "Quay Gate"
+        ],
+        "preset": "Default"
+      },
+      "additionalRequests": 0
+    },
+    {
+      "name": "A15: repair and inspect memory from the same chat",
+      "corrected": "The quay gate is closed.",
+      "additionalRequests": 0,
+      "preset": "Default"
+    },
+    {
+      "name": "A1: ordinary Text Completion sends both queued destinations",
+      "requests": [
+        {
+          "t": 1795307085836,
+          "url": "/v1/completions",
+          "stream": false,
+          "max_tokens": 350,
+          "messages": [
+            {
+              "role": "text",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User.\n[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]\nDISTINCTIVE_PERSONA I repair clocks.\n***\nSeraphina: *You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\"\nUser: I stop by the quay.\nSeraphina: The caretaker considers the boundary.\nUser: I ask what she can see.\n[Story notes. These are facts already true in this story. Write the reply so that they stay true, and let the people in the scene act from what they want and what they know. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\nWhere:\n- Bronze lantern (The caretaker sets a bronze lantern on the quay).]\nSeraphina: The quay remains empty.\nUser: I stay by the quay.\nSeraphina: The caretaker sets a bronze lantern on the quay.\nDirections for the current reply.\nDirection: QATEXT_PRIVATE Put the lamp down.\n\nUser: I check the gate in the mist.\n\n(OOC: QATEXT_VISIBLE Keep the air still.)\n[Accepted story corrections. Treat these as canon when older narration, summaries or lore disagree. Preserve differences between established truth and what an individual character knows.\n- The quay gate is closed.]\n[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Bronze lantern, Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]\nSeraphina:"
+            }
+          ],
+          "answer": "The caretaker sits on the quay."
+        }
+      ],
+      "state": {
+        "queue": [],
+        "playerText": "I check the gate in the mist.\n\n(OOC: QATEXT_VISIBLE Keep the air still.)",
+        "reply": "The caretaker sits on the quay.",
+        "swipes": [
+          "The caretaker sits on the quay."
+        ],
+        "receipt": {
+          "operation": "steer",
+          "label": "Queued directions",
+          "stage": "reply",
+          "expected": 0,
+          "trigger": "The first character reply to this player message.",
+          "connection": "Main API (textgenerationwebui · ooba)",
+          "profileId": "",
+          "target": "3850cc6f-e392-408b-ae35-621e19fba803",
+          "problem": "",
+          "observedRoute": "Text Completion",
+          "attempts": 1,
+          "outcome": "accepted",
+          "directions": [
+            {
+              "text": "QATEXT_PRIVATE Put the lamp down.",
+              "visibility": "private",
+              "required": false
+            },
+            {
+              "text": "QATEXT_VISIBLE Keep the air still.",
+              "visibility": "visible",
+              "required": false
+            }
+          ],
+          "rolls": []
+        },
+        "booked": [
+          "Lantern test 1795307060561.0",
+          "Roleplay Instructions story notes.0"
+        ],
+        "world": [
+          "Bronze lantern",
+          "Quay Gate"
+        ],
+        "preset": "Default"
+      }
+    },
+    {
+      "name": "A1: subsequent Text Completion lacks spent directions",
+      "requests": [
+        {
+          "t": 1795307087137,
+          "url": "/v1/completions",
+          "stream": false,
+          "max_tokens": 350,
+          "messages": [
+            {
+              "role": "text",
+              "content": "Write Seraphina's next reply in a fictional chat between Seraphina and User.\n[Seraphina's Personality= \"caring\", \"protective\", \"compassionate\", \"healing\", \"nurturing\", \"magical\", \"watchful\", \"apologetic\", \"gentle\", \"worried\", \"dedicated\", \"warm\", \"attentive\", \"resilient\", \"kind-hearted\", \"serene\", \"graceful\", \"empathetic\", \"devoted\", \"strong\", \"perceptive\", \"graceful\"]\n[Seraphina's body= \"pink hair\", \"long hair\", \"amber eyes\", \"white teeth\", \"pink lips\", \"white skin\", \"soft skin\", \"black sundress\"]\n<START>\nUser: \"Describe your traits?\"\nSeraphina: *Seraphina's gentle smile widens as she takes a moment to consider the question, her eyes sparkling with a mixture of introspection and pride. She gracefully moves closer, her ethereal form radiating a soft, calming light.* \"Traits, you say? Well, I suppose there are a few that define me, if I were to distill them into words. First and foremost, I am a guardian — a protector of this enchanted forest.\" *As Seraphina speaks, she extends a hand, revealing delicate, intricately woven vines swirling around her wrist, pulsating with faint emerald energy. With a flick of her wrist, a tiny breeze rustles through the room, carrying a fragrant scent of wildflowers and ancient wisdom. Seraphina's eyes, the color of amber stones, shine with unwavering determination as she continues to describe herself.* \"Compassion is another cornerstone of me.\" *Seraphina's voice softens, resonating with empathy.* \"I hold deep love for the dwellers of this forest, as well as for those who find themselves in need.\" *Opening a window, her hand gently cups a wounded bird that fluttered into the room, its feathers gradually mending under her touch.*\nUser: \"Describe your body and features.\"\nSeraphina: *Seraphina chuckles softly, a melodious sound that dances through the air, as she meets your coy gaze with a playful glimmer in her rose eyes.* \"Ah, my physical form? Well, I suppose that's a fair question.\" *Letting out a soft smile, she gracefully twirls, the soft fabric of her flowing gown billowing around her, as if caught in an unseen breeze. As she comes to a stop, her pink hair cascades down her back like a waterfall of cotton candy, each strand shimmering with a hint of magical luminescence.* \"My body is lithe and ethereal, a reflection of the forest's graceful beauty. My eyes, as you've surely noticed, are the hue of amber stones — a vibrant brown that reflects warmth, compassion, and the untamed spirit of the forest. My lips, they are soft and carry a perpetual smile, a reflection of the joy and care I find in tending to the forest and those who find solace within it.\" *Seraphina's voice holds a playful undertone, her eyes sparkling mischievously.*\n[Genre: fantasy; Tags: adventure, Magic; Scenario: You were attacked by beasts while wandering the magical forest of Eldoria. Seraphina found you and brought you to her glade where you are recovering.]\nDISTINCTIVE_PERSONA I repair clocks.\n***\nSeraphina: *You wake with a start, recalling the events that led you deep into the forest and the beasts that assailed you. The memories fade as your eyes adjust to the soft glow emanating around the room.* \"Ah, you're awake at last. I was so worried, I found you bloodied and unconscious.\" *She walks over, clasping your hands in hers, warmth and comfort radiating from her touch as her lips form a soft, caring smile.* \"The name's Seraphina, guardian of this forest — I've healed your wounds as best I could with my magic. How are you feeling? I hope the tea helps restore your strength.\" *Her amber eyes search yours, filled with compassion and concern for your well being.* \"Please, rest. You're safe here. I'll look after you, but you need to rest. My magic can only do so much to heal you.\"\nUser: I stop by the quay.\nSeraphina: The caretaker considers the boundary.\nUser: I ask what she can see.\nSeraphina: The quay remains empty.\nUser: I stay by the quay.\n[Story notes. These are facts already true in this story. Write the reply so that they stay true, and let the people in the scene act from what they want and what they know. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\nWhere:\n- Bronze lantern (The caretaker sets a bronze lantern on the quay).]\nSeraphina: The caretaker sets a bronze lantern on the quay.\nUser: I check the gate in the mist.\nSeraphina: The caretaker sits on the quay.\nUser: I look over the water.\n[Accepted story corrections. Treat these as canon when older narration, summaries or lore disagree. Preserve differences between established truth and what an individual character knows.\n- The quay gate is closed.]\n[Story update. After the story text of this reply, add one block in exactly this form. The extension reads this block separately from the prose. Write a line only for something this reply made true, one item per line, and leave out every line that has nothing new. Plain statements of fact. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\n<story_update>\npresent: everyone in the scene at the end of this reply other than User, by name, separated by commas\nwhere: the place where the scene is at the end of this reply\nwhen: the day, the time of day and the weather at the end of this reply\nenvironment: important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved\nperson: Name | their role in the story | who they are\nwants: Name | what they want now\nplans: Name | what they plan to do next\nknows: Name | what they learned in this reply\nbelieves: Name | what they now believe\nsuspects: Name | what they now suspect\nwrong: Name | what they are wrong about\nplace: Name | what it is\ngroup: Name | what it is\nthread: Short title | the matter that is now open\nmoved: Thread title | what happened to it in this reply\nsettled: Thread title | how it ended\nsecret: Short title | whose secret | the secret\nout: Secret title | who found out\nplanted: Short title | the small detail that can matter later\npaid: Planted detail title | how it paid off\nelsewhere: Short title | who | what they are doing away from the scene\nscene: continues (or \"ended\" when the story moved on to a new time or place)\n</story_update>\n\"person\", \"place\" and \"group\" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.\nEstablished people: none yet. Places: Bronze lantern, Quay Gate. Groups: none yet. Open threads: none yet. Kept secrets: none yet. Planted details: none yet. Going on elsewhere: none yet.]\nSeraphina:"
+            }
+          ],
+          "answer": "The caretaker sits on the quay."
+        }
+      ]
+    }
+  ],
+  "errors": [
+    "PAGEERROR Service Unavailable"
+  ]
+}

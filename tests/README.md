@@ -17,6 +17,9 @@ Run `t_execution_routes.js` on a separate host fixture with SillyTavern’s bund
 
 | Script | Covers |
 | --- | --- |
+| `t_extension_ux.js` | Touch at 390 × 475, task finding, queue confirmation, composer ownership, exact historical receipts and corrections, and draft recovery. Set `RI_UX_PRESET` to activate the companion and `RI_UX_CAPTURE` to save observations. |
+| `t_extension_ux_editors.js` | Touch at 320 × 475, no-chat defaults, failed and cancelled openings, goal reordering, structured fact search, speaker colors, and count-confirmed log clearing. Includes grayscale, reduced motion and keyboard disclosure. Set `RI_UX_CAPTURE` to save observations. |
+| `t_extension_ux_performance.js` | Seven warmed samples and actual request count for the local sheet, page navigation, task finder and 160-action library filter. |
 | `t_quick_actions.js` | Emulated phone taps, queue editing and binding, candidate recovery after reload, retries and rolls, Fresh start expiry, and native continuation Undo. Also run with `RI_COMPANION_FIXTURE=1` to import and activate the companion. Set `RI_EVIDENCE` to record the results. |
 | `t_quick_queue_events.js` | Both queued destinations in a real Text Completion prompt, offline-safe snapshot delivery, retry with a new composer draft, required event evidence, swipe rollback, fact repair and memory entry. Set `RI_QUEUE_PRESET` to use an installed companion preset and `RI_QUEUE_CAPTURE` to save the requests and state. |
 | `t_quick_queue_failures.js` | Disconnected local authoring and touch-safe draft preservation for disabled and lost sources, malformed macros and missing host hooks. Set `RI_QUEUE_CAPTURE` to save the trace. |
@@ -36,7 +39,7 @@ Run `t_execution_routes.js` on a separate host fixture with SillyTavern’s bund
 | `t_execution_routes.js` | Native stream interruption and explicit retry, empty response, two impersonation presets, actual named profile routing across reload and chat switch, Main API route changes, and manual and automatic check behavior when an alternate profile is unavailable. |
 | `t_prose_diagnostics.js` | Same-reply evidence, historical swipe and edit, and one-use prompt guidance. |
 | `t_companion_controls.js` | Import the companion JSON in the host file chooser, inspect all 16 writing and check blocks, toggle each and compare the assembled provider requests |
-| `t_extension_ui_audit.js` | All 22 navigation pages, reachable disclosures on phone and desktop, both extension module settings scopes, mode and memory selections, keyboard focus and unsaved record navigation |
+| `t_extension_ui_audit.js` | All 22 pages, reachable disclosures, both settings scopes, mode and memory selections, keyboard focus and unsaved record navigation. Use `RI_PANEL_WIDTHS=320,390 RI_PANEL_HEIGHT=475` for the reduced phone areas and `RI_PANEL_TEXT_SCALE=2` for the enlarged-text pass. |
 | `t_correction_ui.js` | Phone-width source search and manual edits, optional one-click AI source repairs, default guided generation, existing swipes, failed generation and retry |
 | `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |
 | `t_reply_cards.js` | Independent reply cards, snapshot editing, visibility settings and responsive layout |

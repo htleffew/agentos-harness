@@ -1,0 +1,15 @@
+23:57:47.617843 - SPEECH OUTPUT: 'How it ran · Uses the reply request toggle button collapsed.' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+23:57:48.193894 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Uses the reply request'] in Chromium (Chromium 1.0) (1, 0, 0)
+23:57:48.194057 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Uses the reply request'] in Chromium (Chromium 1.0) (1, 0, 0) has priority level: 4
+23:57:49.071846 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Uses the reply request'] in Chromium (Chromium 1.0) (0, 0, 0)
+23:57:49.072006 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Uses the reply request'] in Chromium (Chromium 1.0) (0, 0, 0) has priority level: 4
+23:57:51.058045 - SPEECH OUTPUT: 'How it ran · Additional model request toggle button collapsed.' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+23:57:51.701081 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (1, 0, 0)
+23:57:51.701241 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (1, 0, 0) has priority level: 4
+23:57:52.553997 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (0, 0, 0)
+23:57:52.554182 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (0, 0, 0) has priority level: 4
+23:57:54.975600 - SPEECH OUTPUT: 'How it ran · Additional model request toggle button collapsed.' {'established': False, 'family': {'name': None, 'gender': None, 'lang': None, 'dialect': None, 'variant': None}}
+23:57:55.595557 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (1, 0, 0)
+23:57:55.596124 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (1, 0, 0) has priority level: 4
+23:57:56.572675 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (0, 0, 0)
+23:57:56.572853 - EVENT MANAGER: object:state-changed:expanded for [toggle button: 'How it ran · Additional model request'] in Chromium (Chromium 1.0) (0, 0, 0) has priority level: 4

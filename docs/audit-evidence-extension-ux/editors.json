@@ -1,0 +1,48 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "preset": "Roleplay Instructions V10",
+  "viewport": [
+    320,
+    475
+  ],
+  "touch": true,
+  "evidence": [
+    {
+      "case": "first open with and without a chat",
+      "destinations": [
+        "Preset & Extension",
+        "Current State"
+      ]
+    },
+    {
+      "case": "opening initialization, unreadable response and explicit cancellation",
+      "previewRequests": 0,
+      "authorizedRequests": 2
+    },
+    {
+      "case": "goal step reorder",
+      "focus": "moved step"
+    },
+    {
+      "case": "local record creation and filtering",
+      "filter": "eastern gate"
+    },
+    {
+      "case": "speaker preview and automatic color"
+    },
+    {
+      "case": "relationship edit preserves scope and protection when reversing the pair"
+    },
+    {
+      "case": "keyboard disclosure in grayscale with reduced motion",
+      "requests": 0
+    },
+    {
+      "case": "log filter, copy, download and count-confirmed clear",
+      "original": 2,
+      "cleared": 3,
+      "requests": 0
+    }
+  ],
+  "errors": []
+}

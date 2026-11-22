@@ -1,0 +1,51 @@
+{
+  "host": "SillyTavern 1.19.0",
+  "preset": "Default",
+  "viewport": [
+    390,
+    475
+  ],
+  "touch": true,
+  "evidence": [
+    {
+      "case": "tool search and return",
+      "requests": 0,
+      "destinations": [
+        "Corrections",
+        "Reply Display",
+        "Reusable Lorebooks",
+        "Settings"
+      ]
+    },
+    {
+      "case": "chat to memory and return",
+      "requests": 0,
+      "selection": [
+        2,
+        9,
+        "backward"
+      ]
+    },
+    {
+      "case": "visible freeform direction, queue confirmation and Undo",
+      "requests": 0
+    },
+    {
+      "case": "blocked function settings and return",
+      "operation": "playerDraft",
+      "requests": 0
+    },
+    {
+      "case": "independent unsaved edits recovered only in their originating chat",
+      "drafts": 2,
+      "requests": 0
+    },
+    {
+      "case": "direct older reply actions",
+      "target": 2,
+      "version": 1,
+      "requests": 0
+    }
+  ],
+  "errors": []
+}

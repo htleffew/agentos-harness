@@ -715,7 +715,7 @@ A native book contains data the host can export. The chat file contains the link
 
 ## Source and verification
 
-- The [extension-wide UX specification](docs/extension-ux-spec.md) tracks proposed navigation, interaction and accessibility improvements across chat and the extension panel.
+- The extension-wide UX specification records the shared navigation, interaction and accessibility requirements. Its verification follows the corresponding tasks across chat and the panel. [Specification](docs/extension-ux-spec.md) · [Acceptance audit](docs/extension-ux-verification.md)
 - [`src/engine.js`](src/engine.js), [`src/st.js`](src/st.js), and [`src/components.js`](src/components.js) cover host events, request assembly, and component selection.
 - [`src/v10.js`](src/v10.js), [`src/state.js`](src/state.js), [`src/story-clock.js`](src/story-clock.js), and [`src/worldflow.js`](src/worldflow.js) cover story state, structured validation, time, and world transactions.
 - [`src/chapters.js`](src/chapters.js), [`src/recall.js`](src/recall.js), [`src/book-triggers.js`](src/book-triggers.js), and [`src/context-budget.js`](src/context-budget.js) cover memory and recall.
