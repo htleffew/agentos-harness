@@ -374,7 +374,7 @@ export function render() {
         finder,interruptedDrafts());
     if (!isChatOpen() && current.id==='v10') app.body.append(h('p',{class:'ri-help'},'Open a character chat to use Quick actions and chat settings.'));
     if (isChatOpen() && current.id==='state' && !app.userNavigated) app.body.append(h('p',{class:'ri-help'},
-        'Use Quick actions beside the composer for the next reply. Use this panel to manage the story and settings.'));
+        'Tap the lightning bolt beside the composer to open Quick actions. Use this panel to manage the story and settings.'));
 
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));

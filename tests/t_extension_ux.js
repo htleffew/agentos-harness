@@ -51,6 +51,29 @@ const L = require('./lib.js');
         const drawer=page.locator('#extensions-settings-button > .drawer-content.openDrawer');
         if (await drawer.count()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
 
+        const entry=page.getByRole('button',{name:'Quick actions',exact:true});
+        const multiline='I watch the gate.\nThe guard raises the lantern.\nI stay in the shadows.';
+        for (const width of [320,390]) {
+            await page.setViewportSize({width,height:475});
+            await composer.fill(multiline);
+            await composer.evaluate(input=>input.setSelectionRange(2,9,'backward'));
+            const layout=await entry.evaluate(button=>{
+                const input=document.getElementById('send_textarea').getBoundingClientRect();
+                const controls=document.getElementById('rightSendForm').getBoundingClientRect();
+                const {left,right,width,height}=button.getBoundingClientRect();
+                return {width,height,composerWidth:input.width,between:input.right<=left && right<=controls.left};
+            });
+            assert.equal(layout.width,44);
+            assert.equal(layout.height,44);
+            assert.equal(layout.between,true,'Quick actions must leave the text field and send controls clear');
+            await entry.tap();
+            await tap(sheet,'Close');
+            assert.equal(await composer.inputValue(),multiline);
+            assert.deepEqual(await composer.evaluate(input=>[document.activeElement===input,input.selectionStart,input.selectionEnd,input.selectionDirection]),
+                [true,2,9,'backward']);
+            evidence.push({case:'compact Quick actions with a focused multiline composer',viewport:[width,475],layout,requests:L.requests().length});
+        }
+
         await composer.fill('I hold the original draft.');
         await composer.evaluate(input=>input.setSelectionRange(2,9,'backward'));
         await tap(page,'Quick actions');

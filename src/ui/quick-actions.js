@@ -838,8 +838,9 @@ function attachToHost() {
     const row = input.parentElement;
     let entry = row.querySelector('.ri-quick-entry');
     if (!entry) {
-        entry = h('button',{class:'ri-quick-entry',type:'button',onpointerdown:event=>{if(document.activeElement===input)event.preventDefault();},
-            onclick:event=>openQuickActions(undefined,undefined,event.currentTarget)},'Quick actions');
+        entry = h('button',{class:'ri-quick-entry',type:'button',title:'Quick actions','aria-label':'Quick actions','aria-haspopup':'dialog',
+            onpointerdown:event=>{if(document.activeElement===input)event.preventDefault();},
+            onclick:event=>openQuickActions(undefined,undefined,event.currentTarget)},h('span',{class:'fa-solid fa-bolt','aria-hidden':'true'}));
         input.after(entry);
     }
     entry.hidden = !available;
