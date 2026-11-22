@@ -1,4 +1,4 @@
-import { renderComposerSettings, refreshComposerToolbar } from './quick-actions.js';
+import { refreshComposerToolbar } from './quick-actions.js';
 import { renderV10 } from './v10.js';
 // The panel: one drawer in the Extensions menu, with an Expand button that shows the same panel full screen.
 import { h, clear, toggle, button, captureView, restoreView, textInput } from './dom.js';
@@ -17,7 +17,7 @@ import { renderLog } from './log.js';
 import { onLog } from '../log.js';
 import { ctx, confirmBox, isChatOpen } from '../st.js';
 
-import { destination, findDestinations, groups, startingPage } from './destinations.js';
+import { destination, findDestinations, groups, startingPage, normalizeGroup } from './destinations.js';
 import { executionScope } from '../execution.js';
 import { guidedTarget } from '../guided-context.js';
 import { activePreset } from '../v10.js';
@@ -112,6 +112,7 @@ function focusTarget(selector) {
 }
 
 async function navigate(id, {group, lore, reply, anchor = '', external, editor, focusPage = false} = {}) {
+    group=normalizeGroup(group);
     if (!destination(id) || !app.root) return false;
     const view=captureView(app.body), scope=draftScope();
     if (app.tab!==id || app.loreTarget!== (lore ?? null) || app.replyTarget!== (reply ?? null) ||
@@ -358,11 +359,35 @@ export function render() {
     const categories = h('nav',{class:'ri-categories','aria-label':'Roleplay sections'},
         groups.map(item=>h('button',{type:'button',class:'ri-category','data-ri-group':item.id,
             'aria-current':item===group ? 'true' : null,onclick:()=>navigate(app.lastPages[item.id] || item.pages[0].id,{group:item.id})},item.label)));
-    const pages = groups.map(item=>h('nav',{class:'ri-tabs ri-page-nav','aria-label':`${item.label} pages`,hidden:item!==group},
-        item.pages.map(({id,label})=>h('button',{type:'button',class:`ri-tab ${id===app.tab ? 'ri-tab-on' : ''}`,
-            'data-ri-page':id,'aria-current':id===app.tab ? 'page' : null,'aria-controls':'ri_panel_page',
-            onclick:()=>navigate(id)},label))));
-    const tabs = h('div',{class:'ri-panel-nav'},categories,pages);
+    const pageButton = ({id,label}, choose = false) => h('button',{
+        type:'button',class:`ri-tab ${id===app.tab ? 'ri-tab-on' : ''}`,
+        'data-ri-page':id,'aria-current':id===app.tab ? 'page' : null,'aria-controls':'ri_panel_page',
+        onclick:async()=>{ if (await navigate(id,{focusPage:choose}) && choose) closeChooser(); },
+    },label,choose && id===app.tab ? ' ✓' : '');
+    const groupedPages = (item, choose = false) => [...new Set(item.pages.map(page=>page.subgroup || item.label))].map(label=>
+        h('div',{class:'ri-page-subgroup'},h('h3',{class:'ri-label'},label),
+            item.pages.filter(page=>(page.subgroup || item.label)===label).map(page=>pageButton(page,choose))));
+    const pages = groups.map(item=>h('nav',{class:'ri-tabs ri-page-nav','aria-label':`${item.label} pages`,hidden:item!==group},groupedPages(item)));
+    const chooserTrigger=button(`Page: ${current.label}`,()=>{
+        chooser.hidden=false;
+        chooserTrigger.setAttribute('aria-expanded','true');
+        chooser.querySelector('[aria-current="page"]')?.focus();
+    });
+    chooserTrigger.classList.add('ri-page-chooser-trigger');
+    chooserTrigger.setAttribute('aria-expanded','false');
+    chooserTrigger.setAttribute('aria-controls','ri-page-chooser');
+    function closeChooser() {
+        const surface=app.root.querySelector('#ri-page-chooser');
+        if (surface) surface.hidden=true;
+        const trigger=app.root.querySelector('.ri-page-chooser-trigger');
+        trigger?.setAttribute('aria-expanded','false');
+        trigger?.focus({preventScroll:true});
+    }
+    const chooser=h('div',{id:'ri-page-chooser',class:'ri-page-chooser',hidden:true,
+        onclick:event=>{if(event.target===chooser) closeChooser();},
+        onkeydown:event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeChooser();}}},
+        h('nav',{'aria-label':'Choose a page',class:'ri-section'},button('Close pages',closeChooser),groupedPages(group,true)));
+    const tabs = h('div',{class:'ri-panel-nav'},categories,pages,chooserTrigger,chooser);
     const finder=toolFinder();
     finder.open=!!finderOpen;
     const returnLabel=app.history.length ? 'Back' : app.external?.label;
@@ -388,7 +413,6 @@ export function render() {
     else if (app.tab === 'state') renderCurrentState(app.body, () => { refreshUnderReplies(); render(); });
     else if (app.tab === 'corrections') renderCorrections(app.body,app.replyTarget,app);
     else if (V10_PAGES.has(app.tab)) {
-        if (app.tab==='v10') app.body.append(renderComposerSettings());
         renderV10(app.body,app,app.tab);
     }
     else if (app.tab === 'world') renderWorld(app.body, app);

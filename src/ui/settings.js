@@ -10,7 +10,6 @@ import { ensureRegexScript, setsMoved } from '../engine.js';
 import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '../books.js';
 import { refreshUnderReplies } from './sent.js';
 import { enabledV10 } from '../v10.js';
-import { memoryOnly } from '../components.js';
 
 function pronounControl(role, app) {
     const p = chatPronouns()[role];
@@ -220,48 +219,36 @@ export function renderSettings(body, app) {
     const st = settings();
     const save = () => { saveSettings(); };
 
-    body.appendChild(section('Model connections and automatic requests',
+    body.appendChild(section('Connections & automatic requests',
         h('p',{class:'ri-help'},'Extension-wide · connection settings take effect when you select them.'),
-        h('details',{id:'ri-model-request-settings',class:'ri-card ri-tight'},h('summary',{},'Model request settings'),executionSettings()),
+        h('div',{id:'ri-model-request-settings'},h('h3',{class:'ri-label'},'Model request settings'),executionSettings({canonical:true})),
         field('Give the AI more room to answer', 'Increase the answer budget for models that use part of the answer for reasoning. An empty answer leaves the next attempt up to you.',
             select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
 
-    body.appendChild(section('Pronouns for this chat',
+    body.appendChild(section('Storage & chat identity',
         isChatOpen() ? [pronounControl('char', app), pronounControl('user', app)] : h('div', { class: 'ri-muted' }, 'Open a chat to set pronouns for it.'),
         h('div', { class: 'ri-help' }, 'Your choice is remembered for this character and this persona in new chats.')));
 
-    body.appendChild(whereSection(app));
+    const storage=whereSection(app);
+    body.lastElementChild.append(...storage.children);
 
-    body.appendChild(section('One thing per reply',
+    body.appendChild(section('Direction & pacing defaults',
         field('How many new things can start in one reply', 'Counted across every instruction set, every story event set and the goal task together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
             numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
 
-    const native = enabledV10();
-    const legacy = [diceSection(app),promptGroup(['dice'],'Customize dice instruction')];
-    if (native || memoryOnly()) {
-        body.append(section(native ? 'Structured reply controls' : 'Memory only workflow',
-            h('p',{class:'ri-help'},native
-                ? 'Open the module settings for Roast and scene tracking. Use Action Checks to queue a roll.'
-                : 'The active host preset controls writing and reply cards. Use Preset & Extension to change the workflow.'),
-            h('div',{class:'ri-row'},
-                button('Preset & Extension',()=>app.openPage('v10'),{kind:'ghost'}),
-                native && button('Reply Display',()=>app.openPage('display'),{kind:'ghost'}),
-                native && button('Action Checks',()=>app.openPage('checks'),{kind:'ghost'})),
-            native && field('Current state prompt budget','The approximate room for scene and character state in each prompt.',
-                numberInput(st.cards.stateBudget || 350,{min:100,max:1000,unit:'tokens'},value=>{st.cards.stateBudget=value;save();})),
-            native && promptGroup(['stateContext'],'Customize current-state guidance')));
-        body.append(h('details',{class:'ri-section',open:!!app.legacyControlsOpen,
-            ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},h('summary',{},'Legacy dice defaults'),
-            h('p',{class:'ri-help'},'The named stats are shared with Action Checks. Open Reply Display for legacy scene and card settings.'),legacy));
-    } else body.append(...legacy,
-        section('Reply cards and receipts',button('Reply Display',()=>app.openPage('display'),{kind:'ghost'})));
-    body.appendChild(paceSection(app));
-    body.appendChild(writerSection(app));
+    const directionGroup=body.lastElementChild;
+    directionGroup.id='ri-direction-defaults';
+    const pacing=paceSection(app);
+    directionGroup.append(...pacing.children);
+    const dice=diceSection(app);
+    directionGroup.append(h('details',{id:'ri-legacy-dice',open:!!app.legacyControlsOpen,
+        ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},h('summary',{},'Legacy dice defaults'),
+        ...[...dice.children].slice(1)),promptGroup(['dice'],'Customize dice instruction'));
 
-    body.appendChild(section('Check that it happened',
+    body.appendChild(section('AI writer & checks',
         field('Check each reply that was sent an instruction', 'Automatic checks also need the permission below. Each check uses one additional model request to look for evidence in the reply.',
             select([{ value: 'full', label: 'On' }, { value: 'off', label: 'Off' }], st.check.mode, (v) => { st.check.mode = v; save(); app.render(); })),
-        executionSettings({operation:'instructionCheck'}),
+        button('Instruction check connection & permission',()=>app.openSetting('settings','ri-operation-instructionCheck'),{kind:'ghost'}),
         st.check.mode === 'off' ? null : [
             field('Send again if it did not happen', 'How many more times an instruction is sent, with firmer wording each time, before it stops. 0 never sends it again.',
                 numberInput(st.check.maxResend, { min: 0, max: 5, unit: 'more times' }, (n) => { st.check.maxResend = n; save(); })),
@@ -269,24 +256,27 @@ export function renderSettings(body, app) {
                 select([{ value: 'yes', label: 'On' }, { value: 'no', label: 'Off' }], st.check.holdNew ? 'yes' : 'no', (v) => { st.check.holdNew = v === 'yes'; save(); })),
             field('Write a new reply right away when an instruction did not happen', 'When automatic replacement is permitted, the host makes one additional swipe request after a missed instruction.',
                 select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.check.regenOnMiss ? 'yes' : 'no', (v) => { st.check.regenOnMiss = v === 'yes'; save(); })),
-            executionSettings({operation:'automaticSwipe'}),
+            button('Automatic swipe connection & permission',()=>app.openSetting('settings','ri-operation-automaticSwipe'),{kind:'ghost'}),
             field('Check that the reply did not write for you', 'Checked in the same request, only on replies that were sent an instruction.',
                 select([{ value: 'off', label: 'Off' }, { value: 'flag', label: 'Show a warning in What Was Sent' }, { value: 'regen', label: 'Show a warning and write a new reply' }], st.check.agency, (v) => { st.check.agency = v; save(); })),
         ]));
 
-    body.appendChild(promptGroup(['checker', 'systemCheck'], 'Customize checking instructions'));
-    body.appendChild(promptGroup(['guided','guidedContinue','historicalSwipe','historicalContinue','freshStart'], 'Customize guided-turn instructions'));
+    const writer=writerSection(app);
+    body.lastElementChild.append(...writer.children,
+        enabledV10() && field('Current state prompt budget','Extension-wide · approximate room for scene and character state.',
+            numberInput(st.cards.stateBudget || 350,{min:100,max:1000,unit:'tokens'},value=>{st.cards.stateBudget=value;save();})),
+        enabledV10() && promptGroup(['stateContext'],'Customize current-state guidance'),
+        button('Action Checks',()=>app.openPage('checks'),{kind:'ghost'}),
+        button('Reply Display',()=>app.openPage('display'),{kind:'ghost'}),
+        promptGroup(['checker', 'systemCheck'], 'Customize checking instructions'),
+        promptGroup(['guided','guidedContinue','historicalSwipe','historicalContinue','freshStart'], 'Customize guided-turn instructions'));
 
-    body.appendChild(section('Look',
+    body.appendChild(section('Appearance & about',
         field('Accent colour', 'The colour of buttons and highlights in this panel.',
             select([{ value: 'auto', label: 'Blues and greens, a different one for each tab' }, { value: 'cyan', label: 'Cyan' }, { value: 'sky', label: 'Sky blue' }, { value: 'blue', label: 'Blue' }, { value: 'green', label: 'Green' }, { value: 'yellow', label: 'Yellow' }, { value: 'violet', label: 'Violet' }, { value: 'magenta', label: 'Pink' }], st.accent || 'auto', (v) => { st.accent = v; save(); app.render(); }))));
 
-    if (isChatOpen()) body.appendChild(section('Conversation and memory',
-        h('div', { class: 'ri-help' }, 'See recent history, chapter settings, and the last observed request in Context & Memory.'),
-        button('Context & Memory',()=>app.openPage('context',{anchor:'#ri-memory-status',focusPage:true}),{kind:'ghost'})));
-
     const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
-    body.appendChild(section('About',
+    body.lastElementChild.append(
         h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.32: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
-        h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.')));
+        h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.'));
 }

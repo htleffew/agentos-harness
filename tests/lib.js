@@ -56,3 +56,19 @@ const setupApi = async (page, { preset = 'Default', legacyAutomation = true } = 
     await page.waitForTimeout(1200);
 };
 module.exports = { ...h, setupApi, usePreset, openQuickActions, BASE, sync, mode, resetLog, requests, chatRequests, text, marks, makeSet, setSettings, records, waitChecks };
+
+// Touch navigation uses the mobile chooser and retains the desktop route buttons.
+async function panelClick(root, name) {
+    let control=root.getByRole('button',{name,exact:true});
+    if (!await control.isVisible().catch(()=>false)) {
+        const trigger=root.locator('.ri-page-chooser-trigger');
+        if(await trigger.isVisible()) {
+            await trigger.tap();
+            const target=root.locator('#ri-page-chooser [data-ri-page]').filter({hasText:name});
+            await target.tap();
+            return;
+        }
+    }
+    await control.tap();
+}
+module.exports.panelClick=panelClick;

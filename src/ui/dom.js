@@ -14,6 +14,7 @@ export function h(tag, attrs, ...kids) {
         else el.setAttribute(k, v === true ? '' : v);
     }
     add(el, kids);
+    if (el.matches('.ri-root,.ri-quick-toolbar,.ri-quick-entry,.ri-composer-operation')) applyHostTheme(el);
     return el;
 }
 
@@ -228,3 +229,56 @@ export function download(filename, text) {
         return true;
     } catch { return false; }
 }
+
+// Resolve host colors once per theme mutation. Opaque surfaces keep contrast independent
+// of the host wallpaper and the Android webview's backdrop compositing support.
+const themeCanvas=document.createElement('canvas');
+const themeContext=themeCanvas.getContext('2d');
+function rgba(value) {
+    if (!value || !CSS.supports('color',value)) return null;
+    themeContext.clearRect(0,0,1,1);
+    themeContext.fillStyle=value;
+    themeContext.fillRect(0,0,1,1);
+    return [...themeContext.getImageData(0,0,1,1).data];
+}
+const luminance=color=>color.slice(0,3).map(channel=>{
+    const value=channel/255;
+    return value<=.04045 ? value/12.92 : ((value+.055)/1.055)**2.4;
+}).reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0);
+const contrast=(a,b)=>{const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+const blend=(top,bottom)=>top.slice(0,3).map((value,index)=>Math.round(value*top[3]/255+bottom[index]*(1-top[3]/255))).concat(255);
+export function applyHostTheme(node) {
+    const host=getComputedStyle(document.body);
+    let background=[255,255,255,255];
+    for (const ancestor of [document.documentElement,document.body,document.querySelector('#send_form')].filter(Boolean)) {
+        const color=rgba(getComputedStyle(ancestor).backgroundColor);
+        if(color) background=blend(color,background);
+    }
+    const tint=rgba(host.getPropertyValue('--SmartThemeBlurTintColor').trim());
+    const measured=tint ? blend(tint,background) : background;
+    const light=luminance(measured)>.179;
+    const fallback=light ? {surface:'#f5f5f5',text:'#171717',border:'#666666',focus:'#005fcc'}
+        : {surface:'#242424',text:'#ffffff',border:'#909090',focus:'#8adfff'};
+    let surface=measured;
+    const text=rgba(host.getPropertyValue('--SmartThemeBodyColor').trim());
+    let foreground=text ? blend(text,surface) : rgba(fallback.text);
+    if(contrast(foreground,surface)<4.5) foreground=rgba(fallback.text);
+    if(contrast(foreground,surface)<4.5 || contrast(rgba(fallback.border),surface)<3 || contrast(rgba(fallback.focus),surface)<3) {
+        surface=rgba(fallback.surface);foreground=rgba(fallback.text);
+    }
+    const values={surface:`rgb(${surface.slice(0,3).join(',')})`,text:`rgb(${foreground.slice(0,3).join(',')})`,border:fallback.border,focus:fallback.focus};
+    for(const [key,value] of Object.entries(values)) {
+        const property=`--ri-theme-${key}`;
+        if(node.style.getPropertyValue(property)!==value) node.style.setProperty(property,value);
+    }
+}
+let themeRefreshPending=false;
+const themeObserver=new MutationObserver(()=>{
+    if(themeRefreshPending) return;
+    themeRefreshPending=true;
+    queueMicrotask(()=>{
+        themeRefreshPending=false;
+        document.querySelectorAll('.ri-root,.ri-quick-toolbar,.ri-quick-entry,.ri-composer-operation').forEach(applyHostTheme);
+    });
+});
+for(const node of [document.documentElement,document.body]) themeObserver.observe(node,{attributes:true,attributeFilter:['style','class']});

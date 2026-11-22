@@ -73,6 +73,12 @@ const fixtures = {
         await L.openChat(page);
         const disabled = await page.evaluate(()=>SillyTavern.getContext().extensionSettings.disabledExtensions);
         assert(disabled.includes('quick-reply') && disabled.includes('memory'));
+        await L.openQuickActions(page);
+        await sheet.getByRole('button',{name:'Steer the next reply',exact:true}).tap();
+        assert.equal(await sheet.getByRole('button',{name:/^(Pin|Unpin|Create saved)/}).count(),0);
+        await sheet.getByRole('button',{name:'Browse directions',exact:true}).tap();
+        assert.equal(await sheet.getByRole('button',{name:/^(Pin|Unpin|Create saved|Import|Export)/}).count(),0);
+        await sheet.getByRole('button',{name:'Close',exact:true}).tap();
         evidence.preset = await page.locator('#settings_preset_openai option:checked').textContent();
         evidence.disabled = disabled;
         await composer.fill('An unsent draft to keep.');

@@ -61,7 +61,7 @@ const recipe = (uid, comment, choices) => ({
     const openFamily = async name => { await open(); await tap(name); };
     const manage = async () => {
         await open();
-        await tap('Customize quick actions');
+        await tap('Configure quick actions');
         if (!await library.evaluate(node=>node.open)) await library.locator(':scope > summary').tap();
         const family=library.getByLabel('Action family');
         if (await family.inputValue()) await family.selectOption('');
@@ -173,11 +173,13 @@ const recipe = (uid, comment, choices) => ({
         await page.setViewportSize({ width: 390, height: 430 });
         for (const [index, fixture] of families.entries()) {
             await openFamily(fixture[1]);
+            assert.equal(await sheet.getByRole('button',exact(fixture[2])).count(),0);
+            await tap('Manage quick actions');
             await tap(fixture[2]);
             await fill('Button name', titles[index]);
             await fill('Direction', words('QACUE' + index));
             await tap('Save button');
-            await sheet.getByRole('button', exact(titles[index])).waitFor();
+            await sheet.getByRole('button', exact('Edit ' + titles[index])).waitFor();
             await close();
         }
         assert.equal(L.requests().length, start41);

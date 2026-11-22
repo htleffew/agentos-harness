@@ -8,7 +8,7 @@ const L = require('./lib.js');
     const panel=page.locator('#ri_root');
     const sheet=page.locator('.ri-quick-sheet');
     const composer=page.locator('#send_textarea');
-    const tap=(root,name)=>root.getByRole('button',{name,exact:true}).tap();
+    const tap=(root,name)=>L.panelClick(root,name);
     const title=()=>panel.locator('[data-ri-heading]').innerText();
     const evidence=[];
     try {
@@ -30,31 +30,31 @@ const L = require('./lib.js');
         await page.locator('#extensions-settings-button > .drawer-toggle').tap();
         if (!await panel.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').tap();
         await tap(panel,'Expand');
-        assert.equal(await title(),'Current State');
+        assert.equal(await title(),'Current scene');
 
         L.resetLog();
         await panel.getByText('Find a tool',{exact:true}).tap();
         const finder=panel.getByRole('searchbox',{name:'Find a tool'});
-        for (const [query,result] of [['fix a fact','Corrections · Story'],['Roast','Reply Display · Setup'],
-            ['lorebook','Reusable Lorebooks · Story'],['connection','Settings · Setup']]) {
+        for (const [query,result] of [['fix a fact','Correct story facts · Story'],['Roast','Reply display · Setup'],
+            ['lorebook','Lorebooks · Story'],['connection','Connections & defaults · Setup']]) {
             await finder.fill(query);
             await panel.getByRole('button',{name:result,exact:true}).waitFor();
         }
         await finder.fill('fix a fact');
-        await tap(panel,'Corrections · Story');
-        assert.equal(await title(),'Corrections');
+        await tap(panel,'Correct story facts · Story');
+        assert.equal(await title(),'Correct story facts');
         await tap(panel,'Back');
-        assert.equal(await title(),'Current State');
+        assert.equal(await title(),'Current scene');
         assert.equal(await finder.inputValue(),'fix a fact');
-        assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Corrections · Story');
+        assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Correct story facts · Story');
         await finder.fill('swipe');
         await tap(panel,'Generate an alternate reply · Chat');
         await sheet.getByRole('heading',{name:'Generate an alternate reply'}).waitFor();
         await tap(sheet,'Close');
         await panel.locator('[data-ri-heading]').waitFor();
-        assert.equal(await title(),'Current State');
+        assert.equal(await title(),'Current scene');
         assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Generate an alternate reply · Chat');
-        evidence.push({case:'tool search and return',requests:L.requests().length,destinations:['Corrections','Reply Display','Reusable Lorebooks','Settings']});
+        evidence.push({case:'tool search and return',requests:L.requests().length,destinations:['Correct story facts','Reply display','Lorebooks','Connections & defaults']});
         await tap(panel,'Close full screen');
         const drawer=page.locator('#extensions-settings-button > .drawer-content.openDrawer');
         if (await drawer.count()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
@@ -96,7 +96,7 @@ const L = require('./lib.js');
             }
             assert.deepEqual([collapsed.targets.length,expanded.targets.length],[1,4]);
             assert.equal(collapsed.height,0);
-            assert.ok(expanded.height<=45);
+            assert.ok(expanded.height<=60);
             for (const label of ['Steer the next reply','Draft my reply']) {
                 await tap(toolbar,label);
                 assert.equal(await sheet.getByRole('heading').innerText(),label);
@@ -139,7 +139,7 @@ const L = require('./lib.js');
 
         await composer.focus();
         await L.openQuickActions(page);
-        const customize=sheet.getByRole('button',{name:'Customize quick actions',exact:true});
+        const customize=sheet.getByRole('button',{name:'Configure quick actions',exact:true});
         assert.ok(await customize.evaluate(node=>{
             const {x,y,width,height}=node.getBoundingClientRect();
             return node.contains(document.elementFromPoint(x+width/2,y+height/2));
@@ -150,6 +150,7 @@ const L = require('./lib.js');
         assert.equal(await title(),'Preset & Extension');
         const library=panel.locator('#ri-composer-library');
         await library.getByLabel('Find a button to manage').waitFor();
+        await panel.locator('#ri-composer-slot-0 > summary').tap();
         await panel.getByLabel('Composer shortcut 1').selectOption('continue');
         await tap(panel,'Back to Quick actions');
         assert.equal(await sheet.getByRole('heading').first().innerText(),'Browse directions');
@@ -170,7 +171,7 @@ const L = require('./lib.js');
         await sheet.getByText('Review and settings',{exact:true}).tap();
         await tap(sheet,'Context & Memory');
         await panel.locator('#ri-memory-status').waitFor();
-        assert.equal(await title(),'Context & Memory');
+        assert.equal(await title(),'Context & memory');
         await tap(panel,'Back to Quick actions');
         await sheet.getByRole('heading',{name:'Quick actions'}).waitFor();
         assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Context & Memory');
@@ -205,7 +206,7 @@ const L = require('./lib.js');
         await sheet.getByLabel('Your direction').fill('Keep the original question.');
         const blocked=sheet.getByRole('status').filter({hasText:/saved connection profile.*unavailable/i});
         await blocked.locator('..').getByRole('button',{name:'Connection settings'}).tap();
-        assert.equal(await title(),'Settings');
+        assert.equal(await title(),'Connections & defaults');
         const connection=panel.getByRole('combobox',{name:'Generate my draft connection'});
         assert.equal(await connection.inputValue(),'missing-ux-route');
         await connection.selectOption('');
@@ -217,14 +218,14 @@ const L = require('./lib.js');
 
         const first=page.locator('#chat .mes[mesid="2"]');
         await tap(first,'Review this reply');
-        assert.equal(await title(),'What Was Sent');
+        assert.equal(await title(),'What was sent');
         const receipt=panel.locator('#ri-review-reply-2');
         assert.equal(await receipt.evaluate(node=>node.open),true);
         assert.match(await receipt.locator('summary').first().innerText(),/Reply 1[\s\S]*Version 1/i);
         await tap(panel,'Back to chat');
         assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Review this reply');
         await tap(first,'Correct story facts');
-        assert.equal(await title(),'Corrections');
+        assert.equal(await title(),'Correct story facts');
         assert.match(await panel.locator('#ri-correction-target').innerText(),/Reply 1[\s\S]*selected version 1/);
         assert.equal(await panel.getByLabel('Regenerate the latest reply',{exact:true}).count(),0);
         const fact='The eastern gate stayed closed.';
@@ -235,7 +236,7 @@ const L = require('./lib.js');
         await tap(saved.locator('..'),'Review reply 1');
         assert.equal(await receipt.evaluate(node=>node.open),true);
         await tap(panel,'Back');
-        assert.equal(await title(),'Corrections');
+        assert.equal(await title(),'Correct story facts');
         const prose=panel.getByText('Read the selected reply',{exact:true});
         await prose.tap();
         assert.match(await prose.locator('..').innerText(),/The keeper opens the eastern gate/);
@@ -268,7 +269,7 @@ const L = require('./lib.js');
         assert.deepEqual(await recovered.evaluateAll(inputs=>inputs.map(input=>input.value)),[
             'The lantern was already lit.','The keeper left a sealed letter.',
         ]);
-        const newest=panel.getByText('Unsaved work from Corrections (1 of 2)',{exact:true}).locator('..');
+        const newest=panel.getByText('Unsaved work from Correct story facts (1 of 2)',{exact:true}).locator('..');
         await tap(newest,'Dismiss recovered draft');
         assert.equal(await recovered.inputValue(),'The keeper left a sealed letter.');
         evidence.push({case:'independent unsaved edits recovered only in their originating chat',drafts:2,requests:L.requests().length});

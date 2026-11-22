@@ -8,7 +8,7 @@ import { button, field, h, select, textArea, textInput, captureView, restoreView
 import { executionDetails } from './execution.js';
 import { executionPreview } from '../execution.js';
 import { impersonationInspector } from './impersonation.js';
-import { listQuickActions, loadQuickActionSources, quickActionOwner, QUICK_ACTION_FAMILIES, readQuickAction, resolveQuickAction, rollQuickAction, rollQuickActionDie } from '../quick-actions.js';
+import { listQuickActions, loadQuickActionSources, quickActionOwner, readQuickAction, resolveQuickAction, rollQuickAction, rollQuickActionDie } from '../quick-actions.js';
 import { renderQuickActionLibrary } from './quick-action-library.js';
 import { cancelGuidedTurn, guidedPreview, guidedTarget, guidedVersions, runGuidedTurn, selectGuidedVersion, undoGuidedContinuation } from '../guided-turns.js';
 import { freshHistoryCapability } from '../guided-context.js';
@@ -33,6 +33,9 @@ let composer;
 let composerToolbar;
 let composerLauncher;
 let renderedShortcuts;
+let composerShortcuts;
+let composerOperation;
+let shortcutResize;
 const composerDrafts = new Map();
 const isolated = new Set();
 const actionRow = (...children) => h('div', {class:'ri-quick-row'}, children);
@@ -90,7 +93,6 @@ function enterSheet() {
 
 function closeSheet({restore = true} = {}) {
     if (!overlay) return;
-    if (session?.view==='suggestions') stopSuggestions(session.suggestions);
     const resume=returnToPanel;
     returnToPanel=null;
     overlay.removeEventListener('focusin',enterSheet);
@@ -169,9 +171,12 @@ export function openQuickActions(family, index, trigger = document.activeElement
         return;
     }
     if (suggestions) {
-        session.suggestions = {config:suggestions,composer:input?.value || ''};
+        const previous=session.suggestions;
+        const reuse=previous && (previous.running || JSON.stringify(previous.config)===JSON.stringify(suggestions));
+        session.suggestions=reuse ? previous : {config:suggestions,composer:input?.value || ''};
         session.view = 'suggestions';
-        generateSuggestions(session.suggestions);
+        if (!reuse) generateSuggestions(session.suggestions);
+        else {session.operation=session.suggestions;updateComposerOperation();renderSheet();}
     } else if (family) chooseFamily(family, index);
     else renderSheet();
     if (action) selectFavorite(editorFor(family), {reference:action.id,title:action.title}, true);
@@ -217,8 +222,6 @@ function joinGuidance(edit) {
     return [...(edit.cues || []).map(cue => cue.text), edit.direction].filter(Boolean).join('\n\n');
 }
 
-const referenceKey = reference => typeof reference === 'string' ? reference : JSON.stringify(reference);
-const pinLabel = (id, pins) => pins.some(pin => pin.key === referenceKey(id)) ? 'Unpin' : 'Pin';
 
 async function resolveForSheet(edit, reference) {
     const action = typeof reference === 'string' ? readQuickAction(reference) : reference;
@@ -291,8 +294,7 @@ function shelf(entries, edit) {
             pick.setAttribute('aria-label',label);
             pick.setAttribute('aria-pressed',String(chosen));
         }
-        return h('div',{class:'ri-quick-shelf-option'},actionRow(pick, entry.pinned && button('Customize', () => selectFavorite(edit, entry, true)),
-            button(pinLabel(entry.reference, quickChat()?.pins || []), () => { pinQuickAction(entry.reference, entry.title, edit.family); renderSheet(); }, {title:entry.title})),
+        return h('div',{class:'ri-quick-shelf-option'},actionRow(pick, entry.pinned && button('Adjust for this turn', () => selectFavorite(edit, entry, true))),
             definition && info(quickActionOwner(definition)));
 
     }));
@@ -333,21 +335,15 @@ function pendingView() {
         state?.lastReceipt && executionDetails(state.lastReceipt));
 }
 
-function catalogView(mode) {
+function catalogView() {
     const owner = session;
     const host = h('div');
     const library = owner.library ||= {};
     renderQuickActionLibrary(host,{
-        family:owner.family || '', mode,
+        family:owner.family || '', mode:'browse',
         initialDirection:owner.family ? editorFor(owner.family).direction : '',
         getPins:()=>quickChat()?.pins || [],
-        state:mode==='add' ? (owner.actionEditor ||= {}) : library,
-        onChange:()=>{
-            if (session!==owner || session.view!=='add') return;
-            owner.actionEditor=null;
-            refreshComposerToolbar();
-            backInSheet();
-        },
+        state:library,
         onNavigate:()=>openLibrarySettings(),
         selectionOnly:true,
         onSelect:(resolved, action) => {
@@ -360,7 +356,6 @@ function catalogView(mode) {
             addResolved(edit, {...resolved, reference:action?.origin==='source' ? undefined : action?.id || resolved.id, usesDirection:resolved.embedsDirection});
             show('family',family,true);
         },
-        onPin:pinQuickAction,
         onOpenTool:tool=>openPanel(tool==='Notes'?'sent':'context'),
         onClose:backInSheet,
         onCancelPending:()=>show('pending'),
@@ -395,7 +390,7 @@ function rootView() {
     renderResults();
     return h('div',{},h('div',{class:'ri-quick-families'},visibleFamilies.map(id=>
         button([composerIcon(familyButtons[id][1]),h('span',{},families[id].title)],()=>chooseFamily(id)))),
-        actionRow(button(taskLabels.browse,()=>show('browse','')),button('Customize quick actions',()=>openLibrarySettings(false))),
+        actionRow(button(taskLabels.browse,()=>show('browse','')),button('Configure quick actions',()=>openLibrarySettings(false))),
         button(`Pending directions · ${state?.pending?.length || 0}`,()=>show('pending')),
         remaining > 0 && actionRow(info(`Fresh start · ${remaining} story replies remaining`),button('Stop',()=>{stopFreshStart();renderSheet();})),
         h('div',{class:'ri-quick-shelf'}, [...pinned, ...(state?.recent || []).filter(row=>!pinned.some(pin=>pin.key===row.key)).slice(0,4)].map(row=>{
@@ -412,7 +407,7 @@ function rootView() {
         })),
         h('details',{},h('summary',{},'Search saved actions'), query, hits),
         h('details',{},h('summary',{},'Review and settings'),
-            actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What Was Sent',()=>openPanel('sent')),button('Edit preset prompts',()=>openPanel('v10',null,'#ri-preset-workbench')))));
+            actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What Was Sent',()=>openPanel('sent')))));
 }
 
 function openLibrarySettings(showLibrary = true) {
@@ -542,7 +537,7 @@ function optionEditor(edit, chosen, index) {
 }
 
 async function submit(edit, mode = 'draft', choice = '', replay = null) {
-    if (edit.running || edit.switching || isGenerating()) return;
+    if (edit.running || edit.switching || activeOperation(session)?.running || isGenerating()) return;
     const owner = session;
     const origin = owner.chat;
     const currentPreview = previewFor(edit,mode);
@@ -551,6 +546,10 @@ async function submit(edit, mode = 'draft', choice = '', replay = null) {
         freshStart:edit.freshStart, composer:openComposer()?.value || '', fixFacts:edit.cues.some(cue=>cue.operation==='repair'),
         roll:edit.die ? structuredClone(edit.die) : null, repairOnly:currentPreview.repairOnly, repeatOrders:edit.repeatOrders, keepManualEdits:edit.keepManualEdits, rerollDice:edit.rerollDice};
     edit.running = true;
+    edit.cancelled=false;
+    edit.dismissed=false;
+    if (edit.family!=='steer') owner.operation=edit;
+    updateComposerOperation();
     edit.partial = '';
     edit.partialEdit = null;
     edit.repair = input.repair || null;
@@ -565,7 +564,7 @@ async function submit(edit, mode = 'draft', choice = '', replay = null) {
             edit.lastQueued = entry.id;
         } else {
             const outcome = await runGuidedTurn(edit.family,{...input,freshStart:!!input.freshStart,mode,choice,
-                onReceipt:receipt=>{edit.receipt=receipt;}});
+                onReceipt:receipt=>{edit.receipt=receipt;if(origin===quickChatIdentity()) updateComposerOperation();}});
             edit.repair = outcome.repair;
             if (outcome.raw && (outcome.partial || !outcome.ok)) edit.partial=outcome.raw;
             edit.receipt = outcome.receipt;
@@ -601,7 +600,8 @@ async function submit(edit, mode = 'draft', choice = '', replay = null) {
         if (error.receipt?.partialText) edit.partial = error.receipt.partialText;
     } finally {
         edit.running = false;
-        if (session === owner && overlay) renderSheet();
+        updateComposerOperation();
+        if (session === owner && overlay && session.view==='family' && session.family===edit.family) renderSheet();
     }
 }
 
@@ -695,7 +695,6 @@ function familyView(edit) {
         edit.family==='steer' && button(`Pending directions · ${group.pending.length}`,()=>show('pending')),
         (pinned.length || recent.length) ? shelf([...pinned,...recent],edit) : null,
         actionRow(button(taskLabels.browse,()=>show('browse')),
-            button(QUICK_ACTION_FAMILIES[edit.family].add,()=>show('add')),
             button(taskLabels.manage,()=>openLibrarySettings())),
         edit.family==='swipe' && actionRow(button('Fix world facts',()=>selectFavorite(edit,{reference:'builtin:swipe:fix-facts',title:'Fix world facts'},true))),
         h('details',{open:!pinned.length},h('summary',{},'Available directions'),
@@ -778,8 +777,8 @@ function familyView(edit) {
     const queueNotice=edit.family==='steer' && (!edit.lastQueued || waiting) && edit.message;
     const footer = actionRow(queueNotice && status(queueNotice),undoQueue,
         primary, choices,edit.running && edit.family!=='steer' && button('Cancel request',()=>{
-            edit.message=cancelGuidedTurn();renderSheet();
-        }));
+            cancelOperation(edit);renderSheet();
+        },{disabled:edit.cancelled}));
     footer.classList.add('ri-quick-footer');
     return {content:detailNodes,footer};
 }
@@ -793,10 +792,14 @@ function renderSheet() {
     else if (view==='family') ({content,footer}=familyView(editorFor(family)));
     else if (view==='pending') content=pendingView();
     else if (view==='suggestions') content=suggestionResults(session.suggestions);
-    else content=catalogView(view);
+    else if (view==='request-details') {
+        content=executionDetails(executionPreview('playerChoices',{trigger:`Tap ${session.detailsConfig.label}. Generates ${session.detailsConfig.count} options in one request.`}),{onSettings:openConnection,summary:'Request details'});
+        content.open=true;
+    }
+    else content=catalogView();
     const header = h('header',{class:'ri-quick-header'},
         session.history.length>0 && button('Back',backInSheet),
-        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',suggestions:session.suggestions?.config.label,browse:taskLabels.browse,add:QUICK_ACTION_FAMILIES[family]?.add})[view] || families[family].title),
+        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',suggestions:session.suggestions?.config.label,'request-details':'Request details',browse:taskLabels.browse})[view] || families[family].title),
         h('button',{type:'button',class:'ri-btn','data-quick-close':'',onclick:()=>closeSheet()},'Close'));
     const old = overlay.querySelector('.ri-quick-scroll');
     const continuing = old?.dataset.view===view;
@@ -832,20 +835,25 @@ function renderSheet() {
 }
 
 function stopSuggestions(result) {
-    if (!result?.running) return;
+    if (!result?.running || result.cancelled) return;
     result.cancelled = true;
     if (result.dispatched) cancelGuidedTurn();
+    updateComposerOperation();
 }
 
 async function generateSuggestions(result) {
     const owner = session;
+    if (activeOperation(owner)?.running || isGenerating()) return;
     const current = () => session===owner && owner.chat===quickChatIdentity();
     result.running = true;
+    result.dismissed=false;
+    owner.operation=result;
     result.cancelled = false;
     result.dispatched = false;
     result.error = '';
     result.receipt = null;
     result.choices = [];
+    updateComposerOperation();
     renderSheet();
     try {
         const {config,composer} = result;
@@ -862,17 +870,19 @@ async function generateSuggestions(result) {
                 result.cue = rollQuickAction(sources,{scope:{set}});
             }
         }
+        if (!current() || result.cancelled) return;
         result.dispatched = true;
         const response = await runGuidedTurn('draft',{mode:'choices',composer,
             target:guidedTarget(), cues:result.cue ? [result.cue] : [], suggestions:config,
-            onReceipt:receipt=>{result.receipt=receipt;}});
-        result.choices = response.choices || [];
+            onReceipt:receipt=>{result.receipt=receipt;if(current()) updateComposerOperation();}});
+        if (!result.cancelled) result.choices = response.choices || [];
         if (!response.ok) throw new Error('The model returned no usable options.');
     } catch (error) {
         result.error = result.cancelled ? '' : error.message;
     } finally {
         result.running = false;
         result.dispatched = false;
+        updateComposerOperation();
         if (current() && overlay && session.view==='suggestions' && session.suggestions===result) renderSheet();
     }
 }
@@ -894,7 +904,7 @@ function suggestionResults(result) {
         !running && button(error || cancelled ? 'Retry · 1 model call' : 'Generate again · 1 model call',()=>{
             if (!error && !cancelled) result.cue=null;
             generateSuggestions(result);
-        }),receipt && executionDetails(receipt));
+        }),executionDetails(receipt || executionPreview('playerChoices',{trigger:`Tap Generate again or Retry for ${config.count} options.`}),{onSettings:openConnection}));
 }
 
 function activeInstructionSets() {
@@ -934,6 +944,62 @@ function composerMenuFamilies() {
     return Object.keys(families).filter(id=>!Array.isArray(hidden) || !hidden.includes(id));
 }
 
+function activeOperation(owner) {
+    return owner?.operation || owner?.suggestions;
+}
+
+function cancelOperation(operation) {
+    if (!operation?.running || operation.cancelled) return;
+    if (operation.config) stopSuggestions(operation);
+    else {
+        operation.cancelled=true;
+        operation.message=cancelGuidedTurn();
+        updateComposerOperation();
+    }
+}
+
+function cancelComposerOperation() {
+    cancelOperation(activeOperation(sessions.get(quickChatIdentity())));
+    if (overlay) renderSheet();
+}
+
+function resumeComposerOperation() {
+    const owner=sessions.get(quickChatIdentity()), operation=activeOperation(owner);
+    if (!operation) return;
+    openQuickActions(operation.family,undefined,document.activeElement,undefined,undefined,undefined,operation.config);
+}
+
+function updateComposerOperation() {
+    if (!composerOperation) return;
+    const operation=activeOperation(sessions.get(quickChatIdentity()));
+    const visible=!!operation && !operation.dismissed && settings().enabled && isChatOpen();
+    composerOperation.hidden=!visible;
+    const running=!!operation?.running;
+    composerLauncher?.setAttribute('aria-description',running ? 'A request is running. Cancel request is available beside the composer.' : '');
+    for (const control of composerShortcuts?.querySelectorAll('[data-ri-shortcut-slot]') || []) {
+        const assignment=shortcutAssignments()[control.dataset.riShortcutSlot];
+        const action=assignment?.startsWith('action:') && readQuickAction(assignment.slice(7));
+        control.disabled=running && (control.classList.contains('ri-quick-generates') || !!action && action.family!=='steer');
+    }
+    if (!visible) return;
+    const text=running ? operation.cancelled ? 'Cancelling…' : operation.config
+        ? `Generating ${operation.config.count} ${operation.config.count===1?'option':'options'}…` : operation.lastAttempt?.input.repairOnly ? 'Updating story facts…' : 'Generating reply…'
+        : operation.cancelled ? 'Generation cancelled.' : operation.error || (operation.config
+            ? `${operation.choices?.length || 0} of ${operation.config.count} options ready.` : operation.message || 'Request finished.');
+    const status=composerOperation.querySelector('[role="status"]');
+    if (status.textContent!==text) status.textContent=text;
+    const [resume,cancel,dismiss]=composerOperation.querySelectorAll('button');
+    dismiss.hidden=running;
+    resume.textContent=running ? 'View request' : 'View results';
+    cancel.hidden=!running;
+    cancel.disabled=!!operation.cancelled;
+}
+
+function updateShortcutOverflow() {
+    if (!composerShortcuts) return;
+    composerShortcuts.dataset.overflow=String(composerShortcuts.scrollWidth>composerShortcuts.clientWidth+1 && composerShortcuts.scrollLeft+composerShortcuts.clientWidth<composerShortcuts.scrollWidth-1);
+}
+
 export function refreshComposerToolbar() {
     if (!composerToolbar) return;
     const enabled = isChatOpen() && settings().enabled;
@@ -942,15 +1008,16 @@ export function refreshComposerToolbar() {
     composerToolbar.hidden = !enabled || !expanded;
     composerLauncher.setAttribute('aria-expanded',String(expanded));
     composerLauncher.title = expanded ? 'Collapse Quick actions' : 'Expand Quick actions';
+    updateComposerOperation();
     if (!enabled || !expanded) return;
     const shortcuts = shortcutAssignments().flatMap((value,index)=>{
-        if (value==='suggestions') return [{index,...suggestionConfig(index)}];
+        if (value==='suggestions') return [{slot:index,index,...suggestionConfig(index)}];
         const override = settings().quickToolbarSuggestions?.[index]?.icon;
         const icon = Object.hasOwn(suggestionIconNames,override) ? override : undefined;
-        if (Object.hasOwn(families,value)) return [{family:value,label:families[value].title,icon}];
+        if (Object.hasOwn(families,value)) return [{slot:index,family:value,label:families[value].title,icon}];
         if (!value.startsWith('action:')) return [];
         const action = readQuickAction(value.slice(7));
-        return action?.enabled && !action.hidden && !action.removed ? [{family:action.family,label:action.title,action,icon}] : [];
+        return action?.enabled && !action.hidden && !action.removed ? [{slot:index,family:action.family,label:action.title,action,icon}] : [];
     });
     const signature = JSON.stringify(shortcuts);
     if (signature === renderedShortcuts) return;
@@ -959,12 +1026,29 @@ export function refreshComposerToolbar() {
         return h('button',{type:'button',class:extra,'aria-label':label,title:label,'aria-haspopup':'dialog',
             onpointerdown:keepComposerFocus,onclick:event=>launch(event.currentTarget)},composerIcon(icon));
     }
-    composerToolbar.replaceChildren(...shortcuts.map(({family,label,action,index,icon})=>{
-        if (index!==undefined) return shortcut(`${label} · 1 model call`,icon,
-            trigger=>openQuickActions(undefined,undefined,trigger,undefined,undefined,undefined,suggestionConfig(index)),'ri-quick-generates');
-        return shortcut(label,icon || familyButtons[family][1],
+    composerShortcuts.replaceChildren(...shortcuts.map(({family,label,action,index,slot,icon})=>{
+        let control;
+        if (index!==undefined) {
+            control=shortcut(`${label} · 1 model call`,icon,
+                trigger=>openQuickActions(undefined,undefined,trigger,undefined,undefined,undefined,suggestionConfig(index)),'ri-quick-generates');
+            control.append(h('span',{class:'ri-quick-cost'},'1 model call'));
+            control.dataset.riShortcutSlot=slot;
+            const details=shortcut(`Request details for ${label}`,'fa-circle-info',trigger=>{
+                openQuickActions(undefined,undefined,trigger);
+                session.view='request-details';
+                session.detailsConfig=suggestionConfig(index);
+                renderSheet();
+            });
+            return h('div',{class:'ri-quick-shortcut-group'},control,details);
+        }
+        control=shortcut(label,icon || familyButtons[family][1],
             trigger=>openQuickActions(family,undefined,trigger,undefined,undefined,action && readQuickAction(action.id)));
-    }),shortcut('More actions','fa-ellipsis',trigger=>openQuickActions(undefined,undefined,trigger),'ri-quick-more'));
+        control.dataset.riShortcutSlot=slot;
+        return control;
+    }));
+    updateComposerOperation();
+    updateShortcutOverflow();
+
 }
 
 function suggestionConfig(index) {
@@ -1008,29 +1092,41 @@ export function renderComposerSettings() {
     const scope = quickChatIdentity();
     const libraryHost = h('div');
     const library = h('details',{id:'ri-composer-library'},h('summary',{},taskLabels.manage),libraryHost);
-    const slots = h('div',{class:'ri-quick-row'});
+    const slots = h('div',{class:'ri-composer-slots'});
     function renderSlots() {
         const options = [{value:'',label:'None'},{value:'suggestions',label:'Generate options immediately'},...Object.entries(families).map(([value,{title:label}])=>({value,label})),
             ...listQuickActions().map(action=>({value:`action:${action.id}`,label:`${action.title} · ${familyButtons[action.family][0]}`}))];
         slots.replaceChildren(...shortcutAssignments().map((value,index)=>{
             const choices = options.some(option=>option.value===value) ? options : [...options,{value,label:'Unavailable saved action'}];
             const label = `Composer shortcut ${index+1}`;
-            return h('div',{class:'ri-composer-slot'},field(label,'',select(choices,value,next=>{
+            const configured=value==='suggestions' ? suggestionConfig(index) : options.find(option=>option.value===value);
+            const slot=h('details',{id:`ri-composer-slot-${index}`,class:'ri-composer-slot',open:app.composerSlot===index,
+                ontoggle:event=>{
+                    if (event.currentTarget.open) {
+                        app.composerSlot=index;
+                        for(const sibling of slots.querySelectorAll('.ri-composer-slot')) if(sibling!==event.currentTarget) sibling.open=false;
+                    } else if(app.composerSlot===index) app.composerSlot=null;
+                }},
+                h('summary',{},composerIcon(value==='suggestions' ? configured.icon : settings().quickToolbarSuggestions?.[index]?.icon || familyButtons[value]?.[1] || 'fa-star'),
+                    ` Slot ${index+1} · ${configured?.label || 'Unavailable saved action'} · ${value==='suggestions' ? '1 model call' : value ? 'Opens action sheet' : 'Unassigned'}`),field(label,'',select(choices,value,next=>{
                 const assignments = shortcutAssignments();
                 assignments[index] = next;
                 settings().quickToolbarShortcuts = assignments;
+                app.composerSlot=index;
                 saveSettings();
                 renderSlots();
                 slots.querySelector(`[aria-label="${label}"]`)?.focus({preventScroll:true});
             },{'aria-label':label})),value==='suggestions' ? suggestionSettings(index) : value && field('Icon','',select(
                 [{value:'',label:'Action default'},...iconOptions],settings().quickToolbarSuggestions?.[index]?.icon || '',
                 icon=>saveSuggestionSetting(index,'icon',icon))));
+            return slot;
         }));
         if (shortcutAssignments().length<8) slots.append(button('Add composer icon',()=>{
             settings().quickToolbarShortcuts = [...shortcutAssignments(),'suggestions'];
             saveSettings();
+            app.composerSlot=shortcutAssignments().length-1;
             renderSlots();
-            slots.querySelectorAll('.ri-composer-slot > .ri-field select')[shortcutAssignments().length-1]?.focus();
+            slots.querySelectorAll('.ri-composer-slot select')[shortcutAssignments().length-1]?.focus();
         }));
         refreshComposerToolbar();
     }
@@ -1092,11 +1188,11 @@ export function renderComposerSettings() {
         });
     }
     library.addEventListener('toggle',()=>{if (library.open && !libraryHost.firstChild) mountLibrary();});
-    return h('details',{id:'ri-composer-settings',class:'ri-card'},
-        h('summary',{},'Composer quick actions'),
+    return h('section',{id:'ri-composer-settings',class:'ri-section'},
+        h('h3',{class:'ri-section-title'},'Composer quick actions'),
         info('Choose the composer icons and their actions across chats.'),
         slots,
-        h('details',{},h('summary',{},'Actions in More'),Object.entries(families).map(([id,{title}])=>
+        h('details',{id:'ri-composer-families'},h('summary',{},'Actions shown in More'),Object.entries(families).map(([id,{title}])=>
             h('label',{class:'ri-qa-library-check'},h('input',{type:'checkbox',checked:composerMenuFamilies().includes(id),onchange:event=>{
                 const visible = new Set(composerMenuFamilies());
                 if (event.target.checked) visible.add(id);
@@ -1104,7 +1200,7 @@ export function renderComposerSettings() {
                 settings().quickToolbarHiddenFamilies = Object.keys(families).filter(key=>!visible.has(key));
                 saveSettings();
             }}),title))),
-        chat && h('details',{},h('summary',{},'Pins for this chat'),pins),library);
+        chat && h('details',{id:'ri-composer-pins'},h('summary',{},'Pins for this chat'),pins),library);
 }
 
 function attachToHost() {
@@ -1114,7 +1210,16 @@ function attachToHost() {
     const anchor = form || input.parentElement;
     const left = form?.querySelector('#leftSendForm');
     if (!composerToolbar) {
-        composerToolbar = h('div',{id:'ri_quick_toolbar_actions',class:'ri-quick-toolbar',role:'group','aria-label':'Quick actions toolbar'});
+        composerShortcuts=h('div',{class:'ri-quick-shortcuts',role:'group','aria-label':'Assigned shortcuts',
+            onfocusin:event=>event.target.scrollIntoView({block:'nearest',inline:'nearest'}),onscroll:()=>updateShortcutOverflow()});
+        composerToolbar = h('div',{id:'ri_quick_toolbar_actions',class:'ri-quick-toolbar',role:'group','aria-label':'Quick actions toolbar'},composerShortcuts,
+            h('button',{type:'button',class:'ri-quick-more','aria-label':'More actions',title:'More actions','aria-haspopup':'dialog',
+                onpointerdown:keepComposerFocus,onclick:event=>openQuickActions(undefined,undefined,event.currentTarget)},composerIcon('fa-ellipsis')));
+        composerOperation=h('div',{class:'ri-composer-operation',hidden:true},
+            h('span',{class:'ri-composer-operation-status',role:'status','aria-live':'polite'}),
+            button('View results',()=>resumeComposerOperation()),button('Cancel request',()=>cancelComposerOperation()),
+            button('Dismiss notice',()=>{const operation=activeOperation(sessions.get(quickChatIdentity()));if(operation) operation.dismissed=true;updateComposerOperation();}));
+        if(globalThis.ResizeObserver) { shortcutResize=new ResizeObserver(updateShortcutOverflow);shortcutResize.observe(composerShortcuts); }
         composerLauncher = h('button',{class:'ri-quick-entry',type:'button','aria-label':'Quick actions','aria-controls':composerToolbar.id,
             onpointerdown:keepComposerFocus,onclick:()=>{
                 const st = settings();
@@ -1127,6 +1232,7 @@ function attachToHost() {
         if (composerLauncher.parentElement!==left) left.append(composerLauncher);
     } else if (composerLauncher.nextElementSibling!==input) input.before(composerLauncher);
     if (composerToolbar.nextElementSibling!==anchor) anchor.before(composerToolbar);
+    if (composerOperation.nextElementSibling!==composerToolbar) composerToolbar.before(composerOperation);
     refreshComposerToolbar();
     if (composer!==input) {
         composer=input;
@@ -1148,6 +1254,7 @@ export function mountQuickActions() {
     on('CHAT_CHANGED',()=>{
         const next=quickChatIdentity();
         if (next!==knownChat) {
+            stopSuggestions(sessions.get(knownChat)?.suggestions);
             closeSheet({restore:false});
             const old=knownChat;
             const previous=composerDrafts.get(old);

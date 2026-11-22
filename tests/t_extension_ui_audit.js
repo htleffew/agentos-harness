@@ -1,13 +1,6 @@
 const assert = require('node:assert/strict');
 const L = require('./lib.js');
 
-const navigation = {
-    Story:['Opening','Current State','Corrections','Reusable Lorebooks','Chat Facts','Plot Records','Story World'],
-    Characters:['Portrayal & Knowledge','Emotions & Relationships','Character Goals','Dialogue Colors'],
-    Direction:['Random Instructions','Random Story Events','Random Writing Style','Writing Guidance','Action Checks'],
-    Review:['What Was Sent','Context & Memory','Log'],
-    Setup:['Preset & Extension','Reply Display','Settings'],
-};
 const modules = ['style','preflight','colors','roast','roastFeedback','state','knowledge','emotions',
     'relationships','plots','worldEvents','dice'];
 
@@ -60,6 +53,8 @@ async function auditDisclosures(body) {
 }
 
 (async()=>{
+    const {groups}=await import('../src/ui/destinations.js');
+    const navigation=Object.fromEntries(groups.map(group=>[group.label,group.pages.map(page=>page.label)]));
     L.sync();
     const portraitHeight=Number(process.env.RI_PANEL_HEIGHT || 820);
     const {browser,page,errors}=await L.open({width:390,height:portraitHeight,hasTouch:true,isMobile:true});
@@ -72,7 +67,7 @@ async function auditDisclosures(body) {
             if (!await root.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').tap();
         };
         await openInline();
-        const click=(label)=>root.getByRole('button',{name:label,exact:true}).tap();
+        const click=label=>L.panelClick(root,label);
         const group=(label)=>root.getByRole('navigation',{name:'Roleplay sections'}).getByRole('button',{name:label,exact:true});
         const menu=(label)=>body.getByLabel(label,{exact:true});
         await click('Expand');
@@ -120,7 +115,7 @@ async function auditDisclosures(body) {
         await exerciseModules();
         await click('This chat');
         await group('Direction').tap();
-        await click('Random Story Events');
+        await click('Random story events');
         await click('Change autonomous world events');
         assert.equal(await page.evaluate(()=>document.activeElement.id),'ri-module-worldEvents');
         assert.equal(await root.locator('[data-module-scope="chat"]').getAttribute('aria-pressed'),'true');
@@ -139,9 +134,8 @@ async function auditDisclosures(body) {
             for (const [section,pages] of Object.entries(navigation)) {
                 await group(section).tap();
                 for (const label of pages) {
-                    const tab=root.getByRole('navigation',{name:section+' pages'}).getByRole('button',{name:label,exact:true});
-                    await tab.tap();
-                    assert.equal(await tab.getAttribute('aria-current'),'page',label);
+                    await L.panelClick(root,label);
+                    assert.equal(await root.locator('[data-ri-heading]').textContent(),label);
                     assert.ok((await body.innerText()).trim().length>0,label);
                     assert.ok(await body.evaluate(node=>node.scrollWidth<=node.clientWidth+2),`${label} overflows at ${width}px`);
                     opened+=await auditDisclosures(body);
@@ -151,17 +145,18 @@ async function auditDisclosures(body) {
             console.log(`Audited all ${visited.length-firstPage} pages and ${opened} reachable disclosures at ${width}px${textScale ? ` and ${textScale*100}% text` : ''}.`);
         }
         await group('Story').tap();
-        await click('Chat Facts');
+        await click('Chat facts');
         await click('Add record');
         await menu('Record text').fill('A new fact written without an ID.');
-        await click('Current State');
+        await click('Current scene');
         const dialog=page.locator('dialog[open]');
         await dialog.locator('.popup-button-cancel').tap();
+        await click('Close pages');
         assert.equal(await menu('Record text').inputValue(),'A new fact written without an ID.');
         await click('Save record');
         await body.getByText(/Fact · a-new-fact-written-without-an-id/).waitFor();
         await group('Direction').tap();
-        await click('Writing Guidance');
+        await click('Writing guidance');
         const writing=body.locator('details').filter({has:page.getByLabel('Live writing guidance',{exact:true})});
         await writing.locator(':scope > summary').tap();
         const guidance=menu('Live writing guidance');
@@ -199,7 +194,7 @@ async function auditDisclosures(body) {
         await openInline();
         await click('Expand');
         await group('Review').tap();
-        await click('What Was Sent');
+        await click('What was sent');
         await body.getByText('The extension confirmed story guidance was sent. Exact text was not saved for this reply.').waitFor();
         await click('Edit writing guidance');
         await page.waitForFunction(()=>document.activeElement.id==='ri-profile-style');
@@ -210,7 +205,7 @@ async function auditDisclosures(body) {
         await openInline();
         await click('Expand');
         await group('Review').tap();
-        await click('What Was Sent');
+        await click('What was sent');
         const receipt=body.locator('.ri-sentcard').first();
         await receipt.getByText('Always eligible · 100% configured chance · wait 5 replies').waitFor();
         await receipt.getByText('World Info selections',{exact:true}).tap();

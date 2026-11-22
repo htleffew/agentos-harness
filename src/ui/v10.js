@@ -1,3 +1,5 @@
+import { renderComposerSettings } from './quick-actions.js';
+import { renderMemorySettings } from './context-dashboard.js';
 import { DEFAULT_NPC_AVOID } from '../npc-names.js';
 import { DEFAULT_STORY_AVOID } from '../defaults.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
@@ -12,7 +14,6 @@ import { promptOwner } from '../prompt-variations.js';
 import { renderChatBooks } from './chat-books.js';
 import { renderReplyDisplayOptions } from './settings.js';
 import { memoryOnly, memoryComponents } from '../components.js';
-import { setMemoryComponent } from '../hide.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
 import { ctx, KEY, isChatOpen, toast, isGenerating, confirmBox } from '../st.js';
@@ -537,14 +538,15 @@ const MODULE_HELP = {
     roast: 'Asks for one reader reaction in the same reply. Edit its voice under Setup → Reply Display.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
-function presetDetails(preset, app) {
+function presetDetails(preset, app, advanced = false) {
     const prompts = activeHostPrompts();
+    if (advanced) return section('Advanced prompts',
+        prompts ? presetWorkbench(preset,app,key=>key==='style' ? profileEditor(prefs(),'style','Live writing guidance',defaultWritingGuidance(),false)
+            : key==='preflight' ? profileEditor(prefs(),'preflight','Scene check guidance',PREFLIGHT,false) : null) : h('p',{class:'ri-help'},'This host does not expose preset prompt blocks.'),
+        h('div',{id:'ri-planning-prompts'},promptGroup(['planGuidance','proseFirst'],'Customize planning and prose prompts')),impersonationInspector());
     return section('Active host preset',
         h('p',{},preset ? `SillyTavern or TauriTavern preset · ${preset}` : 'Select a preset in the host’s AI Response Configuration. Roleplay Instructions V10 is the companion for Chat Completion.'),
         isCompanionPreset(preset) ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
-        prompts ? presetWorkbench(preset,app,key=>key==='style' ? profileEditor(prefs(),'style','Live writing guidance',defaultWritingGuidance(),false)
-            : key==='preflight' ? profileEditor(prefs(),'preflight','Scene check guidance',PREFLIGHT,false) : null) : h('p',{class:'ri-help'},'This host connection does not expose an ordered list of preset prompt blocks.'),
-        impersonationInspector(),
         button('Review What Was Sent',()=>app.openPage('sent'),{kind:'ghost'}));
 }
 
@@ -563,7 +565,8 @@ function hostOverlap(key, owner, preset, enabled, redraw) {
             : unknown ? 'The host preset is selected. Block status is unavailable. The extension skips this module.'
                 : 'All matching host blocks are off. To use this feature, enable a block in the host Prompt Manager or select the extension here.';
     }
-    return h('div',{class:'ri-module-overlap'},
+    return h('details',{id:`${id}-details`,class:'ri-module-overlap',open:owner.blocked},
+        h('summary',{},'Instruction source & diagnostics'),
         h('label',{htmlFor:id},'Preferred instruction source'),
         select([{value:'preset',label:'Host preset'}, {value:'extension',label:'Roleplay Instructions extension'}, ...(owner.choice==='both' ? [{value:'both',label:'Extension enabled alongside independent preset blocks'}] : [])],owner.choice,value=>{
             setModuleOwner(preset,key,value);
@@ -576,8 +579,7 @@ function hostOverlap(key, owner, preset, enabled, redraw) {
             document.getElementById(id)?.focus({preventScroll:true});
         },{kind:'ghost'}),
         h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in host preset`,
-            block.blocks.filter(entry=>entry.content).map(entry=>h('details',{class:'ri-card ri-tight'},
-                h('summary',{},'View host preset prompt'),h('pre',{class:'ri-v10-prompt-text'},entry.content)))))));
+            block.blocks.filter(entry=>entry.content).map(entry=>h('pre',{class:'ri-v10-prompt-text'},entry.content))))));
 }
 const onOff = value => value ? 'On' : 'Off';
 
@@ -654,27 +656,9 @@ function moduleSettings(local, app, preset, modules, redraw) {
             h('h3',{class:'ri-label'},label),keys.map(key=>rows.find(row=>row.dataset.module===key)))));
 }
 
-function memorySettings(app, redraw) {
-    const active = memoryComponents();
-    const defaults = settings().summary;
-    const control = (key,label,hint,value) => field(label,hint,
-        select(choices.slice(1),value ? 'on' : 'off',next=>{setMemoryComponent(key,next==='on');redraw();},
-            {'aria-label':label,disabled:key==='hide' && !active.chapters}));
-    return section('Memory components',
-        control('world','World Info recall','Include the pinned Base World and relevant entries from the extension’s Story World. Host World Info remains under host control.',active.world),
-        control('chapters','Chapter summaries',`Write chapter summaries and recall them. The interval in Context & Memory is ${Number(defaults.every) || 0} replies.`,active.chapters),
-        control('hide','Auto-hide summarized messages',active.chapters
-            ? 'Hide covered messages from the model after a summary is saved. Turning this off restores messages hidden by the extension.'
-            : 'Enable Chapter summaries first.',active.hide),
-        h('div',{class:'ri-row'},
-            button('Context & Memory',()=>app.openPage('context'),{kind:'ghost'}),
-            button('Reusable Lorebooks',()=>app.openPage('books'),{kind:'ghost'}),
-            button('Story World',()=>app.openPage('world'),{kind:'ghost'})));
-}
-
 export function renderV10(body, app, page) {
     if (!isChatOpen()) {
-        if (page==='v10') body.append(presetDetails(activePreset(),app));
+        if (page==='v10') body.append(presetDetails(activePreset(),app),renderComposerSettings(),renderMemorySettings(app),presetDetails(activePreset(),app,true));
         if (page==='display') {
             body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
             renderReplyDisplayOptions(body,app);
@@ -732,12 +716,14 @@ export function renderV10(body, app, page) {
                 saveChatState();redraw();
             },{id:'ri-story-workflow','aria-label':'Story workflow for this chat'}))));
         body.append(presetDetails(preset,app));
-        body.append(memorySettings(app,redraw));
-        if (!enabledV10()) return;
-        body.append(moduleSettings(local,app,preset,modules,redraw),
+        body.append(h('div',{class:'ri-row'},['Composer quick actions','Modules','Memory','Advanced prompts'].map((label,index)=>
+            button(label,()=>app.focusTarget(['#ri-composer-settings','#ri-modules','#ri-memory-settings','#ri-planning-prompts'][index]),{kind:'ghost'}))));
+        body.append(renderComposerSettings());
+        if (enabledV10()) body.append(h('div',{id:'ri-modules'},moduleSettings(local,app,preset,modules,redraw)),
             isCompanionPreset(preset)
                 ? chatFlag('generatePlan','Request a reply plan','The extension asks for a brief outline before the prose. Show Reply planning in Reply Display controls its card.')
                 : h('p',{class:'ri-help'},'To request a reply plan from the extension, select the Roleplay Instructions V10 companion preset in AI Response Configuration.'));
+        body.append(renderMemorySettings(app),presetDetails(preset,app,true));
         return;
     }
     if (!enabledV10()) {
@@ -769,7 +755,7 @@ export function renderV10(body, app, page) {
                         settings().scene.card=value;saveSettings();redraw();
                     },{'aria-label':'Story state under replies'})),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.'),
-                promptGroup(['planGuidance','proseFirst'],'Customize planning and prose prompts'),
+                button('Planning and prose generation prompts',()=>app.openSetting('v10','ri-planning-prompts'),{kind:'ghost'}),
                 roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback')));
             renderReplyDisplayOptions(body,app);
             break;

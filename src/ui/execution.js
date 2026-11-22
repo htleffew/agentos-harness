@@ -19,16 +19,10 @@ export function executionAction(button, expected = '1 model call') {
 }
 
 export function functionExecution(operation, { receipt = false, ...options } = {}) {
-    return executionDetails(receipt || executionPreview(operation,options),{
-        onSettings:(id,control)=>{
-            const current=control.closest('.ri-execution-stage');
-            if (!current) return;
-            let settings=current.querySelector('.ri-execution-settings');
-            if (settings) settings.remove();
-            else current.append(executionSettings({operation:id}));
-        },
-    });
+    return executionDetails(receipt || executionPreview(operation,options));
 }
+
+const openSettings = id => import('./panel.js').then(({app})=>app.openSetting('settings',`ri-operation-${id}`));
 
 export function executionDetails(stage, { onSettings, allowSettings = true, summary } = {}) {
     const stages = Array.isArray(stage) ? stage : [stage];
@@ -58,11 +52,12 @@ export function executionDetails(stage, { onSettings, allowSettings = true, summ
                 item.problem && h('p',{role:'status'},item.problem),
                 hasSettings && (onSettings
                     ? h('button',{type:'button',class:'ri-btn',style:{minHeight:'44px'},onclick:event=>onSettings(item.operation,event.currentTarget)},'Connection settings')
-                    : item.problem && executionSettings({operation:item.operation})));
+                    : h('button',{type:'button',class:'ri-btn',onclick:()=>openSettings(item.operation)},'Connection settings')));
         }));
 }
 
-export function executionSettings({ operation, receipt, onChange = () => {} } = {}) {
+export function executionSettings({ operation, receipt, onChange = () => {}, canonical = false } = {}) {
+    if (!canonical) return h('button',{type:'button',class:'ri-btn',onclick:()=>openSettings(operation)},'Connection settings');
     const operations = operation ? [[operation,EXECUTION_OPERATIONS[operation]]] : Object.entries(EXECUTION_OPERATIONS);
     const profiles = listProfiles();
     return h('div',{class:'ri-execution-settings'},
@@ -77,8 +72,7 @@ export function executionSettings({ operation, receipt, onChange = () => {} } = 
             const refresh = prior => {
                 const stage = prior?.operation===id ? prior : executionPreview(id,{trigger:def.automatic});
                 const detail=executionDetails(stage,{allowSettings:false});
-                if (disclosure.firstElementChild?.open) detail.open=true;
-                disclosure.replaceChildren(detail);
+                disclosure.replaceChildren(...detail.querySelectorAll(':scope > .ri-execution-stage'));
             };
             const onSetting = change => { setExecutionSetting(id,change); refresh(); onChange(id); };
             const connection = !def.mainOnly && field('Connection',setting.migrated ? 'Uses the previous shared connection until you choose a value here.' : '',
@@ -87,7 +81,7 @@ export function executionSettings({ operation, receipt, onChange = () => {} } = 
                 select([{value:'off',label:'Off'},{value:'on',label:'On'}],setting.automatic ? 'on' : 'off',value=>onSetting({automatic:value==='on'}),
                     {'aria-label':`${def.label} automatic requests`,style:{minHeight:'44px'}}));
             refresh(receipt);
-            return h('details',{class:'ri-card ri-tight','data-ri-operation':id,open:!!operation},
+            return h('details',{id:`ri-operation-${id}`,class:'ri-card ri-tight','data-ri-operation':id,open:!!operation},
                 h('summary',{style:{minHeight:'44px',alignContent:'center'}},def.label),
                 def.mainOnly && h('p',{class:'ri-help'},'The host starts this generation through Main API.'),connection,disclosure,automatic);
         }));

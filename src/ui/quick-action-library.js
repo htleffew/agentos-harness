@@ -58,6 +58,7 @@ export function renderQuickActionLibrary(host, {
     family = 'steer', mode = 'browse', state = {}, onSelect, onChange, onPin, onCancelPending,
     onRestore, onUndo, onOpenTool, onClose, onNavigate, getPins = () => [], selectionOnly = false, initialDirection = '',
 } = {}) {
+    if (selectionOnly) { onPin=undefined; mode='browse'; }
     const library = h('section', { class: 'ri-qa-library', 'aria-label': 'Quick action library' });
     const status = h('p', { class: 'ri-qa-library-status', role: 'status', ariaLive: 'polite' });
     const body = block();
