@@ -1,0 +1,129 @@
+/* Roleplay Instructions design tokens (DESIGN.md 1.3, 1.5, 1.10 and 1.12).
+   Every value here is read by tests/unit/tokens_contrast.mjs, which fails the build when a
+   text pair drops below 4.5 or an edge below 3.0. Keep one declaration per line. */
+
+:root {
+    /* Surfaces and neutrals */
+    --ri-void: #000000;
+    --ri-bg: #05070A;
+    --ri-surface: #0B0E14;
+    --ri-raised: #121722;
+    --ri-line-faint: #1C2433;
+    --ri-line: #5A6680;
+    --ri-text: #DDE3EE;
+    --ri-text-muted: #9AA4B5;
+    --ri-text-dim: #6B7485;
+
+    /* Family and reserved inks */
+    --ri-story: #3FE39B;
+    --ri-direction: #14B8A6;
+    --ri-reply: #3ED8E6;
+    --ri-review: #6AA8FF;
+    --ri-setup: #A3AEC2;
+    --ri-call: #F2A93B;
+    --ri-problem: #FF6464;
+    --ri-focus: #B98CFF;
+    /* Neon pink, the second accent (D1 call 40): the selected edge while violet keeps the focus ring. */
+    --ri-select: #FF5CCB;
+
+    /* Tints: the ink at 14% over the surface */
+    --ri-story-tint: #122C27;
+    --ri-direction-tint: #0C2628;
+    --ri-reply-tint: #122A31;
+    --ri-review-tint: #182435;
+    --ri-setup-tint: #20242C;
+    --ri-call-tint: #2B2419;
+    --ri-problem-tint: #2D1A1F;
+
+    /* Edges: the ink at 65% over the surface, 2 px */
+    --ri-story-line: #2D986C;
+    --ri-direction-line: #117D73;
+    --ri-reply-line: #2C919C;
+    --ri-review-line: #4972AD;
+    --ri-setup-line: #6E7685;
+    --ri-call-line: #A1732D;
+    --ri-problem-line: #AA4648;
+    --ri-focus-line: #B98CFF;
+    --ri-select-line: #FF5CCB;
+
+    /* Text on a solid ink fill (primary buttons) */
+    --ri-on-ink: #000000;
+
+    /* Type (1.5). The face ships in assets/fonts/plex-mono. */
+    --ri-font: 'RI Plex Mono', ui-monospace, monospace;
+    --ri-track-title: 0.16em;
+    --ri-track-label: 0.08em;
+
+    /* Size settings (1.10). styles.js writes the three choices and scales on <html>. */
+    --ri-text-scale: 1;
+    --ri-icon-scale: 1;
+    --ri-hit-scale: 1;
+    --ri-icon-base: 16px;
+    --ri-hit-base: 32px;
+    --ri-gap: 4px;
+    --ri-pad: 8px;
+    --ri-hit-min: 24px;
+    --ri-title-base: 14px;
+    --ri-label-base: 12px;
+    --ri-body-base: 14px;
+    --ri-help-base: 13px;
+    --ri-data-base: 13px;
+    --ri-dot: 5px;
+    --ri-handle-w: 60px;
+    --ri-handle-h: 12px;
+    --ri-handle-hit: 24px;
+    --ri-strip: 4px;
+    --ri-sheet-height: 40;
+
+    --ri-icon-size: calc(var(--ri-icon-base) * var(--ri-icon-scale));
+    --ri-hit-size: max(var(--ri-hit-min), calc(var(--ri-hit-base) * var(--ri-hit-scale)));
+    --ri-type-title: max(12px, calc(var(--ri-title-base) * var(--ri-text-scale)));
+    --ri-type-label: max(12px, calc(var(--ri-label-base) * var(--ri-text-scale)));
+    --ri-type-body: max(12px, calc(var(--ri-body-base) * var(--ri-text-scale)));
+    --ri-type-help: max(12px, calc(var(--ri-help-base) * var(--ri-text-scale)));
+    --ri-type-data: max(12px, calc(var(--ri-data-base) * var(--ri-text-scale)));
+
+    /* Shape, effects and motion (1.6) */
+    --ri-radius: 0;
+    --ri-step: 60ms;
+    --ri-rise: 120ms;
+
+    /* Story style token names (1.12). Modern minimal is the default; B17 adds the other styles. */
+    --ri-style-surface: #141518;
+    --ri-style-ink: #F1F2F4;
+    --ri-style-muted: #A8ACB5;
+    --ri-style-accent: #8FB4FF;
+    --ri-style-rule: #6B707C;
+    --ri-style-face: system-ui, sans-serif;
+    --ri-style-corner: 6px;
+}
+
+:root[data-ri-icons="comfortable"] {
+    --ri-icon-base: 20px;
+    --ri-dot: 6px;
+}
+
+:root[data-ri-targets="comfortable"] {
+    --ri-hit-base: 44px;
+    --ri-gap: 8px;
+    --ri-pad: 13px;
+    --ri-handle-w: 72px;
+    --ri-handle-h: 16px;
+    --ri-handle-hit: 44px;
+    --ri-strip: 6px;
+}
+
+:root[data-ri-text="comfortable"] {
+    --ri-title-base: 16px;
+    --ri-label-base: 13px;
+    --ri-body-base: 15px;
+    --ri-help-base: 14px;
+    --ri-data-base: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --ri-step: 0ms;
+        --ri-rise: 0ms;
+    }
+}

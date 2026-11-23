@@ -2,6 +2,7 @@ import { canUseProfiles, characterKey, ctx, listProfiles } from './st.js';
 import { settings, saveSettings } from './store.js';
 import { addLog, updateLog } from './log.js';
 import { historySourceMark } from './history-source.js';
+import { chainFor, routingAccepted } from './routing.js';
 
 export const EXECUTION_OPERATIONS = Object.freeze({
     playerDraft: { label:'Generate my draft',preserveDraft:true },
@@ -73,6 +74,31 @@ export function setExecutionSetting(operation, change) {
 }
 
 export const automaticAllowed = operation => executionSetting(operation).automatic;
+
+/** The background job, and so the tier chain, each model function uses once the tier chains are accepted. */
+export const OPERATION_JOBS = Object.freeze({
+    factRepair:'tidy', chapterSummary:'chapter', chapterCombine:'storySoFar', historyCatchUp:'catchUp', newChapter:'carryOver',
+    starterWorld:'behaviorDrafts', storyOpening:'behaviorDrafts', instructionCheck:'capture', writerVersions:'behaviorDrafts',
+    writerVersionRewrite:'behaviorDrafts', writerItems:'behaviorDrafts', writerStyle:'behaviorDrafts', writerRewrite:'behaviorDrafts',
+    writerGoal:'behaviorDrafts', writerWorld:'behaviorDrafts', bookKeywords:'capture', editedState:'capture', presetParity:'tidy',
+});
+
+/**
+ * The route chain for one model function (M1e 7.3). A profile saved for the function is its route, ahead of any tier
+ * chain. Until the tier chains are accepted every function keeps the route it has today, including the older shared
+ * profile; after that a function with no saved profile runs on its tier's chain.
+ */
+export function resolveChain(operation) {
+    const def = definition(operation);
+    if (!def) throw new Error('Unknown model function.');
+    const setting = executionSetting(operation);
+    const table = settings().execution?.functions;
+    const saved = !!(table && Object.hasOwn(table, operation) && String(table[operation]?.profileId ?? ''));
+    const job = def.mainOnly ? '' : OPERATION_JOBS[operation] || '';
+    if (setting.profileId && (saved || !routingAccepted() || !job)) return [{ route:'override', profileId:setting.profileId }];
+    if (!job || !routingAccepted()) return [{ route:'main' }];
+    return chainFor(job);
+}
 
 function mainConnection() {
     const host = ctx();

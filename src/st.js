@@ -123,6 +123,115 @@ export function listProfiles() {
     } catch { return []; }
 }
 
+/**
+ * Saved connection profiles the request service can send through, with what routing needs to classify them:
+ * the API source, model, address and completion preset. Key values never leave SillyTavern's server.
+ */
+export function profileDetails() {
+    const host = ctx();
+    let list = [];
+    try {
+        const service = host.ConnectionManagerRequestService;
+        list = typeof service?.getSupportedProfiles === 'function' ? service.getSupportedProfiles()
+            : host.extensionSettings?.connectionManager?.profiles;
+    } catch { list = host.extensionSettings?.connectionManager?.profiles; }
+    const map = host.CONNECT_API_MAP || {};
+    const sourceOf = api => String(map[api]?.source || (api === 'google' ? 'makersuite' : api));
+    return (Array.isArray(list) ? list : []).filter(p => p && p.id).map(p => ({
+        id: String(p.id), name: String(p.name || p.id), api: sourceOf(String(p.api || '')), model: String(p.model || ''),
+        url: String(p['api-url'] || ''), preset: String(p.preset || ''),
+    }));
+}
+
+/** A model server on this device, on the home network or on the tailnet. */
+export function isLocalUrl(url) {
+    let host = '', port = '';
+    try { ({ hostname: host, port } = new URL(String(url))); } catch { return false; }
+    host = host.replace(/^\[|\]$/g, '');
+    if (port === '11434' || /\.ts\.net$/i.test(host) || /^(localhost|127\.\d+\.\d+\.\d+|::1)$/i.test(host)) return true;
+    const ip = host.split('.').map(Number);
+    if (ip.length !== 4 || ip.some(n => !Number.isInteger(n))) return false;
+    return ip[0] === 100 && ip[1] >= 64 && ip[1] <= 127 || ip[0] === 10 || ip[0] === 192 && ip[1] === 168 || ip[0] === 172 && ip[1] >= 16 && ip[1] <= 31;
+}
+
+// SillyTavern maps the reasoning effort it receives for NanoGPT one step down (NANOGPT_REASONING_EFFORT_MAP in
+// src/constants.js), so the value sent is the one that arrives at NanoGPT as the effort the tier asks for.
+const NANOGPT_EFFORT = Object.freeze({ none: 'min', minimal: 'low', low: 'medium', medium: 'high', high: 'max' });
+
+/** Set one key in the Additional Parameters text of a Custom source, keeping every other line as written. */
+export function includeBodyWith(text, key, value) {
+    const base = String(text ?? '').trim();
+    if (base.startsWith('{')) {
+        try { return JSON.stringify({ ...JSON.parse(base), [key]: value }); } catch { /* read it as YAML lines below */ }
+    }
+    const kept = base.split(/\r?\n/).filter(line => line.trim() && !new RegExp(`^\\s*${key}\\s*:`).test(line));
+    return [...kept, `${key}: ${value}`].join('\n');
+}
+
+/**
+ * The extra request fields for one structured background call, as SillyTavern's chat completion request reads them.
+ * schema: { name, value, description }. mode: 'schema' sends the JSON schema (SillyTavern turns it into
+ * response_format), 'tool' forces one tool whose parameters are the schema. effort: none, low or high.
+ * includeBody: the profile's Additional Parameters, which a Custom source needs for its reasoning effort.
+ */
+export function overridePayloadFor(source, { schema, mode = 'schema', effort = '', toolName = '', includeBody = '', model = '' } = {}) {
+    const payload = {};
+    if (model) payload.model = String(model);
+    if (schema?.value && mode === 'schema') {
+        payload.json_schema = { name: String(schema.name || 'answer'), strict: true, value: schema.value,
+            ...(schema.description ? { description: String(schema.description) } : {}) };
+    }
+    if (schema?.value && mode === 'tool') {
+        const name = String(toolName || schema.name || 'answer');
+        payload.tools = [{ type: 'function', function: { name, description: String(schema.description || 'Record the answer.'), parameters: schema.value } }];
+        payload.tool_choice = { type: 'function', function: { name } };
+    }
+    if (effort) {
+        // A Custom source forwards reasoning_effort only for OpenAI's own models, so it travels in Additional Parameters.
+        if (source === 'custom') payload.custom_include_body = includeBodyWith(includeBody, 'reasoning_effort', effort);
+        else if (source === 'nanogpt') payload.reasoning_effort = NANOGPT_EFFORT[effort] || effort;
+        else if (source !== 'makersuite') payload.reasoning_effort = effort;
+        if (source === 'openrouter') payload.include_reasoning = false;
+    }
+    return payload;
+}
+
+/** Read the answer, its reasoning, a forced tool's arguments, usage and any reported cost from a raw completion. */
+export function readCompletion(json) {
+    const choice = json?.choices?.[0] || {};
+    const message = choice.message || {};
+    const content = Array.isArray(message.content) ? message.content.map(part => part?.text || '').join('') : String(message.content ?? choice.text ?? '');
+    const call = Array.isArray(message.tool_calls) ? message.tool_calls[0] : null;
+    const usage = json?.usage && typeof json.usage === 'object' ? json.usage : null;
+    const reported = [usage?.cost, json?.cost, json?.x_nanogpt_pricing?.cost].find(value => Number.isFinite(Number(value)) && value !== null && value !== '');
+    return {
+        text: content, reasoning: String(message.reasoning || message.reasoning_content || ''), finish: String(choice.finish_reason || ''),
+        toolArguments: call?.function?.arguments ?? null, usage, cost: reported === undefined ? null : Number(reported),
+    };
+}
+
+/**
+ * Ask SillyTavern's server whether a Custom (OpenAI-compatible) address answers, within a time limit.
+ * The server makes the call, so the phone's WebView needs no access to the address itself.
+ */
+export async function probeCustomUrl(url, { timeoutMs = 4000, signal } = {}) {
+    const host = ctx();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error('The probe timed out.')), timeoutMs);
+    const stop = () => controller.abort(signal?.reason);
+    signal?.addEventListener?.('abort', stop, { once: true });
+    try {
+        const headers = typeof host.getRequestHeaders === 'function' ? host.getRequestHeaders() : { 'Content-Type': 'application/json' };
+        const response = await globalThis.fetch('/api/backends/chat-completions/status', {
+            method: 'POST', headers, body: JSON.stringify({ chat_completion_source: 'custom', custom_url: String(url) }), signal: controller.signal,
+        });
+        if (!response.ok) return false;
+        const data = await response.json().catch(() => null);
+        return !!data && !data.error && !data.bypass;
+    } catch { return false; }
+    finally { clearTimeout(timer); signal?.removeEventListener?.('abort', stop); }
+}
+
 export function canUseProfiles() {
     const host = ctx();
     return typeof host.ConnectionManagerRequestService?.sendRequest === 'function' &&
@@ -138,16 +247,50 @@ function stripThinking(text) {
  * Send one background request and return the text of the answer.
  * With a connection profile: ConnectionManagerRequestService. Otherwise generateRaw on the chat's own connection.
  */
-export async function askFull({ system = '', user = '', tokens = 600, profileId = '', signal, useProfilePreset = true }) {
+export async function askFull({ system = '', user = '', tokens = 600, profileId = '', signal, useProfilePreset = true,
+    source = '', model = '', schema = null, mode = 'schema', effort = '', toolName = '' }) {
     const c = ctx();
     const messages = [{ role: 'user', content: String(user) }];
+    const msgs = [...(system ? [{ role: 'system', content: String(system) }] : []), ...messages];
     let raw = '';
     let reasoning = '';
+    // A schema, a forced tool, a reasoning effort or a model of the route's own needs the override payload and the raw
+    // response, which also carries the usage and cost the spend meter records.
+    const routed = !!(schema?.value || effort || model);
+    if (routed && (profileId || source)) {
+        let profile = null;
+        if (profileId) {
+            profile = profileDetails().find(p => p.id === String(profileId));
+            if (!canUseProfiles() || !profile) throw new Error('The saved connection profile is unavailable on this host. Choose an available connection in Execution settings.');
+        } else if (typeof c.ChatCompletionService?.processRequest !== 'function') {
+            throw new Error('This host cannot send a direct background request.');
+        }
+        const api = profile ? profile.api : String(source);
+        let includeBody = '';
+        if (api === 'custom' && effort && profile && useProfilePreset) {
+            try {
+                const preset = c.getPresetManager?.('openai')?.getCompletionPresetByName?.(profile.preset);
+                if (preset) includeBody = preset.custom_include_body ?? c.chatCompletionSettings?.custom_include_body ?? '';
+            } catch { /* The preset is read for its Additional Parameters only. */ }
+        }
+        const override = overridePayloadFor(api, { schema, mode, effort, toolName, includeBody, model });
+        const json = profile
+            ? await c.ConnectionManagerRequestService.sendRequest(String(profileId), msgs, tokens, {
+                stream: false, extractData: false, includePreset: useProfilePreset, includeInstruct: true, signal,
+            }, override)
+            : await c.ChatCompletionService.processRequest({ stream: false, messages: msgs, max_tokens: tokens, chat_completion_source: api, ...override }, {}, false, signal);
+        const read = readCompletion(json);
+        raw = mode === 'tool' && read.toolArguments != null && !read.text.trim()
+            ? (typeof read.toolArguments === 'string' ? read.toolArguments : JSON.stringify(read.toolArguments)) : read.text;
+        reasoning = read.reasoning;
+        const text = stripThinking(raw);
+        return { text, raw: reasoning ? `[thinking]\n${reasoning}\n[answer]\n${raw}` : raw, thinking: reasoning.length,
+            usage: read.usage, cost: read.cost, finish: read.finish, source: api };
+    }
     if (profileId) {
         if (!canUseProfiles() || !listProfiles().some(p => p.id === String(profileId))) {
             throw new Error('The saved connection profile is unavailable on this host. Choose an available connection in Execution settings.');
         }
-        const msgs = [...(system ? [{ role: 'system', content: String(system) }] : []), ...messages];
         const r = await c.ConnectionManagerRequestService.sendRequest(String(profileId), msgs, tokens, {
             stream: false, extractData: true, includePreset: useProfilePreset, includeInstruct: true, signal,
         });

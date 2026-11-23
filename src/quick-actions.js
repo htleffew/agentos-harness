@@ -15,6 +15,50 @@ export const QUICK_ACTION_FAMILIES = {
     draft: { name: 'Draft my reply', add: 'Create saved draft direction' },
 };
 
+/**
+ * Quick action kinds (DESIGN.md 4.2). `call` says how a tap's job runs: `extra` is a model
+ * request the extension adds (amber dot), `reply` rides SillyTavern's own reply request and
+ * `code` makes no model call. `family` is the storage family the older editors understand.
+ */
+export const QUICK_ACTION_KINDS = Object.freeze({
+    options: { name: 'Options', family: 'options', ink: 'direction', icon: 'fa-wand-magic-sparkles', call: 'extra', sheet: true,
+        boxLabel: 'Steer these options' },
+    swipe: { name: 'Swipe', family: 'swipe', ink: 'reply', icon: 'fa-rotate', call: 'reply', sheet: true, boxLabel: 'Add to this swipe', generate: 'Swipe' },
+    continue: { name: 'Continue', family: 'continue', ink: 'reply', icon: 'fa-forward-step', call: 'reply', sheet: true,
+        boxLabel: 'Add to this continue', generate: 'Continue' },
+    impersonate: { name: 'Impersonate', family: 'draft', ink: 'reply', icon: 'fa-pen', call: 'reply', sheet: true,
+        boxLabel: 'Add to my message', generate: 'Impersonate' },
+    direction: { name: 'Direction', family: 'steer', ink: 'direction', icon: 'fa-signs-post', call: 'code', sheet: false },
+    check: { name: 'Action check', family: 'check', ink: 'direction', icon: 'fa-dice-d20', call: 'code', sheet: false },
+    review: { name: 'Review', family: 'review', ink: 'review', icon: 'fa-magnifying-glass', call: 'code', sheet: false },
+});
+const kindByFamily = Object.fromEntries(Object.entries(QUICK_ACTION_KINDS).map(([kind, def]) => [def.family, kind]));
+const legacyFamilies = new Set(['steer', 'swipe', 'continue', 'draft']);
+export const OPTION_LENGTHS = Object.freeze({
+    short: { label: 'Short', instruction: 'Write each option in two or three sentences.' },
+    medium: { label: 'Medium', instruction: 'Write each option in four to six sentences.' },
+});
+export const NPC_OPTIONS_PROMPT = 'Suggest a new NPC who can enter the current scene. Give each option a name, a concrete reason to arrive, and an opening action.';
+export const BAR_DEFAULT_PINS = Object.freeze(['builtin:options:npc', 'builtin:swipe:plain', 'builtin:continue:plain', 'builtin:review:sent', 'builtin:steer:conflict']);
+
+/** The kind of a stored action; older records carry only their family. */
+export const kindOf = action => (action?.kind && QUICK_ACTION_KINDS[action.kind] ? action.kind : kindByFamily[action?.family]) || '';
+
+/** Cost words of DESIGN.md 1.8 for a kind, with the connection name when known. */
+export function costWords(kind, connection = '') {
+    const call = QUICK_ACTION_KINDS[kind]?.call;
+    const words = call === 'extra' ? '1 model call · extra request' : call === 'reply' ? 'SillyTavern’s reply request' : 'Runs in code';
+    return connection && call !== 'code' ? `${words} · ${connection}` : words;
+}
+
+/** Accessible name of a bar icon (DESIGN.md 1.8). */
+export function accessibleName(action) {
+    const kind = kindOf(action);
+    const call = QUICK_ACTION_KINDS[kind]?.call;
+    const cost = call === 'extra' ? '1 model call, extra request' : call === 'reply' ? 'SillyTavern’s reply request' : 'runs in code';
+    return `${action.title}, ${cost}`;
+}
+
 export const QUICK_ACTION_VARIABLES = {
     user: 'Player name',
     char: 'Character name',
@@ -65,6 +109,16 @@ const builtinActions = [
     builtIn('draft', 'intimate-continue', 'Continue an intimate moment', 'Show how I choose to respond to the intimacy already present.'),
     builtIn('draft', 'twist', 'Introduce a plot twist', 'Give me a revelation or action within my knowledge that changes what I can do next.', { twistTypes: QUICK_ACTION_TWISTS }),
     builtIn('draft', 'drama', 'Make it more dramatic', 'Raise the stakes of my next choice through what I can plausibly say or do.'),
+    // Bar defaults (DESIGN.md 4.11). They belong to the bar and stay out of the older family lists.
+    builtIn('options', 'npc', 'NPC options', '', { kind: 'options', icon: 'fa-user-plus', count: 4, length: 'medium',
+        prompt: NPC_OPTIONS_PROMPT, autoOpen: true, insertMode: 'insert', barOnly: true }),
+    builtIn('swipe', 'plain', 'Swipe', '', { kind: 'swipe', barOnly: true }),
+    builtIn('continue', 'plain', 'Continue', '', { kind: 'continue', barOnly: true }),
+    builtIn('draft', 'plain', 'Impersonate', '', { kind: 'impersonate', insertMode: 'insert', barOnly: true }),
+    builtIn('review', 'sent', 'Review', '', { kind: 'review', opens: 'sent', barOnly: true }),
+    builtIn('check', 'd20', 'Action check', '', { kind: 'check', who: 'user', barOnly: true }),
+    // The one Direction pin of 4.11, a built-in direction of the Direction kind.
+    builtIn('steer', 'conflict', 'Bring in conflict', sharedDirections.find(([key]) => key === 'conflict')[2], { kind: 'direction', barOnly: true }),
 ];
 const builtinById = new Map(builtinActions.map(action => [action.id, action]));
 
@@ -86,6 +140,7 @@ function actionFields(data) {
     if (Array.isArray(data.twistTypes)) extra.twistTypes = data.twistTypes.map(content).map(type => type.trim()).filter(Boolean);
     if (data.requiresDirection) extra.requiresDirection = true;
     if (data.literalMacros) extra.literalMacros = true;
+    Object.assign(extra, kindFields(data));
     return {
         title: content(data.title).trim(),
         text: content(data.text),
@@ -95,6 +150,26 @@ function actionFields(data) {
         delivery: { visibility: delivery.visibility === 'visible' ? 'visible' : 'private', required: !!delivery.required },
         ...extra,
     };
+}
+
+/** Fields of DESIGN.md 4.3 beyond the shared ones. Only meaningful values are stored. */
+function kindFields(data) {
+    const out = {};
+    const kind = QUICK_ACTION_KINDS[data.kind] ? data.kind : '';
+    if (kind) out.kind = kind;
+    if (typeof data.icon === 'string' && /^fa-[a-z0-9-]{1,40}$/.test(data.icon)) out.icon = data.icon;
+    if (data.barOnly) out.barOnly = true;
+    if (data.count !== undefined) out.count = Math.min(12, Math.max(1, Math.round(Number(data.count)) || 4));
+    if (data.length !== undefined) out.length = Object.hasOwn(OPTION_LENGTHS, data.length) ? data.length : '';
+    if (data.prompt !== undefined) out.prompt = content(data.prompt);
+    if (data.set !== undefined) out.set = content(data.set);
+    if (data.autoOpen !== undefined) out.autoOpen = data.autoOpen !== false;
+    if (data.insertMode !== undefined) out.insertMode = data.insertMode === 'replace' ? 'replace' : 'insert';
+    if (data.rollD20) out.rollD20 = true;
+    if (data.freshStart !== undefined) out.freshStart = ['one', 'five'].includes(data.freshStart) ? data.freshStart : '';
+    for (const key of ['stat', 'who', 'opens']) if (data[key] !== undefined) out[key] = content(data[key]);
+    if (data.difficulty !== undefined) out.difficulty = data.difficulty === '' || data.difficulty === null ? '' : Math.round(Number(data.difficulty)) || '';
+    return out;
 }
 
 function publicAction(id, saved) {
@@ -110,6 +185,7 @@ function publicAction(id, saved) {
         ...current,
         id,
         family: shipped?.family || current.family,
+        kind: kindOf({ kind: current.kind, family: shipped?.family || current.family }),
         origin,
         operation: shipped?.operation || (current.origin === 'translated' && current.operation === 'queue' ? 'queue' : ''),
         baseline: clone(base),
@@ -125,10 +201,12 @@ export function readQuickAction(id) {
     return publicAction(id, actionLibrary().actions[id]);
 }
 
-export function listQuickActions(family = '', { includeHidden = false } = {}) {
+/** Saved actions. The older family editors see the four legacy families; `allKinds` adds bar kinds. */
+export function listQuickActions(family = '', { includeHidden = false, allKinds = false } = {}) {
     const library = actionLibrary();
     const ids = [...new Set([...library.order, ...builtinById.keys(), ...Object.keys(library.actions)])];
     return ids.map(readQuickAction).filter(action => action && (!family || action.family === family)
+        && (allKinds || legacyFamilies.has(action.family) && !action.barOnly)
         && (includeHidden || (action.enabled && !action.hidden && !action.removed)));
 }
 
@@ -166,9 +244,13 @@ export function undoQuickActionLibrary() {
 
 function writeAction(library, data, previous, id) {
     const fields = actionFields(data);
-    const family = previous?.family || data.family;
-    if (!Object.hasOwn(QUICK_ACTION_FAMILIES, family)) throw new Error('Choose a quick action destination.');
-    if (!fields.title || (!fields.text.trim() && !fields.source && data.operation !== 'queue')) {
+    const family = previous?.family || data.family || QUICK_ACTION_KINDS[data.kind]?.family;
+    if (!Object.hasOwn(QUICK_ACTION_FAMILIES, family) && !kindByFamily[family]) throw new Error('Choose a quick action destination.');
+    if (!fields.title) throw new Error('Enter a button name and a direction.');
+    const kind = kindOf({ kind: fields.kind, family });
+    if (kind === 'options' && !String(fields.prompt || '').trim()) throw new Error('Enter a prompt for these options.');
+    // Older family actions need wording; bar kinds may run with none (a plain swipe, for example).
+    if (legacyFamilies.has(family) && !fields.barOnly && !fields.text.trim() && !fields.source && data.operation !== 'queue') {
         throw new Error('Enter a button name and a direction.');
     }
     const item = {
@@ -668,4 +750,113 @@ export async function editQuickActionSource(source, text) {
     }
     if (changed) saveSettings();
     return data;
+}
+
+// The composer bar (DESIGN.md 4.1, 4.7, 4.9 and 4.11). Pins are global; This chat pins are B3's.
+const legacySuggestion = { label: 'Introduce an NPC', icon: 'fa-user-plus', count: 4, prompt: NPC_OPTIONS_PROMPT, set: '' };
+const legacyFamilyPins = { swipe: 'builtin:swipe:plain', continue: 'builtin:continue:plain', draft: 'builtin:draft:plain' };
+
+function setActionFields(library, id, change) {
+    const current = publicAction(id, library.actions[id]);
+    if (current) writeAction(library, { ...current, ...change }, current, id);
+}
+
+/**
+ * First load of the bar: pin the defaults of 4.11, then carry every saved composer slot of the
+ * older toolbar. Suggestion slots become Options quick actions; the steer family slot has no
+ * one-tap job and stays reachable from More, which `notes` records.
+ */
+export function migrateComposerBar(library = actionLibrary(), cfg = settings()) {
+    const bar = { version: 1, pins: [...BAR_DEFAULT_PINS], folded: false, notes: [] };
+    const slots = Array.isArray(cfg.quickToolbarShortcuts) ? cfg.quickToolbarShortcuts : [];
+    const overrides = object(cfg.quickToolbarSuggestions) ? cfg.quickToolbarSuggestions : {};
+    const pin = id => { if (id && !bar.pins.includes(id)) bar.pins.push(id); };
+    slots.forEach((value, index) => {
+        const saved = object(overrides[index]) ? overrides[index] : {};
+        const icon = typeof saved.icon === 'string' && /^fa-[a-z0-9-]+$/.test(saved.icon) ? saved.icon : '';
+        if (value === 'suggestions') {
+            const config = {
+                title: typeof saved.label === 'string' && saved.label.trim() ? saved.label.trim() : legacySuggestion.label,
+                icon: icon || legacySuggestion.icon,
+                count: Math.min(12, Math.max(1, Math.round(Number(saved.count) || 4))),
+                prompt: typeof saved.prompt === 'string' && saved.prompt.trim() ? saved.prompt : legacySuggestion.prompt,
+                set: typeof saved.set === 'string' ? saved.set : '',
+            };
+            const plain = config.title === legacySuggestion.label && config.icon === legacySuggestion.icon && config.count === 4
+                && config.prompt === legacySuggestion.prompt && !config.set;
+            if (plain) { pin('builtin:options:npc'); return; }
+            const id = 'action:migrated-options-' + index;
+            // Existing slots migrate as they were: no length line is added to their prompt.
+            const fields = actionFields({ ...config, kind: 'options', length: '', autoOpen: true, insertMode: 'insert', barOnly: true });
+            library.actions[id] = { ...fields, family: 'options', id, origin: 'standalone', baseline: clone(fields), baselineRevision: revision, variations: [] };
+            pin(id);
+            return;
+        }
+        if (Object.hasOwn(legacyFamilyPins, value)) {
+            if (icon) setActionFields(library, legacyFamilyPins[value], { icon });
+            pin(legacyFamilyPins[value]);
+            return;
+        }
+        if (value === 'steer') { bar.notes.push('The Steer slot opens from More, All quick actions.'); return; }
+        if (typeof value === 'string' && value.startsWith('action:')) {
+            const id = value.slice(7);
+            if (!validId(id) || !publicAction(id, library.actions[id])) return;
+            if (icon) setActionFields(library, id, { icon });
+            pin(id);
+        }
+    });
+    library.bar = bar;
+    return bar;
+}
+
+export function composerBar() {
+    const library = actionLibrary();
+    if (!object(library.bar) || library.bar.version !== 1) {
+        migrateComposerBar(library);
+        saveSettings();
+    }
+    const bar = library.bar;
+    bar.pins = Array.isArray(bar.pins) ? bar.pins.filter(validId) : [];
+    bar.folded = bar.folded === true;
+    return bar;
+}
+
+/** Pinned actions that still exist, in bar order. */
+export function barPins() {
+    return composerBar().pins.map(readQuickAction).filter(action => action && action.enabled && !action.hidden && !action.removed);
+}
+
+export function pinToBar(id, pinned = true) {
+    const bar = composerBar();
+    const at = bar.pins.indexOf(id);
+    if (pinned && at < 0 && readQuickAction(id)) bar.pins.push(id);
+    else if (!pinned && at >= 0) bar.pins.splice(at, 1);
+    else return false;
+    saveSettings();
+    return true;
+}
+
+export function moveBarPin(id, step) {
+    const bar = composerBar();
+    const at = bar.pins.indexOf(id), to = at + Math.sign(step);
+    if (at < 0 || to < 0 || to >= bar.pins.length || to === at) return false;
+    [bar.pins[at], bar.pins[to]] = [bar.pins[to], bar.pins[at]];
+    saveSettings();
+    return true;
+}
+
+export function setBarFolded(folded) {
+    composerBar().folded = !!folded;
+    saveSettings();
+}
+
+/** What an Options action sends: its prompt with the length line, its count and its set. */
+export function optionsRequest(action) {
+    const length = OPTION_LENGTHS[action.length]?.instruction;
+    return {
+        label: action.title, icon: action.icon || QUICK_ACTION_KINDS.options.icon,
+        count: Math.min(12, Math.max(1, Math.round(Number(action.count)) || 4)),
+        prompt: [action.prompt || NPC_OPTIONS_PROMPT, length].filter(Boolean).join(' '),
+        set: action.set || '',
+    };
 }

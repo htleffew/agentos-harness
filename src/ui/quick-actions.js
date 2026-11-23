@@ -1,5 +1,5 @@
-import { ctx, heldGroupContinuationComposer, isChatOpen, isGenerating, KEY, on } from '../st.js';
-import { canonSet, knownSets, setName } from '../books.js';
+import { ctx, heldGroupContinuationComposer, isChatOpen, isGenerating, KEY, on, readComposer, toast, triggerContinuation, triggerSwipe, writeComposer } from '../st.js';
+import { canonSet, knownSets } from '../books.js';
 import { chatState, saveChatState, saveSettings, settings } from '../store.js';
 import { memoryOnly } from '../components.js';
 import { app } from './panel.js';
@@ -8,7 +8,12 @@ import { button, field, h, select, textArea, textInput, captureView, restoreView
 import { executionDetails } from './execution.js';
 import { executionPreview } from '../execution.js';
 import { impersonationInspector } from './impersonation.js';
-import { listQuickActions, loadQuickActionSources, quickActionOwner, readQuickAction, resolveQuickAction, rollQuickAction, rollQuickActionDie } from '../quick-actions.js';
+import { barPins, composerBar, kindOf, listQuickActions, loadQuickActionSources, moveBarPin, optionsRequest, pinToBar, QUICK_ACTION_KINDS,
+    quickActionOwner, readQuickAction, resolveQuickAction, rollQuickAction, rollQuickActionDie } from '../quick-actions.js';
+import { mountComposerBar, placeBar, renderBar, renderLookPage, setBarStatus, setHostGenerating, toggleBarHidden } from './composer-bar.js';
+import { openGenerateSheet } from './generate-sheet.js';
+import { loadStyles } from './theme/styles.js';
+import { registerPage } from './page-registry.js';
 import { renderQuickActionLibrary } from './quick-action-library.js';
 import { cancelGuidedTurn, guidedPreview, guidedTarget, guidedVersions, runGuidedTurn, selectGuidedVersion, undoGuidedContinuation } from '../guided-turns.js';
 import { freshHistoryCapability } from '../guided-context.js';
@@ -30,12 +35,6 @@ let focusComposer;
 let returnToPanel;
 let knownChat;
 let composer;
-let composerToolbar;
-let composerLauncher;
-let renderedShortcuts;
-let composerShortcuts;
-let composerOperation;
-let shortcutResize;
 const composerDrafts = new Map();
 const isolated = new Set();
 const actionRow = (...children) => h('div', {class:'ri-quick-row'}, children);
@@ -133,7 +132,7 @@ function tabInSheet(event) {
     }
 }
 
-export function openQuickActions(family, index, trigger = document.activeElement, returning, resumePanel, action, suggestions) {
+export function openQuickActions(family, index, trigger = document.activeElement, returning, resumePanel, action) {
     if (!isChatOpen() || !settings().enabled) return;
     knownChat = quickChatIdentity();
     session = sessions.get(knownChat);
@@ -170,14 +169,7 @@ export function openQuickActions(family, index, trigger = document.activeElement
         restoreView(overlay.querySelector('.ri-quick-scroll'),returning.snapshot,overlay.querySelector('#ri-quick-heading'));
         return;
     }
-    if (suggestions) {
-        const previous=session.suggestions;
-        const reuse=previous && (previous.running || JSON.stringify(previous.config)===JSON.stringify(suggestions));
-        session.suggestions=reuse ? previous : {config:suggestions,composer:input?.value || ''};
-        session.view = 'suggestions';
-        if (!reuse) generateSuggestions(session.suggestions);
-        else {session.operation=session.suggestions;updateComposerOperation();renderSheet();}
-    } else if (family) chooseFamily(family, index);
+    if (family) chooseFamily(family, index);
     else renderSheet();
     if (action) selectFavorite(editorFor(family), {reference:action.id,title:action.title}, true);
     // Move from a focused composer into an editor when the shortcut has one.
@@ -791,15 +783,10 @@ function renderSheet() {
     if (view==='root') content=rootView();
     else if (view==='family') ({content,footer}=familyView(editorFor(family)));
     else if (view==='pending') content=pendingView();
-    else if (view==='suggestions') content=suggestionResults(session.suggestions);
-    else if (view==='request-details') {
-        content=executionDetails(executionPreview('playerChoices',{trigger:`Tap ${session.detailsConfig.label}. Generates ${session.detailsConfig.count} options in one request.`}),{onSettings:openConnection,summary:'Request details'});
-        content.open=true;
-    }
     else content=catalogView();
     const header = h('header',{class:'ri-quick-header'},
         session.history.length>0 && button('Back',backInSheet),
-        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',suggestions:session.suggestions?.config.label,'request-details':'Request details',browse:taskLabels.browse})[view] || families[family].title),
+        h('h2',{id:'ri-quick-heading',tabIndex:-1},({root:'Quick actions',pending:'Pending directions',browse:taskLabels.browse})[view] || families[family].title),
         h('button',{type:'button',class:'ri-btn','data-quick-close':'',onclick:()=>closeSheet()},'Close'));
     const old = overlay.querySelector('.ri-quick-scroll');
     const continuing = old?.dataset.view===view;
@@ -834,94 +821,11 @@ function renderSheet() {
     }
 }
 
-function stopSuggestions(result) {
-    if (!result?.running || result.cancelled) return;
-    result.cancelled = true;
-    if (result.dispatched) cancelGuidedTurn();
-    updateComposerOperation();
-}
-
-async function generateSuggestions(result) {
-    const owner = session;
-    if (activeOperation(owner)?.running || isGenerating()) return;
-    const current = () => session===owner && owner.chat===quickChatIdentity();
-    result.running = true;
-    result.dismissed=false;
-    owner.operation=result;
-    result.cancelled = false;
-    result.dispatched = false;
-    result.error = '';
-    result.receipt = null;
-    result.choices = [];
-    updateComposerOperation();
-    renderSheet();
-    try {
-        const {config,composer} = result;
-        const preview = guidedPreview('draft',{mode:'choices',suggestions:config});
-        result.connectionProblem = !preview.available && !!preview.profileId;
-        if (!preview.available) throw new Error(preview.reason);
-        if (!config.prompt.trim()) throw new Error('Enter a generation prompt in Composer quick actions.');
-        if (config.set) {
-            const set = canonSet(config.set);
-            if (!activeInstructionSets().includes(set)) throw new Error('Activate the configured Random Instruction Set in this chat.');
-            if (!result.cue) {
-                const sources = await loadQuickActionSources({family:'draft',sets:[set]});
-                if (!current() || result.cancelled) return;
-                result.cue = rollQuickAction(sources,{scope:{set}});
-            }
-        }
-        if (!current() || result.cancelled) return;
-        result.dispatched = true;
-        const response = await runGuidedTurn('draft',{mode:'choices',composer,
-            target:guidedTarget(), cues:result.cue ? [result.cue] : [], suggestions:config,
-            onReceipt:receipt=>{result.receipt=receipt;if(current()) updateComposerOperation();}});
-        if (!result.cancelled) result.choices = response.choices || [];
-        if (!response.ok) throw new Error('The model returned no usable options.');
-    } catch (error) {
-        result.error = result.cancelled ? '' : error.message;
-    } finally {
-        result.running = false;
-        result.dispatched = false;
-        updateComposerOperation();
-        if (current() && overlay && session.view==='suggestions' && session.suggestions===result) renderSheet();
-    }
-}
-
-function suggestionResults(result) {
-    const {config,choices,running,error,receipt,cancelled} = result;
-    return h('div',{},
-        status(running ? (cancelled ? 'Cancelling…' : `Generating ${config.count} ${config.count===1?'option':'options'}…`) :
-            cancelled ? 'Generation cancelled.' : error || `${choices.length} of ${config.count} options ready.`),
-        running && button('Cancel request',()=>{stopSuggestions(result);renderSheet();},{disabled:cancelled}),
-        running && h('div',{'aria-hidden':'true'},Array.from({length:config.count},()=>h('div',{class:'ri-quick-card ri-suggestion-placeholder'}))),
-        choices.map((text,index)=>h('article',{class:'ri-quick-card'},h('strong',{},`Option ${index+1}`),
-            h('p',{class:'ri-suggestion-text'},text),button('Use as direction',()=>{
-                const edit = editorFor('steer');
-                edit.direction = [edit.direction,text].filter(Boolean).join('\n\n');
-                show('family','steer');
-            }))),
-        result.connectionProblem && button('Connection settings',()=>openConnection('playerChoices')),
-        !running && button(error || cancelled ? 'Retry · 1 model call' : 'Generate again · 1 model call',()=>{
-            if (!error && !cancelled) result.cue=null;
-            generateSuggestions(result);
-        }),executionDetails(receipt || executionPreview('playerChoices',{trigger:`Tap Generate again or Retry for ${config.count} options.`}),{onSettings:openConnection}));
-}
-
 function activeInstructionSets() {
     const active = new Set((chatState()?.activeSets || []).map(canonSet));
     return knownSets('instructions').filter(set=>active.has(set));
 }
 
-const suggestionIconNames = {
-    'fa-lightbulb':'Lightbulb', 'fa-user-plus':'New character', 'fa-compass':'Compass', 'fa-bolt':'Lightning',
-    'fa-dice':'Dice', 'fa-masks-theater':'Masks', 'fa-map':'Map', 'fa-feather':'Feather',
-    'fa-comment-dots':'Dialogue', 'fa-star':'Star', 'fa-key':'Key', 'fa-gem':'Gem',
-};
-const suggestionDefaults = {label:'Introduce an NPC',icon:'fa-user-plus',count:4,
-    prompt:'Suggest a new NPC who can enter the current scene. Give each option a name, a concrete reason to arrive, and an opening action.',set:''};
-const iconOptions = Object.entries(suggestionIconNames).map(([value,label])=>({value,label}));
-
-const defaultShortcuts = ['steer','draft'];
 const familyButtons = {
     steer: ['Steer','fa-signs-post'],
     swipe: ['Alternate','fa-rotate'],
@@ -929,15 +833,6 @@ const familyButtons = {
     draft: ['Draft','fa-pen'],
 };
 const composerIcon = name => h('span',{class:`fa-solid ${name}`,'aria-hidden':'true'});
-const keepComposerFocus = event => {
-    if (document.activeElement === openComposer()) event.preventDefault();
-};
-
-function shortcutAssignments() {
-    const saved = settings().quickToolbarShortcuts;
-    const length = Array.isArray(saved) ? Math.max(2,Math.min(8,saved.length)) : 2;
-    return Array.from({length},(_,index)=>typeof saved?.[index] === 'string' ? saved[index] : defaultShortcuts[index] || '');
-}
 
 function composerMenuFamilies() {
     const hidden = settings().quickToolbarHiddenFamilies;
@@ -945,142 +840,257 @@ function composerMenuFamilies() {
 }
 
 function activeOperation(owner) {
-    return owner?.operation || owner?.suggestions;
+    return owner?.operation;
 }
 
 function cancelOperation(operation) {
     if (!operation?.running || operation.cancelled) return;
-    if (operation.config) stopSuggestions(operation);
-    else {
-        operation.cancelled=true;
-        operation.message=cancelGuidedTurn();
-        updateComposerOperation();
-    }
+    operation.cancelled=true;
+    operation.message=cancelGuidedTurn();
+    updateComposerOperation();
 }
 
-function cancelComposerOperation() {
-    cancelOperation(activeOperation(sessions.get(quickChatIdentity())));
-    if (overlay) renderSheet();
-}
-
-function resumeComposerOperation() {
-    const owner=sessions.get(quickChatIdentity()), operation=activeOperation(owner);
-    if (!operation) return;
-    openQuickActions(operation.family,undefined,document.activeElement,undefined,undefined,undefined,operation.config);
-}
-
+// The sheet's own requests keep the bar's model icons current.
 function updateComposerOperation() {
-    if (!composerOperation) return;
-    const operation=activeOperation(sessions.get(quickChatIdentity()));
-    const visible=!!operation && !operation.dismissed && settings().enabled && isChatOpen();
-    composerOperation.hidden=!visible;
-    const running=!!operation?.running;
-    composerLauncher?.setAttribute('aria-description',running ? 'A request is running. Cancel request is available beside the composer.' : '');
-    for (const control of composerShortcuts?.querySelectorAll('[data-ri-shortcut-slot]') || []) {
-        const assignment=shortcutAssignments()[control.dataset.riShortcutSlot];
-        const action=assignment?.startsWith('action:') && readQuickAction(assignment.slice(7));
-        control.disabled=running && (control.classList.contains('ri-quick-generates') || !!action && action.family!=='steer');
-    }
-    if (!visible) return;
-    const text=running ? operation.cancelled ? 'Cancelling…' : operation.config
-        ? `Generating ${operation.config.count} ${operation.config.count===1?'option':'options'}…` : operation.lastAttempt?.input.repairOnly ? 'Updating story facts…' : 'Generating reply…'
-        : operation.cancelled ? 'Generation cancelled.' : operation.error || (operation.config
-            ? `${operation.choices?.length || 0} of ${operation.config.count} options ready.` : operation.message || 'Request finished.');
-    const status=composerOperation.querySelector('[role="status"]');
-    if (status.textContent!==text) status.textContent=text;
-    const [resume,cancel,dismiss]=composerOperation.querySelectorAll('button');
-    dismiss.hidden=running;
-    resume.textContent=running ? 'View request' : 'View results';
-    cancel.hidden=!running;
-    cancel.disabled=!!operation.cancelled;
+    renderBar();
 }
 
-function updateShortcutOverflow() {
-    if (!composerShortcuts) return;
-    composerShortcuts.dataset.overflow=String(composerShortcuts.scrollWidth>composerShortcuts.clientWidth+1 && composerShortcuts.scrollLeft+composerShortcuts.clientWidth<composerShortcuts.scrollWidth-1);
-}
-
+/** Redraw the composer bar (the panel calls this after the extension is switched on or off). */
 export function refreshComposerToolbar() {
-    if (!composerToolbar) return;
-    const enabled = isChatOpen() && settings().enabled;
-    const expanded = settings().quickToolbarExpanded === true;
-    composerLauncher.hidden = !enabled;
-    composerToolbar.hidden = !enabled || !expanded;
-    composerLauncher.setAttribute('aria-expanded',String(expanded));
-    composerLauncher.title = expanded ? 'Collapse Quick actions' : 'Expand Quick actions';
-    updateComposerOperation();
-    if (!enabled || !expanded) return;
-    const shortcuts = shortcutAssignments().flatMap((value,index)=>{
-        if (value==='suggestions') return [{slot:index,index,...suggestionConfig(index)}];
-        const override = settings().quickToolbarSuggestions?.[index]?.icon;
-        const icon = Object.hasOwn(suggestionIconNames,override) ? override : undefined;
-        if (Object.hasOwn(families,value)) return [{slot:index,family:value,label:families[value].title,icon}];
-        if (!value.startsWith('action:')) return [];
-        const action = readQuickAction(value.slice(7));
-        return action?.enabled && !action.hidden && !action.removed ? [{slot:index,family:action.family,label:action.title,action,icon}] : [];
-    });
-    const signature = JSON.stringify(shortcuts);
-    if (signature === renderedShortcuts) return;
-    renderedShortcuts = signature;
-    function shortcut(label, icon, launch, extra = '') {
-        return h('button',{type:'button',class:extra,'aria-label':label,title:label,'aria-haspopup':'dialog',
-            onpointerdown:keepComposerFocus,onclick:event=>launch(event.currentTarget)},composerIcon(icon));
+    renderBar();
+}
+
+// The composer bar's jobs (DESIGN.md 4.2, 4.4 and 4.6).
+const bar = { drafts:new Map(), job:null, results:new Map(), resultsRenderer:null };
+
+/** B2 renders the Options results list into the Generate sheet through this hook. */
+export function registerOptionsResults(renderer) {
+    bar.resultsRenderer = typeof renderer === 'function' ? renderer : null;
+}
+
+const barOperation = {options:'playerChoices', impersonate:'playerDraft', swipe:'swipe', continue:'continue'};
+
+function barConnection(action) {
+    const kind = kindOf(action);
+    const operation = barOperation[kind];
+    if (!operation) return '';
+    const preview = executionPreview(operation,{stage:kind==='options' ? 'additional' : 'reply'});
+    return String(preview.connection || '').replace(/^Connection profile:\s*/,'');
+}
+
+async function barCue(action, family) {
+    if (!String(action.text || '').trim() && !action.source) return null;
+    const sources = action.source ? await loadQuickActionSources({family}) : [];
+    return {...resolveQuickAction(action,{sources,variables:{direction:''}}), reference:action.id};
+}
+
+function openBarSettings() {
+    return openPanel('v10',null,'#ri-composer-settings');
+}
+
+function insertDraft(text, mode, before) {
+    const input = openComposer();
+    if (!input) return;
+    const current = readComposer() || before || {text:'',start:0,end:0};
+    if (mode === 'replace') {
+        writeComposer({text, start:text.length, end:text.length});
+        return;
     }
-    composerShortcuts.replaceChildren(...shortcuts.map(({family,label,action,index,slot,icon})=>{
-        let control;
-        if (index!==undefined) {
-            control=shortcut(`${label} · 1 model call`,icon,
-                trigger=>openQuickActions(undefined,undefined,trigger,undefined,undefined,undefined,suggestionConfig(index)),'ri-quick-generates');
-            control.append(h('span',{class:'ri-quick-cost'},'1 model call'));
-            control.dataset.riShortcutSlot=slot;
-            const details=shortcut(`Request details for ${label}`,'fa-circle-info',trigger=>{
-                openQuickActions(undefined,undefined,trigger);
-                session.view='request-details';
-                session.detailsConfig=suggestionConfig(index);
-                renderSheet();
-            });
-            return h('div',{class:'ri-quick-shortcut-group'},control,details);
+    const start = current.start ?? current.text.length, end = current.end ?? start;
+    const value = current.text.slice(0,start) + text + current.text.slice(end);
+    writeComposer({text:value, start:start + text.length, end:start + text.length});
+}
+
+function defaultOptionCards(sheet, action, choices) {
+    // Interim list until B2's titled cards register through registerOptionsResults.
+    return choices.map((text,index)=>h('article',{class:'ri-option-card'},h('p',{},text),
+        h('div',{class:'ri-gsheet-actions'},
+            h('button',{type:'button',class:'ri-bar-btn','aria-label':`Insert option ${index+1}`,onclick:()=>{
+                insertDraft(text,action.insertMode);sheet.close({reason:'insert'});
+            }},composerIcon('fa-arrow-turn-down'),'Insert'))));
+}
+
+function showOptionResults(sheet, action, choices) {
+    const nodes = bar.resultsRenderer ? bar.resultsRenderer({sheet,action,choices,insert:text=>insertDraft(text,action.insertMode)}) : defaultOptionCards(sheet,action,choices);
+    sheet.showResults(...[nodes].flat());
+}
+
+async function runBarOptions(action, typed, job) {
+    const config = optionsRequest(action);
+    const preview = guidedPreview('draft',{mode:'choices',suggestions:config});
+    if (!preview.available) throw Object.assign(new Error(preview.reason),{connection:!!preview.profileId});
+    const cues = [];
+    if (config.set) {
+        const set = canonSet(config.set);
+        if (!activeInstructionSets().includes(set)) throw new Error('Activate the Random Instruction Set this action rolls in this chat.');
+        cues.push(rollQuickAction(await loadQuickActionSources({family:'draft',sets:[set]}),{scope:{set}}));
+    }
+    if (job.cancelled) throw new DOMException('Cancelled before the model request.','AbortError');
+    const response = await runGuidedTurn('draft',{mode:'choices',composer:openComposer()?.value || '',target:guidedTarget(),
+        cues,direction:typed.trim(),suggestions:config});
+    if (!response.ok) throw new Error('The model returned no usable options.');
+    return response.choices;
+}
+
+async function runBarStory(action, typed, job) {
+    const kind = kindOf(action);
+    const target = guidedTarget();
+    if (!target) throw new Error('Select a visible character reply first.');
+    const cue = await barCue(action,kind);
+    if (!cue && !typed.trim()) {
+        // Both empty: SillyTavern's own swipe or continue, with nothing added.
+        job.plain = true;
+        const done = kind === 'swipe' ? await triggerSwipe() : await triggerContinuation();
+        if (!done) throw new Error(`This host cannot ${kind} the last reply.`);
+        return;
+    }
+    const outcome = await runGuidedTurn(kind,{target,cues:cue ? [cue] : [],direction:typed.trim(),freshStart:!!action.freshStart,
+        roll:action.rollD20 ? rollQuickActionDie() : undefined});
+    if (outcome?.ok === false) throw new Error(outcome.reason || 'The action did not finish.');
+    if (action.freshStart === 'five') armFreshStart();
+}
+
+async function runBarImpersonate(action, typed) {
+    const cue = await barCue(action,'draft');
+    const cues = [cue, String(action.prompt || '').trim() && {text:action.prompt,title:'Prompt'}].filter(Boolean);
+    const before = readComposer();
+    const outcome = await runGuidedTurn('draft',{mode:'draft',cues,direction:typed.trim(),composer:before?.text || ''});
+    if (!outcome?.text) throw new Error(outcome?.reason || 'No playable wording was returned.');
+    insertDraft(outcome.text,action.insertMode,before);
+}
+
+async function generateFromBar(action, typed, sheet) {
+    if (bar.job?.running || isGenerating()) return;
+    const kind = kindOf(action);
+    const job = {action,kind,sheet,typed,running:true,cancelled:false,plain:false,startedAt:Date.now(),chat:quickChatIdentity()};
+    bar.job = job;
+    sheet.consumed = typed;
+    bar.drafts.delete(action.id);
+    setBarStatus({state:'running',actionId:action.id,kind,title:action.title,startedAt:job.startedAt});
+    const keepOpen = kind === 'options' && action.autoOpen !== false;
+    if (keepOpen) sheet.setBusy(true,'Generating');
+    else sheet.close({reason:'generate'});
+    try {
+        if (kind === 'options') {
+            const choices = await runBarOptions(action,typed,job);
+            // Main API can finish a request after Stop; its result is discarded.
+            if (job.cancelled) throw new DOMException('Stopped.','AbortError');
+            job.choices = choices;
+            bar.results.set(action.id,{choices,chat:job.chat});
+            if (!sheet.closed) {
+                showOptionResults(sheet,action,choices);
+                setBarStatus({state:'done',message:`${choices.length} ${choices.length===1?'option':'options'} ready.`});
+            } else setBarStatus({state:'ready',actionId:action.id,kind,title:action.title,count:choices.length});
+        } else {
+            if (kind === 'impersonate') await runBarImpersonate(action,typed);
+            else await runBarStory(action,typed,job);
+            setBarStatus({state:'done',message:`${action.title} finished.`});
         }
-        control=shortcut(label,icon || familyButtons[family][1],
-            trigger=>openQuickActions(family,undefined,trigger,undefined,undefined,action && readQuickAction(action.id)));
-        control.dataset.riShortcutSlot=slot;
-        return control;
-    }));
-    updateComposerOperation();
-    updateShortcutOverflow();
-
+    } catch (error) {
+        if (job.cancelled || error?.name === 'AbortError') setBarStatus({state:'cancelled',actionId:action.id,kind,title:action.title});
+        else {
+            job.error = error?.message || String(error);
+            job.connection = !!error?.connection;
+            setBarStatus({state:'failed',actionId:action.id,kind,title:action.title,error:job.error});
+            if (!sheet.closed) showBarFailure(sheet);
+        }
+    } finally {
+        job.running = false;
+        if (!sheet.closed) sheet.setBusy(false);
+    }
 }
 
-function suggestionConfig(index) {
-    const saved = settings().quickToolbarSuggestions?.[index];
-    return {...suggestionDefaults,...saved, label:typeof saved?.label==='string' && saved.label.trim() || suggestionDefaults.label,
-        icon:Object.hasOwn(suggestionIconNames,saved?.icon) ? saved.icon : suggestionDefaults.icon,
-        set:typeof saved?.set==='string' && saved.set ? canonSet(saved.set) : '',
-        prompt:typeof saved?.prompt==='string' ? saved.prompt : suggestionDefaults.prompt,
-        count:Math.min(12,Math.max(1,Math.round(Number(saved?.count) || 4)))};
+function showBarFailure(sheet) {
+    const job = bar.job;
+    if (!job?.error) return;
+    const retry = h('button',{type:'button',class:'ri-bar-btn','data-ri-retry':'',
+        'aria-label':job.kind==='options' ? 'Retry, 1 model call' : 'Retry',onclick:()=>generateFromBar(job.action,job.typed,sheet)},
+    'Retry', job.kind==='options' && h('span',{class:'ri-bar-dot','aria-hidden':'true'}));
+    const operation = barOperation[job.kind];
+    const connection = operation && h('button',{type:'button',class:'ri-bar-btn',onclick:()=>{sheet.close({reason:'settings'});openConnection(operation);}},'Connection settings');
+    sheet.showError(job.error,retry,connection);
 }
 
-function saveSuggestionSetting(index,key,value) {
-    const stored = settings().quickToolbarSuggestions ||= {};
-    stored[index] = {...stored[index],[key]:value};
-    saveSettings();
-    refreshComposerToolbar();
+function openBarSheet(action, trigger) {
+    const kind = kindOf(action);
+    const input = openComposer();
+    const sheet = openGenerateSheet({kind,action,connection:barConnection(action),draft:bar.drafts.get(action.id) || '',
+        returnFocus:document.activeElement===input ? input : trigger,
+        onGenerate:(typed,current)=>generateFromBar(action,typed,current),
+        onEdit:()=>openBarSettings(),
+        onClose:text=>{
+            if (text && text!==sheet.consumed) bar.drafts.set(action.id,text);
+            else if (!text) bar.drafts.delete(action.id);
+        }});
+    return sheet;
 }
 
-function suggestionSettings(index) {
-    const config = suggestionConfig(index);
-    const active = activeInstructionSets();
-    const available = [{value:'',label:'None'},...active.map(value=>({value,label:setName(value)}))];
-    if (config.set && !active.includes(config.set)) available.push({value:config.set,label:`${setName(config.set)} (inactive in this chat)`});
-    const save = (key,value)=>saveSuggestionSetting(index,key,value);
-    return h('div',{class:'ri-composer-suggestion-settings'},
-        field('Button name','',textInput(config.label,value=>save('label',value))),
-        field('Icon','',select(iconOptions,config.icon,value=>save('icon',value))),
-        field('Number of options','',select(Array.from({length:12},(_,i)=>({value:i+1,label:String(i+1)})),config.count,value=>save('count',Number(value)))),
-        field('Generation prompt','',textArea(config.prompt,value=>save('prompt',value))),
-        field('Active Random Instruction Set','Roll one eligible instruction and include it in this request.',select(available,config.set,value=>save('set',value))),
-        info('A tap starts one model request on the Player choices connection.'));
-}
+const barRunner = {
+    context:()=>({chatOpen:isChatOpen(),enabled:!!settings().enabled,queued:quickChat()?.pending?.length || 0}),
+    connection:barConnection,
+    async run(action, trigger) {
+        if (!isChatOpen() || !settings().enabled) return;
+        const kind = kindOf(action);
+        if (QUICK_ACTION_KINDS[kind]?.sheet) { openBarSheet(action,trigger); return; }
+        try {
+            if (kind === 'review') {
+                const target = guidedTarget();
+                if (target) await app.openReplyTask(action.opens==='context' ? 'context' : 'sent',target.index,trigger);
+                else if (await app.openPage(action.opens==='context' ? 'context' : 'sent',{focusPage:true})) await app.setExpanded(true);
+                return;
+            }
+            if (kind === 'check') {
+                const roll = rollQuickActionDie({stat:action.stat || '',who:action.who || 'user',target:action.difficulty});
+                queueDirections([],'',{roll});
+                setBarStatus({state:'done',message:`Action check queued with your next message. ${roll.text}`});
+                return;
+            }
+            if (kind === 'direction') {
+                const cue = await barCue(action,'steer');
+                if (!cue) throw new Error('This direction has no wording. Edit it first.');
+                queueDirections([cue],'',{visibility:'default',freshStart:action.freshStart || '',roll:action.rollD20 ? rollQuickActionDie() : null});
+                rememberQuickActions([cue]);
+                setBarStatus({state:'done',message:`${action.title} queued with your next message.`});
+            }
+        } catch (error) {
+            bar.job = {action,kind,error:error.message};
+            setBarStatus({state:'failed',actionId:action.id,kind,title:action.title,error:error.message});
+        }
+    },
+    stop() {
+        const job = bar.job;
+        if (!job?.running || job.cancelled) return;
+        job.cancelled = true;
+        if (job.plain) ctx().stopGeneration?.();
+        else cancelGuidedTurn();
+        // Stop takes effect for the bar at once; a late reply from the request is discarded.
+        if (!job.sheet.closed) job.sheet.setBusy(false);
+        setBarStatus({state:'cancelled',actionId:job.action.id,kind:job.kind,title:job.action.title});
+    },
+    view() {
+        const job = bar.job;
+        if (!job?.choices || job.chat!==quickChatIdentity()) { setBarStatus({state:'idle'}); return; }
+        const sheet = openBarSheet(job.action,document.querySelector('.ri-bar-status-button'));
+        showOptionResults(sheet,job.action,job.choices);
+        setBarStatus({state:'idle'});
+    },
+    showFailure() {
+        const job = bar.job;
+        if (!job) return;
+        if (QUICK_ACTION_KINDS[job.kind]?.sheet) {
+            const sheet = openBarSheet(job.action,document.querySelector('.ri-bar-status-button'));
+            showBarFailure(sheet);
+        } else toast('error',`${job.action.title}: ${job.error}`);
+        setBarStatus({state:'idle'});
+    },
+    openQueue(trigger) {
+        openQuickActions(undefined,undefined,trigger);
+        show('pending',undefined,true);
+    },
+    openAll:trigger=>openQuickActions(undefined,undefined,trigger),
+    edit:()=>openBarSettings(),
+    openSettings:()=>openBarSettings(),
+};
 
 function composerLibrarySettings(scope) {
     const saved = app.composerLibrary ||= new Map();
@@ -1088,49 +1098,37 @@ function composerLibrarySettings(scope) {
     return saved.get(scope);
 }
 
+/** Bar pins in order with Move left, Move right and Unpin, plus a Pin list (B3 replaces this with Quick actions, Bar). */
+function barPinEditor() {
+    const host = h('div',{class:'ri-composer-slots'});
+    function draw(focus) {
+        const pins = barPins();
+        const pinned = new Set(composerBar().pins);
+        const add = listQuickActions('',{allKinds:true}).filter(action=>!pinned.has(action.id));
+        host.replaceChildren(...pins.map((action,index)=>actionRow(
+            h('span',{},composerIcon(action.icon || QUICK_ACTION_KINDS[kindOf(action)]?.icon || 'fa-star'),` ${action.title} · ${QUICK_ACTION_KINDS[kindOf(action)]?.name || ''}`),
+            button('Move left',()=>{moveBarPin(action.id,-1);draw([action.id,0]);renderBar();},{disabled:index===0}),
+            button('Move right',()=>{moveBarPin(action.id,1);draw([action.id,1]);renderBar();},{disabled:index===pins.length-1}),
+            button('Unpin',()=>{pinToBar(action.id,false);draw();renderBar();}))),
+        !pins.length && info('Nothing is pinned. Pin a quick action below or from More on the bar.'),
+        add.length && field('Pin a quick action','',select([{value:'',label:'Choose an action'},
+            ...add.map(action=>({value:action.id,label:`${action.title} · ${QUICK_ACTION_KINDS[kindOf(action)]?.name || ''}`}))],'',value=>{
+            if (value) { pinToBar(value,true); draw(); renderBar(); }
+        },{'aria-label':'Pin a quick action'})));
+        if (focus) {
+            const row = host.children[pins.findIndex(action=>action.id===focus[0])];
+            const controls = row?.querySelectorAll('button');
+            (controls?.[1+focus[1]]?.disabled ? controls[2-focus[1]] : controls?.[1+focus[1]])?.focus({preventScroll:true});
+        }
+    }
+    draw();
+    return host;
+}
+
 export function renderComposerSettings() {
     const scope = quickChatIdentity();
     const libraryHost = h('div');
     const library = h('details',{id:'ri-composer-library'},h('summary',{},taskLabels.manage),libraryHost);
-    const slots = h('div',{class:'ri-composer-slots'});
-    function renderSlots() {
-        const options = [{value:'',label:'None'},{value:'suggestions',label:'Generate options immediately'},...Object.entries(families).map(([value,{title:label}])=>({value,label})),
-            ...listQuickActions().map(action=>({value:`action:${action.id}`,label:`${action.title} · ${familyButtons[action.family][0]}`}))];
-        slots.replaceChildren(...shortcutAssignments().map((value,index)=>{
-            const choices = options.some(option=>option.value===value) ? options : [...options,{value,label:'Unavailable saved action'}];
-            const label = `Composer shortcut ${index+1}`;
-            const configured=value==='suggestions' ? suggestionConfig(index) : options.find(option=>option.value===value);
-            const slot=h('details',{id:`ri-composer-slot-${index}`,class:'ri-composer-slot',open:app.composerSlot===index,
-                ontoggle:event=>{
-                    if (event.currentTarget.open) {
-                        app.composerSlot=index;
-                        for(const sibling of slots.querySelectorAll('.ri-composer-slot')) if(sibling!==event.currentTarget) sibling.open=false;
-                    } else if(app.composerSlot===index) app.composerSlot=null;
-                }},
-                h('summary',{},composerIcon(value==='suggestions' ? configured.icon : settings().quickToolbarSuggestions?.[index]?.icon || familyButtons[value]?.[1] || 'fa-star'),
-                    ` Slot ${index+1} · ${configured?.label || 'Unavailable saved action'} · ${value==='suggestions' ? '1 model call' : value ? 'Opens action sheet' : 'Unassigned'}`),field(label,'',select(choices,value,next=>{
-                const assignments = shortcutAssignments();
-                assignments[index] = next;
-                settings().quickToolbarShortcuts = assignments;
-                app.composerSlot=index;
-                saveSettings();
-                renderSlots();
-                slots.querySelector(`[aria-label="${label}"]`)?.focus({preventScroll:true});
-            },{'aria-label':label})),value==='suggestions' ? suggestionSettings(index) : value && field('Icon','',select(
-                [{value:'',label:'Action default'},...iconOptions],settings().quickToolbarSuggestions?.[index]?.icon || '',
-                icon=>saveSuggestionSetting(index,'icon',icon))));
-            return slot;
-        }));
-        if (shortcutAssignments().length<8) slots.append(button('Add composer icon',()=>{
-            settings().quickToolbarShortcuts = [...shortcutAssignments(),'suggestions'];
-            saveSettings();
-            app.composerSlot=shortcutAssignments().length-1;
-            renderSlots();
-            slots.querySelectorAll('.ri-composer-slot select')[shortcutAssignments().length-1]?.focus();
-        }));
-        refreshComposerToolbar();
-    }
-    renderSlots();
     const chat = quickChat();
     const pins = h('div');
     function renderPins(focusKey, direction) {
@@ -1168,7 +1166,7 @@ export function renderComposerSettings() {
             onNavigate:next=>{ management.mode=next; mountLibrary(); },
             onOpenTool:tool=>app.openPage(tool==='Notes'?'sent':'context',{focusPage:true}),
             getPins:()=>scope===quickChatIdentity() ? quickChat()?.pins || [] : [],
-            onChange:()=>{renderSlots(); if (chat && scope===quickChatIdentity()) renderPins();},
+            onChange:()=>{renderBar(); if (chat && scope===quickChatIdentity()) renderPins();},
             onPin:chat && ((...args)=>{if (scope===quickChatIdentity()) pinQuickAction(...args);}),
             onRestore:({family,undoId})=>{
                 if (!chat || scope!==quickChatIdentity()) return;
@@ -1190,9 +1188,9 @@ export function renderComposerSettings() {
     library.addEventListener('toggle',()=>{if (library.open && !libraryHost.firstChild) mountLibrary();});
     return h('section',{id:'ri-composer-settings',class:'ri-section'},
         h('h3',{class:'ri-section-title'},'Composer quick actions'),
-        info('Choose the composer icons and their actions across chats.'),
-        slots,
-        h('details',{id:'ri-composer-families'},h('summary',{},'Actions shown in More'),Object.entries(families).map(([id,{title}])=>
+        info('Pinned quick actions sit on the bar above the message box, in this order. Hold an icon on the bar for the same choices.'),
+        barPinEditor(),
+        h('details',{id:'ri-composer-families'},h('summary',{},'Actions shown in All quick actions'),Object.entries(families).map(([id,{title}])=>
             h('label',{class:'ri-qa-library-check'},h('input',{type:'checkbox',checked:composerMenuFamilies().includes(id),onchange:event=>{
                 const visible = new Set(composerMenuFamilies());
                 if (event.target.checked) visible.add(id);
@@ -1206,34 +1204,10 @@ export function renderComposerSettings() {
 function attachToHost() {
     const input = openComposer();
     if (!input) return;
-    const form = input.closest('#send_form');
-    const anchor = form || input.parentElement;
-    const left = form?.querySelector('#leftSendForm');
-    if (!composerToolbar) {
-        composerShortcuts=h('div',{class:'ri-quick-shortcuts',role:'group','aria-label':'Assigned shortcuts',
-            onfocusin:event=>event.target.scrollIntoView({block:'nearest',inline:'nearest'}),onscroll:()=>updateShortcutOverflow()});
-        composerToolbar = h('div',{id:'ri_quick_toolbar_actions',class:'ri-quick-toolbar',role:'group','aria-label':'Quick actions toolbar'},composerShortcuts,
-            h('button',{type:'button',class:'ri-quick-more','aria-label':'More actions',title:'More actions','aria-haspopup':'dialog',
-                onpointerdown:keepComposerFocus,onclick:event=>openQuickActions(undefined,undefined,event.currentTarget)},composerIcon('fa-ellipsis')));
-        composerOperation=h('div',{class:'ri-composer-operation',hidden:true},
-            h('span',{class:'ri-composer-operation-status',role:'status','aria-live':'polite'}),
-            button('View results',()=>resumeComposerOperation()),button('Cancel request',()=>cancelComposerOperation()),
-            button('Dismiss notice',()=>{const operation=activeOperation(sessions.get(quickChatIdentity()));if(operation) operation.dismissed=true;updateComposerOperation();}));
-        if(globalThis.ResizeObserver) { shortcutResize=new ResizeObserver(updateShortcutOverflow);shortcutResize.observe(composerShortcuts); }
-        composerLauncher = h('button',{class:'ri-quick-entry',type:'button','aria-label':'Quick actions','aria-controls':composerToolbar.id,
-            onpointerdown:keepComposerFocus,onclick:()=>{
-                const st = settings();
-                st.quickToolbarExpanded = st.quickToolbarExpanded !== true;
-                saveSettings();
-                refreshComposerToolbar();
-            }},composerIcon('fa-bolt'));
-    }
-    if (left) {
-        if (composerLauncher.parentElement!==left) left.append(composerLauncher);
-    } else if (composerLauncher.nextElementSibling!==input) input.before(composerLauncher);
-    if (composerToolbar.nextElementSibling!==anchor) anchor.before(composerToolbar);
-    if (composerOperation.nextElementSibling!==composerToolbar) composerToolbar.before(composerOperation);
-    refreshComposerToolbar();
+    // The older bolt button and toolbar row are gone; nothing of the extension stays in #leftSendForm.
+    document.querySelectorAll('#leftSendForm .ri-quick-entry, #ri_quick_toolbar_actions, .ri-composer-operation').forEach(node=>node.remove());
+    mountComposerBar(barRunner);
+    placeBar();
     if (composer!==input) {
         composer=input;
         const capture = () => {
@@ -1246,15 +1220,31 @@ function attachToHost() {
     }
 }
 
+function registerBarCommand() {
+    const host = ctx();
+    const callback = () => { toggleBarHidden(); return ''; };
+    const help = 'Show or hide the Roleplay Instructions quick action bar above the message box.';
+    try {
+        if (host.SlashCommandParser?.addCommandObject && host.SlashCommand?.fromProps) {
+            host.SlashCommandParser.addCommandObject(host.SlashCommand.fromProps({name:'ri-bar',callback,helpString:help}));
+        } else host.registerSlashCommand?.('ri-bar',callback,[],help);
+    } catch (error) { console.warn('Roleplay Instructions could not register /ri-bar.', error); }
+}
+
 export function mountQuickActions() {
+    loadStyles();
+    registerPage({id:'look',group:'setup',label:'Look',help:'Set text, icon and touch-target sizes.',
+        aliases:'size compact comfortable scale text icons touch targets sheet height',withoutChat:true,render:body=>renderLookPage(body)});
+    registerBarCommand();
     knownChat=quickChatIdentity();
     attachToHost();
     restoreHeldRetryDraft();
-    for (const name of ['CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MORE_MESSAGES_LOADED','GENERATION_ENDED']) on(name,attachToHost);
+    for (const name of ['CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MORE_MESSAGES_LOADED','GENERATION_ENDED','MESSAGE_SENT']) on(name,attachToHost);
+    on('GENERATION_STARTED',(type,options,dryRun)=>{ if (!dryRun) setHostGenerating(true); });
+    for (const name of ['GENERATION_ENDED','GENERATION_STOPPED']) on(name,()=>setHostGenerating(false));
     on('CHAT_CHANGED',()=>{
         const next=quickChatIdentity();
         if (next!==knownChat) {
-            stopSuggestions(sessions.get(knownChat)?.suggestions);
             closeSheet({restore:false});
             const old=knownChat;
             const previous=composerDrafts.get(old);
@@ -1266,6 +1256,8 @@ export function mountQuickActions() {
             if (saved) restoreComposer(saved);
             else if (previous?.value && current?.value===previous.value) restoreComposer({value:''});
             restoreHeldRetryDraft();
+            if (bar.job?.running && bar.job.chat!==next) barRunner.stop();
+            setBarStatus({state:'idle'});
         }
         attachToHost();
     });

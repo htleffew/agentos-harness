@@ -10,14 +10,20 @@ import { renderGoals } from './goals.js';
 import { renderCurrentState } from './state.js';
 import { renderWorld } from './world.js';
 import { renderSent, refreshUnderReplies } from './sent.js';
-import { renderSettings } from './settings.js';
+import { renderSettings as baseRenderSettings } from './settings.js';
 import { renderContext } from './context-dashboard.js';
 import { renderCorrections } from './corrections.js';
 import { renderLog } from './log.js';
 import { onLog } from '../log.js';
 import { ctx, confirmBox, isChatOpen } from '../st.js';
 
-import { destination, findDestinations, groups, startingPage, normalizeGroup } from './destinations.js';
+import * as baseNavigation from './destinations.js';
+import { registryView, renderRegistered } from './page-registry.js';
+import { startingPage, normalizeGroup } from './destinations.js';
+// The page registry hook: registered pages join the groups, resolve as destinations and
+// render before the Settings fallback, so page modules never edit this file.
+const { destination, findDestinations, groups } = registryView(baseNavigation);
+const renderSettings = (body, app) => renderRegistered(app.tab, body, app) || baseRenderSettings(body, app);
 import { executionScope } from '../execution.js';
 import { guidedTarget } from '../guided-context.js';
 import { activePreset } from '../v10.js';
