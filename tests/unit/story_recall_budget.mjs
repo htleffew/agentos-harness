@@ -60,6 +60,18 @@ test('includes formatting in both budgets and suppresses chapters covered by a r
     }
 });
 
+test('keeps the newest chapter when two long chapters exceed the story budget', () => {
+    settings().summary.budget = 800;
+    settings().summary.keep = 2;
+    const first = row('chapter','The gate at dusk',{summary:'Hale waited at the gate. '.repeat(70)},{span:{chat:'current',from:1,to:20}});
+    const second = row('chapter','The river crossing',{summary:'The column crossed the river at dawn. '.repeat(45)},{span:{chat:'current',from:21,to:40}});
+    const notes = buildNotes([first,second],'normal',{budget:4000,lookback:4},{chapters:true});
+    assert.ok(notes.ids.includes(second.uid), 'newest chapter reaches the request');
+    assert.match(notes.text,/crossed the river/);
+    assert.ok(notes.text.indexOf('The gate at dusk') < 0 || notes.text.indexOf('The gate at dusk') < notes.text.indexOf('The river crossing'),
+        'chapters stay in story order');
+});
+
 test('Memory only sends a stored fact whose record holds an empty alias list', () => {
     const data = JSON.stringify({kind:'fact',subject:'Mira',aliases:[],text:'Mira owes the ferryman two silver marks.'});
     const fact = row('fact','Mira debt',{data});

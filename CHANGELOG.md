@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed the newest chapter dropping out of the story so far once two long chapter summaries filled its budget. The newest chapter is placed first and an older kept chapter is shortened to the room left, in story order.
 - Fixed Memory only sending no saved facts. A stored fact with an empty alias list was read as that list, so every fact was skipped; facts now reach the request when their subject is in the scene.
 - Moved Quick actions to a collapsible rail above the composer. It remembers the display preference and gives direct access to steering and drafting. The draft editor shows choice and draft costs beside the direction field.
 - Added 30-day fantasy calendar rollover from Deepwinter through Frostfall. The scene editor, reply header, and ordinary reply context use the named story date.

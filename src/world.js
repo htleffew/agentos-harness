@@ -420,9 +420,9 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
         const story = section('The story so far');
         const sRoom = Math.max(100, Math.round(Number(sum.budget) || 800)) * 4;
         let sUsed = 0;
-        const put = (w, text) => {
+        const put = (w, text, { trim = false } = {}) => {
             const space = sRoom - sUsed - overhead(story);
-            if (space < 40 || (sUsed && space < text.length)) return false;
+            if (space < 40 || (sUsed && !trim && space < text.length)) return false;
             const excerpt = short(text,space);
             sUsed += excerpt.length + overhead(story);
             story.lines.push(`- ${excerpt}`);
@@ -448,7 +448,11 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
         const includedRollups = chapters.filter(w => w.rollup && put(w, renderEntry(rollTitle(w))));
         const covered = row => includedRollups.some(roll => row.span?.chat && row.span.chat === roll.span?.chat &&
             row.span.from >= roll.span.from && row.span.to <= roll.span.to);
-        for (const w of newest) if (!covered(w)) put(w, renderEntry(w));
+        // Fill newest first so the latest chapter always fits; an older kept chapter is shortened to the room left.
+        // The lines are then put back in story order.
+        const firstRecent = story.lines.length;
+        for (const w of [...newest].reverse()) if (!covered(w)) put(w, renderEntry(w), { trim:true });
+        story.lines.splice(firstRecent, Infinity, ...story.lines.slice(firstRecent).reverse());
         const sceneText = `${scene.present} ${scene.location} ${recent}`;
         let pickedOlderChapter = false;
         for (const w of chapters.filter(x => !x.rollup && !newest.includes(x) && !covered(x)).reverse()) {
