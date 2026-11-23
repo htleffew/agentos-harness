@@ -526,7 +526,7 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
         const facts = section('Relevant facts');
         const evidence = `${scene.present} ${scene.location} ${recent}`;
         for (const entry of by('fact')) {
-            const fact = parseJson(entry.fields.data);
+            const fact = parseJson(entry.fields.data,{object:true});
             if (fact?.kind !== 'fact' || typeof fact.text !== 'string') continue;
             const names = [fact.subject,...(Array.isArray(fact.aliases) ? fact.aliases : [])].filter(x=>typeof x==='string' && x.trim());
             const title = String(entry.name || '').replace(/[-_]/g,' ');

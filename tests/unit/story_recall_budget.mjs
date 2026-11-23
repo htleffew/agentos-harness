@@ -59,3 +59,11 @@ test('includes formatting in both budgets and suppresses chapters covered by a r
         chat[0].extra.roleplay_instructions.scene = savedScene;
     }
 });
+
+test('Memory only sends a stored fact whose record holds an empty alias list', () => {
+    const data = JSON.stringify({kind:'fact',subject:'Mira',aliases:[],text:'Mira owes the ferryman two silver marks.'});
+    const fact = row('fact','Mira debt',{data});
+    const notes = buildNotes([fact],'normal',{budget:400,lookback:4},{chapters:false,memory:true});
+    assert.ok(notes.ids.includes(fact.uid));
+    assert.match(notes.text,/two silver marks/);
+});

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed Memory only sending no saved facts. A stored fact with an empty alias list was read as that list, so every fact was skipped; facts now reach the request when their subject is in the scene.
 - Moved Quick actions to a collapsible rail above the composer. It remembers the display preference and gives direct access to steering and drafting. The draft editor shows choice and draft costs beside the direction field.
 - Added 30-day fantasy calendar rollover from Deepwinter through Frostfall. The scene editor, reply header, and ordinary reply context use the named story date.
 - Unified chat and panel navigation with Find a tool, page headings, contextual links and return focus. Added exact-reply review and scoped recovery for interrupted panel edits.
@@ -254,7 +255,7 @@
 
 - Scene lines: every reply is asked for who is present, where and when, with or without a story world, in the same
   block the extension already asks for. They are kept on the reply and read first for who is present, so the story
-  notes, event conditions, the quiet-character order and the dice work the same under any preset, and presets can
+  notes, event conditions, the silent-character order and the dice work the same under any preset, and presets can
   be switched in the middle of a chat.
 - A scene card under each reply (When, Where, Present), shown only under replies that have no tracker of their own
   unless set to always. Settings > Scene.
@@ -331,7 +332,7 @@ Version 5, sixth step: pacing and style.
 - Settings > What the AI writes for you: rules given to the AI writer in plain words, and a word list that flags
   unwanted words where you review text. Both are yours to change.
 - The lists a new writing style set starts with were reworded in plain language.
-- What Was Sent shows the story phase, why a reply was kept quiet, and the answers to the style's questions.
+- What Was Sent shows the story phase, why a reply was kept silent, and the answers to the style's questions.
 
 ## 5.4.0 (2026-11-16)
 
