@@ -3,6 +3,7 @@ import { settings, saveSettings, chatState, saveChatState } from './store.js';
 import { activePreset, prefs, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
 import { FEATURES, FEATURE_KEYS, MEMORY_FEATURES, DEFAULT_SIDE, isSide, startingSwitches, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
 import { readMarker, makeMarker } from './preset-loadouts.js';
+import { savedWordingOf } from './preset-bank-ri.js';
 import { currentBank, refreshBank, stackFor, stackPlan, ownersFromStack, useBankLibrary, presetSource, SOURCE_BASE, SOURCE_COMPANION, SOURCE_RI } from './preset-bank.js';
 
 const own = (obj,key) => obj && Object.hasOwn(obj,key) ? obj[key] : undefined;
@@ -421,9 +422,10 @@ export function syncOwners(context = switchContext(), work = undefined) {
     if (!plan) wanted = Object.fromEntries([...switched].map(key => [key, ownerFor(switches[key])]));
     else {
         // Her versions of an extension card are sent as inserted blocks; the owner follows the extension's own card.
-        const cards = plan.filter(item => item.source === SOURCE_RI);
+        // Her saved wording of a feature counts as the feature's card being in the stack (B31).
+        const cards = plan.filter(item => item.source === SOURCE_RI || savedWordingOf(item));
         const fromStack = ownersFromStack(cards);
-        const placed = new Set(cards.map(item => item.id));
+        const placed = new Set(cards.map(item => item.source === SOURCE_RI ? item.id : item.versionOf));
         wanted = Object.fromEntries(FEATURE_KEYS.map(key => [key,
             switched.has(key) && switches[key] === 'theirs' ? 'preset' : placed.has(key) ? fromStack[key] : 'both']));
         // The companion pairs its own scene checks with the extension's (hostSceneChecks reads an explicit 'both' on
@@ -559,7 +561,8 @@ export function workingCopyChanges(data, work, off = []) {
     const flagged = new Set(out.flags.map(flag => flag.entry));
     for (const entry of order) if (off.includes(entry.identifier) && entry.enabled === true && !flagged.has(entry)) out.flags.push({ entry, value: false });
     // Her versions of the extension's cards go with the RI group, at the placement the card carries (depth 0 at the end).
-    for (const item of work.plan.filter(entry => entry.group === 'ri' && entry.source !== SOURCE_RI && entry.on)) {
+    // Her saved wording of a feature is part of the extension's own group (B31), so it is not inserted here as well.
+    for (const item of work.plan.filter(entry => entry.group === 'ri' && entry.source !== SOURCE_RI && entry.on && !savedWordingOf(entry))) {
         const identifier = freeId(item.sendId || item.key, used);
         out.inserts.push(insertedPrompt(item, identifier));
         out.order.push({ identifier, enabled: true });

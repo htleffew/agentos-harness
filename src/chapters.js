@@ -1111,7 +1111,8 @@ function closeRules() {
 export function chapterSize() {
     const manual = settings().summary?.size;
     let context = 0;
-    try { context = Number(ctx().maxContext) || 0; } catch { /* no host */ }
+    // on Chat Completion the Chat Completion context size applies, not the text completion one
+    try { const c = ctx(); context = Number(c.mainApi === 'openai' ? c.chatCompletionSettings?.openai_max_context : c.maxContext) || Number(c.maxContext) || 0; } catch { /* no host */ }
     const key = SF.SIZE_CLASSES[manual] ? manual : SF.sizeClass(context);
     return { key, ...SF.SIZE_CLASSES[key], context };
 }

@@ -124,10 +124,19 @@ export function promptDefinition(id) {
     return voice ? define(voice.name,voice.text,[],'This voice has its own original direction and variations.') : null;
 }
 
+// While a builder runs under the 'clean' variant, promptText reads the shipped default and ignores her stored override (B31:
+// the extension's clean card sends the shipped wording and her version sends the stored one).
+let variant = 'stored';
+export function withPromptVariant(name, build) {
+    const before = variant;
+    variant = name === 'clean' ? 'clean' : 'stored';
+    try { return build(); } finally { variant = before; }
+}
+
 export function promptText(id, values = {}) {
     const def = promptDefinition(id);
     if (!def) throw new Error(`Unknown prompt: ${id}`);
-    const saved = settings().prompts?.[id];
+    const saved = variant === 'clean' ? null : settings().prompts?.[id];
     const template = typeof saved?.text === 'string' && !validatePrompt(id, saved.text) ? saved.text : def.text;
     return template.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (all, key, offset, input) => {
         // Do not alter SillyTavern's {{char}} and {{user}} macros.

@@ -4,9 +4,10 @@ import { conflictSection } from './preset-conflicts.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
 import { ctx } from '../st.js';
-import { saveChatState } from '../store.js';
 import { estimateTokens } from '../context-budget.js';
-import { moduleOrder, MODULE_PROMPTS } from '../module-layout.js';
+import { MODULE_PROMPTS } from '../module-layout.js';
+import { currentBank, refreshBank, stackPlan, stepCard, includeCards, excludeCards, SOURCE_RI } from '../preset-bank.js';
+import { riStack, savedWordingOf } from '../preset-bank-ri.js';
 import { activePreset, prefs, MODULES, enabledV10, blockCompanions, stripPresetComments } from '../v10.js';
 import { FEATURES, plainName } from '../preset-library.js';
 import { presetRows, hasPresetEdit, editPresetBlock, presetBlockRevision, presetBlockVariation,
@@ -236,31 +237,38 @@ export function presetBlockEditor(preset,app,profile) {
         const on=group.rows.filter(block=>block.enabled).length;
         return h('fieldset',{class:'ri-ps-pick'},h('legend',{},`Pick one: ${group.name}`),on>1 && chip(`${on} on at once`,'conflict'),radios);
     }
-    function orderEditor() {
-        const local=prefs(), order=moduleOrder(local.moduleOrder);
-        const editor=h('details',{open:ui.orderOpen},h('summary',{},'Extension prompt order'));
+    // The extension's own cards in the stack (A11 c.5, B31): their order is the order of feature guidance in the next request.
+    function riCards() {
+        const editor=h('details',{open:ui.orderOpen},h('summary',{},'Extension cards'));
         editor.ontoggle=()=>ui.orderOpen=editor.open;
-        editor.append(hint('For this chat, choose the order of feature guidance within the Structured request and its update format. Each feature runs when its conditions apply.'));
-        const factory=moduleOrder();
-        function saveOrder(next) {
-            if(next.every((key,i)=>key===factory[i])) delete local.moduleOrder;
-            else local.moduleOrder=next;
-            saveChatState();redraw();
-        }
-        order.forEach((key,i)=>{
-            const move=delta=>{
-                const next=order.slice();next.splice(i+delta,0,...next.splice(i,1));saveOrder(next);
-            };
-            const moved=local.moduleOrder && i!==factory.indexOf(key);
-            const restorePosition=()=>{
-                const next=order.filter(item=>item!==key);
-                next.splice(factory.indexOf(key),0,key);saveOrder(next);
-            };
-            editor.append(expandOnce(h('details',{class:'ri-card ri-tight',open:ui.orderKey===key,ontoggle:event=>{
-                if(event.target.open)ui.orderKey=key;else if(ui.orderKey===key)ui.orderKey=null;
-            }},h('summary',{},(FEATURES[key]?.label || MODULES[key])+(moved ? ' · Order changed' : '')),btns(moved && button('Restore position',restorePosition),button('Move earlier',()=>move(-1),{disabled:i===0}),button('Move later',()=>move(1),{disabled:i===order.length-1}))),()=>extensionEditors(key,profile)));
+        editor.append(hint('Roleplay Instructions sends these cards after your preset blocks, in this order. The wording you saved on the Prompts page is a second card beside the shipped one; send either or both.'));
+        let bank, stack;
+        try { bank=currentBank() || refreshBank('presets'); stack=riStack(bank,preset); } catch { stack=null; }
+        if(!stack) { editor.append(hint('The block stack for this preset is not available yet.')); return editor; }
+        const plan=stackPlan(bank,stack,preset).filter(item=>item.group==='ri');
+        const act=change=>{ try { change(); } catch (error) { message(error.message || String(error)); } redraw(); };
+        plan.forEach((item,i)=>{
+            const feature=item.source===SOURCE_RI ? item.id : item.versionOf;
+            const wording=!!savedWordingOf(item);
+            const title=(FEATURES[feature]?.label || MODULES[feature] || item.name)+(wording ? ' · Your wording' : '');
+            editor.append(expandOnce(h('details',{class:'ri-card ri-tight','data-ri-card':item.key,open:ui.orderKey===item.key,ontoggle:event=>{
+                if(event.target.open)ui.orderKey=item.key;else if(ui.orderKey===item.key)ui.orderKey=null;
+            }},h('summary',{},title,chip(item.on ? 'On' : 'Left out',item.on ? 'on' : ''),
+                    h('small',{class:'ri-ps-meta'},`About ${item.tokens} tokens`)),
+                btns(button(item.on ? 'Take out' : 'Put back',()=>act(()=>(item.on ? excludeCards : includeCards)(bank,stack.key,[item.key],{base:preset}))),
+                    button('Move earlier',()=>act(()=>stepCard(bank,stack.key,item.key,-1,{base:preset})),{disabled:i===0}),
+                    button('Move later',()=>act(()=>stepCard(bank,stack.key,item.key,1,{base:preset})),{disabled:i===plan.length-1}))),
+                ()=>extensionEditors(feature,profile)));
         });
-        if(local.moduleOrder) editor.append(button('Restore extension order',()=>{delete local.moduleOrder;saveChatState();redraw();}));
+        // A feature that was off when the stack was made has no card in it; it follows its Features switch. It is still listed
+        // here, so its prompts (and the Roast voice link) stay reachable.
+        const carded=new Set(plan.map(item=>item.source===SOURCE_RI ? item.id : item.versionOf));
+        for (const feature of Object.keys(FEATURES).filter(key=>!carded.has(key))) {
+            editor.append(expandOnce(h('details',{class:'ri-card ri-tight','data-ri-feature':feature},
+                h('summary',{},FEATURES[feature].label,chip('Follows Features','')),
+                hint('This feature has no card in the stack, so it is sent as its switch in Setup, Features sets it.')),
+                ()=>extensionEditors(feature,profile)));
+        }
         return editor;
     }
     function build() {
@@ -314,7 +322,7 @@ export function presetBlockEditor(preset,app,profile) {
                 button('Add to end of preset',()=>run(async()=>{
                     const id=crypto.randomUUID?.() || 'ri-'+Date.now().toString(36)+Math.random().toString(36).slice(2);
                     await editPresetBlock(preset,id,{type:'add',name:title.value,content:text.value});ui.current=id;ui.query=ui.newName=ui.newText='';
-                },'Added an enabled system block.'))),prefs() && enabledV10() ? orderEditor() : null,conflictSection({preset}),label('Find a preset block',filter),list].filter(Boolean));
+                },'Added an enabled system block.'))),prefs() && enabledV10() ? riCards() : null,conflictSection({preset}),label('Find a preset block',filter),list].filter(Boolean));
         body.inert=!!ui.busy;
     }
     details.append(h('summary',{},`Preset blocks (${presetRows().filter(row=>row.listed && !isHeading(row)).length})`),status,body);

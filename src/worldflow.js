@@ -20,7 +20,7 @@ import { addLog } from './log.js';
 import { rollInt, pickWeighted, setInfo, entriesOf, createSet, freeUid, knownSets } from './books.js';
 import { worldOffers, rememberStory } from './pacing.js';
 import { showAgain, hideAgain, messageMark } from './hide.js';
-import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, isWorldEntry, readWorldEntry, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall } from './world.js';
+import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, isWorldEntry, readWorldEntry, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall, scenePresence } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
 export const ORDER_WORLD = 'Story world';
@@ -48,7 +48,7 @@ function synthetic(world, comment, content, depth) {
 }
 export const askEntry = text => synthetic(ASK_WORLD, 'Story update request', text, 0);
 export const orderEntry = () => synthetic(ORDER_WORLD, 'Story world', 'story world', 1);
-export const paceEntry = text => synthetic(PACE_WORLD, 'Story phase', text, 2);
+export const paceEntry = text => synthetic(PACE_WORLD, 'Story phase', text, 1);
 export const diceEntry = () => synthetic(DICE_WORLD, 'Dice', 'dice', 1);
 
 /** True when the newest message from the user starts out of character, as in "(OOC: ...)". */
@@ -515,13 +515,14 @@ export function silentCharacter(list, present, type = 'normal') {
     let end = chat.length;
     if (type === 'swipe' || type === 'continue') end -= 1;
     const back = [];
-    for (let i = end - 1; i >= 1 && back.length < need; i--) { const m = chat[i]; if (isReply(m)) back.push(m); }
+    for (let i = end - 1; i >= 1 && back.length < need; i--) { const m = chat[i]; if (isReply(m)) back.push({ m, i }); }
     if (back.length < need) return null;
     const user = norm(names().user);
     const here = present.map(norm);
     for (const w of list.filter(x => x.on && x.kind === 'character' && here.includes(norm(x.name)) && norm(x.name) !== user)) {
-        const silent = back.every((m) => {
-            const was = (m.extra?.[KEY]?.items || []).find(it => it.notes)?.notes?.present || [];
+        const silent = back.every(({ m, i }) => {
+            // Present while this reply was written: the scene as the reply before it left it.
+            const was = scenePresence(list, type, { end: i });
             return was.map(norm).includes(norm(w.name)) && !namedIn(String(m.mes || '').replace(HUD_BLOCKS, ' '), w);
         });
         if (silent) return { w, replies: need };
@@ -607,10 +608,12 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, 
     const eligible = list.filter(row=>policy(row).on);
     const ooc = isOocTurn();
     const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
-    const order = ooc || (native && !opportunities) ? null : rollOrder(eligible, notes?.present || [], meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
+    // Who is present comes from the notes when they go out, and from the scene itself when memory has retired them (MB5).
+    const present = notes?.present || scenePresence(list, type);
+    const order = ooc || (native && !opportunities) ? null : rollOrder(eligible, present, meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
     if (order) order.text = promptText('worldOrder', { order: order.text });
     // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene.
-    return { id, notes, order, offers: worldOffers(eligible, notes?.present || [], meta) };
+    return { id, notes, order, offers: worldOffers(eligible, present, meta) };
 }
 
 // ---------- after the reply ----------

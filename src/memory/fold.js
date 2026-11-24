@@ -16,7 +16,7 @@ export const OPS = Object.freeze(['add', 'revise', 'supersede', 'retire', 'merge
 export const ORIGINS = Object.freeze(['capture', 'chapter', 'upkeep', 'catch-up', 'carry-over', 'import', 'inference', 'you']);
 export const RANGE_KINDS = Object.freeze(['chapter', 'condensed', 'arc']);
 export const OUT_OF_FORCE = Object.freeze(['retired', 'replaced', 'merged']);
-const TEXT_MAX = 300, RANGE_MAX = 4000, REASON_MAX = 160, QUOTE_MAX = 200;
+const TEXT_MAX = 300, MERGE_MAX = 600, RANGE_MAX = 4000, REASON_MAX = 160, QUOTE_MAX = 200;
 
 /** A short mark for a text (FNV-1a, 32 bits, 8 hex digits), the same function as the queue's revOf. */
 export function hashText(text) {
@@ -136,11 +136,11 @@ const clip = (text, max) => {
 const isSource = value => value && typeof value === 'object' && typeof value.mark === 'string' && value.mark;
 const readSource = value => ({ mark: String(value.mark), ...(Number.isInteger(value.swipe) ? { swipe: value.swipe } : {}), ...(value.hash ? { hash: String(value.hash) } : {}) });
 
-function readRecordInput(record) {
+function readRecordInput(record, op = '') {
     if (!record || typeof record !== 'object') return null;
     const out = structuredClone(record);
     if (out.id !== undefined) out.id = String(out.id);
-    if (out.text !== undefined) out.text = clip(out.text, RANGE_KINDS.includes(out.kind) ? RANGE_MAX : TEXT_MAX);
+    if (out.text !== undefined) out.text = clip(out.text, RANGE_KINDS.includes(out.kind) ? RANGE_MAX : op === 'merge' ? MERGE_MAX : TEXT_MAX);
     if (out.importance !== undefined) out.importance = Math.max(1, Math.min(10, Math.round(Number(out.importance) || 5)));
     if (out.holders !== undefined && out.holders !== null) out.holders = [].concat(out.holders).map(String);
     if (out.aliases !== undefined) out.aliases = [].concat(out.aliases || []).map(String);
@@ -170,7 +170,7 @@ export function makeEntry(input, { seq, at }) {
         id: String(input.id || `e${Number(at).toString(36)}${Number(seq).toString(36)}`),
         op: input.op,
         target: [].concat(input.target || []).filter(item => item !== undefined && item !== null && item !== '').map(String),
-        record: readRecordInput(input.record),
+        record: readRecordInput(input.record, input.op),
         evidence: [].concat(input.evidence || []).filter(Boolean).slice(0, 3).map(quote => ({
             ...(quote.mark ? { mark: String(quote.mark) } : {}), ...(Number.isInteger(quote.swipe) ? { swipe: quote.swipe } : {}), quote: clip(quote.quote, QUOTE_MAX),
         })),

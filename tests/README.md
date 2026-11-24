@@ -57,6 +57,8 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_guided_quick_turns.js` | browser | legacy |
 | `t_home_links.js` | browser | B28 |
 | `t_import.js` | browser | legacy |
+| `t_inject.js` | node (the converter row needs RI_ST_DIR) | MB5 |
+| `t_inject_host.js` | browser | MB5 |
 | `t_integration.js` | browser | legacy |
 | `t_loadouts.js` | node | B12 |
 | `t_log.js` | browser | legacy 4.1.0 |
@@ -67,10 +69,12 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_message_menu.js` | node | B4 |
 | `t_message_menu_touch.js` | browser | B4 |
 | `t_misc.js` | browser | legacy |
+| `t_module_ownership.js` | browser | B39 |
 | `t_native.js` | browser | legacy |
 | `t_pace.js` | browser | legacy 5.5 |
 | `t_page_moves.js` | browser | B6 |
 | `t_preset_bank.js` | node | B29 |
+| `t_preset_bank_ri.js` | node | B31 |
 | `t_preset_both.js` | node | B24 |
 | `t_preset_checks.js` | node | B33 |
 | `t_preset_cleanup.js` | node | B18 |
@@ -86,17 +90,23 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_reply_tray.js` | node | B10 |
 | `t_results_sheet.js` | browser | B2 |
 | `t_reusable_books.js` | browser | legacy |
+| `t_ri_cards.js` | browser | B31 |
 | `t_routing.js` | node | MB1 |
 | `t_scene_header.js` | node | B10 |
+| `t_search.js` | node (real-model rows need RI_TRANSFORMERS_NODE) | MB4 |
+| `t_search_host.js` | browser | MB4 |
 | `t_shared.js` | browser | legacy 5.1 |
 | `t_shell_followups.js` | browser | B25 |
 | `t_shots.js` | browser | legacy |
 | `t_spend_ceiling.js` | node | B19 |
 | `t_story_so_far.js` | node | MB6 |
+| `t_upkeep.js` | node (fixture tests skip without docs/) | MB7 |
+| `t_upkeep_browser.js` | browser | MB7 |
 | `t_style.js` | browser | legacy |
 | `t_ui2.js` | browser | legacy |
 | `t_v10.js` | browser | legacy |
 | `t_v5.js` | browser | legacy 5.0 |
+| `t_world_notes.js` | browser | B39 |
 | `unit\branch_failure.mjs` | node | legacy |
 | `unit\companion_preset.mjs` | node | B15 |
 | `unit\components_css.mjs` | node | B8 |
@@ -152,6 +162,9 @@ The rows below describe the suites by behavior. Navigation in the older browser 
 | `t_guided_chat_ownership.js` | Delayed drafts and native cancellation across chat switches, exact native Undo, stale historical edit protection, and five-reply countdown isolation and Stop. It uses the same `RI_GUIDED_PRESET` and `RI_GUIDED_CAPTURE` settings. |
 | `t_extension_ui_audit.js` | Every page of every nested tab, sideways overflow and reachable disclosures at each width, the power switch and Escape. Use `RI_PANEL_WIDTHS=320,390 RI_PANEL_HEIGHT=475` for the reduced phone areas and `RI_PANEL_TEXT_SCALE=2` for the enlarged-text pass. |
 | `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |
+| `t_preset_bank_ri.js` | B31: one RI card per feature with the shipped default, her saved wording as a version equal to the stored prompt text, the stack reading (clean, wording, both, neither), the order of the RI group and the one-time read of the old module order, the owners, and the companion as a source and as a base. Runs with `node --test`, no host needed |
+| `t_ri_cards.js` | B31 on a host: the order of the RI cards in the stack is the order of the guidance in the request the mock logged, the old module order is read once with every card still on, and the request carries the clean wording, her saved wording, both (clean first) or neither as the stack says |
+| `t_inject_host.js` | MB5 at 523 x 1021 and 1006 x 909 with touch: the request layout in the payload the mock logged (memory notes in the prefix, the chapter view above the history, the recall block at depth 1, the reminder at depth 0, no story notes), two consecutive requests compared, Story state and Dice on Theirs, a Tracker book card, the three upkeep exclusions, and a 4,095-token context with the red mark and Review, Context. Set `RI_EVIDENCE` for screenshots. |
 | `t_reply_cards.js` | The card catalog against the DESIGN.md 6.2 and 6.3 tables, defaults, switches and the capture field list, the shared templates, carried values and the card builder. Runs with `node --test`, no host needed |
 | `unit/context_v9.mjs` | Text estimates, partial matching, non-text handling and chat isolation |
 | `t_engine1.js` | Sending, version cycling, the record, check done, overdue, final, stop |
@@ -177,6 +190,8 @@ The rows below describe the suites by behavior. Navigation in the older browser 
 | `t_v5.js` | 5.0: the cap on new things per reply across sets and the goal, only once per chat, story event items that retire |
 | `t_log.js` | 4.1: {{user}} flags that never block, the narrowed check, failure reasons, the retry with more room, the Log tab, the line about {{user}} said once per reply |
 | `t_native.js` | Shows World Info's own timers freezing when it is handed a window of messages (extension off) |
+| `t_module_ownership.js` | B39: the relationships module on Theirs, Ours and Both, read from the reply and capture requests in the mock log. The preset's block follows the switch in the reply; the reply carries no filing rule or update block (MB3); capture asks the Relationships fields on Ours and Both and none on Theirs; the module switched off removes both. Each reply has its own wording, because two identical replies in the same minute share a capture mark. |
+| `t_world_notes.js` | B39: the story notes block in the reply request under the smallest room (100 tokens: the person in the scene in short form, the entries within about 400 characters) and under each placement (depth 4, after the card with the lorebook entries, before the card). It finds the block by its opening text and position, named once at the top; MB5 retires the depth-4 block, and the ticket that follows updates those names. |
 
 Set `RI_WINDOW=6` to run any script with World Info handed only the last 6 messages. This needs the small test
 extension in `tests/ri-window/` copied into SillyTavern's extensions folder.

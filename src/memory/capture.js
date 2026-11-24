@@ -588,7 +588,8 @@ export async function startCapture({ modules = () => ({}) } = {}) {
     const H = await hostParts();
     const queue = H.queue.desktopQueue();
     queue.handle('capture', {
-        run: (job, { signal }) => runCapture(job.payload?.indices || [], { signal, modules: modules() }),
+        // a feature on Theirs still has its changes filed from the reply (memory DESIGN 5.4)
+        run: async (job, { signal }) => runCapture(job.payload?.indices || [], { signal, modules: await (await import('./inject.js')).hostCaptureModules(modules()) }),
         commit: async () => {},   // runCapture commits each exchange itself, against the revision it read
         saved: () => false,
     });
@@ -597,6 +598,8 @@ export async function startCapture({ modules = () => ({}) } = {}) {
         const due = dueNow(chat, { mode: captureEvery(H.store.settings(), fields) });
         return due.length ? [captureJob(chat, due, chatId, H.queue.desktopModelFor('capture'))] : [];
     });
+    // Upkeep (MB7) runs level 0 after each committed capture and owns the Tidy jobs.
+    await (await import('./upkeep.js')).startUpkeep();
 }
 
 /** Queue the capture a reply needs now. Resolves with { job, pending } once queued; pending ends when that capture ends. */

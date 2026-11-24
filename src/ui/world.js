@@ -239,9 +239,9 @@ export function storyNotesFields(app) {
     const o = settings().world;
     const save = () => { saveSettings(); app.render(); };
     return [
-        field('Where the notes are placed', o.place === 'depth' ? 'In the chat, a few messages up from the end. Works with every preset.' : 'With the World Info entries of the preset. The preset must have that World Info marker, or the notes are dropped.',
-            select([{ value: 'depth', label: 'In the chat, a few messages up' }, { value: 'after', label: 'With the World Info entries after the character' }, { value: 'before', label: 'With the World Info entries before the character' }], o.place, (v) => { o.place = v; save(); })),
-        o.place === 'depth' ? field('How many messages up', '0 is the very end of the chat.', numberInput(o.depth, { min: 0, max: 20, unit: 'messages' }, (n) => { o.depth = n; save(); })) : null,
+        field('Where the notes are placed', o.place === 'depth' ? 'In the chat, above your last message. Works with every preset. A chat whose memory lives in chat data sends recall instead of these notes.' : 'With the World Info entries of the preset. The preset must have that World Info marker, or the notes are dropped.',
+            select([{ value: 'depth', label: 'In the chat, above your last message' }, { value: 'after', label: 'With the World Info entries after the character' }, { value: 'before', label: 'With the World Info entries before the character' }], o.place, (v) => { o.place = v; save(); })),
+        o.place === 'depth' ? field('How many messages up', '0 is the very end of the chat, 1 is above your last message. A deeper place costs the prompt cache more messages each turn.', numberInput(Math.min(1, Number(o.depth ?? 1)), { min: 0, max: 1, unit: 'messages' }, (n) => { o.depth = n; save(); })) : null,
         field('Messages read for names', 'When the reply has no scene header or HUD, people named in this many recent messages count as present. Other entries named there are added while room is left.',
             numberInput(o.lookback, { min: 1, max: 20, unit: 'messages' }, (n) => { o.lookback = n; save(); })),
     ];

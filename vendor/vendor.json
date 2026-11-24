@@ -1,0 +1,96 @@
+{
+  "note": "Runtime libraries of the search (memory DESIGN 4). Versions are pinned and each file is checked by tests/t_search.js. Downloads come from npm or jsDelivr only.",
+  "libraries": [
+    {
+      "name": "transformers.js",
+      "version": "4.3.2",
+      "license": "Apache-2.0",
+      "source": "https://registry.npmjs.org/@huggingface/transformers/-/transformers-4.3.2.tgz",
+      "use": "Runs the search model in the page (dist/transformers.min.js).",
+      "files": [
+        {
+          "path": "transformers/transformers.min.js",
+          "bytes": 587917,
+          "sha256": "8b5a3171f8876bab2b1820a7d65eb87628e3d30bb5ea85b9dd398e76eb34decb"
+        },
+        {
+          "path": "transformers/LICENSE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ]
+    },
+    {
+      "name": "onnxruntime-web",
+      "version": "1.31.0-dev.20260914-8d85527a0",
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.31.0-dev.20260914-8d85527a0.tgz",
+      "use": "The WebAssembly runtime transformers.js 4.3.2 pins. The plain build is shipped (CPU, one thread), which is the file transformers.js asks for on a device without WebGPU. It is stored gzipped (3.7 MB against 14.3 MB, the repository limit for one file is 10 MB) and expanded in the page with the browser gunzip.",
+      "files": [
+        {
+          "path": "transformers/ort-wasm-simd-threaded.mjs",
+          "bytes": 24381,
+          "sha256": "c57ca56328877353a575e51bbca6f18450027d6c9bf2307a2cb2c41363b4de9f"
+        },
+        {
+          "path": "transformers/ort-wasm-simd-threaded.wasm.gz",
+          "bytes": 3695787,
+          "sha256": "604892b9aa1ca0ec7402313fab58b0f7bb13de702aa38a0cca7f9060137d9f7c",
+          "uncompressedSha256": "06ba057753da3847e4c24f02d91ab133455b0817c69a44993a9a53a2146df9e3",
+          "uncompressedBytes": 14264838
+        },
+        {
+          "path": "transformers/LICENSE-onnxruntime.txt",
+          "bytes": 1073,
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+        }
+      ]
+    },
+    {
+      "name": "minisearch",
+      "version": "7.2.0",
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/minisearch/-/minisearch-7.2.0.tgz",
+      "use": "The word index (BM25) over units (dist/es/index.js).",
+      "files": [
+        {
+          "path": "minisearch/index.js",
+          "bytes": 78014,
+          "sha256": "0393b3ba253b809d5e55707c7b0875ef9b518a296a006c6739b28876e154edb3"
+        },
+        {
+          "path": "minisearch/LICENSE.txt",
+          "bytes": 1051,
+          "sha256": "70d37354d6395629fb99edb28cb37a5d356ffa24a48cd02a5def5b83a300a899"
+        }
+      ]
+    },
+    {
+      "name": "stemmer",
+      "version": "2.0.1",
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/stemmer/-/stemmer-2.0.1.tgz",
+      "use": "The Porter stemmer the word index applies to terms.",
+      "files": [
+        {
+          "path": "stemmer/index.js",
+          "bytes": 4210,
+          "sha256": "154936155f541e1dca18bb75f0fe47c5d881f7b68b2953d92bd33254aca5cc39"
+        },
+        {
+          "path": "stemmer/license",
+          "bytes": 1099,
+          "sha256": "9966260ba3ea9d6a5f839297dca80ddc99735a34b4ae82811cac7b956d2e3afd"
+        }
+      ]
+    }
+  ],
+  "model": {
+    "id": "Xenova/all-MiniLM-L6-v2",
+    "dtype": "q8",
+    "license": "Apache-2.0",
+    "bytes": 22434000,
+    "source": "https://huggingface.co/Xenova/all-MiniLM-L6-v2",
+    "note": "Not shipped. It downloads once from Hugging Face on first use and is cached in the page database (src/memory/embed.js)."
+  }
+}

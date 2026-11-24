@@ -1,9 +1,8 @@
 // The device database (memory DESIGN 2.1): only what can be rebuilt from chat data. Each item is keyed by a hash of
 // the text it was made from, so a branch reuses its parent's items and clearing the database costs a rebuild and
-// nothing else. Today it holds the word index of each record; MB4 adds vectors under the same rule. The fold is cached in
+// nothing else. It holds the search vectors of MB4; the word index is MiniSearch, built in memory from the fold (src/memory/index.js). The fold is cached in
 // memory under a key of every message's text hash and the log's length (fold.js). The job queue keeps its own tables
 // (queue.js).
-import { canonical, hashText } from './fold.js';
 
 const NAME = 'roleplay_instructions_memory_items';
 const TABLE = 'items';
@@ -52,42 +51,3 @@ export function deviceItems({ name = NAME, idb = globalThis.indexedDB } = {}) {
 
 let shared = null;
 export const deviceDb = () => shared ||= deviceItems();
-
-// ---------------------------------------------------------------- word index
-
-const STOP = new Set('the a an and or of to in on at is are was were be been do did has have had his her its their they he she it we you i my me our that this with for from by as so not no but if into out up over than then there'.split(' '));
-/** The words a record is found by: its subject, aliases and text, lower case, short words and stop words left out. */
-export function wordsOf(record) {
-    const text = [record?.subject, ...(record?.aliases || []), record?.text, record?.view?.name].filter(Boolean).join(' ');
-    return [...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}']+/gu) || []).filter(word => word.length > 2 && !STOP.has(word)))];
-}
-
-/** The content hash an index item is keyed by: the record's own searchable text. */
-export const indexKey = record => `words:${hashText(canonical({ id: record?.id, words: wordsOf(record) }))}`;
-
-/**
- * Make sure every current record has its word index item. Returns { built, reused }: items already present (from this
- * chat or a branch with the same records) are reused.
- */
-export async function ensureIndexes(records, db = deviceDb()) {
-    let built = 0, reused = 0;
-    for (const record of records || []) {
-        const key = indexKey(record);
-        if (await db.get(key)) { reused += 1; continue; }
-        await db.put(key, { id: record.id, words: wordsOf(record) });
-        built += 1;
-    }
-    return { built, reused };
-}
-
-/** The ids of the current records whose index holds every word of the query, from the device database. */
-export async function findRecords(records, query, db = deviceDb()) {
-    const want = wordsOf({ text: query });
-    const out = [];
-    for (const record of records || []) {
-        const item = await db.get(indexKey(record));
-        const words = new Set(item?.words || []);
-        if (want.length && want.every(word => words.has(word))) out.push(record.id);
-    }
-    return out;
-}

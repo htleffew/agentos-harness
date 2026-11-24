@@ -17,6 +17,8 @@ import { enabledV10, pairedPreset, effectiveModules, prepareTurn, rowsForWorld, 
 import { captureContext } from './context-budget.js';
 import { advanceStoryClock } from './story-clock.js';
 import { promptText } from './prompts.js';
+import { installRiCards } from './preset-bank-ri.js';
+import { setRiGroupReader } from './v10.js';
 import { changesFromProfiles, sceneUpdate, sceneFromReplyHeader, sceneAt, statePrompt, stripSceneTracker, blockedEventTags, reanchorRemovedCorrections } from './state.js';
 // What happens on each reply: which instructions are sent, which version, the record of what was sent,
 // and the check that it happened. World Info rolls chance, timing and groups; this module works on the result.
@@ -1654,6 +1656,9 @@ export function overdueList() {
 // ---------- wiring ----------
 
 export function init() {
+    // The extension's own cards (B31): the bank gets one card per feature, and the request reads the order and wording of the
+    // extension's guidance from the RI group of the stack.
+    installRiCards(setRiGroupReader);
     const missing = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE'].filter(n => !on(n, n === 'WORLDINFO_SCAN_DONE' ? onScanDone : onEntriesLoaded));
     on('GENERATION_STARTED', (type, opts, dryRun) => {
         // A dry run (SillyTavern counting tokens for its prompt list) can start while a real reply is being written.

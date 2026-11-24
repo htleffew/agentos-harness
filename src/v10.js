@@ -7,7 +7,7 @@ import { memoryOnly, memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
 import { validStoryMinute, validElapsed } from './story-clock.js';
-import { promptText, roastVoiceText } from './prompts.js';
+import { promptText, roastVoiceText, withPromptVariant } from './prompts.js';
 // V10's canonical update contract and chat-local configuration.
 import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGenerating, isReply } from './st.js';
 import { chatState, settings, saveChatState } from './store.js';
@@ -664,8 +664,32 @@ export function emotionReplyAge(record, chat, type = 'normal') {
     return prior + chat.slice(start,replace ? -1 : undefined).filter(isReply).length;
 }
 
+// The extension's group of guidance (B31). preset-bank-ri.js registers a reader that gives the order of the extension's cards
+// in the stack and, per feature, which wording the stack sends: 'stored' (the stored prompt, which is the shipped default
+// until she saves her own), 'clean' (the shipped default) or 'both'. Without a reader the old per-chat module order applies.
+let riGroupReader = null;
+export const setRiGroupReader = fn => { riGroupReader = typeof fn === 'function' ? fn : null; };
+export function riGroup() {
+    try { return riGroupReader?.() || null; } catch (error) { console.warn('Roleplay Instructions could not read its card order.', error); return null; }
+}
+/** The parts a builder returns, with the wording each feature's card sends: the stored text, the shipped default, or both. */
+export function variantParts(build, modes) {
+    const stored = build();
+    if (!modes || !Object.values(modes).some(mode => mode !== 'stored')) return stored;
+    const clean = withPromptVariant('clean', build);
+    const out = [];
+    stored.forEach((part, index) => {
+        const mode = modes[part[0]] || 'stored', other = clean[index];
+        if (mode === 'stored' || !other || typeof part[1] === 'symbol') out.push(part);
+        else if (mode === 'clean') out.push(other);
+        else { out.push(other); if (other[1] !== part[1]) out.push(part); }
+    });
+    return out;
+}
+
 export function updateContract(modules, opening = false, { fieldsOnly = false } = {}) {
     const kinds = RECORD_KINDS.filter(kind => modules[KIND_MODULE[kind]]);
+    const group = riGroup();
     const sections = orderedSections([
         ['state', modules.state && `scene: {"where":"...","when":"...","time":"...","date":"...","weather":"...","present":"comma-separated names","environment":"...","elapsed":0,"minutes":0,"ended":false}. ${promptText('timingUpdate')}`],
         ['state', kinds.length && `changes: an array of up to 12 objects with kind (${kinds.join(', ')}), id (stable slug, reuse existing IDs), text, subject when describing someone, and evidence (an exact quote from the accepted prose). ${promptText('structuredFacts')} ${promptText('memoryFacts')}`],
@@ -678,7 +702,7 @@ export function updateContract(modules, opening = false, { fieldsOnly = false } 
         ['plots', modules.plots && 'For arcs, seeds and agendas, optional fields are parent (arc ID), requires (record IDs), due (absolute story minute), location and payoff. An agenda can include established whereabouts and a travel object with from, to, departed (exact story minute), and minutes (minimum duration), when timing and travel are established.'],
         ['worldEvents', modules.plots && modules.worldEvents && `Use schedule:true with optional weight and spacing in replies. ${promptText('structuredSchedule')}`],
         ['roast', modules.roast && !opening && `roast: ${promptText('structuredRoast')} Include this string even when no story facts changed.\nCommentator voice (for roast only): ${roastVoiceText()}`],
-    ], prefs()?.moduleOrder);
+    ], group ? group.order : prefs()?.moduleOrder);
     if (fieldsOnly || !sections.length) return sections.join('\n');
     return `After the visible prose, ${opening || modules.roast ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;
 }
@@ -792,7 +816,9 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         ? `${promptText('planGuidance')} Place the outline inside one <reply_plan>…</reply_plan> block before the prose.`
         : promptText('proseFirst');
     const opportunitySlot = Symbol();
-    const guidance = orderedSections([
+    const group = riGroup();
+    const order = group ? group.order : local.moduleOrder;
+    const guidance = orderedSections(variantParts(() => [
         ['style', modules.style && style], ['style', modules.style && writingProfileText(local.writingProfile)],
         ['style', modules.style && DIRECT_PROSE],
         ['preflight', sceneCheckPrompt(scene,{modules,type,preflight:local.preflight})],
@@ -802,10 +828,10 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         ['plots', plotAudit.some(row=>!row.eligible && row.recalled) && promptText('lockedPayoff')],
         ['state', recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`],
         ['state', modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`],
-        ['worldEvents', local.moduleOrder?.length && opportunitySlot],
+        ['worldEvents', order?.length && opportunitySlot],
         ['dice', check && `${checkText(check)} ${promptText('resolvedActionGuidance')}`],
         ['roastFeedback', feedback.length && `Out-of-story voice feedback, not canon:\n${promptText('roastFeedback')}\n${feedback.join('\n')}`],
-    ],local.moduleOrder);
+    ],group?.modes),order);
     const slot=guidance.indexOf(opportunitySlot);
     const beforeOffer=slot<0 ? null : [format,...guidance.slice(0,slot)].filter(Boolean).join('\n');
     if (slot>=0) guidance.splice(slot,1);

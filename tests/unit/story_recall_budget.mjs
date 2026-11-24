@@ -49,7 +49,9 @@ test('includes formatting in both budgets and suppresses chapters covered by a r
         assert.ok(notes.ids.includes(rollup.uid));
         assert.ok(!notes.ids.includes(covered.uid));
         assert.ok(notes.ids.length < characters.length + 1);
-        assert.ok(notes.tokens <= 200);
+        // Section titles and bullets count against both budgets; the fixed guidance line above them does not (B39).
+        const guidance = notes.text.slice(0,notes.text.indexOf('\n')+1);
+        assert.ok(Math.ceil((notes.text.length-guidance.length)/4) <= 200);
         assert.doesNotMatch(notes.text,/Covered long ago/);
 
         rollup.fields.summary = 'Mira ferried the crew north.';

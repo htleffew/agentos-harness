@@ -104,9 +104,12 @@ export const barStatus = () => state.status;
  * notice: null, or { id, label, text, tone, count, actions: [{ label, run }], onDismiss }. The slot shows the short label;
  * a tap opens a popover with the full text, the actions and Dismiss. Running, ready and failed states take the slot first.
  */
-export function setBarNotice(notice) {
-    state.notice = notice || null;
-    if (!notice) closePopover();
+export function setBarNotice(notice, slot = 'main') {
+    // Each caller owns one slot (the spend notes 'main', the trim guard 'memory'), so clearing one never clears another.
+    state.notices ||= new Map();
+    if (notice) state.notices.set(slot, notice); else state.notices.delete(slot);
+    state.notice = state.notices.get('memory') || state.notices.get('main') || [...state.notices.values()][0] || null;
+    if (!state.notice) closePopover();
     renderBar();
 }
 

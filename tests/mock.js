@@ -23,6 +23,7 @@ const NPCS = [
 // reply is the chat generation itself; capture, chapter and condensed are the background memory calls.
 const KINDS = [
     ['capture', /You keep the records of a roleplay story/],
+    ['tidy', /You tidy the records of a roleplay story/],
     ['chapter', /Write the record of one chapter|Write the summary of one part of a roleplay story/],
     ['condensed', /Condense these stored chapter records|You condense the stored chapter records/],
     ['options', /Return a JSON array of exactly \d+ distinct objects|Return a JSON array of 3 strings/],
@@ -38,6 +39,30 @@ function answer(body) {
     const m = mode();
     if (/You keep the records of a roleplay story/.test(all)) return JSON.stringify(m.capture || { decisions: { durable_change: false, scene_ended: false, out_of_character: false }, ops: [],
         state: { scene: { place: 'The mock scene', time: 'Day 1, evening', present: ['Hale'] } } });
+    // MB7: the Cleanup call. Each cluster is ruled from mode.tidy.clusters (keyed by its record ids joined with "|" in the
+    // order listed), else merged with every record's text joined and quoted in full. Each entry pair is ruled from
+    // mode.tidy.entries (keyed by pair), else "fine".
+    if (/You tidy the records of a roleplay story/.test(all)) {
+        const t = m.tidy || {};
+        const clusters = [];
+        let current = null;
+        for (const line of all.split(NL)) {
+            const head = /^Cluster (\S+) \(/.exec(line);
+            if (head) { current = { cluster: head[1], records: [] }; clusters.push(current); continue; }
+            const rec = /^\[([^\]]+)\] [^|]+\| [^|]+\| ([^|]+?)(?: \| quote:.*)?$/.exec(line);
+            if (current && rec) current.records.push({ id: rec[1], text: rec[2].trim() });
+            else if (!line.trim()) current = null;
+        }
+        const out = clusters.map(c => {
+            const set = (t.clusters || {})[c.records.map(r => r.id).join('|')];
+            if (set) return { cluster: c.cluster, ruling: set.ruling, newer: set.newer ?? null, text: set.text ?? null, quotes: set.quotes || [], reason: set.reason || 'Ruled by the mock.' };
+            return { cluster: c.cluster, ruling: 'merge', newer: null, text: c.records.map(r => r.text.replace(/\.$/, '')).join('; ') + '.', quotes: c.records.map(r => ({ id: r.id, quote: r.text })), reason: 'The records describe one thing.' };
+        });
+        // A pair is looked up by its two references, sorted and joined with "|" (the extension's own pair key).
+        const entries = [...all.matchAll(/^Pair (\S+):\nA: \[([^\]]+)\][^\n]*\nB: \[([^\]]+)\]/gm)]
+            .map(x => ({ pair: x[1], ruling: (t.entries || {})[[x[2], x[3]].sort().join('|')] || 'fine', reason: 'Ruled by the mock.' }));
+        return JSON.stringify({ clusters: out, entries });
+    }
     // MB6: the chapter Writer and the condensed call, answered from the prompt's own messages.
     if (/Write the record of one chapter/.test(all)) {
         if (m.chapterFail) return JSON.stringify({ evidence: [{ message: 'x', quote: 'words that are in no reply at all' }], title: 'Bad', summary: 'Too short.', people: [], places: [] });

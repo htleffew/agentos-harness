@@ -7,7 +7,7 @@ import { applyHistoryWindow, catchUpChatHistory, historyCatchUpPreview, historyC
 import { refreshUnderReplies } from './sent.js';
 import { home, homeLink, slot } from './homes.js';
 import { chatWorld, filingStatus, refileStory } from '../records.js';
-import { historyPreview, chapterPreview, lastContext } from '../context-budget.js';
+import { historyPreview, chapterPreview, lastContext, lastLayout } from '../context-budget.js';
 import { editableReplySlots } from '../memory-journal.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
 import { storyNotesFields, storyNotesBudget, worldUpkeepFields, worldUpdatePrompts, nextReplyPreview } from './world.js';
@@ -210,6 +210,18 @@ export function renderContext(body, app) {
         content.push(h('div', {class:'ri-help'}, 'This is the last assembled request observed in this session, not a prediction of the next reply. Matching can miss text changed by a preset or another extension. Categories are partial and do not add up to the total. The host or provider may change the request afterward. Text is estimated at roughly four characters per token, so actual counts vary by model and language.'));
     }
     body.appendChild(section('Last observed request', ...content));
+    const mem = lastLayout();
+    if (mem) {
+        const at = (index, what) => index >= 0 ? `Message ${number(index + 1)} · ${approx(mem.layout.tokens[what] || 0)}` : 'Not in the request';
+        body.appendChild(section('Memory in the last request',
+            mem.cut.length ? h('div', {class:'ri-note ri-note-problem', role:'status'}, `SillyTavern cut the ${mem.cut.join(' and the ')} to fit the context size of ${number(mem.size?.context || 0)} tokens. Raise the context size or lower the chapter view and recall sizes in Setup, Memory.`) : null,
+            h('div', {class:'ri-context-grid'},
+                row('Memory notes', mem.layout.instruction >= 0 ? `Message ${number(mem.layout.instruction + 1)}` : 'Not in the request', 'The fixed rules about records, at the end of the main prompt.'),
+                row('Chapter view', at(mem.layout.view, 'view'), 'Directly above the chat history; it changes only when a chapter closes.'),
+                row('Recall block', at(mem.layout.recall, 'recall'), 'Above your last message (depth 1).'),
+                row('First changed message', mem.cache ? `${number(mem.cache.firstChanged + 1)} of ${number(mem.cache.messages)}` : 'First request of this chat', mem.cache ? `About ${approx(mem.cache.lostTokens)} after it were sent again uncached. ${mem.cache.followsHistory ? 'The change follows the history.' : 'The change starts above the history: a chapter closed, or something above the history changed.'}` : ''),
+                row('Model size', `${mem.size?.key || 'mid'}`, mem.size?.manual ? 'Chosen in Setup, Memory.' : `From the context size of ${number(mem.size?.context || 0)} tokens.`))));
+    }
     const holder = h('div', { id: 'ri-next-preview' }, h('div', { class: 'ri-muted' }, 'Loading…'));
     body.appendChild(holder);
     nextReplyPreview(chatWorld()).then(node => holder.replaceChildren(node)).catch(error => holder.replaceChildren(h('div', { class:'ri-empty' }, error.message)));

@@ -13,6 +13,8 @@ import { enqueue, loadDurableWorld, saveVerifiedWorld, syncWorld, worldIdle, rec
 import { projectStoryJournal, storySlots } from './memory-journal.js';
 import { stripStoredQuickText } from './quick-action-chat.js';
 import { addLog } from './log.js';
+import { MEMORY, fold as foldMemory } from './memory/fold.js';
+import { memoryStore } from './memory/store.js';
 
 const structuredFields = ['text','voice','whereabouts','payoff','outcome','outward','perspective','counterweight'];
 const scope = () => ({id:ctx().getCurrentChatId?.(), root:chatState(), world:chatWorld(), chat:ctx().chat});
@@ -46,13 +48,28 @@ function fieldOrigins(history, field, structured) {
     }).map(({index})=>index))];
 }
 
+/**
+ * The records of the memory store as correction sources (MB7): one source per current record, read from the fold, so the
+ * correction search finds the same facts the request and the Story World page read. Empty until the chat's memory moved
+ * into chat data (MB2).
+ */
+export function recordSources(chat, meta) {
+    if (!meta?.[MEMORY]?.imported) return [];
+    return foldMemory(chat || [], meta).current.filter(record=>!['chapter','condensed','arc','scene'].includes(record.kind) && String(record.text || '').trim())
+        .map(record=>({id:'record:'+record.id,label:'Story World / '+(record.subject || record.id),before:String(record.text),kind:'record',record:record.id,
+            subject:record.subject || record.id,field:'text',evidenceAt:record.versions?.at(-1)?.index ?? -1,active:true,locked:!!record.locked}));
+}
+
 async function sourceInventory(target) {
     const chat = target.chat || [];
     const sources = [];
     const add = (id,label,before,source) => {
         if (typeof before==='string' && before.trim()) sources.push({id,label,before,...source});
     };
-    const worldData = target.world && await loadDurableWorld(target.world);
+    // Once memory lives in chat data, the record store is the source of story facts and the older Story World book is not read.
+    const records = recordSources(chat,ctx().chatMetadata);
+    for (const source of records) add(source.id,source.label,source.before,source);
+    const worldData = !records.length && target.world && await loadDurableWorld(target.world);
     const effective = worldData && projectStoryJournal(worldData,target.world,{chat,root:target.root}).data;
     const rows = effective ? listWorld(effective,target.world) : [];
     const filed = worldData ? new Map(listWorld(worldData,target.world).map(row=>[row.uid,row])) : new Map();
@@ -208,7 +225,7 @@ export async function runFactRepair({focus=-1,truth='',wording='',useModel=false
     if (!supported && focused) {
         const conflicts = factClauses(focused.before).flatMap(claim=>{
             const known = review.candidates.filter(source=>source.active!==false &&
-                (['card','lore'].includes(source.kind) || source.kind==='world' && source.evidenceAt<targetIndex ||
+                (['card','lore'].includes(source.kind) || ['world','record'].includes(source.kind) && source.evidenceAt<targetIndex ||
                     source.kind==='message' && source.user && source.index<targetIndex))
                 .flatMap(source=>factClauses(source.storyEvidence ?? source.before))
                 .filter(fact=>fact.subject===claim.subject);
@@ -228,7 +245,7 @@ export async function runFactRepair({focus=-1,truth='',wording='',useModel=false
     } else {
         const facts = factClauses(supported);
         for (const source of review.candidates) {
-            if (!['world','scene','lore','card'].includes(source.kind) || source.active===false) continue;
+            if (!['world','record','scene','lore','card'].includes(source.kind) || source.active===false) continue;
             const contrary = factClauses(source.before).filter(claim=>facts.some(fact=>
                 claim.subject===fact.subject && claim.state===opposites.get(fact.state)));
             if (contrary.length!==1) continue;
@@ -356,6 +373,13 @@ export async function applyStoryCorrection(review, edits, truth = review.truth) 
         for (const {rec,start,end} of covered) {
             if ([...messageIndices].some(index=>index>=start && index<=end)) rec.historySource = chat.slice(start,end+1).map(historySourceMark);
         }
+        // A corrected record is revised by you in the record store and locked, so later jobs flag a change to it instead.
+        const meta = ctx().chatMetadata;
+        const recordEdits = changes.filter(source=>source.kind==='record');
+        const recordEntries = recordEdits.length ? (await memoryStore().record([...recordEdits.map(change=>{
+            const {versions,entries,locked,...rest} = foldMemory(chat,meta).byId.get(change.record) || {id:change.record};
+            return {op:'revise',target:[change.record],record:{...rest,text:change.after},origin:{type:'you'},reason:'Story correction.'};
+        }),{op:'lock',target:recordEdits.map(change=>change.record),origin:{type:'you'},reason:'Corrected by you.'}],{save:false})).entries.map(entry=>entry.id) : [];
         const focus=review.focus, selected=chat[focus];
         const reply=isReply(selected) && {index:focus,swipe:Number(selected.swipe_id ?? 0),
             fingerprint:historySourceMark(selected),label:replyLabels(chat)[focus]};
@@ -367,6 +391,7 @@ export async function applyStoryCorrection(review, edits, truth = review.truth) 
                 world:world || '',
                 entries:[...touched.keys()].map(uid=>({uid,before:worldData.entries[uid],after:data.entries[uid]})),
                 carried:[...pendingUpdates.values()].filter(patch=>patch.index===undefined).flatMap(patch=>patch.rows),
+                records:recordEntries,
                 messages:changes.filter(source=>source.index!==undefined).map(({kind,index,field,before,after,identity})=>
                     ({kind,index,field,before,after,identity,revision:historySourceMark(chat[index]),
                         slot:storyRevision(chat[index],index),
@@ -387,6 +412,7 @@ export async function applyStoryCorrection(review, edits, truth = review.truth) 
             root.storyCorrections = priorCorrections;
             root.manualWorldChanges = priorManual;
             root.storyJournalCarry = priorCarry;
+            if (recordEntries.length && meta?.[MEMORY]?.log) meta[MEMORY].log = meta[MEMORY].log.filter(entry=>!recordEntries.includes(entry.id));
             if (data && JSON.stringify(await loadDurableWorld(world))===JSON.stringify(data)) await saveWorld(world,worldData);
             throw error;
         }
@@ -512,9 +538,14 @@ export function undoStoryCorrection(id) {
         root.storyCorrections = prior.filter(item=>item.id!==id);
         if (manual) root.manualWorldChanges = manual.filter(change=>change.world!==world ||
             !bookEdits.some(edit=>edit.uid===change.uid && JSON.stringify(edit.after)===JSON.stringify(change.after)));
+        // Corrected records come back by reverting the revise and lock entries the correction wrote.
+        const meta = ctx().chatMetadata;
+        const reverts = (correction.undo.records || []).length ? (await memoryStore().record(correction.undo.records.map(entry=>
+            ({op:'revert',target:[entry],origin:{type:'you'},reason:'Story correction undone.'})),{save:false})).entries.map(entry=>entry.id) : [];
         const host = ctx();
         try { await host.saveChat?.(); }
         catch (error) {
+            if (reverts.length && meta?.[MEMORY]?.log) meta[MEMORY].log = meta[MEMORY].log.filter(entry=>!reverts.includes(entry.id));
             if (matchesScope(target)) {
                 for (const restore of redo.reverse()) restore();
                 root.storyCorrections = prior;

@@ -689,6 +689,17 @@ function edit(bank, key, base, change) {
     writeStack(bank, stack, base || stack.base);
     return copy(stack);
 }
+/**
+ * A change to a stack that is not her tap, for a migration the caller names (B31 reads the old extension order and folds in
+ * her saved wording). It saves in the stack's own scope, adds no undo step and leaves the edited time alone.
+ */
+export function migrateStack(bank, key, base, change) {
+    const stack = storedStack(key);
+    if (!stack) return null;
+    if (change(stack) === false) return stack;
+    writeStack(bank, stack, base || stack.base);
+    return copy(stack);
+}
 const listOf = (stack, key) => parseKey(key).source === SOURCE_RI || groupFromKey(key) === 'ri' ? stack.ri : stack.cards;
 function groupFromKey(key) {
     const { source, id } = parseKey(key);

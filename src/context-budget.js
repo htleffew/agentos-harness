@@ -1,5 +1,6 @@
 // Estimates from text the host exposes. Never stores prompt or chat text.
 import { ctx, isStory, isHidden, isReply, sub } from './st.js';
+import { settings } from './store.js';
 
 export const estimateTokens = text => Math.ceil(String(text || '').length / 4);
 const plain = content => typeof content === 'string' ? content : Array.isArray(content) ? content.map(p => typeof p?.text === 'string' ? p.text : '').join('') : '';
@@ -112,3 +113,20 @@ export function captureContext(messages, { items = [], ask = '', lore = [] } = {
     return result;
 }
 export function lastContext() { return last?.chatId === chatId() ? last : null; }
+
+// ---------- the memory blocks of the last request (memory DESIGN 5) ----------
+
+let layout = null;
+/** Keep what src/memory/inject.js found in the last assembled request: the memory blocks, what was cut, the cache comparison. */
+export function noteLayout(result) { layout = result ? { ...result } : null; }
+/** The last request's memory layout in this chat, or null. Review, Context shows it. */
+export function lastLayout() { return layout?.chatId === chatId() ? layout : null; }
+
+/** The chat model's size class for memory (5.3): a size chosen in Setup, Memory, or the context length SillyTavern is set to. */
+export function memorySize() {
+    const manual = ['small', 'mid', 'frontier'].find(size => size === settings().summary?.size);
+    let context = 0;
+    // on Chat Completion the context size is the Chat Completion setting; the text completion one does not apply
+    try { const c = ctx(); context = Number(c.mainApi === 'openai' ? c.chatCompletionSettings?.openai_max_context : c.maxContext) || Number(c.maxContext) || 0; } catch { /* no host */ }
+    return { key: manual || (!context || context < 32000 ? 'small' : context < 200000 ? 'mid' : 'frontier'), context, manual: !!manual };
+}

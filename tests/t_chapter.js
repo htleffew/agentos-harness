@@ -22,7 +22,8 @@ const state = page => page.evaluate(async B => {
 }, B);
 const settle = async page => { for (let i = 0; i < 40; i++) { await page.waitForTimeout(400); const busy = await page.evaluate(async B => { const Q = await import(`${B}/src/memory/queue.js`); const s = Q.desktopQueue().stats(); return !!s.running; }, B); if (!busy) break; } await page.waitForTimeout(600); };
 const chatRequest = () => { const all = L.requests('all').filter(r => /^Reply \d+\./.test(r.answer || '')); return all.at(-1); };
-const history = r => (r?.messages || []).filter(m => !/<story_so_far>/.test(String(m.content))).map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+// The chat history only: the chapter view and the recall block (which may quote a closed chapter's exchanges, MB4) are memory.
+const history = r => (r?.messages || []).filter(m => !/<story_so_far>|<recall>/.test(String(m.content))).map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
 const asText = r => (r?.messages || []).map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
 
 async function turn(page, n) {

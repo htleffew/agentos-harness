@@ -15,6 +15,7 @@ import {
 import { renderWorldCard, worldCardKinds } from './reply-world.js';
 import { trayCardConfig, switchAnchor } from './tray-settings.js';
 import { sceneEditor, stateEditor } from './state.js';
+import { JOB_LABELS, restoreRecord, storyChanges, undoChange } from '../memory/upkeep.js';
 
 const fold = value => String(value ?? '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const words = value => String(value || '').replace(/[-_]+/g, ' ');
@@ -286,13 +287,16 @@ registerCardRenderer('changes', env => {
     const filed = on('filed') ? records : [];
     const closed = on('closed') ? records.filter(record => record.kind === 'event' && record.status === 'done') : [];
     const facts = view.saved && on('facts_on_record');
-    if (!records.length && !facts) return null;
+    // MB7: what capture and upkeep changed because of this reply, from the memory change log, each with Undo and Restore.
+    const memory = on('filed') ? memoryChangeRows(id) : [];
+    if (!records.length && !facts && !memory.length) return null;
     const list = items => rows(items.map(record => row(record.subject || words(record.id), [foldedValue(record.text || ''), chipList([{ text: record.kind, tone: record.kind === 'fact' ? 'mint' : 'indigo' }])])));
     const undo = view.rec.update?.changes?.length && !view.rec.update.undone
         ? button('Undo these changes', () => undoReplyChanges(id), { kind: 'ghost', title: 'Take back what this reply added to or changed in the story world.' }) : null;
     const load = async panel => {
         panel.replaceChildren(...[filed.length ? h('section', { class: 'ri-c-section' }, sectionHead('Filed this reply', { count: filed.length }), list(filed)) : null,
-            closed.length ? h('section', { class: 'ri-c-section' }, sectionHead('Threads closed', { count: closed.length }), list(closed)) : null, undo].filter(Boolean));
+            closed.length ? h('section', { class: 'ri-c-section' }, sectionHead('Threads closed', { count: closed.length }), list(closed)) : null, undo,
+            memory.length ? memoryChangesSection(memory, () => panel.isConnected && load(panel)) : null].filter(Boolean));
         if (facts) {
             const more = h('div', { class: 'ri-c-section' });
             panel.append(more);
@@ -300,8 +304,21 @@ registerCardRenderer('changes', env => {
         }
         panel.append(...footer(env).filter(Boolean));
     };
-    return { first: records[0]?.text || records[0]?.subject || records[0]?.id || 'Facts on record', count: records.length, load };
+    return { first: records[0]?.text || records[0]?.subject || records[0]?.id || memory[0]?.label || 'Facts on record', count: records.length + memory.filter(row => row.counts).length, load };
 });
+
+function memoryChangeRows(index) {
+    try { const c = ctx(); return storyChanges(c.chat || [], c.chatMetadata || {}, index); } catch { return []; }
+}
+
+/** The memory rows of the Story changes card: each change with its job, Undo while it counts, and Restore for a record it took out. */
+function memoryChangesSection(changes, redraw) {
+    const act = fn => async () => { try { await fn(); } catch (error) { console.warn('[Roleplay Instructions] story changes', error); } redraw(); };
+    return h('section', { class: 'ri-c-section ri-story-changes' }, sectionHead('Memory changes', { count: changes.length }), rows(changes.map(change => row(change.label,
+        [foldedValue(change.text || change.reason || ''), chipList([{ text: JOB_LABELS[change.job] || change.job, tone: 'indigo' }, ...(change.counts ? [] : [{ text: change.note || 'undone', tone: 'rose' }])]),
+            change.undo ? button('Undo', act(() => undoChange(change)), { kind: 'ghost', title: 'Take back this change. Undo is saved with the chat.' }) : null,
+            ...change.restore.map(recordId => button(`Restore ${recordId}`, act(() => restoreRecord(recordId)), { kind: 'ghost', title: 'Bring back the record this change took out of force.' }))].filter(Boolean)))));
+}
 
 // Director's desk: the reply plan, folded.
 registerCardRenderer('plan', env => {

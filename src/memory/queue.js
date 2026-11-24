@@ -127,12 +127,17 @@ export function createQueue({ store = memoryStore(), handlers = {}, warm = null,
      * Add a job, or merge it with the waiting job under the same key. A job whose sources changed replaces the old one;
      * a job whose result is already saved for these sources is not added.
      */
+    // A capture job is made only for a reply with no capture stamp, so its done record never decides (the handler's saved()
+    // check still guards a retry). A reply deleted and sent again with the same words in the same minute has the same key
+    // and sources as the first, and the first one's records left the chat with it.
+    const doneBefore = job => job.kind !== 'capture' && store.isDone(job.key, job.rev);
+
     async function enqueue(input) {
         await open();
         const key = jobKey(input);
         const sources = { ...(input.sources || {}) };
         const rev = sourcesRev(sources);
-        if (await store.isDone(key, rev)) { log({ type: 'skip-done', key }); return null; }
+        if (await doneBefore({ kind: input.kind, key, rev })) { log({ type: 'skip-done', key }); return null; }
         const existing = jobs.get(key);
         if (existing && existing.rev === rev) {
             existing.payload = { ...existing.payload, ...(input.payload || {}) };
@@ -218,7 +223,7 @@ export function createQueue({ store = memoryStore(), handlers = {}, warm = null,
         }
         // A newer job under the same key read newer sources; this result is out of date and is not filed.
         if (current && current !== job) { log({ type: 'stale', key: job.key }); return; }
-        const already = await store.isDone(job.key, job.rev) || await handler.saved?.(job, result);
+        const already = await doneBefore(job) || await handler.saved?.(job, result);
         if (!already) await handler.commit?.(job, result);
         await store.markDone(job.key, job.rev);
         jobs.delete(job.key);

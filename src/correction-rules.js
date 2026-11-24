@@ -62,7 +62,7 @@ export function isRejectedStoryClaim(text) {
     const normalized = String(text || '').trim().toLowerCase().replace(/[.!?]+$/,'');
     if (normalized.length<16) return false;
     const changes = (chatState()?.storyCorrections || []).flatMap(item=>item.sources || []);
-    const match = changes.findLast(source=>source.kind==='world' && source.field==='text' &&
+    const match = changes.findLast(source=>['world','record'].includes(source.kind) && source.field==='text' &&
         [source.quote,source.replacement].some(value=>value.trim().toLowerCase().replace(/[.!?]+$/,'')===normalized));
     return !!match && match.quote.trim().toLowerCase().replace(/[.!?]+$/,'')===normalized;
 }

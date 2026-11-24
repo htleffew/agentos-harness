@@ -82,7 +82,9 @@ test('a chat from the M1a run imports its records, chapters and staged changes, 
     assert.deepEqual(sameRows(requestAfter), sameRows(requestBefore), 'the request reads what it read before the import');
     assert.deepEqual(sameRows(swipeRequestAfter), sameRows(swipeRequestBefore), 'a swipe request leaves out the newest reply\'s staged changes, as before');
     assert.deepEqual(recordsAfter, recordsBefore, 'the record screens list the same records');
-    assert.equal(prepAfter.notes?.text, prepBefore.notes?.text, 'the story notes sent with the next reply are the same text');
+    // MB5: once the memory lives in chat data, recall and the chapter view carry it and the story notes retire (memory DESIGN 5.2)
+    assert.ok(prepBefore.notes?.text, 'before the import the story notes went out');
+    assert.equal(prepAfter.notes, null, 'after the import the story notes retire: the request carries one memory block');
     out.page = { entries: pageAfter.length, records: recordsAfter.length, requestRows: requestAfter.length, notesChars: prepAfter.notes?.text?.length || 0 };
     out.bytes = F.memoryBytes(host.chat, host.chatMetadata);
 });
@@ -209,7 +211,8 @@ test('legacy entries convert by kind: open thread, planted detail and going on e
     const pageAfter = R.entries.list(await R.entries.effective(id), id);
     assert.deepEqual(sameRows(pageAfter), sameRows(pageBefore));
     assert.deepEqual(sameRows(await V.rowsForWorld('normal')), sameRows(pageAfter));
-    assert.equal((await WF.prepareWorld('normal', 33, { memory: true })).notes?.text, notesBefore);
+    assert.ok(notesBefore, 'before the import the story notes went out');
+    assert.equal((await WF.prepareWorld('normal', 33, { memory: true })).notes, null, 'after the import the story notes retire (MB5)');
     // The other swipe's staged change sits in its own slot and shows when that swipe does.
     assert.equal(result.counts.otherSwipes, 1);
     assert.equal(m64.swipe_info[1].extra.ri_memory.entries[0].anchor.swipe, 1);

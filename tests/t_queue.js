@@ -128,7 +128,10 @@ test('a killed app resumes its queue with no duplicate job', async () => {
     assert.equal(calls, 1);
     const committed = [];
     const second = createQueue({ store: shared, clock: clock.now, timers: false,
-        handlers: { capture: { run: async () => { calls++; return { ok: true, route: 'desktop' }; }, commit: async job => committed.push(job.key) } } });
+        handlers: {
+            capture: { run: async () => { calls++; return { ok: true, route: 'desktop' }; }, commit: async job => committed.push(job.key) },
+            chapter: { run: async () => ({ ok: true, route: 'desktop' }), commit: async job => committed.push(job.key) },
+        } });
     await second.open();
     assert.equal(second.jobs().length, 1);
     assert.equal(second.jobs()[0].state, 'queued', 'the interrupted job waits again');
@@ -136,7 +139,11 @@ test('a killed app resumes its queue with no duplicate job', async () => {
     assert.equal(second.jobs().length, 1, 'a repeat merges');
     await second.pump();
     assert.deepEqual(committed, ['c|capture|m1'], 'filed once');
-    await second.enqueue({ chatId: 'c', kind: 'capture', subject: 'm1', order: 1, sources: { m1: 'r1' } });
+    // A capture job is guarded by the reply's capture stamp; other jobs by their done record.
+    const chapter = { chatId: 'c', kind: 'chapter', subject: 'ch1', order: 1, sources: { ch1: 'r1' } };
+    await second.enqueue(chapter);
+    await second.pump();
+    await second.enqueue(chapter);
     assert.equal(second.jobs().length, 0, 'a job already filed for these sources is not added again');
 });
 
@@ -162,10 +169,29 @@ test('with the device database cleared, reopening a chat rebuilds the missing wo
     assert.deepEqual(added, ['chat-1|capture|c', 'chat-1|capture|e']);
     await q.pump();
     assert.deepEqual(committed, ['e'], 'the job whose result was saved files nothing');
-    // An edited reply is new work: its revision changed.
+    // Both replies now carry their capture stamp, as the commit writes it.
+    captured.add('c'); captured.add('e');
+    assert.deepEqual(await q.rebuild(captureCandidates(chat, { chatId: 'chat-1', captured: m => captured.has(m.send_date) })), []);
+    // An edited reply is new work: its stamp no longer matches its text.
     chat[4].mes = 'Reply two, edited.';
+    captured.delete('e');
     const again = await q.rebuild(captureCandidates(chat, { chatId: 'chat-1', captured: m => captured.has(m.send_date) }));
     assert.deepEqual(again, ['chat-1|capture|e']);
+});
+
+test('a reply deleted and sent again with the same words in the same minute is captured again', async () => {
+    const db = memoryStore();
+    await db.clear();
+    const committed = [];
+    const q = createQueue({ store: db, timers: false, handlers: { capture: { run: async () => ({ ok: true, route: 'desktop' }), commit: async job => committed.push(job.subject) } } });
+    const reply = { is_user: false, mes: 'Same words.', send_date: 'minute-1' };
+    await q.rebuild(captureCandidates([reply], { chatId: 'chat-1' }));
+    await q.pump();
+    // The reply and its records were deleted; the new reply has the same key and sources and no capture stamp.
+    const again = await q.rebuild(captureCandidates([{ ...reply }], { chatId: 'chat-1' }));
+    assert.deepEqual(again, ['chat-1|capture|minute-1']);
+    await q.pump();
+    assert.deepEqual(committed, ['minute-1', 'minute-1']);
 });
 
 test('a job whose sources changed while it ran is replaced, and the old result is not filed', async () => {

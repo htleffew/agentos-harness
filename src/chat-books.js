@@ -1,6 +1,7 @@
 import { setInfo } from './books.js';
 import { chatState, settings, saveSettings, saveChatState } from './store.js';
-import { ctx, KEY, worldNames, deleteBook, isGenerating } from './st.js';
+import { ctx, KEY, worldNames, deleteBook, isGenerating, loadBook } from './st.js';
+import { recallOffered, isRecallManaged } from './book-triggers.js';
 import { chatWorld, setChatWorld } from './world.js';
 import { memoryComponents, memoryOnly } from './components.js';
 import { enabledV10, reusableAssignments, reusableBookRoles, pinBase, unassignReusableBook } from './v10.js';
@@ -150,6 +151,22 @@ export function chatBooks() {
         const active = !excluded && (configured.has(book.name) || roles.some(role=>role.startsWith('Host ')));
         return {...book,roles,excluded,active,hidden:local.hiddenBookCards?.includes(book.name) || false};
     });
+}
+
+// ---------------------------------------------------------------- "Recall manages this book" (memory DESIGN 4.1, 12.2)
+//
+// One switch per book, kept with the extension's settings: true means Recall indexes the book's keyword entries and moves
+// the entries SillyTavern's scan fires into the recall block; false (or no setting) leaves the book wholly with the host.
+// The switch is offered by default for a book with no Optional Filters, groups, chance or timing fields; the carry-over
+// book has it on from the start (8.3).
+
+export { isRecallManaged, setRecallManages, markCarryOverBook } from './book-triggers.js';
+
+/** What the book list shows for one book: its kind, whether the switch is offered by default, and its state. */
+export async function bookRecallState(name) {
+    const data = await loadBook(name).catch(() => null);
+    const offer = recallOffered(Object.values(data?.entries || {}));
+    return { name, kind: offer.kind, offered: offer.offered, managed: isRecallManaged(name), traits: offer.traits };
 }
 
 export function openHostBook(name) {

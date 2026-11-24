@@ -10,6 +10,8 @@ import { startDesktopQueue } from './src/memory/queue.js';
 import { startMemory } from './src/memory/import.js';
 import { startChapters } from './src/chapters.js';
 import { installGeneratedBookGuard } from './src/memory/story-world-book.js';
+import { startRecall } from './src/recall.js';
+import { startInject } from './src/memory/inject.js';
 import './src/ui/connections-spend.js';
 import { loadShipped, readBankBook } from './src/banks.js';
 
@@ -29,6 +31,8 @@ import { loadShipped, readBankBook } from './src/banks.js';
         loadShipped().then(readBankBook).catch(e => console.warn(LOG, 'option banks did not load', e));
         try { startMemory(); } catch (e) { console.warn(LOG, 'chat memory did not start', e); }
         try { startChapters(); } catch (e) { console.warn(LOG, 'chapters did not start', e); }
+        try { startRecall(); } catch (e) { console.warn(LOG, 'recall did not start', e); }
+        startInject().catch(e => console.warn(LOG, 'request layout did not start', e));
         console.log(LOG, 'loaded', missing.length ? `missing events: ${missing.join(', ')}` : '');
     } catch (e) {
         console.error(LOG, 'failed to start', e);

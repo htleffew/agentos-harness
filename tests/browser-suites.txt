@@ -32,6 +32,7 @@ t_log
 t_menu_shell
 t_message_menu_touch
 t_misc
+t_module_ownership
 t_native
 t_pace
 t_page_moves
@@ -41,12 +42,15 @@ t_quick_action_setup
 t_quick_queue_failures
 t_results_sheet
 t_reusable_books
+t_ri_cards
 t_shared
 t_shell_followups
 t_shots
 t_style
 t_ui2
+t_upkeep_browser
 t_v10
 t_v5
+t_world_notes
 unit/prompts_ui_v8.cjs
 unit/state_ui.cjs

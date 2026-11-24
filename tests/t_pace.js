@@ -84,7 +84,10 @@ async function world(page, name, entries) {
         assert(/Situation: Hale's plan \(To sail at dawn PLANMARK\) begins/.test(b3.text), 'needs: an item that waits for a plan gets the plan of someone in the scene');
         await eventSet(page, EV, [{ text: 'everyone talks at once CROWDMARK', min: 2 }]);
         const b4 = await send(page, 'five');
-        L.mode({ reply: hud('Hale, Mira') });
+        // Capture reads the same HUD, and its scene state comes first when the next reply is rolled, so the mock's capture
+        // answer names the same two people.
+        L.mode({ reply: hud('Hale, Mira'), capture: { decisions: { durable_change: false, scene_ended: false, out_of_character: false }, ops: [],
+            state: { scene: { place: 'Fruit market', time: 'Day 1, evening', present: ['Hale', 'Mira'] } } } });
         await send(page, 'six');     // this reply's HUD names two people; the next reply is rolled with two in the scene
         const b5 = await send(page, 'seven');
         assert(!/CROWDMARK/.test(b4.text) && /CROWDMARK/.test(b5.text), 'present: an item set to "at least 2 characters in the scene" waits until the HUD names two');

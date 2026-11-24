@@ -12,6 +12,7 @@ import { settings, chatState, saveChatState } from './store.js';
 import { blankEntry, entriesOf, freeUid, keepTags, loadSet, saveSet, canonSet, setInfo, knownSets } from './books.js';
 import { contextText, STORY_LEAD } from './writer.js';
 import { wordFlag, writerRules, rememberStory } from './pacing.js';
+import { MEMORY } from './memory/fold.js';
 
 export const NOTES_WORLD = 'Roleplay Instructions story notes';
 export const isNotes = e => e?.world === NOTES_WORLD;
@@ -226,7 +227,7 @@ export function writeWorldEntry(data, w, id) {
     entry.key = Object.hasOwn(recordLabels,w.kind) ? [] : [...new Set([clean(w.name), ...w.aliases.map(clean)].filter(Boolean))];
     entry.useProbability = false; entry.probability = 100;
     entry.sticky = null; entry.cooldown = null; entry.delay = null;
-    entry.position = 4; entry.depth = 4; entry.role = 0;   // in the chat, a few messages up: works with every preset
+    entry.position = 4; entry.depth = 1; entry.role = 0;   // in the chat above the last message (memory DESIGN 5.1): works with every preset
     entry.excludeRecursion = true; entry.preventRecursion = true;
     const ri = {
         v: 1, type: 'world', kind: w.kind,
@@ -277,10 +278,10 @@ export const HUD_BLOCKS = /<(sola_hud|scene_cast|profile|heart|roast|story_notes
  * What the newest reply says about the scene. type: the kind of generation under way, so a reply that is being
  * replaced is left out. Returns { present: text, location: text, how } where how says where it was read from.
  */
-export function readScene(type = 'normal') {
+export function readScene(type = 'normal', { end: at } = {}) {
     const chat = ctx().chat || [];
-    let end = chat.length;
-    if (['swipe','regenerate','continue'].includes(type) && !chat.at(-1)?.is_user) end -= 1;
+    let end = at ?? chat.length;
+    if (at === undefined && ['swipe','regenerate','continue'].includes(type) && !chat.at(-1)?.is_user) end -= 1;
     let reply = '';
     let own = null;
     for (let i = end - 1; i >= 0; i--) { const m = chat[i]; if (m && !m.is_user && !m.is_system && m.mes) { reply = String(m.mes); own = m.extra?.[KEY]?.stateStale ? null : m.extra?.[KEY]?.scene || null; break; } }
@@ -312,6 +313,16 @@ export function readScene(type = 'normal') {
     }
     out.present = parts.join(', ');
     return out;
+}
+
+/**
+ * The character entries present in the scene as of the reply before `end` (default: the reply being written): named by
+ * the scene state, the header or the HUD. Read apart from the story notes, so pacing works when the notes are retired.
+ */
+export function scenePresence(list, type = 'normal', { end } = {}) {
+    const scene = readScene(type, { end });
+    if (!scene.present) return [];
+    return list.filter(w => w.on && w.kind === 'character' && namedIn(scene.present, w)).map(w => w.name);
 }
 
 /** The last few messages as one text, with HUD blocks taken out. */
@@ -389,7 +400,10 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
     const ids = [];
     const extra = [];
     const prefix = memory ? '[Story memory\n' : `[Story notes. ${promptText('storyNotes')} ${promptText('memoryFacts')}\n`;
-    let used = prefix.length + 1;
+    // The room for story notes holds the entries (Setup, Memory: "the scene, explicit activations and relevant story
+    // entries"). The guidance line above them is fixed text and does not count, so a custom or longer guidance line can
+    // never leave the smallest room (100 tokens) with no entry at all (B39).
+    let used = 0;
     const section = title => {
         const s = { title, lines: [] };
         sections.push(s);
@@ -545,9 +559,18 @@ export function buildNotes(list, type = 'normal', opts = settings().world,
     return { text, tokens: Math.ceil(text.length / 4), ids, fresh:ids.filter(uid=>custom.get(uid)?.fresh).map(String), extra, present: present.map(w => w.name), missing, place: place?.name || '', location: clean(scene.location), how };
 }
 
+/**
+ * A chat whose memory lives in chat data (MB2) sends it through the recall block at depth 1 and the chapter view above the
+ * history, so the story notes retire there and the request carries one memory block (memory DESIGN 5.2).
+ */
+export function notesRetired() {
+    try { return !!ctx().getCurrentChatId?.() && !!ctx().chatMetadata?.[MEMORY]?.imported; } catch { return false; }
+}
+
 export function storyRecall(list, type = 'normal', { memory = memoryOnly(), components = memoryComponents() } = {}) {
     const rows = list.filter(row=>row.kind==='chapter' ||
         components.world && (!memory || ['character','place','faction','fact'].includes(row.kind)));
+    if (notesRetired()) return { rows, notes:null };
     return { rows, notes:buildNotes(rows,type,settings().world,{ chapters:components.chapters, memory }) };
 }
 
@@ -563,10 +586,12 @@ export async function notesForChat(type = 'normal') {
 /** The lorebook entry that carries the story notes. It is made for each scan and is in no lorebook. */
 export function notesEntry(text) {
     const o = settings().world;
-    const place = o.place === 'before' ? { position: 0 } : o.place === 'after' ? { position: 1 } : { position: 4, depth: Math.max(0, Math.round(Number(o.depth) || 4)) };
+    // In the chat the notes sit at depth 1, directly above your last message: a block at depth d costs the d messages after
+    // it on every turn, so the old depth of 4 cost six messages a turn (memory DESIGN 5.2, M1a W14).
+    const place = o.place === 'before' ? { position: 0 } : o.place === 'after' ? { position: 1 } : { position: 4, depth: Math.min(1, Math.max(0, Math.round(Number(o.depth ?? 1)))) };
     return {
         uid: 0, world: NOTES_WORLD, comment: 'Story notes', content: text, key: [], keysecondary: [],
-        constant: true, vectorized: false, selective: true, selectiveLogic: 0, addMemo: true, order: 90, depth: 4, role: 0, ...place,
+        constant: true, vectorized: false, selective: true, selectiveLogic: 0, addMemo: true, order: 90, depth: 1, role: 0, ...place,
         disable: false, ignoreBudget: true, excludeRecursion: true, preventRecursion: true, delayUntilRecursion: 0,
         probability: 100, useProbability: false, group: '', groupOverride: false, groupWeight: 100,
         scanDepth: null, caseSensitive: null, matchWholeWords: null, useGroupScoring: null, automationId: '',

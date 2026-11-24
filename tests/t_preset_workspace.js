@@ -64,16 +64,16 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         const saved=await page.evaluate(()=>SillyTavern.getContext().chatCompletionSettings.prompts.find(p=>p.identifier==='review-relationships'));
         assert.equal(saved.injection_depth,2);assert.equal(saved.injection_order,42);assert.deepEqual(saved.injection_trigger,['swipe']);
         await open(block);await click(block.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
-        const extOrder=wb.locator('details').filter({has:page.getByText('Extension prompt order',{exact:true})}).last();
+        // B31: the extension order is the order of the Extension cards in the stack.
+        const extOrder=wb.locator('details').filter({has:page.getByText('Extension cards',{exact:true})}).last();
         await open(extOrder);
-        const colorSection=extOrder.locator(':scope > details').filter({has:page.getByText('Dialogue colors',{exact:true})});
+        const colorSection=extOrder.locator('[data-ri-card="ri::colors"]');
         await open(colorSection);await click(colorSection.getByRole('button',{name:'Move earlier'}));
-        await extOrder.getByText('Dialogue colors · Order changed',{exact:true}).waitFor({state:'attached'});
         L.resetLog();L.mode({reply:'Mira studies the compass.'});await L.send(page,'I take out the compass.');
         const reordered=L.text(L.requests()[0]);
         assert.ok(reordered.indexOf('Use ordinary quoted dialogue')>=0 && reordered.indexOf('Use ordinary quoted dialogue')<reordered.indexOf('Scene and character checks:'),'extension order changed the request');
-        const moved=extOrder.locator(':scope > details').filter({has:page.getByText('Dialogue colors · Order changed',{exact:true})});
-        await open(moved);await click(moved.getByRole('button',{name:'Restore position'}));
+        const moved=extOrder.locator('[data-ri-card="ri::colors"]');
+        await open(moved);await click(moved.getByRole('button',{name:'Move later'}));
         await pageTab('v10');
         const voices=root.locator('details').filter({has:page.getByText('Roast commentator voice and feedback',{exact:true})}).last();
         await open(voices);const picker=voices.getByLabel('Commentator voice',{exact:true});

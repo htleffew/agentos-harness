@@ -20,7 +20,6 @@ import { replayStoryPatch } from '../memory-journal.js';
 import { MEMORY, RANGE_KINDS, OUT_OF_FORCE, canonical, chatMemory, fold, forgetFold, hashText, makeEntry, proseOf, revisionOf, storedMark, swipeEntries, swipeOf } from './fold.js';
 import { memoryStore } from './store.js';
 import { addRebuilder, desktopQueue } from './queue.js';
-import { deviceDb, ensureIndexes } from './device-db.js';
 
 export const IMPORT_VERSION = 1;
 
@@ -411,7 +410,6 @@ export function startMemory() {
             await worldIdle();
             await fileBookEdits();
             for (const job of chapterJobs()) await desktopQueue().enqueue(job);
-            await ensureIndexes(fold(host().chat || [], metaOf()).current, deviceDb());
         } catch (error) { console.warn(LOG, 'chat memory', error); }
     };
     const open = async () => {

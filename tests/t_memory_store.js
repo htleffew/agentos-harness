@@ -14,7 +14,9 @@ needsDocs('t_memory_store', ['docs/ux-overhaul/memory/evidence/m1a']);
 import { MEMORY, fold, historyOf, hashText, proseOf, storedMark, swipeEntries, memoryBytes, makeEntry, entrySum } from '../src/memory/fold.js';
 import { createStore } from '../src/memory/store.js';
 import { Play, fresh, story, clone } from './fixtures/mb2/story-play.mjs';
-import { memoryItems, ensureIndexes, findRecords, indexKey } from '../src/memory/device-db.js';
+import { memoryItems } from '../src/memory/device-db.js';
+import { createSearchIndex, sourcesFromChat } from '../src/memory/index.js';
+import { hashEmbedder } from '../src/memory/embed.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const EVIDENCE = path.join(here, '..', 'docs', 'ux-overhaul', 'memory', 'evidence', 'MB2');
@@ -274,25 +276,32 @@ test('memory data averages 1.5 KB a reply or less on the 54-turn story; a 1,000-
 });
 
 test('clearing the device database loses nothing: the indexes rebuild on the next open', async () => {
+    // MB5: MiniSearch (src/memory/index.js) is the one word index; the device database keeps only the search vectors.
     const p = await fresh(30);
     const db = memoryItems();
+    const embedder = hashEmbedder({ dim: 64, id: 'store-test' });
     const f = p.fold();
-    const first = await ensureIndexes(f.current, db);
-    assert.equal(first.reused, 0);
-    const found = await findRecords(f.current, 'Marten sword arm', db);
+    const findIn = async index => (await index.search({ message: 'Marten sword arm', turn: 31 })).items.map(i => i.key);
+    const first = createSearchIndex({ embedder, db });
+    await first.sync(sourcesFromChat({ chat: p.chat, result: f }));
+    assert.equal(first.stats.reused, 0);
+    const found = await findIn(first);
     const chatBefore = JSON.stringify([p.chat, p.meta]);
     await db.clear();
     assert.equal(await db.count(), 0);
     // The next open: chat data is all there is, and it is untouched.
     p.reload();
     const g = p.fold();
-    const again = await ensureIndexes(g.current, db);
-    const foundAgain = await findRecords(g.current, 'Marten sword arm', db);
+    const again = createSearchIndex({ embedder, db });
+    await again.sync(sourcesFromChat({ chat: p.chat, result: g }));
+    const foundAgain = await findIn(again);
     // A branch with the same records reuses every item.
     const b = p.branch(p.chat.length - 1, 'copy');
-    const reuse = await ensureIndexes(b.fold().current, db);
-    record('clearing the device database loses nothing: the indexes rebuild on the next open', JSON.stringify([p.chat, p.meta]) === chatBefore && foldJson(p) === JSON.stringify({ r: f.records.map(r => [r.id, r.status, r.text, r.holders]), applied: f.applied, flags: f.flags.length }) && again.built === first.built && JSON.stringify(foundAgain) === JSON.stringify(found) && found.length > 0 && reuse.built === 0, `${first.built} index items built, ${again.built} rebuilt after the clear, ${reuse.reused} reused by a branch; found ${found.join(', ')}`);
-    assert.ok(indexKey(g.current[0]).startsWith('words:'));
+    const reuse = createSearchIndex({ embedder, db });
+    await reuse.sync(sourcesFromChat({ chat: b.chat, result: b.fold() }));
+    record('clearing the device database loses nothing: the indexes rebuild on the next open', JSON.stringify([p.chat, p.meta]) === chatBefore && foldJson(p) === JSON.stringify({ r: f.records.map(r => [r.id, r.status, r.text, r.holders]), applied: f.applied, flags: f.flags.length }) && again.stats.built === first.stats.built && JSON.stringify(foundAgain) === JSON.stringify(found) && found.length > 0 && reuse.stats.built === 0, `${first.stats.built} search vectors built, ${again.stats.built} rebuilt after the clear, ${reuse.stats.reused} reused by a branch; found ${found.join(', ')}`);
+    assert.ok((await db.keys('vec:store-test:')).length > 0);
+    assert.equal((await db.keys('words:')).length, 0, 'no word index items in the device database');
 });
 
 test('write the results', () => {
