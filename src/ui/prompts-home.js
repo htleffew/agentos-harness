@@ -26,9 +26,9 @@ const PAGE_PROMPTS = {
         'newChapterSummary', 'newChapterFirst', 'systemNewChapter', 'chapterOpeningScene'],
     books: ['bookKeywords', 'systemBookKeywords'],
     context: ['chapterSummary', 'catchUpHistory', 'systemCatchUp'],
-    instructions: ['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions'],
-    events: ['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite'],
-    style: ['style', 'styleWriterRules', 'systemStyleItems'],
+    sets: ['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions',
+        'event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite',
+        'style', 'styleWriterRules', 'systemStyleItems'],
     goals: ['goalOrder', 'goalOngoing', 'goalWriterRules', 'systemGoal'],
     writing: ['proseReview', 'groundedRealism', 'heightenedRealism', 'sceneSolo', 'sceneEnsemble', 'sceneUnknown', 'sceneContinue',
         'checkPhysical', 'checkSocial', 'checkCraft', 'checkContinuity'],
@@ -41,7 +41,7 @@ const PAGE_PROMPTS = {
 // Families follow the five colors of DESIGN.md 1.2; Reply holds what writes the reply now.
 export const FAMILIES = [
     { id: 'story', label: 'Story', pages: ['state', 'opening', 'corrections', 'portrayal', 'emotion', 'speakers', 'facts', 'plots', 'world', 'books', 'context'] },
-    { id: 'direction', label: 'Direction', pages: ['instructions', 'events', 'style', 'goals', 'writing', 'checks'] },
+    { id: 'direction', label: 'Direction', pages: ['sets', 'goals', 'writing', 'checks'] },
     { id: 'reply', label: 'Reply', pages: ['v10', 'display'] },
     { id: 'setup', label: 'Setup', pages: ['settings'] },
 ];

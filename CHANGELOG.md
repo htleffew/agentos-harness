@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Direction, Random sets now shows one list of every instruction, story event and writing style set, grouped by kind, with one Add set button; each set opens in its editor from the list and Back returns to it. The in-chat wording editors, the impersonation prompts and the Roast voice each have one home with link rows elsewhere, the Modules page links each feature to the Ours or Theirs switch in Setup, Presets (the Recheck button is retired), and the Sent card links to the new chapter control in Story World.
+
 - The Characters card can pin characters: each row has Pin and Unpin, pins are saved per chat and survive a reload, and a pinned character stays on the card when absent from the reply, with its last values muted as "from reply N". The card shows up to 3 present characters plus every pinned one. Spend lists every fallback, back, warning and ceiling notice with its own Dismiss button, and a dismissal in Spend or in the bar clears both. Searching "prompt manager" in the menu lands on Setup, Prompts.
 
 - Model profiles now apply. When the selected model or preset changes, the profile that names the model (the exact model first, then its family) sets its context size and kept image settings in the live settings, and the preset file is never rewritten. A model with no profile returns those values to the preset's own; a context size you change by hand stays until the next model change. The Presets card shows the active profile and lists every profile on the preset. Blocks added to a recognised preset under names the library knows (Default with "Dice Rolls" and "Prose Rules" added) now get an Ours or Theirs switch too. [B23 evidence](docs/ux-overhaul/tickets/B23.md)

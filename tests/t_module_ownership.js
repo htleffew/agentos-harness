@@ -8,6 +8,14 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
     L.sync();
     const {browser,page,errors} = await L.open();
     const ext = (fn,value) => page.evaluate(fn,{B:L.BASE,value});
+    // The Presets card owns the choice (B27): the module row shows a link to its switch, no select, and the stored owner follows the card.
+    const checkOwner = async expected => {
+        const row = page.locator('#ri_root [data-module="relationships"]');
+        assert.equal(await row.locator('#ri-owner-relationships').count(),0);
+        assert.equal(await row.locator('[data-home-link="feature-owner"]').count(),1);
+        assert.equal(await row.getByText('Recheck these host blocks').count(),0);
+        assert.equal(await ext(async({B})=>(await import(`${B}/src/v10.js`)).moduleOwnership().relationships?.choice),expected);
+    };
     const imported = structuredClone(companion);
     imported.name = 'Imported ownership fixture';
     const prompt = {identifier:'vexa-internal-fixture',name:'Internal States Template',system_prompt:false,injection_position:0,role:'system',content:'HOST-INTERNAL-STATES-PROMPT'};
@@ -76,7 +84,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.match(await row.textContent(),/Internal States Template · On in host preset/);
         assert.equal(await page.locator('#ri_root').getByLabel('Request a reply plan',{exact:true}).count(),0);
         assert.equal(await row.locator('#ri-module-relationships').count(),0);
-        assert.equal(await row.locator('#ri-owner-relationships').inputValue(),'preset');
+        await checkOwner('preset');
         let text = await send('I knock.');
         assert.match(text,/HOST-ANTITHESIS-FIXTURE/);
         assert.doesNotMatch(text,/Scene and character checks:/);
@@ -84,7 +92,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.equal(n(text,extensionRule),0);
         await sides('ours');
         await openModules();
-        assert.equal(await row.locator('#ri-owner-relationships').inputValue(),'both');
+        await checkOwner('both');
         assert.equal(await row.locator('#ri-module-relationships').isDisabled(),false);
         text = await send('I take one step inside.');
         assert.doesNotMatch(text,/HOST-ANTITHESIS-FIXTURE/);

@@ -722,10 +722,10 @@ function familyView(edit) {
         edit.family==='swipe' && h('details',{},h('summary',{},'Prior orders and edits'),
             h('label',{},h('input',{type:'checkbox',checked:edit.repeatOrders,onchange:event=>{edit.repeatOrders=event.target.checked;}}),'Repeat prior orders'),
             h('label',{},h('input',{type:'checkbox',checked:edit.keepManualEdits,onchange:event=>{edit.keepManualEdits=event.target.checked;}}),'Keep manual edits')),
-        edit.family==='draft' && impersonationInspector({operation:'playerDraft',guidance:()=>joinGuidance(edit),mode:preview.nativeDraft?'native':'helper',onChange:renderSheet}),
+        edit.family==='draft' && impersonationInspector({operation:'playerDraft',guidance:()=>joinGuidance(edit),mode:preview.nativeDraft?'native':'helper',onChange:renderSheet,editable:false}),
         edit.family==='draft' && h('details',{},h('summary',{},'Choice and expansion prompts'),
-            impersonationInspector({operation:'playerChoices',guidance:()=>joinGuidance(edit),mode:'helper'}),
-            impersonationInspector({operation:'playerExpansion',guidance:()=>joinGuidance(edit),mode:'helper'})),
+            impersonationInspector({operation:'playerChoices',guidance:()=>joinGuidance(edit),mode:'helper',editable:false,link:false}),
+            impersonationInspector({operation:'playerExpansion',guidance:()=>joinGuidance(edit),mode:'helper',editable:false,link:false})),
         !draftPreview && execution,
         edit.error && h('div',{'data-quick-error':true},status(edit.error),
             edit.lastAttempt && edit.nativeFallback && button('Draft through direct helper · 1 model call',()=>{

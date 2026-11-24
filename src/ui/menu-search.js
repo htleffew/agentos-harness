@@ -8,7 +8,7 @@
 // selector, `match` the start of a section title or field label.
 export const SILLYTAVERN_TERMS = [
     { words:['author’s note','author\'s note','authors note','author note'], label:'Author’s Note',
-        targets:[{ page:'writing' }, { page:'instructions' }],
+        targets:[{ page:'writing' }, { page:'sets' }],
         help:'Ongoing guidance sent with each reply lives in Direction, Writing; one-off orders roll from Random sets.' },
     { words:['impersonate','impersonation','write my next message'], label:'Impersonate',
         targets:[{ page:'bridge-bar' }, { page:'v10', match:'Advanced prompts' }],
@@ -68,7 +68,7 @@ export function parseQuery(query) {
  * @returns {{kind:'page', page:string, label:string, path:string, terms:string}[]}
  */
 export function pageEntries(tree) {
-    return tree.flatMap(top => top.nested.flatMap(nested => nested.pages.map((page, index) => ({
+    return tree.flatMap(top => top.nested.flatMap(nested => nested.pages.filter(page => !page.sub).map((page, index) => ({
         kind:'page', page:page.id, label:index === 0 ? nested.label : page.label,
         path:index === 0 ? `${top.label} › ${nested.label}` : `${top.label} › ${nested.label} › ${page.label}`,
         help:page.help || nested.help || '',

@@ -70,7 +70,11 @@ test('pages are named as the navigation shows them',()=>{
     const tree=buildTree([]);
     assert.equal(pathName(tree,'sent'),'Review, Replies');
     assert.equal(pathName(tree,'instructions'),'Direction, Random sets');
-    assert.equal(pathName(tree,'events'),'Random sets, Random story events');
+    assert.equal(pathName(tree,'events'),'Direction, Random sets');
+    assert.equal(pathName(tree,'sets'),'Direction, Random sets');
+    // The set editors are pages of their own that stay out of the sections row.
+    assert.deepEqual(['instructions','events','style'].map(id=>locate(tree,id).page.sub),[true,true,true]);
+    assert.equal(locate(tree,'sets').page.sub,undefined);
 });
 
 test('SillyTavern words find their page and setting',()=>{

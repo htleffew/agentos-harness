@@ -65,7 +65,7 @@ async function auditDisclosures(body) {
         const tree=await page.evaluate(async B=>{
             const {buildTree}=await import(`${B}/src/ui/destinations.js`);
             const {registeredPages}=await import(`${B}/src/ui/page-registry.js`);
-            return buildTree(registeredPages()).map(top=>({id:top.id,nested:top.nested.map(item=>({id:item.id,label:item.label,pages:item.pages.map(p=>({id:p.id,label:p.label}))}))}));
+            return buildTree(registeredPages()).map(top=>({id:top.id,nested:top.nested.map(item=>({id:item.id,label:item.label,pages:item.pages.filter(p=>!p.sub).map(p=>({id:p.id,label:p.label}))}))}));
         },L.BASE);
         const visited=[];
         const widths=Object.hasOwn(process.env,'RI_PANEL_WIDTHS')

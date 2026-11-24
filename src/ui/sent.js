@@ -16,6 +16,7 @@ import { snapshotState, snapshotScene, sceneDateLabel, STATE_FIELDS } from '../s
 import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
+import { homeLink } from './homes.js';
 import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue, rerollPartNow, setLock, isLocked } from '../engine.js';
 import { loadSet, saveSet, entriesOf, canonSet, setName, setInfo, readInstruction, setOfEntry } from '../books.js';
 import { BOOK_TRIGGER_SOURCES } from '../book-triggers.js';
@@ -243,9 +244,7 @@ export function renderSent(body, app) {
         h('div', { class: 'ri-row ri-row-tight' }, button('Do not send these again', () => clearQueue(), { kind: 'ghost' }))));
     if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Instruction follow-through checks are off. Turn on “Check that it happened” in Settings to see Done and Overdue for required instructions here.'));
     // The way to carry the story into a new chat, kept where it is easy to find.
-    body.appendChild(h('div',{class:'ri-row ri-row-tight'},button('Start a new chapter in a new chat',()=>app.openPage('world',{
-        editor:{view:'list',sheet:{kind:'chapter',wish:'',busy:false,error:'',draft:null}},focusPage:true,
-    }),{kind:'ghost',title:'Review a chapter summary and opening before starting a new chat.'})));
+    body.appendChild(homeLink(app,'new-chapter','Carry the story into a new chat with a chapter summary and opening.'));
     const host=ctx(), requested=app.replyTarget;
     const selected=requested && guidedTarget(requested.index);
     const exact=selected && selected.chatId===requested.chatId && selected.fingerprint===requested.fingerprint && selected.swipe===requested.swipe;

@@ -5,7 +5,7 @@ export const HOMES = {
     'state-budget':      { page:'memory',  label:'Current state prompt budget',         links:['settings'] },
     'scene-card':        { page:'display', label:'Story state under replies',           links:[] },
     'write-chapter':     { page:'world',   label:'Write a chapter now',                 links:['context'] },
-    'new-chapter':       { page:'world',   label:'Start a new chapter in a new chat',   links:[] },
+    'new-chapter':       { page:'world',   label:'Start a new chapter in a new chat',   links:['sent'] },
     'world-create':      { page:'books',   label:'Create a Story World',                links:['world'] },
     'world-export':      { page:'books',   label:'Export the Story World',              links:['world'] },
     'world-delete':      { page:'books',   label:'Delete the Story World',              links:['world'] },
@@ -27,4 +27,12 @@ export const HOMES = {
     'world-update':      { page:'memory',  label:'Keeping the world up to date',        links:['world'] },
     'catch-up':          { page:'memory',  label:'Catch up or rebuild this chat',       links:['context'] },
     'next-preview':      { page:'context', label:'Next reply preview',                  links:['world'] },
+    // The wording editors for what a set sends into the chat; the set editors show a link row to each.
+    'instruction-wording': { page:'sets',  label:'In-chat instruction wording',         links:[] },
+    'event-wording':     { page:'sets',    label:'In-chat story event wording',         links:[] },
+    'style-wording':     { page:'sets',    label:'In-chat writing style wording',       links:[] },
+    // The three player prompts; the quick action editor shows a link row beside its preview.
+    'impersonation-prompts': { page:'v10', label:'Impersonation prompts',               links:[] },
+    // Ours or Theirs for each feature; the module list of Setup, Features shows a link row for every feature it lists.
+    'feature-owner':     { page:'presets', label:'Who supplies each feature',           links:[] },
 };

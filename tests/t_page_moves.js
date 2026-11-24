@@ -72,7 +72,7 @@ async function run(browser, tag, viewport) {
     const ids = await page.evaluate(async BASE => {
         const D = await import(`${BASE}/src/ui/destinations.js`), R = await import(`${BASE}/src/ui/page-registry.js`);
         const tree = D.buildTree(R.registeredPages());
-        return tree.flatMap(top => top.nested.flatMap(nested => nested.pages.map(item => ({ id: item.id, top: top.id, nested: nested.id, bridge: !!item.bridge }))));
+        return tree.flatMap(top => top.nested.flatMap(nested => nested.pages.map(item => ({ id: item.id, top: top.id, nested: nested.id, bridge: !!item.bridge, sub: !!item.sub }))));
     }, BASE);
     out.tree = ids;
     const known = new Set(ids.map(item => item.id));
@@ -91,8 +91,9 @@ async function run(browser, tag, viewport) {
 
     await page.evaluate(async BASE => { const P = await import(`${BASE}/src/ui/panel.js`); await P.app.setExpanded(true); }, BASE);
     const controls = {}, links = {}, slots = [];
-    for (const { id, bridge } of ids) {
-        if (bridge) continue;
+    for (const { id, bridge, sub } of ids) {
+        // A set editor opens from the list of sets; B27 below visits it in its editor states.
+        if (bridge || sub) continue;
         await page.evaluate(async ({ BASE, id }) => { const P = await import(`${BASE}/src/ui/panel.js`); await P.app.openPage(id, { via: 'tab' }); }, { BASE, id });
         await page.waitForTimeout(700);
         const seen = await page.evaluate(() => {
@@ -145,6 +146,146 @@ async function run(browser, tag, viewport) {
         if (out.homes[key].noLink) unlinked.push(`${key} <- ${out.homes[key].noLink.join(', ')}`);
     }
     assert.deepEqual(unlinked, [], `${tag}: links missing`);
+
+    // B27: one list of sets, the set editors opened from it, and one home for the wording, impersonation and Roast editors.
+    const snapshot = () => page.evaluate(() => {
+        const root = document.querySelector('#ri_root'), body = root.querySelector('#ri_panel_page');
+        return {
+            page: body.dataset.page,
+            sections: [...root.querySelectorAll('.ri-shell-section')].map(node => node.textContent),
+            titles: [...body.querySelectorAll('.ri-section-title')].map(node => node.textContent.trim()),
+            buttons: [...body.querySelectorAll('button')].map(node => node.textContent.trim()),
+            controls: [...body.querySelectorAll('[data-control]')].map(node => node.dataset.control),
+            links: [...body.querySelectorAll('[data-home-link]')].flatMap(node => node.dataset.homeLink.split(' ')),
+            bare: [...body.querySelectorAll('.ri-prompt-editor')].filter(node => !node.closest('[data-prompt-ids]')).length,
+            slots: [...body.querySelectorAll('[data-prompt-ids]')].map(node => ({
+                ids: node.dataset.promptIds.split(' '),
+                texts: [...node.querySelectorAll('.ri-prompt-editor textarea')].map(area => ({ label: area.getAttribute('aria-label'), value: area.value })),
+            })),
+            cards: [...body.querySelectorAll('.ri-setcard .ri-card-name')].map(node => node.textContent.trim()),
+            overflow: body.scrollWidth > body.clientWidth + 1 || root.scrollWidth > root.clientWidth + 1,
+        };
+    });
+    const routes = () => page.evaluate(async BASE => {
+        const { app } = await import(`${BASE}/src/ui/panel.js`);
+        return { tab: app.tab, route: app.route.view, eroute: app.eroute.view, sroute: app.sroute.view, ename: app.eroute.name, history: app.history.length };
+    }, BASE);
+    const open = async id => { await page.evaluate(async ({ BASE, id }) => (await import(`${BASE}/src/ui/panel.js`)).app.openPage(id, { via: 'tab' }), { BASE, id }); await page.waitForTimeout(600); };
+    const press = async (selector, text) => {
+        const target = page.locator(selector, text ? { hasText: new RegExp(`^${text}$`) } : undefined).first();
+        await target.scrollIntoViewIfNeeded();
+        await target.tap();
+        await page.waitForTimeout(700);
+    };
+    const keep = (name, seen) => { for (const item of seen.slots) slots.push({ page: name, ...item }); assert.equal(seen.bare, 0, `${tag}: ${name} draws every prompt editor through slot()`); assert.equal(seen.overflow, false, `${tag}: ${name} does not overflow sideways`); };
+
+    const stamp = Date.now();
+    const made = await page.evaluate(async ({ BASE, stamp }) => {
+        const K = await import(`${BASE}/src/books.js`), E = await import(`${BASE}/src/events.js`);
+        const instructionId = await K.createSet(`B27 orders ${stamp}`);
+        const ev = E.newEvent(`B27 happenings ${stamp}`); ev.categories = [E.newCategory('Situation', ['a letter arrives'])];
+        const d1 = { entries: {} }; E.writeEvent(d1, ev);
+        const eventId = await K.createSet(`B27 happenings ${stamp}`, 'events', d1);
+        const sty = E.newStyle(`B27 voice ${stamp}`); sty.categories = [E.newCategory('Mood', ['dry wit'])];
+        const d2 = { entries: {} }; E.writeEvent(d2, sty);
+        const styleId = await K.createSet(`B27 voice ${stamp}`, 'style', d2);
+        return { instructionId, eventId, styleId };
+    }, { BASE, stamp });
+
+    await open('sets');
+    const list = await snapshot();
+    out.setList = { sections: list.sections, titles: list.titles, cards: list.cards };
+    assert.equal(list.page, 'sets');
+    assert.equal(list.buttons.filter(text => text === 'Add set').length, 1, `${tag}: one Add set button`);
+    assert.deepEqual(list.buttons.filter(text => /^Add (instruction|story event|writing style) set$/.test(text)), [], `${tag}: no per-kind add buttons`);
+    for (const title of ['Instruction sets', 'Story event sets', 'Writing style sets']) assert.ok(list.titles.includes(title), `${tag}: the list has the group "${title}"`);
+    assert.deepEqual(list.sections, ['All sets', 'Sets and pacing'], `${tag}: the sections row lists the list and Sets and pacing only`);
+    for (const name of ['B27 orders', 'B27 happenings', 'B27 voice']) assert.ok(list.cards.some(card => card.startsWith(name)), `${tag}: the list shows ${name}`);
+    for (const key of ['instruction-wording', 'event-wording', 'style-wording']) assert.equal(list.controls.filter(item => item === key).length, 1, `${tag}: ${key} has one home on the list`);
+    keep('sets', list);
+    await page.screenshot({ path: path.join(OUT, `${tag}-random-sets-list.png`) });
+
+    // Each kind opens from its card into its own editor page, and Back returns to the list.
+    const names = { instructions: 'orders', events: 'happenings', style: 'voice' };
+    const pageOf = { instructions: 'instructions', events: 'events', style: 'style' };
+    for (const kind of ['instructions', 'events', 'style']) {
+        await page.locator('.ri-setcard', { hasText: `B27 ${names[kind]}` }).first().locator('button', { hasText: /^Open$/ }).tap();
+        await page.waitForTimeout(800);
+        const at = await routes();
+        assert.equal(at.tab, pageOf[kind], `${tag}: ${kind} opens in its own page`);
+        assert.equal(at.history, 1, `${tag}: ${kind} keeps the way back`);
+        await press('[data-ri-back]');
+        assert.equal((await routes()).tab, 'sets', `${tag}: Back from ${kind} returns to the list`);
+    }
+
+    // The editor states: the wording editors are links, the other prompts are slots, and no editor is bare.
+    await page.locator('.ri-setcard', { hasText: 'B27 orders' }).first().locator('button', { hasText: /^Open$/ }).tap();
+    await page.waitForTimeout(700);
+    await press('button', 'Add instruction');
+    const instructionEditor = await snapshot();
+    assert.ok(instructionEditor.links.includes('instruction-wording'), `${tag}: the instruction editor links to the wording home`);
+    assert.deepEqual(instructionEditor.controls.filter(item => item.endsWith('-wording')), [], `${tag}: the instruction editor holds no wording editor`);
+    keep('instructions-editor', instructionEditor);
+    await page.screenshot({ path: path.join(OUT, `${tag}-instruction-editor.png`) });
+    await press('[data-ri-back]');
+    for (const kind of ['events', 'style']) {
+        await page.locator('.ri-setcard', { hasText: `B27 ${names[kind]}` }).first().locator('button', { hasText: /^Open$/ }).tap();
+        await page.waitForTimeout(800);
+        const editor = await snapshot();
+        assert.ok(editor.links.includes(kind === 'events' ? 'event-wording' : 'style-wording'), `${tag}: the ${kind} editor links to the wording home`);
+        assert.deepEqual(editor.controls.filter(item => item.endsWith('-wording')), [], `${tag}: the ${kind} editor holds no wording editor`);
+        keep(`${kind}-editor`, editor);
+        if (kind === 'events') {
+            // The route survives a trip through the link and Back.
+            const before = await routes();
+            await press('[data-home-link="event-wording"] button');
+            const landed = await page.evaluate(() => ({ page: document.querySelector('#ri_panel_page').dataset.page, focus: document.activeElement?.closest('[data-control]')?.dataset.control }));
+            assert.deepEqual(landed, { page: 'sets', focus: 'event-wording' }, `${tag}: the link lands on the wording home`);
+            await press('[data-ri-back]');
+            const after = await routes();
+            assert.deepEqual([after.tab, after.eroute, after.ename], ['events', 'edit', before.ename], `${tag}: Back restores the open event set`);
+        }
+        await press('[data-ri-back]');
+    }
+
+    // One Add set button creates every kind.
+    for (const kind of ['instructions', 'events', 'style']) {
+        await open('sets');
+        await press('button', 'Add set');
+        await page.locator('[data-add-set] select').first().selectOption(kind);
+        await page.locator('[data-add-set] input[type="text"]').first().fill(`B27 added ${kind} ${stamp}`);
+        await press('[data-add-set] button', 'Create');
+        const at = await routes();
+        assert.equal(at.tab, pageOf[kind], `${tag}: Add set makes ${kind} and opens its editor`);
+        await press('[data-ri-back]');
+    }
+
+    // New chapter: the Sent card links to Story, Story World.
+    await open('sent');
+    await press('[data-home-link="new-chapter"] button');
+    const chapter = await page.evaluate(() => ({ page: document.querySelector('#ri_panel_page').dataset.page, focus: document.activeElement?.closest('[data-control]')?.dataset.control }));
+    assert.deepEqual(chapter, { page: 'world', focus: 'new-chapter' }, `${tag}: the Sent link lands on the new chapter control`);
+
+    // The impersonation prompts have one home; the quick action editor shows a link beside its preview.
+    const inspector = await page.evaluate(async BASE => {
+        const I = await import(`${BASE}/src/ui/impersonation.js`);
+        const node = I.impersonationInspector({ editable: false });
+        const full = I.impersonationInspector();
+        return { editors: node.querySelectorAll('.ri-prompt-editor').length, link: !!node.querySelector('[data-home-link="impersonation-prompts"]'),
+            fullEditors: full.querySelectorAll('[data-prompt-ids="playerDraft playerChoices playerExpansion"] .ri-prompt-editor').length };
+    }, BASE);
+    assert.deepEqual(inspector, { editors: 0, link: true, fullEditors: 3 }, `${tag}: impersonation editors live in the home only`);
+
+    // A chat change returns the menu to the list with every set route at its root.
+    await open('sets');
+    await page.locator('.ri-setcard', { hasText: 'B27 happenings' }).first().locator('button', { hasText: /^Open$/ }).tap();
+    await page.waitForTimeout(800);
+    assert.equal((await routes()).eroute, 'edit');
+    await page.evaluate(async () => { await SillyTavern.getContext().executeSlashCommandsWithOptions('/newchat'); });
+    await page.waitForTimeout(2500);
+    const afterChat = await routes();
+    assert.deepEqual([afterChat.tab, afterChat.route, afterChat.eroute, afterChat.sroute], ['sets', 'sets', 'list', 'list'], `${tag}: a chat change resets the set routes and lands on the list`);
+
 
     // Prompt slots: every slot names stored prompts, and each editor shows the stored prompt's text.
     const stored = await page.evaluate(async BASE => {

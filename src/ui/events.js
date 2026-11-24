@@ -1,9 +1,9 @@
-import { slot } from './homes.js';
+import { slot, homeLink } from './homes.js';
 // Random Story Events tab and Random Writing Style tab. Both are a list of sets and an editor for one set:
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
 import { h, button, toggle, select, choiceList, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
-import { knownSets, loadSet, editSet, createSet, forgetSet, exportSet, setName, setInfo, wrapText, SENT_AS } from '../books.js';
-import { keptIn, removeText, deleteButton } from './sets.js';
+import { loadSet, editSet, createSet, forgetSet, exportSet, setName, setInfo, wrapText, SENT_AS } from '../books.js';
+import { keptIn, removeText, deleteButton, onForChat } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { validateVersion, swapNames, userDrives } from '../validate.js';
@@ -13,7 +13,6 @@ import { eventLeft, unburnSet } from '../engine.js';
 import { contextField } from './context.js';
 import { NEEDS } from '../pacing.js';
 import { ORIGINS, originOf, STAKES, STAKES_NAME, listRole } from '../events.js';
-import { enabledV10, effectiveModules } from '../v10.js';
 
 const EVENTS = {
     kind: 'events', type: 'event', route: 'eroute', make: newEvent, tick: 'events', set: 'story event set', sets: 'story event sets', Set: 'Story event set',
@@ -38,99 +37,67 @@ const itemWriterPrompts = category => slot(cfg.kind === 'style'
     ? ['styleWriterRules', 'systemStyleItems'] : ['eventWriterRules', ...itemContextPromptIds(category), 'systemItems'],
     'Customize Write with AI prompts', { contextual: true });
 
-export function renderEvents(body, app) {
-    cfg = EVENTS;
-    if (app.eroute.view === 'edit') return renderEdit(body, app);
-    if (enabledV10()) body.append(h('div',{class:'ri-note'},
-        h('p',{},`Autonomous world events are ${effectiveModules().worldEvents ? 'on' : 'off'} for this chat. They offer optional developments independently of the event sets below.`),
-        button('Change autonomous world events',()=>app.openSetting('v10','ri-module-worldEvents','chat'),{kind:'ghost'})));
-    body.appendChild(slot(['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite']));
-    return renderList(body, app);
-}
-export function renderStyle(body, app) { cfg = STYLE; if (app.sroute.view !== 'edit') body.appendChild(slot(['style', 'styleWriterRules', 'systemStyleItems'])); return app.sroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
+// The list of sets lives on the page 'sets' (set-list.js). These pages draw the editor of one set.
+export const EVENT_KINDS = { events: EVENTS, style: STYLE };
+export function renderEvents(body, app) { cfg = EVENTS; return renderEdit(body, app); }
+export function renderStyle(body, app) { cfg = STYLE; return renderEdit(body, app); }
 
 const go = (app, route, c = cfg) => { app[c.route] = route; app.resetScroll = true; app.render(); app.root?.scrollIntoView?.({ block: 'start' }); };
 
-function onForChat(name) {
-    const cs = chatState();
-    if (!cs) return h('span', { class: 'ri-muted' }, 'Open a chat to turn this on');
-    const active = cs.activeSets.includes(name);
-    const status = h('span',{},active ? 'On for this chat' : 'Off for this chat');
-    return h('label', { class: 'ri-switch-row' }, status,
-        toggle(active, (v) => {
-            cs.activeSets = cs.activeSets.filter(n => n !== name);
-            if (v) cs.activeSets.push(name);
-            status.textContent=v ? 'On for this chat' : 'Off for this chat';
-            saveChatState();
-        }, `Turn ${setName(name)} on or off for this chat`));
-}
-
-async function openSet(app, name, {created=false} = {}) {
-    const c = cfg;
+/** Open one set in its own page; Back returns to the list. */
+export async function openEventSet(app, name, c, { created = false } = {}) {
     const data = await loadSet(name);
     const entry = findEventEntry(data, c.type, name);
     if (!entry) { toast('error', `This lorebook is not a ${c.set}.`); return; }
-    go(app, { view: 'edit', name, draft: readEvent(entry, setName(name)), open: {}, created }, c);
+    await app.openPage(c.kind === 'style' ? 'style' : 'events', { editor: { view: 'edit', name, draft: readEvent(entry, setName(name)), open: {}, created } });
 }
 
-// ---------- list of event sets ----------
+/** Make a new set of this kind and open it. */
+export async function createEventSet(app, c, name) {
+    const data = { entries: {} };
+    writeEvent(data, c.make(name));
+    const made = await createSet(name, c.kind, data);
+    await openEventSet(app, made, c, { created: true });
+}
 
-function renderList(body, app) {
-    const sets = knownSets(cfg.kind);
-    body.appendChild(h('div', { class: 'ri-intro' }, cfg.intro));
-    if (app[cfg.route].notice) body.append(h('p',{class:'ri-note',role:'status'},app[cfg.route].notice));
-    body.appendChild(h('div', { class: 'ri-row' }, button(`Add ${cfg.set}`, async () => {
-        const c = cfg;
-        const name = await inputBox(`Name for the new ${c.set}:`);
-        if (!name) return;
-        try {
-            const ev = c.make(name);
-            const data = { entries: {} };
-            writeEvent(data, ev);
-            const made = await createSet(name, c.kind, data);
-            cfg = c;
-            await openSet(app, made,{created:true});
-        } catch (e) { toast('error', e.message); }
-    }, { kind: 'primary' })));
-    if (!sets.length) { body.appendChild(h('div', { class: 'ri-empty' }, `No ${cfg.sets} yet. Press "Add ${cfg.set}" to make the first one.`)); return; }
+// ---------- one set in the list of sets ----------
 
-    for (const name of sets) {
-        const info = h('div', { class: 'ri-grid' }, h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Categories'), h('span', { class: 'ri-v' }, '...')));
-        const c = cfg;
-        loadSet(name).then((data) => {
-            const entry = findEventEntry(data, c.type, name);
-            if (!entry) { info.replaceChildren(h('span', { class: 'ri-muted' }, `This lorebook is not a ${c.set}.`)); return; }
-            const ev = readEvent(entry, setName(name));
-            const on = ev.categories.filter(c => c.on);
-            const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
-            // How much of each list that retires its items is left in the open chat.
-            const left = c.kind !== 'style' && isChatOpen() ? eventLeft(setInfo(name).book, entry) : null;
-            const leftRow = left && left.lists.length ? [
-                kv('Left in this chat', left.lists.map(l => `${l.name}: ${l.left} of ${l.total}${l.main ? ' (main list)' : l.left === 0 ? ' (left out of events now)' : ''}`).join(', ')),
-                left.usedUp ? h('div', { class: 'ri-note ri-note-warn' }, 'Used up in this chat: every item of the main list has happened, so this set sends no more events here.',
-                    h('div', { class: 'ri-row ri-row-tight' }, button('Bring the used items back', () => { unburnSet(setInfo(name).book, entry); toast('success', `Every item of "${setName(name)}" can be picked again in this chat.`); app.render(); }, { kind: 'ghost', title: 'Earlier replies keep their record. From now on, items that already happened in this chat can be picked again.' }))) : null,
-            ] : [];
-            info.replaceChildren(
-                kv('Categories turned on', on.length ? on.map(c => `${c.name} (${c.items.filter(i => i.on).length})`).join(', ') : 'none'),
-                ...leftRow,
-                kv('How often', c.kind === 'style' ? 'With every reply while it is on for the chat' : `${ev.chance}% chance each reply${ev.wait ? `, then waits ${ev.wait} ${ev.wait === 1 ? 'reply' : 'replies'}` : ''}`));
-        }).catch(() => info.replaceChildren(h('span', { class: 'ri-muted' }, 'This lorebook could not be read.')));
-        body.appendChild(h('div', { class: 'ri-card ri-setcard' },
-            h('div', { class: 'ri-card-top' }, h('button', { type: 'button', class: 'ri-card-name', onclick: () => openSet(app, name) }, setName(name)), onForChat(name)),
-            keptIn(name),
-            info,
-            h('div', { class: 'ri-row' },
-                button('Open', () => openSet(app, name), { kind: 'primary', title: 'See and edit the categories and items' }),
-                button('Export', async () => { const data = await exportSet(name); if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.'); }, { kind: 'ghost' }),
-                button('Remove from this list', async () => {
-                    if (!await confirmBox(removeText(name))) return;
-                    forgetSet(name);
-                    const cs = chatState();
-                    if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== name); saveChatState(); }
-                    app.render();
-                }, { kind: 'ghost' }),
-                deleteButton(app, name, `Delete ${c.set}`))));
-    }
+/** The card of one event or writing style set. */
+export function eventSetCard(app, name, c) {
+    const info = h('div', { class: 'ri-grid' }, h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Categories'), h('span', { class: 'ri-v' }, '...')));
+    loadSet(name).then((data) => {
+        const entry = findEventEntry(data, c.type, name);
+        if (!entry) { info.replaceChildren(h('span', { class: 'ri-muted' }, `This lorebook is not a ${c.set}.`)); return; }
+        const ev = readEvent(entry, setName(name));
+        const on = ev.categories.filter(c => c.on);
+        const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
+        // How much of each list that retires its items is left in the open chat.
+        const left = c.kind !== 'style' && isChatOpen() ? eventLeft(setInfo(name).book, entry) : null;
+        const leftRow = left && left.lists.length ? [
+            kv('Left in this chat', left.lists.map(l => `${l.name}: ${l.left} of ${l.total}${l.main ? ' (main list)' : l.left === 0 ? ' (left out of events now)' : ''}`).join(', ')),
+            left.usedUp ? h('div', { class: 'ri-note ri-note-warn' }, 'Used up in this chat: every item of the main list has happened, so this set sends no more events here.',
+                h('div', { class: 'ri-row ri-row-tight' }, button('Bring the used items back', () => { unburnSet(setInfo(name).book, entry); toast('success', `Every item of "${setName(name)}" can be picked again in this chat.`); app.render(); }, { kind: 'ghost', title: 'Earlier replies keep their record. From now on, items that already happened in this chat can be picked again.' }))) : null,
+        ] : [];
+        info.replaceChildren(
+            kv('Categories turned on', on.length ? on.map(c => `${c.name} (${c.items.filter(i => i.on).length})`).join(', ') : 'none'),
+            ...leftRow,
+            kv('How often', c.kind === 'style' ? 'With every reply while it is on for the chat' : `${ev.chance}% chance each reply${ev.wait ? `, then waits ${ev.wait} ${ev.wait === 1 ? 'reply' : 'replies'}` : ''}`));
+    }).catch(() => info.replaceChildren(h('span', { class: 'ri-muted' }, 'This lorebook could not be read.')));
+    return h('div', { class: 'ri-card ri-setcard' },
+        h('div', { class: 'ri-card-top' }, h('button', { type: 'button', class: 'ri-card-name', onclick: () => openEventSet(app, name, c) }, setName(name)), onForChat(name)),
+        keptIn(name),
+        info,
+        h('div', { class: 'ri-row' },
+            button('Open', () => openEventSet(app, name, c), { kind: 'primary', title: 'See and edit the categories and items' }),
+            button('Export', async () => { const data = await exportSet(name); if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.'); }, { kind: 'ghost' }),
+            button('Remove from this list', async () => {
+                if (!await confirmBox(removeText(name))) return;
+                forgetSet(name);
+                const cs = chatState();
+                if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== name); saveChatState(); }
+                app.render();
+            }, { kind: 'ghost' }),
+            deleteButton(app, name, `Delete ${c.set}`)));
 }
 
 // ---------- one event set ----------
@@ -452,14 +419,7 @@ function renderEdit(body, app) {
             redraw();
         })),
         field('Exactly what the AI would receive', cfg.exampleHelp, preview),
-        slot([cfg.kind === 'style' ? 'style' : 'event'], 'Customize in-chat wording', {
-            contextual: true,
-            onChange: () => {
-                if (!r.example) return;
-                preview.textContent = 'Roll an example to preview the current wording.';
-                delete r.example;
-            },
-        })));
+        homeLink(app, cfg.kind === 'style' ? 'style-wording' : 'event-wording')));
 
     body.appendChild(section('Notes', field('Notes for yourself', 'Never sent in the chat.', textArea(draft.notes, (v) => { draft.notes = v; dirty(); }, { rows: 2 }))));
 

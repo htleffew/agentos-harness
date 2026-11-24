@@ -6,7 +6,7 @@ test('each panel page has one stable destination and a first-open route',()=>{
     const ids=pages.map(page=>page.id);
     assert.equal(new Set(ids).size,ids.length);
     const content=pages.filter(page=>!page.bridge);
-    assert.equal(content.length,22);
+    assert.equal(content.length,23);
     assert(groups.every(group=>group.pages.every(page=>destination(page.id).section===group.label)));
     assert.equal(startingPage(true),'state');
     assert.equal(startingPage(false),'v10');

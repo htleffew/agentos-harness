@@ -7,6 +7,7 @@ import { settings, saveSettings } from '../store.js';
 import { onChange } from '../engine.js';
 import { renderInstructions } from './sets.js';
 import { renderEvents, renderStyle } from './events.js';
+import { renderSetList } from './set-list.js';
 import { renderGoals } from './goals.js';
 import { renderCurrentState } from './state.js';
 import { renderWorld } from './world.js';
@@ -29,6 +30,10 @@ const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','po
 
 const editorRoutes = {instructions:'route',events:'eroute',style:'sroute',world:'wroute'};
 const rootRoutes = {route:{view:'sets'},eroute:{view:'list'},sroute:{view:'list'},wroute:{view:'list'}};
+// The three set editors open from the one list on the page 'sets'. An editor page whose route is back at its
+// root has nothing of its own to show, so the menu draws the list instead.
+const SET_EDITORS = {instructions:'route',events:'eroute',style:'sroute'};
+const atRoot = (key, route) => route?.view===rootRoutes[key].view && !route.dirty;
 const draftScope=()=>JSON.stringify([executionScope(),activePreset()]);
 // The old accent names still drive the colors of controls style.css draws.
 const ACCENTS = {story:'green',direction:'cyan',reply:'cyan',review:'blue',setup:'sky'};
@@ -365,7 +370,8 @@ function expandedKeyboard(event) {
 
 function renderPage(id, body, view) {
     if (renderRegistered(id, body, view)) return;
-    if (id === 'instructions') renderInstructions(body, view);
+    if (id === 'sets') renderSetList(body, view);
+    else if (id === 'instructions') renderInstructions(body, view);
     else if (id === 'events') renderEvents(body, view);
     else if (id === 'style') renderStyle(body, view);
     else if (id === 'goals') renderGoals(body, view);
@@ -406,7 +412,7 @@ function harvestAll(done) {
     if (index.scope!==indexScope()) { index.scope=indexScope(); index.pages.clear(); }
     if (index.running) return index.running.then(done);
     const ids=tree().flatMap(top=>top.nested.flatMap(nested=>nested.pages.map(page=>page.id)))
-        .filter(id=>!index.pages.has(id) && !id.startsWith('bridge-'));
+        .filter(id=>!index.pages.has(id) && !id.startsWith('bridge-') && !destination(id)?.sub);
     const quiet=async()=>false;
     index.running=(async()=>{
         for (const id of ids) {
@@ -441,7 +447,7 @@ function searchPanel() {
         'aria-label':'Search pages, sections and settings',placeholder:'Search the menu',autocomplete:'off',
         oninput:()=>{ app.searchQuery=input.value; update(); refreshIndex(); }});
     // A page drawn after the chat or preset changed clears the index; read the missing pages again on the next keystroke.
-    const refreshIndex=()=>{ if (index.scope!==indexScope() || tree().some(top=>top.nested.some(nested=>nested.pages.some(page=>!page.id.startsWith('bridge-') && !index.pages.has(page.id))))) harvestAll(()=>{ if (app.searchOpen && input.isConnected) update(); }); };
+    const refreshIndex=()=>{ if (index.scope!==indexScope() || tree().some(top=>top.nested.some(nested=>nested.pages.some(page=>!page.id.startsWith('bridge-') && !page.sub && !index.pages.has(page.id))))) harvestAll(()=>{ if (app.searchOpen && input.isConnected) update(); }); };
     const current=tree();
     const pathOf=id=>{
         const found=locate(current,id);
@@ -635,6 +641,9 @@ export function render() {
     const expanded = app.root.classList.contains('ri-expanded');
     const current=tree();
     if (!locate(current,app.tab)) app.tab=initialPage();
+    if (SET_EDITORS[app.tab] && atRoot(SET_EDITORS[app.tab],app[SET_EDITORS[app.tab]])) app.tab='sets';
+    // Coming back to the list leaves no half-open editor behind; a saved notice on a root route stays for the list to show.
+    if (app.tab==='sets') for (const key of Object.values(SET_EDITORS)) if (app[key].view!==rootRoutes[key].view) app[key]={...rootRoutes[key]};
     const {top, nested, page}=locate(current,app.tab);
     app.root.dataset.accent = ACCENTS[top.family];
     app.root.dataset.family = top.family;
@@ -677,9 +686,10 @@ export function render() {
     // Page anatomy (DESIGN.md 3.3): icon, title and status pill; one sentence of help; then the page.
     const pill=statusFor(page,nested);
     const heading=h('h2',{class:'ri-page-title',tabIndex:-1,'data-ri-heading':''},nested.label);
-    const sections=nested.pages.length>1 && h('nav',{class:'ri-shell-sections','aria-label':`Sections of ${nested.label}`,onkeydown:arrowKeys},
-        nested.pages.map(item=>h('button',{type:'button',class:'ri-shell-section','data-ri-page':item.id,
-            'aria-current':item.id===page.id ? 'page' : null,onclick:()=>navigate(item.id,{via:'tab'})},item.label)));
+    const listed=nested.pages.filter(item=>!item.sub), activeId=page.sub ? listed[0]?.id : page.id;
+    const sections=listed.length>1 && h('nav',{class:'ri-shell-sections','aria-label':`Sections of ${nested.label}`,onkeydown:arrowKeys},
+        listed.map(item=>h('button',{type:'button',class:'ri-shell-section','data-ri-page':item.id,
+            'aria-current':item.id===activeId ? 'page' : null,onclick:()=>navigate(item.id,{via:'tab'})},item.label)));
     const crumbs=h('nav',{class:'ri-shell-crumbs','aria-label':'Breadcrumb',hidden:true});
     app.body = h('div',{id:'ri_panel_page',class:'ri-body','data-page':app.tab},
         h('div',{class:'ri-shell-page','data-ri-shell':''},
@@ -699,7 +709,7 @@ export function render() {
     breadcrumbs(crumbs, nested);
     const foot=promptsFoot(app.tab, app.body);
     if (foot) app.body.append(foot);
-    recordHarvest(app.tab, app.body);
+    if (!page.sub) recordHarvest(app.tab, app.body);
 
     app.root.append(head);
     if (app.searchOpen) app.root.append(searchPanel());

@@ -1,5 +1,5 @@
 import { h, button, field, select } from './dom.js';
-import { promptEditor } from './prompts.js';
+import { slot, homeLink } from './homes.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
 import { sub } from '../st.js';
@@ -63,7 +63,7 @@ function sharedFieldEditor(initial, onChange) {
     return root;
 }
 
-export function impersonationInspector({ operation = 'playerDraft', guidance = () => '', mode = 'helper', onChange = () => {} } = {}) {
+export function impersonationInspector({ operation = 'playerDraft', guidance = () => '', mode = 'helper', onChange = () => {}, editable = true, link = true } = {}) {
     const initial=impersonationSource();
     const base=h('span');
     const preview=h('div');
@@ -95,15 +95,15 @@ export function impersonationInspector({ operation = 'playerDraft', guidance = (
     }
     root.refresh=refresh;
     const readable=['prompt','blank'].includes(initial.kind);
-    if (readable) editors.append(field('Base for direct player helpers',`A choice for ${initial.preset || 'this host connection'}.`,
+    if (editable && readable) editors.append(field('Base for direct player helpers',`A choice for ${initial.preset || 'this host connection'}.`,
         select([{value:'preset',label:'Follow host preset'},{value:'extension',label:'Use extension instruction'}],
             impersonationMode(initial),value=>{
                 try { setImpersonationSource(initial,value); refresh(); onChange(); }
                 catch (error) { note.textContent=error.message; }
             },{'aria-label':'Base for direct player helpers'})));
-    if (initial.writable) editors.append(sharedFieldEditor(initial,refresh));
-    editors.append(...['playerDraft','playerChoices','playerExpansion'].map(id=>promptEditor(id,{onChange:refresh})));
-    root.append(preview,editors,note);
+    if (editable && initial.writable) editors.append(sharedFieldEditor(initial,refresh));
+    if (editable) editors.append(slot(['playerDraft','playerChoices','playerExpansion'],'Impersonation prompts',{bare:true,onChange:refresh}));
+    root.append(preview,editable ? editors : link ? homeLink(null,'impersonation-prompts','The impersonation prompts are edited in Setup, Features, Advanced prompts.') : '',note);
     root.addEventListener('toggle',refresh);
     refresh();
     return root;

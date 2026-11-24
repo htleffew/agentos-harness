@@ -1,5 +1,5 @@
 import { h, button, select } from './dom.js';
-import { promptEditor, promptGroup, roastVoiceEditor } from './prompts.js';
+import { slot, homeLink } from './homes.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
 import { functionExecution } from './execution.js';
@@ -84,8 +84,11 @@ function expandOnce(details, render) {
 }
 function extensionEditors(key,profile) {
     return h('div',{},hint('Prompt wording saved here applies across chats. Live values and required response fields are assembled at generation.'),
-        prefs() && profile?.(key),key==='roast' && roastVoiceEditor(),
-        MODULE_PROMPTS[key].map(id=>promptEditor(id)));
+        prefs() && profile?.(key),
+        // The Roast voice and its prompts have one home in Setup, Features; every other module keeps its prompts here.
+        key==='roast' || key==='roastFeedback'
+            ? homeLink(null,'roast-voice','The Roast commentator voice and its prompts are edited in Setup, Features.')
+            : slot(MODULE_PROMPTS[key],'',{bare:true}));
 }
 
 /** The old Preset & Extension page keeps a pointer; blocks, switches and loadouts live in Setup, Presets. */
@@ -300,7 +303,7 @@ export function presetBlockEditor(preset,app,profile) {
         title.oninput=()=>{ui.newName=title.value;};text.oninput=()=>{ui.newText=text.value;};
         const compare=h('details',{open:ui.compare},h('summary',{},'Compare preset and extension with AI'),
             hint('One optional request sends preset names, prompt excerpts and extension guidance to the saved connection. Suggestions change settings when you accept a match.'),
-            promptGroup(['parityEvaluation'],'Edit comparison prompts'),
+            slot(['parityEvaluation'],'Edit comparison prompts'),
             functionExecution('presetParity',{receipt:executionReceipt('presetParity')}),
             button('Compare with 1 model call',()=>run(async()=>{ui.matches=await evaluateParity(rows);ui.compare=true;},'Comparison complete.')));
         compare.ontoggle=()=>ui.compare=compare.open;

@@ -59,9 +59,11 @@ const PAGES = [
     { id:'facts', tab:'facts', label:'Chat facts', help:'Find facts recorded for this chat.', aliases:'edit fact provenance source' },
     { id:'plots', tab:'plot', label:'Plot records', help:'Review arcs, seeds, agendas and events.' },
     { id:'books', tab:'world-info', label:'World Info books', help:'Assign books to the chat or edit their entries.', aliases:'lorebook world info import source' },
-    { id:'instructions', tab:'random-sets', label:'Random instructions', help:'Manage instruction sets, triggers and versions.' },
-    { id:'events', tab:'random-sets', label:'Random story events', help:'Manage event sets, eligibility and rolls.' },
-    { id:'style', tab:'random-sets', label:'Random writing style', help:'Manage writing categories and wording.' },
+    { id:'sets', tab:'random-sets', label:'All sets', help:'Every instruction, story event and writing style set in one list.', aliases:'random instructions random story events random writing style add set' },
+    // The three editors open from the list of sets. They are pages of their own so each keeps its route state, and they stay out of the sections row.
+    { id:'instructions', tab:'random-sets', sub:true, label:'Random instructions', help:'Manage instruction sets, triggers and versions.' },
+    { id:'events', tab:'random-sets', sub:true, label:'Random story events', help:'Manage event sets, eligibility and rolls.' },
+    { id:'style', tab:'random-sets', sub:true, label:'Random writing style', help:'Manage writing categories and wording.' },
     { id:'goals', tab:'goal', label:'Character goals', help:'Set a goal and order its steps.', aliases:'objective' },
     { id:'writing', tab:'writing', label:'Writing guidance', help:'Edit ongoing guidance and reply screening, including new NPC names to avoid.', aliases:'writing review diagnostics prose npc names avoid stock phrases' },
     { id:'checks', tab:'action-checks', label:'Action checks', help:'Queue or clear a check for the next reply, and set the stats.', aliases:'roll dice stats' },
@@ -172,7 +174,7 @@ export function pathName(tree, id) {
     const found = locate(tree, id);
     if (!found) return '';
     const { top, nested, page } = found;
-    return nested.pages.length > 1 && nested.pages[0].id !== page.id
+    return nested.pages.length > 1 && nested.pages[0].id !== page.id && !page.sub
         ? `${nested.label}, ${page.label}` : `${top.label}, ${nested.label}`;
 }
 

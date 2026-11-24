@@ -1,20 +1,14 @@
-import { slot } from './homes.js';
 // Random Instructions tab: the list of instruction sets, and the list of instructions inside one set.
 import { h, button, toggle, select, numberInput, chip, field, download } from './dom.js';
-import { knownSets, setOptions, setInfo, setName, patchSet, loadSet, editSet, createSet, adoptSet, forgetSet, exportSet, deleteSet, listInstructions, estimateTokens, newInstruction, writeInstruction, frequencyText, LIMITS } from '../books.js';
+import { setOptions, setInfo, setName, patchSet, loadSet, editSet, forgetSet, exportSet, deleteSet, listInstructions, estimateTokens, newInstruction, writeInstruction, frequencyText, LIMITS } from '../books.js';
 import { settings, chatState, saveChatState } from '../store.js';
-import { worldNames, toast, confirmBox, inputBox, isChatOpen } from '../st.js';
+import { worldNames, toast, confirmBox, isChatOpen } from '../st.js';
 import { renderEditor, deleteInstructionButton } from './editor.js';
 
+// The list of sets lives on the page 'sets' (set-list.js). This page draws one set or one instruction of it.
 export function renderInstructions(body, app) {
     if (app.route.view === 'edit') return renderEditor(body, app);
-    const sets = app.route.view === 'set' ? null : knownSets();
-    if (sets?.length===0) body.append(h('div',{class:'ri-note'},
-        h('p',{},'Random instruction sets are optional. Add a set when you want occasional directions sent with replies.'),
-        isChatOpen() && button('Set up this chat',()=>app.openSetting('v10','ri-story-workflow'),{kind:'ghost'})));
-    body.appendChild(slot(['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions'], 'Customize Random Instructions prompts'));
-    if (app.route.view === 'set') return renderSet(body, app);
-    return renderSets(body, app, sets);
+    return renderSet(body, app);
 }
 
 async function cached(app, name) {
@@ -35,7 +29,7 @@ export function keptIn(id) {
     return h('div', { class: 'ri-kept' }, i.shared ? `Kept in the shared lorebook "${i.book}"` : 'Kept in a lorebook of its own');
 }
 
-function onForChat(name) {
+export function onForChat(name) {
     const cs = chatState();
     if (!cs) return h('span', { class: 'ri-muted' }, 'Open a chat to turn this on');
     const active = cs.activeSets.includes(name);
@@ -50,83 +44,50 @@ function onForChat(name) {
         }, `Turn ${setName(name)} on or off for this chat`));
 }
 
-// ---------- list of instruction sets ----------
+// ---------- one set in the list of sets ----------
 
-function renderSets(body, app, sets) {
-    if (sets.length) body.appendChild(h('div', { class: 'ri-intro' }, 'Turn a set on to send its instructions at random with the timing you set.'));
+/** Open one instruction set in its own page; Back returns to the list. */
+export const openSet = (app, name) => app.openPage('instructions', { editor: { view: 'set', name } });
 
-    body.appendChild(h('div', { class: 'ri-row' },
-        button('Add instruction set', async () => {
-            const name = await inputBox('Name for the new instruction set:');
-            if (!name) return;
-            try { const made = await createSet(name); app.cache = {}; app.go({ view: 'set', name: made }); }
-            catch (e) { toast('error', e.message); }
-        }, { kind: 'primary' }),
-        button('Use a lorebook as an instruction set', async () => {
-            const options = openable();
-            if (!options.length) { toast('info', 'Every lorebook you have is already in this list.'); return; }
-            app.route = { view: 'sets', picking: true };
-            app.render();
-        }, { title: 'Use a lorebook you already have as an instruction set' })));
+/** The card of one instruction set in the list of sets. */
+export function instructionSetCard(app, name) {
+    const counts = h('div', { class: 'ri-grid' }, h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Instructions'), h('span', { class: 'ri-v' }, '...')));
+    cached(app, name).then((data) => {
+        if (!data) return;
+        const list = listInstructions(data, name);
+        const withText = list.filter(i => i.versions.length);
+        const avg = withText.length ? Math.round(withText.reduce((n, i) => n + estimateTokens(i), 0) / withText.length) : 0;
+        counts.replaceChildren(
+            h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Instructions'), h('span', { class: 'ri-v' }, `${list.length} (${list.filter(i => i.on).length} turned on)`)),
+            h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Size when one is sent'), h('span', { class: 'ri-v' }, avg ? `about ${avg} tokens` : 'nothing to send yet')),
+            h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'How often'), h('span', { class: 'ri-v' }, frequencyText(list))));
+    }).catch(() => counts.replaceChildren(h('span', { class: 'ri-muted' }, 'This lorebook could not be read.')));
 
-    if (app.route.picking) {
-        const options = openable();
-        let chosen = options[0];
-        body.appendChild(h('div', { class: 'ri-card ri-pick' },
-            field('Lorebook to open as an instruction set', 'The lorebook file is left as it is until you edit one of its instructions. A shared lorebook made by this extension adds every set kept inside it.',
-                select(options.map(n => ({ value: n, label: n })), chosen, (v) => { chosen = v; })),
-            h('div', { class: 'ri-row' },
-                button('Open', async () => {
-                    try {
-                        const added = await adoptSet(chosen);
-                        app.cache = {};
-                        if (added.length === 1 && setInfo(added[0]).kind === 'instructions') { app.go({ view: 'set', name: added[0] }); return; }
-                        toast(added.length ? 'success' : 'info', added.length ? `${added.length} ${added.length === 1 ? 'set was' : 'sets were'} added from "${chosen}". Each one is listed in its own tab.` : `Every set in "${chosen}" is already in the list.`);
-                        app.go({ view: 'sets' });
-                    } catch (e) { toast('error', e.message); }
-                }, { kind: 'primary' }),
-                button('Cancel', () => app.go({ view: 'sets' }), { kind: 'ghost' }))));
-    }
-
-    for (const name of sets) {
-        const counts = h('div', { class: 'ri-grid' }, h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Instructions'), h('span', { class: 'ri-v' }, '...')));
-        cached(app, name).then((data) => {
-            if (!data) return;
-            const list = listInstructions(data, name);
-            const withText = list.filter(i => i.versions.length);
-            const avg = withText.length ? Math.round(withText.reduce((n, i) => n + estimateTokens(i), 0) / withText.length) : 0;
-            counts.replaceChildren(
-                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Instructions'), h('span', { class: 'ri-v' }, `${list.length} (${list.filter(i => i.on).length} turned on)`)),
-                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Size when one is sent'), h('span', { class: 'ri-v' }, avg ? `about ${avg} tokens` : 'nothing to send yet')),
-                h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'How often'), h('span', { class: 'ri-v' }, frequencyText(list))));
-        }).catch(() => counts.replaceChildren(h('span', { class: 'ri-muted' }, 'This lorebook could not be read.')));
-
-        body.appendChild(h('div', { class: 'ri-card ri-setcard' },
-            h('div', { class: 'ri-card-top' },
-                h('button', { type: 'button', class: 'ri-card-name', onclick: () => app.go({ view: 'set', name }) }, setName(name)),
-                onForChat(name)),
-            keptIn(name),
-            counts,
-            limitControl(name, app.render),
-            h('div', { class: 'ri-row' },
-                button('Open', () => app.go({ view: 'set', name }), { kind: 'primary', title: 'See and edit the instructions in this set' }),
-                button('Export', async () => {
-                    const data = await exportSet(name);
-                    if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.');
-                }, { kind: 'ghost', title: 'Download this set as a lorebook file' }),
-                button('Remove from this list', async () => {
-                    if (!await confirmBox(removeText(name))) return;
-                    forgetSet(name);
-                    const cs = chatState();
-                    if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== name); saveChatState(); }
-                    app.render();
-                }, { kind: 'ghost' }),
-                deleteButton(app, name))));
-    }
+    return h('div', { class: 'ri-card ri-setcard' },
+        h('div', { class: 'ri-card-top' },
+            h('button', { type: 'button', class: 'ri-card-name', onclick: () => openSet(app, name) }, setName(name)),
+            onForChat(name)),
+        keptIn(name),
+        counts,
+        limitControl(name, app.render),
+        h('div', { class: 'ri-row' },
+            button('Open', () => openSet(app, name), { kind: 'primary', title: 'See and edit the instructions in this set' }),
+            button('Export', async () => {
+                const data = await exportSet(name);
+                if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.');
+            }, { kind: 'ghost', title: 'Download this set as a lorebook file' }),
+            button('Remove from this list', async () => {
+                if (!await confirmBox(removeText(name))) return;
+                forgetSet(name);
+                const cs = chatState();
+                if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== name); saveChatState(); }
+                app.render();
+            }, { kind: 'ghost' }),
+            deleteButton(app, name)));
 }
 
 /** Lorebooks that "Open a lorebook" can add: every lorebook that is not already a set of its own. */
-function openable() {
+export function openable() {
     const sets = settings().sets;
     return worldNames().filter(n => !(sets[n] && !sets[n].book)).sort((a, b) => a.localeCompare(b));
 }

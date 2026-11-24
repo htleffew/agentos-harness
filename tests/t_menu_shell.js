@@ -260,7 +260,7 @@ async function run(browser, viewport, tag) {
         return name;
     }, BASE);
     await tap(page, '[data-ri-tab="direction"]');
-    await page.evaluate(async ({ BASE, setName }) => { const { app } = await import(`${BASE}/src/ui/panel.js`); app.cache = {}; app.go({ view: 'set', name: setName }); }, { BASE, setName });
+    await page.evaluate(async ({ BASE, setName }) => { const { app } = await import(`${BASE}/src/ui/panel.js`); app.cache = {}; await app.openPage('instructions', { editor: { view: 'set', name: setName } }); }, { BASE, setName });
     await page.waitForTimeout(900);
     const crumbState = () => page.evaluate(() => ({
         crumbs: [...document.querySelectorAll('.ri-shell-crumbs li')].map(node => node.textContent.replace(/[›\s]+/g, ' ').trim()),

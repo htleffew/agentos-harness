@@ -53,7 +53,10 @@ for (const file of screens) {
 }
 
 // Every prompt a page edits goes through a slot that carries the stored prompt ids.
-const pagesWithPrompts = ['ui/world.js', 'ui/v10.js', 'ui/context-dashboard.js', 'ui/settings.js', 'ui/state.js', 'ui/sets.js', 'ui/events.js', 'ui/goals.js', 'ui/corrections.js'];
+const pagesWithPrompts = ['ui/world.js', 'ui/v10.js', 'ui/context-dashboard.js', 'ui/settings.js', 'ui/state.js', 'ui/sets.js', 'ui/events.js', 'ui/goals.js', 'ui/corrections.js',
+    'ui/editor.js', 'ui/book-entry-editor.js', 'ui/impersonation.js', 'ui/preset-workbench.js', 'ui/set-list.js'];
+// ui/v10.js holds the Roast voice home itself, so it is the one file that may call roastVoiceEditor.
+for (const file of pagesWithPrompts.filter(item => item !== 'ui/v10.js')) assert.ok(!/\bpromptEditor\(|roastVoiceEditor\(/.test(fs.readFileSync(path.join(src, file), 'utf8')), `${file} draws no prompt editor outside slot()`);
 for (const file of pagesWithPrompts) assert.ok(!/promptGroup\(/.test(fs.readFileSync(path.join(src, file), 'utf8')), `${file} uses slot(), not promptGroup()`);
 const { PROMPTS } = await import('../../src/prompts.js');
 for (const file of pagesWithPrompts) {
@@ -63,10 +66,16 @@ for (const file of pagesWithPrompts) {
     }
 }
 
+// The quick action editor shows the impersonation prompts read-only; their one home is Setup, Features (B27).
+const quickActions = fs.readFileSync(path.join(src, 'ui/quick-actions.js'), 'utf8');
+const inspectorCalls = [...quickActions.matchAll(/impersonationInspector\(\{[^}]*\}\)/g)].map(match => match[0]);
+assert.equal(inspectorCalls.length, 3, 'the quick action editor draws three impersonation inspectors');
+for (const call of inspectorCalls) assert.ok(call.includes('editable:false'), `${call} is read-only`);
+
 // The control homes name pages that exist and links that make sense.
 const { HOMES } = await import('../../src/ui/home-table.js');
 const D = await import('../../src/ui/destinations.js');
-const known = new Set([...D.pages.map(page => page.id), 'memory', 'set-rules']);
+const known = new Set([...D.pages.map(page => page.id), 'memory', 'set-rules', 'presets']);
 for (const [key, home] of Object.entries(HOMES)) {
     assert.ok(known.has(home.page), `${key}: home page ${home.page} exists`);
     for (const link of home.links) assert.ok(known.has(link), `${key}: link page ${link} exists`);

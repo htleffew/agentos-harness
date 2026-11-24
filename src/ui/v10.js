@@ -3,6 +3,7 @@ import { DEFAULT_STORY_AVOID } from '../defaults.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
 import { executionPreview, executionReceipt, executionScope } from '../execution.js';
 import { presetWorkbench } from './preset-workbench.js';
+import { switchContext } from '../preset-workbench.js';
 import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
 import { roastVoiceEditor } from './prompts.js';
@@ -22,7 +23,7 @@ import { acceptV10Opening, guideSwipe } from '../engine.js';
 import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES, writingProfileText, SCENE_CHECKS, sceneCheckId, hostSceneChecks, avoidPhrases,
-    isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText,
+    isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText,
     greetings, draftOpening, setSpeakerColor, chooseAutomaticSpeakerColor, displayColor, baseWorld,
 } from '../v10.js';
 
@@ -527,7 +528,7 @@ const MODULE_HELP = {
 function advancedPrompts(preset, app) {
     return section('Advanced prompts',
         activeHostPrompts() ? presetWorkbench(preset,app) : h('p',{class:'ri-help'},'This host does not expose preset prompt blocks.'),
-        h('div',{id:'ri-planning-prompts'},slot(['planGuidance','proseFirst'],'Customize planning and prose prompts')),impersonationInspector());
+        h('div',{id:'ri-planning-prompts'},slot(['planGuidance','proseFirst'],'Customize planning and prose prompts')),home('impersonation-prompts',impersonationInspector()));
 }
 
 function presetLinks(app) {
@@ -544,7 +545,7 @@ function composerLinks(app) {
             button('Open Quick actions, Library',()=>app.openPage('quick-library',{focusPage:true}),{kind:'ghost'})));
 }
 
-function hostOverlap(key, owner, preset, enabled, redraw) {
+function hostOverlap(key, owner, enabled) {
     const id = `ri-owner-${key}`;
     const active = owner.blocks.some(block=>block.enabled===true);
     const unknown = owner.blocks.some(block=>block.enabled===null);
@@ -552,26 +553,20 @@ function hostOverlap(key, owner, preset, enabled, redraw) {
     if (owner.usesExtension) {
         status=enabled ? 'The extension runs this module in this chat.' : 'The extension is selected. Turn the module on to use it in this chat.';
     } else if (owner.choice==='extension') {
-        status=active ? 'The host preset still has a matching block on. Turn off the matching blocks in the host Prompt Manager, then recheck them here. The extension waits until all matching blocks are off.'
+        status=active ? 'The host preset still has a matching block on. Turn off the matching blocks in the host Prompt Manager. The extension waits until all matching blocks are off.'
             : 'The host has not reported the status of every matching block. The extension waits until it can verify that they are off.';
     } else {
         status=active ? 'The host preset has a matching block on. The extension skips this module.'
             : unknown ? 'The host preset is selected. Block status is unavailable. The extension skips this module.'
-                : 'All matching host blocks are off. To use this feature, enable a block in the host Prompt Manager or select the extension here.';
+                : 'All matching host blocks are off. To use this feature, enable a block in the host Prompt Manager or choose Ours in Setup, Presets.';
     }
+    // The Presets card owns the choice and rewrites each feature's owner from it at every reply, so this page only links to it.
+    const listed = switchContext()?.features.switched.some(item=>item.key===key);
     return h('details',{id:`${id}-details`,class:'ri-module-overlap',open:owner.blocked},
         h('summary',{},'Instruction source & diagnostics'),
-        h('label',{htmlFor:id},'Preferred instruction source'),
-        select([{value:'preset',label:'Host preset'}, {value:'extension',label:'Roleplay Instructions extension'}, ...(owner.choice==='both' ? [{value:'both',label:'Extension enabled alongside independent preset blocks'}] : [])],owner.choice,value=>{
-            setModuleOwner(preset,key,value);
-            redraw();
-            document.getElementById(id)?.focus({preventScroll:true});
-        },{id,'aria-describedby':`${id}-status`}),
+        homeLink(null,'feature-owner',`Who supplies ${MODULES[key]} is set with the Ours or Theirs switch in Setup, Presets.`,
+            listed ? { anchor:`#ri-switch-${key}` } : undefined),
         h('p',{class:'ri-help',id:`${id}-status`},status),
-        owner.choice==='extension' && owner.blocked && button('Recheck these host blocks',()=>{
-            redraw();
-            document.getElementById(id)?.focus({preventScroll:true});
-        },{kind:'ghost'}),
         h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in host preset`,
             block.blocks.filter(entry=>entry.content).map(entry=>h('pre',{class:'ri-v10-prompt-text'},entry.content))))));
 }
@@ -622,7 +617,7 @@ function moduleSettings(local, app, preset, modules, redraw) {
                 blocked ? h('strong',{},label) : h('label',{htmlFor:controlId},label),
                 h('span',{class:'ri-module-status',id:`${controlId}-status`,'data-enabled':String(editingPreset ? value ?? fallback : modules[key])},message)),
             h('p',{class:'ri-help',id:`${controlId}-help`},MODULE_HELP[key]),
-            owner && !editingPreset ? hostOverlap(key,owner,preset,modules[key],redraw) : null,
+            owner && !editingPreset ? hostOverlap(key,owner,modules[key]) : null,
             !blocked && h('div',{class:'ri-row ri-module-actions'},control,value!==undefined
                 ? button(`${resetLabel} (${onOff(fallback)})`,()=>update(undefined),{kind:'ghost'}) : null),
             !blocked && h('p',{class:'ri-help'},value===undefined

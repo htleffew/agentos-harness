@@ -4,6 +4,7 @@
 import { h, button } from './dom.js';
 import { registerPage } from './page-registry.js';
 import { presetBlockEditor } from './preset-workbench.js';
+import { home } from './homes.js';
 import { ctx, on, confirmBox, isChatOpen } from '../st.js';
 import { activePreset, enabledV10 } from '../v10.js';
 import { FEATURES, plainName, verdictChip, activeProfile } from '../preset-library.js';
@@ -245,7 +246,7 @@ export function renderPresetsPage(body, app) {
         return;
     }
     host.append(h('p', { class: 'ri-help', role: 'status', id: 'ri-presets-status' }, state.status),
-        presetCard(context, app, rerender), switchList(context, rerender), presetBlockEditor(preset, app), documentView(context), regexScripts(context), loadoutsSection(rerender));
+        presetCard(context, app, rerender), home('feature-owner', switchList(context, rerender)), presetBlockEditor(preset, app), documentView(context), regexScripts(context), loadoutsSection(rerender));
     body.append(host);
 }
 

@@ -8,7 +8,7 @@ import { pinBase, prefs, readRecord, reusableAssignments } from '../v10.js';
 import { restoreChapterHistory } from '../hide.js';
 import { ACTIVATION_MODES, readActivation, recallTiming, RECALL_SOURCES } from '../recall.js';
 import { suggestEntryKeywords } from '../book-keywords.js';
-import { promptGroup } from './prompts.js';
+import { slot } from './homes.js';
 
 const terms = value => String(value || '').split(/\r?\n/).map(part=>part.trim()).filter(Boolean);
 const input = (label,value,control = textInput) => control(value,()=>{},{'aria-label':label});
@@ -99,7 +99,7 @@ function keywordHelp(keys, source, whenApplied = () => {}) {
     updateExecution();
     return h('details',{},h('summary',{},'Help choosing triggers'),
         h('p',{class:'ri-help'},'One optional model request reads the entry’s title and text. Review and edit its suggestions before saving.'),
-        execution,generate,status,suggestions,promptGroup(['bookKeywords','systemBookKeywords'],'Customize keyword suggestion prompts'));
+        execution,generate,status,suggestions,slot(['bookKeywords','systemBookKeywords'],'Customize keyword suggestion prompts'));
 }
 
 function editEntry(name, entry, target, refresh, reusable, adding = false, cancel = () => target.replaceChildren()) {

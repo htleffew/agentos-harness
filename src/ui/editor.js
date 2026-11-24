@@ -1,5 +1,5 @@
 import { BOOK_TRIGGER_SOURCES } from '../book-triggers.js';
-import { promptGroup } from './prompts.js';
+import { slot, homeLink } from './homes.js';
 // The instruction editor: one screen, top to bottom. Also the "Write versions with AI" sheet.
 import { h, button, select, choiceList, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear } from './dom.js';
 import { SENT_AS, ACTORS, TARGETS, instructionActors, instructionTargets, editSet, deleteInstruction, setName, freeUid, writeInstruction, wrapText, listInstructions } from '../books.js';
@@ -9,7 +9,7 @@ import { writeVersions, rewriteVersion, nameHint, versionPromptId } from '../wri
 import { ctx, toast, confirmBox, sub, names, isChatOpen } from '../st.js';
 import { contextField } from './context.js';
 
-const writerPrompts = actor => promptGroup([versionPromptId(actor), 'systemVersions'], 'Customize Write with AI prompts', { contextual: true });
+const writerPrompts = actor => slot([versionPromptId(actor), 'systemVersions'], 'Customize Write with AI prompts', { contextual: true });
 const modelExample = "Review the last five replies for drift from {{char}}'s established personality ({{personality}}). Apply the corrections to the next reply.";
 
 const opts = (map) => Object.entries(map).map(([value, v]) => ({ value, label: v.label }));
@@ -147,8 +147,7 @@ export function renderEditor(body, app) {
             ? (isChatOpen() ? 'Shows the first saved or drafted version with this chat’s names.' : 'Shows the first version. Open a chat to fill in names.')
             : 'Example wording. Add a version to send this instruction during play.',
             preview),
-        promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency'], 'Customize in-chat instruction wording',
-            { contextual: true, onChange: refreshPreview })));
+        homeLink(app, 'instruction-wording')));
 
     // ----- Versions -----
     const versionsBox = h('div', { class: 'ri-versions' });
