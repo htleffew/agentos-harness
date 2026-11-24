@@ -100,6 +100,8 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_shots.js` | browser | legacy |
 | `t_spend_ceiling.js` | node | B19 |
 | `t_story_so_far.js` | node | MB6 |
+| `t_tracker_book.js` | node | B21 |
+| `t_tracker_book_host.js` | browser | B21 |
 | `t_upkeep.js` | node (fixture tests skip without docs/) | MB7 |
 | `t_upkeep_browser.js` | browser | MB7 |
 | `t_style.js` | browser | legacy |
@@ -164,6 +166,8 @@ The rows below describe the suites by behavior. Navigation in the older browser 
 | `unit/prompts_v8.mjs` and `unit/prompts_ui_v8.cjs` | Prompt validation, protected placeholders, save, restore, persistence and feature-local editor behavior |
 | `t_preset_bank_ri.js` | B31: one RI card per feature with the shipped default, her saved wording as a version equal to the stored prompt text, the stack reading (clean, wording, both, neither), the order of the RI group and the one-time read of the old module order, the owners, and the companion as a source and as a base. Runs with `node --test`, no host needed |
 | `t_ri_cards.js` | B31 on a host: the order of the RI cards in the stack is the order of the guidance in the request the mock logged, the old module order is read once with every card still on, and the request carries the clean wording, her saved wording, both (clean first) or neither as the stack says |
+| `t_tracker_book.js` | B21, the Tracker World Info book: entries per enabled card and per present character, Constant at depth 1, size in chat data, swipe, edit, delete and branch rewrites, Theirs and switched-off fields, the disabled first entry and an editor edit replaced, the request guard, no emoji. Runs with `node --test`, no host needed |
+| `t_tracker_book_host.js` | B21 at 390 and 1006 with touch (`RI_WIDTH`): capture fills the book, the Story, World Info and Review, Context sections, the host World Info editor and export, the book entries found once in the mock's final request after the recall block, a swipe, an edit, a delete, an editor edit replaced, Theirs, and a branch with its own book. Set `RI_EVIDENCE` for screenshots |
 | `t_inject_host.js` | MB5 at 523 x 1021 and 1006 x 909 with touch: the request layout in the payload the mock logged (memory notes in the prefix, the chapter view above the history, the recall block at depth 1, the reminder at depth 0, no story notes), two consecutive requests compared, Story state and Dice on Theirs, a Tracker book card, the three upkeep exclusions, and a 4,095-token context with the red mark and Review, Context. Set `RI_EVIDENCE` for screenshots. |
 | `t_reply_cards.js` | The card catalog against the DESIGN.md 6.2 and 6.3 tables, defaults, switches and the capture field list, the shared templates, carried values and the card builder. Runs with `node --test`, no host needed |
 | `unit/context_v9.mjs` | Text estimates, partial matching, non-text handling and chat isolation |

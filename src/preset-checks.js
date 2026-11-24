@@ -273,15 +273,17 @@ function variableNotes(cards) {
  * "<card key>|<feature>" giving the P1 one-line rule for a verdict. Only cards that are on count for text, variables,
  * verdicts and pick-one; cards that are off count for guard rows and landmarks. The plan is never changed or returned.
  */
-export function checkList(plan, { rules = null } = {}) {
+export function checkList(plan, { rules = null, extra = [] } = {}) {
     const started = performance.now();
     const all = Array.isArray(plan) ? plan : [];
     const sent = all.filter(card => card.on && !card.marker);
-    const notes = [...sameAndNear(sent), ...verdictNotes(sent, all, rules), ...pickNotes(all), ...variableNotes(sent), ...guardNotes(all), ...landmarkNotes(all)];
+    // extra holds notes another module read from the host (a loadout's blocks left out, B35); they are listed after the plan's own.
+    const notes = [...sameAndNear(sent), ...verdictNotes(sent, all, rules), ...pickNotes(all), ...variableNotes(sent), ...guardNotes(all), ...landmarkNotes(all),
+        ...(Array.isArray(extra) ? extra.map(item => ({ ...item })) : [])];
     const seenIds = new Map();
     for (const item of notes) { const n = (seenIds.get(item.id) || 0) + 1; seenIds.set(item.id, n); if (n > 1) item.id = `${item.id}#${n}`; }
     const counts = Object.fromEntries(NOTE_KINDS.map(kind => [kind, 0]));
-    for (const item of notes) counts[item.kind]++;
+    for (const item of notes) counts[item.kind] = (counts[item.kind] || 0) + 1;
     return { notes, counts, total: notes.length, warnings: notes.filter(item => item.level === 'warn').length, cards: all.length, ms: Math.round((performance.now() - started) * 100) / 100 };
 }
 

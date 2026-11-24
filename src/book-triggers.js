@@ -73,7 +73,8 @@ export function scopedBookEntry(entry, texts) {
 // that uses chance, an inclusion group or a timing field belongs to a behavior book (7.6): it keeps its place in the host's
 // request even when its book is switched to Recall, and it is never indexed for meaning search.
 
-const recallSettings = () => (settings().recall ||= { books: {} }).books;
+// recall also holds values, booster and sceneLine, so it can exist without books; a missing books made every recall turn throw.
+const recallSettings = () => ((settings().recall ||= {}).books ||= {});
 
 /** True when this book is switched to "Recall manages this book". */
 export const isRecallManaged = name => !!name && recallSettings()[name] === true;

@@ -17,7 +17,7 @@
 import { ctx, on } from './st.js';
 import { settings, saveSettings, chatState, saveChatState } from './store.js';
 import { FEATURES, FEATURE_KEYS, blockHash, loadLibrary } from './preset-library.js';
-import { readMarker } from './preset-loadouts.js';
+import { readMarker, restoreLoadoutStack, legacyStack } from './preset-loadouts.js';
 import { estimateTokens } from './context-budget.js';
 import { MODULE_PROMPTS, moduleOrder } from './module-layout.js';
 import { promptText } from './prompts.js';
@@ -665,7 +665,12 @@ export function stackFor(bank, base = activePreset(), data = null) {
     const key = stackKey(base, data || findPreset(base), bank);
     const stored = storedStack(key);
     if (stored) return stored;
-    const stack = startingStack(bank, base, { key });
+    // A loadout made from a stack restores that stack from its marker (B35); a version 1 loadout starts from its own blocks
+    // with the cards of its Theirs features off.
+    const preset = data || findPreset(base);
+    const restored = restoreLoadoutStack(base, preset);
+    if (restored) return restored;
+    const stack = legacyStack(startingStack(bank, base, { key }), readMarker(preset));
     writeStack(bank, stack, base);
     return copy(stack);
 }

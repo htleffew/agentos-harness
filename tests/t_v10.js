@@ -155,7 +155,11 @@ const chatRequests = () => L.requests().filter(request=>!/You keep the records o
         assert.doesNotMatch(lamp,/\[Seraphina\]/);
         assert.match(L.text(chatRequests().at(-1)),/Out-of-story voice feedback/);
         assert.match(L.text(chatRequests().at(-1)),/DOCK-GUIDE/);
-        assert.doesNotMatch(L.text(chatRequests().at(-1)),/PRIVATE-PRELUDE-MARKER/);
+        // The reply plan goes back to the model only as the Tracker book's Director's desk entry (memory DESIGN 3.3, 5.3),
+        // never as story text or in any other block.
+        const msgText = m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+        const outsideDesk = chatRequests().at(-1).messages.filter(m => !/^Director's desk\n/.test(msgText(m))).map(msgText).join('\n');
+        assert.doesNotMatch(outsideDesk,/PRIVATE-PRELUDE-MARKER/);
         assert.doesNotMatch(L.text(chatRequests().at(-1)),/Resolved action check/);
         const previous = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.time);
         L.mode({reply:block('The wind drops.',{scene:{elapsed:3},repair:previous,

@@ -160,7 +160,8 @@ export function filterGeneratedEntries(arrays) {
         for (let index = entries.length - 1; index >= 0; index--) {
             const entry = entries[index];
             const marker = markerOf(entry);
-            if (!(marker && ['story-world', 'tracker'].includes(marker.book)) && !isGeneratedName(entry?.world)) continue;
+            // the Tracker book (B21) feeds the model on purpose, so only the Story World book is held back here
+            if (!(marker && marker.book === 'story-world') && !isStoryWorldName(entry?.world)) continue;
             entries.splice(index, 1);
             removed += 1;
             const book = String(entry?.world || 'a generated book');

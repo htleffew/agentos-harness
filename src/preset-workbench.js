@@ -2,7 +2,7 @@ import { ctx } from './st.js';
 import { settings, saveSettings, chatState, saveChatState } from './store.js';
 import { activePreset, prefs, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
 import { FEATURES, FEATURE_KEYS, MEMORY_FEATURES, DEFAULT_SIDE, isSide, startingSwitches, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
-import { readMarker, makeMarker } from './preset-loadouts.js';
+import { readMarker, makeMarker, restoreLoadoutStack } from './preset-loadouts.js';
 import { savedWordingOf } from './preset-bank-ri.js';
 import { currentBank, refreshBank, stackFor, stackPlan, ownersFromStack, useBankLibrary, presetSource, SOURCE_BASE, SOURCE_COMPANION, SOURCE_RI } from './preset-bank.js';
 
@@ -412,13 +412,23 @@ export function workingPlan(context = switchContext()) {
  * whose card was never in the stack follows its own on or off setting ('both'). A Theirs tap on the interim switch gives
  * 'preset'; a loadout keeps the owners its marker's switches give.
  */
+/** The plan of a loadout's own stack (B35), or null when the bank cannot read the loadout. */
+function loadoutPlan(context) {
+    try {
+        let bank = currentBank() || refreshBank('working-copy');
+        if (!baseSourceOf(bank, context.preset)) bank = refreshBank('working-copy');
+        const stack = baseSourceOf(bank, context.preset) ? stackFor(bank, context.preset, context.data) : null;
+        return stack ? { plan: stackPlan(bank, stack, context.preset) } : null;
+    } catch (error) { console.warn('Roleplay Instructions could not read the loadout stack.', error); return null; }
+}
 export const ownerFor = side => side === 'theirs' ? 'preset' : 'both';
 export function syncOwners(context = switchContext(), work = undefined) {
     if (!context || !chatState()) return false;
     const switches = context.companion ? {} : resolvedSwitches(context);
     const switched = new Set(context.features.switched.map(item => item.key));
     let wanted;
-    const plan = context.marker ? null : (work === undefined ? workingPlan(context) : work)?.plan;
+    // A loadout's owners come from its own stack (restored from the marker, or started from its blocks), not from switches.
+    const plan = (context.marker ? loadoutPlan(context) : (work === undefined ? workingPlan(context) : work))?.plan;
     if (!plan) wanted = Object.fromEntries([...switched].map(key => [key, ownerFor(switches[key])]));
     else {
         // Her versions of an extension card are sent as inserted blocks; the owner follows the extension's own card.
@@ -427,7 +437,7 @@ export function syncOwners(context = switchContext(), work = undefined) {
         const fromStack = ownersFromStack(cards);
         const placed = new Set(cards.map(item => item.source === SOURCE_RI ? item.id : item.versionOf));
         wanted = Object.fromEntries(FEATURE_KEYS.map(key => [key,
-            switched.has(key) && switches[key] === 'theirs' ? 'preset' : placed.has(key) ? fromStack[key] : 'both']));
+            !context.marker && switched.has(key) && switches[key] === 'theirs' ? 'preset' : placed.has(key) ? fromStack[key] : 'both']));
         // The companion pairs its own scene checks with the extension's (hostSceneChecks reads an explicit 'both' on
         // preflight as unpaired), so on it a preflight card taken out sets an owner and putting it back clears that owner.
         // Every other feature gets 'both' as on any preset: with no owner, a block the stack sends that matches a feature
@@ -621,6 +631,8 @@ export function restoreWorkingCopy() {
 /** When a loadout becomes active, drop unsaved switch edits for it so its marker's switches are restored. */
 export function onPresetSelected() {
     const context = switchContext();
+    // Selecting a loadout puts its saved stack back exactly (B35); a stack she edited since is replaced until she updates it.
+    if (context?.marker?.stack) restoreLoadoutStack(context.preset, context.data, { force: true });
     if (context?.marker && savedOf(context.key)) {
         delete settings().presetSwitches[context.key];
         saveSettings();

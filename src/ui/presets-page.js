@@ -9,9 +9,9 @@ import { ctx, on, confirmBox, isChatOpen } from '../st.js';
 import { activePreset, enabledV10 } from '../v10.js';
 import { FEATURES, SIDES, plainName, verdictChip, activeProfile } from '../preset-library.js';
 import { profileStatus, profileValues, syncProfile, onProfileChange } from '../preset-profiles.js';
-import { listLoadouts, saveLoadout, updateLoadout, renameLoadout, deleteLoadout, loadoutConflicts, loadoutName } from '../preset-loadouts.js';
+import { listLoadouts, saveLoadoutFromContext, updateLoadoutFromContext, renameLoadout, deleteLoadout, loadoutConflicts, loadoutName } from '../preset-loadouts.js';
 import { ensureLibrary, libraryStatus, switchContext, resolvedSwitches, switchScope, setSwitches, pinSwitches, bulkSwitches,
-    bulkUndoAvailable, undoBulkSwitches, featureBlockIds, blockFeatures, workingCopyOff, currentMarker, applyWorkingCopy, restoreWorkingCopy,
+    bulkUndoAvailable, undoBulkSwitches, featureBlockIds, blockFeatures, workingCopyOff, applyWorkingCopy, restoreWorkingCopy,
     onPresetSelected, syncOwners, onSwitchChange, editPresetBlock, presetBlockRevision } from '../preset-workbench.js';
 import { installBankHooks } from '../preset-bank.js';
 
@@ -86,7 +86,7 @@ function presetCard(context, app, rerender) {
         placeholder: 'Short name, for example Noir nights', oninput: event => { state.loadoutName = event.target.value; preview.textContent = previewText(); save.disabled = !state.loadoutName.trim(); } });
     const save = button('Save as loadout', async () => {
         try {
-            const saved = await saveLoadout(manager(), { preset: marker?.base || context.preset, name: state.loadoutName, data: context.data, marker: currentMarker(context) });
+            const saved = await saveLoadoutFromContext(manager(), state.loadoutName, context);
             state.loadoutName = ''; state.status = `Saved ${saved}. It is now the selected preset.`;
         } catch (error) { state.status = error.message || String(error); }
         rerender();
@@ -113,7 +113,7 @@ function presetCard(context, app, rerender) {
         edition?.distinct && hint('Evening Truth presets stay distinct presets, one per model.'),
         overrides, profiles, family, changes,
         !context.companion && h('details', { class: 'ri-ps-fold', open: !!state.loadoutName }, h('summary', {}, 'Save as loadout'),
-            hint('Writes a new SillyTavern preset with the working copy’s blocks and a hidden marker of every switch. This preset stays as it is.'),
+            hint('Writes a new SillyTavern preset with the stack’s blocks in your order and a hidden marker of the stack and your versions. This preset stays as it is.'),
             name, preview, save));
 }
 
@@ -202,6 +202,12 @@ function regexScripts(context) {
             h('code', { class: 'ri-ps-code' }, String(script.findRegex || '')))) : hint('This preset carries no regex scripts.'));
 }
 
+const stackSummary = marker => {
+    const cards = [...marker.stack.cards, ...marker.stack.ri];
+    const mine = Object.keys(marker.versions).length;
+    return `${cards.filter(card => card.on).length} cards on, ${cards.filter(card => !card.on).length} off${mine ? `, ${mine} of your versions` : ''}`;
+};
+
 function loadoutsSection(rerender) {
     const list = listLoadouts(manager());
     const selected = activePreset();
@@ -214,7 +220,8 @@ function loadoutsSection(rerender) {
             const input = h('input', { class: 'ri-input', value: short, maxLength: 60, 'aria-label': `New name for ${item.name}` });
             return h('div', { class: 'ri-ps-line ri-ps-loadout', 'data-loadout': item.name },
                 h('strong', {}, plainName(item.name)), item.name === selected && chip('Selected', 'on'),
-                h('p', { class: 'ri-ps-meta' }, `Ours: ${ours.join(', ') || 'none'}${both.length ? `; Both: ${both.join(', ')}` : ''}; ${item.marker.off.length} preset blocks off`),
+                h('p', { class: 'ri-ps-meta' }, item.marker.stack ? stackSummary(item.marker)
+                    : `Ours: ${ours.join(', ') || 'none'}${both.length ? `; Both: ${both.join(', ')}` : ''}; ${item.marker.off.length} preset blocks off`),
                 renaming ? h('div', { class: 'ri-row ri-row-tight' }, input, button('Rename', async () => {
                     try { const next = await renameLoadout(manager(), item.name, input.value); state.status = `Renamed to ${next}.`; state.renaming = null; }
                     catch (error) { state.status = error.message || String(error); }
@@ -226,8 +233,8 @@ function loadoutsSection(rerender) {
                             try {
                                 const context = switchContext(selected);
                                 if (item.name !== selected || !context) throw new Error('Select this loadout first; Update writes the switches shown above into it.');
-                                await updateLoadout(manager(), item.name, context.data, currentMarker(context));
-                                state.status = `Updated ${item.name} from the current switches.`;
+                                await updateLoadoutFromContext(manager(), item.name, context);
+                                state.status = `Updated ${item.name} from its stack.`;
                             } catch (error) { state.status = error.message || String(error); }
                             rerender();
                         }, { kind: 'ghost', title: 'Update from the current switches', disabled: item.name !== selected }),

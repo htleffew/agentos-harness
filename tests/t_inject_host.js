@@ -29,7 +29,7 @@ const turn = async (page, text) => { await L.send(page, text); await settle(page
     try {
         await L.setupApi(page);
         // a larger item cap, so the closed chapter's exchange excerpts never crowd out the records each check looks for
-        await L.setSettings(page, { check: { mode: 'off' }, summary: { on: true, hide: true, minExchanges: 3, maxExchanges: 6 }, recall: { values: { itemCap: 14 } } });
+        await L.setSettings(page, { check: { mode: 'off' }, summary: { on: true, hide: true, minExchanges: 3, maxExchanges: 6 }, recall: { values: { itemCap: 14 } }, trayCards: { mode: { scene: 'off', characters: 'off', emotions: 'off', relationships: 'off', plan: 'off' } } });
         await L.openChat(page);
         await page.waitForFunction(async B => (await import(`${B}/src/memory/import.js`)).memoryActive(), B, { timeout: 30000 });
 

@@ -632,6 +632,17 @@ test('a model that cannot download leaves search on words and retries no sooner 
     assert.equal(loads, 2);
 });
 
+test('recall settings that hold values but no book switches read every book as not managed, without throwing', async () => {
+    const before = globalThis.SillyTavern;
+    const extensionSettings = { roleplay_instructions: { recall: { values: { itemCap: 14 } } } };
+    globalThis.SillyTavern = { getContext: () => ({ extensionSettings }) };
+    try {
+        const { isRecallManaged } = await import('../src/book-triggers.js');
+        assert.equal(isRecallManaged('Eldoria'), false);
+        assert.deepEqual(extensionSettings.roleplay_instructions.recall.books, {});
+    } finally { globalThis.SillyTavern = before; }
+});
+
 test.after(() => {
     if (EVIDENCE) fs.writeFileSync(path.join(EVIDENCE, 'node-suite-summary.json'), JSON.stringify({ at: new Date().toISOString(), realModel: !!NODE_LIB, saved: Object.keys(saved) }, null, 1));
 });

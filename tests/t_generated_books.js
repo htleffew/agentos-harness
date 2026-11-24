@@ -291,9 +291,9 @@ test('the Story World book never reaches the request beside the recall block, in
     const renamed = [{ ...clone(scanned[0]), world: 'Some other name' }];
     const out = filterGeneratedEntries([renamed]);
     record('an entry carrying the extension\'s marker is left out whatever its book is called', out.removed === 1 && renamed.length === 0);
-    // the Tracker book is placed by the extension itself, so it is not sent twice either
+    // the Tracker book feeds the model on purpose (B21), so the guard leaves its entries in the request
     const tracker = [{ uid: 0, world: 'RI Tracker, Hale, chat 1', content: 'Place: the drawbridge', extensions: {} }];
-    record('the Tracker book\'s entries are left out of the scan as well', filterGeneratedEntries([tracker]).removed === 1);
+    record('the Tracker book\'s entries stay in the request', filterGeneratedEntries([tracker]).removed === 0 && tracker.length === 1);
 });
 
 // ---------------------------------------------------------------- export
