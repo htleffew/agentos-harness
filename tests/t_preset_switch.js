@@ -103,16 +103,18 @@ test('selecting a preset lists the features both sides offer, and the list chang
     assert.deepEqual(plain.features.switched.map(item => [item.key, item.matchedBy]), [['style', 'name'], ['dice', 'name']]);
 });
 
-test('starting positions: story state, emotions, relationships, dice and colors on Ours; the rest on Theirs', () => {
+test('every feature starts on Both (the sides B12 started on are one choice away)', () => {
     select('Sola');
     const switches = wb.resolvedSwitches(wb.switchContext());
-    for (const key of ['state', 'emotions', 'relationships', 'dice', 'colors']) assert.equal(switches[key], 'ours', key);
-    for (const key of ['style', 'preflight', 'knowledge', 'plots', 'worldEvents', 'roast', 'roastFeedback']) assert.equal(switches[key], 'theirs', key);
+    for (const key of lib.FEATURE_KEYS) assert.equal(switches[key], 'both', key);
 });
 
 test('Ours switches the preset blocks off in the working copy only; Theirs sends none of the extension text', () => {
     select('Sola');
     const context = wb.switchContext();
+    // The sides B12 started on, chosen explicitly now that the default is Both.
+    wb.setSwitches(context, { state: 'ours', emotions: 'ours', relationships: 'ours', dice: 'ours', colors: 'ours',
+        style: 'theirs', preflight: 'theirs', knowledge: 'theirs', plots: 'theirs', worldEvents: 'theirs', roast: 'theirs', roastFeedback: 'theirs' });
     const ids = wb.featureBlockIds(context);
     const before = JSON.stringify(stored.Sola);
     const live = JSON.stringify(host.chatCompletionSettings);

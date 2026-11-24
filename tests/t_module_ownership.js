@@ -104,6 +104,23 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         text=await send('I pause.');
         assert.equal(n(text,hostRule),0);
         assert.equal(n(text,extensionRule),0);
+        // Both (B24): the host blocks stay on and the extension's rule is sent as well, on the same request.
+        await set('on');
+        await sides('both');
+        await openModules();
+        assert.match(await row.locator('[data-home-link="feature-owner"]').textContent(),/Ours, Theirs or Both switch/);
+        await checkOwner('both');
+        text = await send('I step back out.');
+        assert.match(text,/HOST-ANTITHESIS-FIXTURE/);
+        assert.equal(n(text,hostRule),1);
+        assert.equal(n(text,extensionRule),1);
+        if (process.env.RI_EVIDENCE) {
+            fs.mkdirSync(process.env.RI_EVIDENCE,{recursive:true});
+            fs.writeFileSync(`${process.env.RI_EVIDENCE}/request-both.json`,JSON.stringify({side:'both',feature:'relationships',
+                hostBlockText:hostRule,hostBlockCount:n(text,hostRule),hostRoutingBlockPresent:text.includes('HOST-ANTITHESIS-FIXTURE'),
+                extensionRule,extensionRuleCount:n(text,extensionRule),requestLength:text.length},null,2));
+        }
+        await set('off');
         await switchTo(companion);
         assert.equal(n(await send('I close the door.'),extensionRule),0);
         await openModules();
@@ -120,7 +137,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.match(text,/Give NPCs practical aims of their own/);
         await ext(async({B})=>(await import(`${B}/src/ui/panel.js`)).app.openPage('writing'));
         await page.locator('#ri_root').getByText('Host preset · Check: Physical',{exact:true}).waitFor({state:'attached'});
-        assert.equal(L.requests().length,8);
+        assert.equal(L.requests().length,9);
         assert.deepEqual(errors,[]);
         console.log('PASS module ownership: inherited preset values, chat override and reset, separate preset blocks and exclusive instructions on the wire.');
     } finally { await browser.close(); }

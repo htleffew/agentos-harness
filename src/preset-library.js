@@ -4,25 +4,30 @@
 
 export const LIBRARY_SCHEMA = 'roleplay-instructions/preset-library@1';
 
-// One label, starting side and one-line effect per feature. The starting sides follow decisions 6 and 7.
+// One label and one-line effect per feature. Every feature starts on Both (decision of 24 November: presets compose freely).
 export const FEATURES = Object.freeze({
-    style: { label: 'Writing style', start: 'theirs', ours: 'Sends the extension’s live writing guidance.' },
-    preflight: { label: 'Continuity guidance', start: 'theirs', ours: 'Sends scene and character reminders with each reply.' },
-    state: { label: 'Story state', start: 'ours', ours: 'Tracks the scene, time and date and draws the state cards.' },
-    knowledge: { label: 'Character knowledge', start: 'theirs', ours: 'Keeps who knows what as records.' },
-    emotions: { label: 'Emotions', start: 'ours', ours: 'Keeps each character’s emotion scales and draws the card.' },
-    relationships: { label: 'Relationships', start: 'ours', ours: 'Keeps relationship records and draws the card.' },
-    plots: { label: 'Story threads', start: 'theirs', ours: 'Keeps arcs, planted details and off-screen agendas.' },
-    worldEvents: { label: 'Plot offers', start: 'theirs', ours: 'Offers an optional development by chance.' },
-    dice: { label: 'Dice', start: 'ours', ours: 'Rolls in code and sends one verdict.' },
-    colors: { label: 'Dialogue colors', start: 'ours', ours: 'Colors each speaker’s dialogue.' },
-    roast: { label: 'Roast', start: 'theirs', ours: 'Writes a comic reaction to each reply.' },
-    roastFeedback: { label: 'Roast feedback', start: 'theirs', ours: 'Sends the previous roast with the next request.' },
+    style: { label: 'Writing style', ours: 'Sends the extension’s live writing guidance.' },
+    preflight: { label: 'Continuity guidance', ours: 'Sends scene and character reminders with each reply.' },
+    state: { label: 'Story state', ours: 'Tracks the scene, time and date and draws the state cards.' },
+    knowledge: { label: 'Character knowledge', ours: 'Keeps who knows what as records.' },
+    emotions: { label: 'Emotions', ours: 'Keeps each character’s emotion scales and draws the card.' },
+    relationships: { label: 'Relationships', ours: 'Keeps relationship records and draws the card.' },
+    plots: { label: 'Story threads', ours: 'Keeps arcs, planted details and off-screen agendas.' },
+    worldEvents: { label: 'Plot offers', ours: 'Offers an optional development by chance.' },
+    dice: { label: 'Dice', ours: 'Rolls in code and sends one verdict.' },
+    colors: { label: 'Dialogue colors', ours: 'Colors each speaker’s dialogue.' },
+    roast: { label: 'Roast', ours: 'Writes a comic reaction to each reply.' },
+    roastFeedback: { label: 'Roast feedback', ours: 'Sends the previous roast with the next request.' },
 });
 export const FEATURE_KEYS = Object.keys(FEATURES);
 // Features the memory build records; the bulk switch "Theirs for everything except memory" leaves these on Ours.
 export const MEMORY_FEATURES = Object.freeze(['state', 'knowledge', 'relationships', 'emotions', 'plots']);
-export const startingSwitches = () => Object.fromEntries(FEATURE_KEYS.map(key => [key, FEATURES[key].start]));
+// The three sides of a switch. Ours switches the preset's blocks for the feature off and sends the extension's text; Theirs sends none of
+// the extension's text; Both keeps every block the preset has on and also sends the extension's text.
+export const SIDES = Object.freeze(['ours', 'theirs', 'both']);
+export const DEFAULT_SIDE = 'both';
+export const isSide = value => SIDES.includes(value);
+export const startingSwitches = () => Object.fromEntries(FEATURE_KEYS.map(key => [key, DEFAULT_SIDE]));
 
 // Host stock rows and the TauriTavern Agent rows never count toward recognition (P1 recognition rule).
 const STOCK = new Set(['main', 'nsfw', 'jailbreak', 'chatHistory', 'worldInfoBefore', 'worldInfoAfter', 'enhanceDefinitions',

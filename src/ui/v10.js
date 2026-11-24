@@ -564,7 +564,7 @@ function hostOverlap(key, owner, enabled) {
     const listed = switchContext()?.features.switched.some(item=>item.key===key);
     return h('details',{id:`${id}-details`,class:'ri-module-overlap',open:owner.blocked},
         h('summary',{},'Instruction source & diagnostics'),
-        homeLink(null,'feature-owner',`Who supplies ${MODULES[key]} is set with the Ours or Theirs switch in Setup, Presets.`,
+        homeLink(null,'feature-owner',`Who supplies ${MODULES[key]} is set with the Ours, Theirs or Both switch in Setup, Presets.`,
             listed ? { anchor:`#ri-switch-${key}` } : undefined),
         h('p',{class:'ri-help',id:`${id}-status`},status),
         h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in host preset`,

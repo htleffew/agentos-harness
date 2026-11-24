@@ -15,6 +15,7 @@
 .ri-ps-chip-conflict { color: var(--ri-problem); border-color: var(--ri-problem-line); background: var(--ri-problem-tint); }
 .ri-ps-chip-lock { color: var(--ri-call); border-color: var(--ri-call-line); }
 .ri-ps-chip-ours { color: var(--ri-select); border-color: var(--ri-select-line); }
+.ri-ps-chip-both { color: var(--ri-text); border-color: var(--ri-line); }
 .ri-ps-chip-theirs { color: var(--ri-setup); border-color: var(--ri-setup-line); }
 .ri-ps-chip-distinct { color: var(--ri-focus); border-color: var(--ri-focus-line); }
 button.ri-ps-chip { cursor: pointer; min-height: var(--ri-hit-min, 24px); }

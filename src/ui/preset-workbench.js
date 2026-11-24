@@ -94,7 +94,7 @@ function extensionEditors(key,profile) {
 /** The old Preset & Extension page keeps a pointer; blocks, switches and loadouts live in Setup, Presets. */
 export function presetWorkbench(preset,app) {
     return h('div',{class:'ri-card ri-tight ri-preset-workbench-link'},
-        hint(`The blocks of ${preset}, the Ours or Theirs switch for each feature and saved loadouts are in Setup, Presets.`),
+        hint(`The blocks of ${preset}, the Ours, Theirs or Both switch for each feature and saved loadouts are in Setup, Presets.`),
         button('Open Setup, Presets',()=>app.openPage(PAGE),{kind:'primary'}));
 }
 
@@ -135,7 +135,7 @@ export function presetBlockEditor(preset,app,profile) {
     function supplier(block) {
         const key=ownerOf.get(block.id);
         if (!key) return null;
-        const side=switches[key]==='ours' ? 'Ours' : 'Theirs';
+        const side={ours:'Ours',theirs:'Theirs',both:'Both'}[switches[key]];
         return button(`${FEATURES[key].label}: ${side}`,()=>app.openPage(PAGE,{anchor:`#ri-switch-${key}`}),{kind:'ghost',title:'Change who supplies this feature'});
     }
     function editable(block,card) {

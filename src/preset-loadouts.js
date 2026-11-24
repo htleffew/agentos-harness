@@ -3,14 +3,16 @@
 // (preset.extensions.roleplay_instructions.loadout), which SillyTavern keeps through save, export and import and
 // never shows in the prompt list. A disabled comment-macro row is the fallback carrier (row 39 of DESIGN.md 12):
 // SillyTavern keeps the row and its {{// ...}} macro expands to nothing, so the row sends no text even if enabled.
-import { FEATURES } from './preset-library.js';
+import { FEATURES, isSide } from './preset-library.js';
 
 export const MARKER_KEY = 'roleplay_instructions';
 export const MARKER_ROW = 'ri-loadout-marker';
 const MARKER_VERSION = 1;
 const SEP = ' + RI ';
 
-const sideOf = value => value === 'ours' || value === 'theirs' ? value : null;
+// The marker stays version 1. A reader from before Both drops the Both entries and uses its own sides; a marker written
+// before Both holds none and loads as it always did.
+const sideOf = value => isSide(value) ? value : null;
 export function cleanSwitches(switches) {
     return Object.fromEntries(Object.entries(switches || {}).filter(([key, value]) => Object.hasOwn(FEATURES, key) && sideOf(value)));
 }

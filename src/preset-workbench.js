@@ -1,7 +1,7 @@
 import { ctx, parseJson } from './st.js';
 import { settings, saveSettings, chatState, saveChatState } from './store.js';
 import { activePreset, defaultWritingGuidance, PREFLIGHT, prefs, MODULES, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
-import { FEATURES, FEATURE_KEYS, MEMORY_FEATURES, startingSwitches, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
+import { FEATURES, FEATURE_KEYS, MEMORY_FEATURES, DEFAULT_SIDE, isSide, startingSwitches, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
 import { readMarker, makeMarker } from './preset-loadouts.js';
 import { MODULE_PROMPTS } from './module-layout.js';
 import { promptText, roastVoiceText } from './prompts.js';
@@ -309,18 +309,21 @@ export function switchContext(name = activePreset()) {
 const pinOf = key => { const pins = chatState()?.v10?.presetPins; return pins && Object.hasOwn(pins, key) ? pins[key] : null; };
 const savedOf = key => { const all = settings().presetSwitches; return all && Object.hasOwn(all, key) ? all[key] : null; };
 
-/** The resolved switches for one context: chat pin, then saved edition choices, then the loadout marker, then the starting sides. */
+/**
+ * The resolved switches for one context: chat pin, then saved edition choices, then the loadout marker, then Both. A side she saved
+ * or pinned keeps its value; a feature nobody chose falls to the default, which moved from the old starting sides to Both.
+ */
 export function resolvedSwitches(context) {
     if (!context) return {};
     const out = { ...startingSwitches(), ...(context.marker?.switches || {}), ...(savedOf(context.key) || {}), ...(pinOf(context.key) || {}) };
-    return Object.fromEntries(FEATURE_KEYS.map(key => [key, out[key] === 'ours' ? 'ours' : 'theirs']));
+    return Object.fromEntries(FEATURE_KEYS.map(key => [key, isSide(out[key]) ? out[key] : DEFAULT_SIDE]));
 }
 export const switchScope = context => context && pinOf(context.key) ? 'chat' : 'edition';
 
 /** Set one or more switches in the current scope (the chat pin when there is one). */
 export function setSwitches(context, change) {
     if (!context) return;
-    const clean = Object.fromEntries(Object.entries(change).filter(([key, value]) => Object.hasOwn(FEATURES, key) && ['ours', 'theirs'].includes(value)));
+    const clean = Object.fromEntries(Object.entries(change).filter(([key, value]) => Object.hasOwn(FEATURES, key) && isSide(value)));
     const pin = pinOf(context.key);
     if (pin) {
         put(chatState().v10.presetPins, context.key, { ...pin, ...clean });
@@ -347,12 +350,12 @@ export function pinSwitches(context, pinned) {
 }
 
 let undoBulk = null;
-/** "Theirs for everything except memory" or "Ours for everything"; the previous switches are kept for Undo. */
+/** "Theirs for everything except memory", "Ours for everything" or "Both for everything"; the previous switches are kept for Undo. */
 export function bulkSwitches(context, mode) {
     if (!context) return;
     const listed = context.features.switched.map(item => item.key);
     undoBulk = { key: context.key, scope: switchScope(context), switches: resolvedSwitches(context) };
-    const side = key => mode === 'ours' ? 'ours' : MEMORY_FEATURES.includes(key) ? 'ours' : 'theirs';
+    const side = key => mode === 'ours' || mode === 'both' ? mode : MEMORY_FEATURES.includes(key) ? 'ours' : 'theirs';
     setSwitches(context, Object.fromEntries(listed.map(key => [key, side(key)])));
 }
 export const bulkUndoAvailable = context => !!context && undoBulk?.key === context.key;
@@ -378,7 +381,8 @@ export function blockFeatures(context) {
 
 /**
  * The block ids the working copy switches off: the preset blocks of Ours features, except a block another
- * feature on Theirs also uses, which stays on so Theirs keeps its supply. A loadout sends as saved.
+ * feature on Theirs or Both also uses, which stays on so that feature keeps its supply. Both switches nothing off.
+ * A loadout sends as saved.
  */
 export function workingCopyOff(context, switches = resolvedSwitches(context)) {
     if (!context || context.marker || context.companion) return [];
@@ -394,16 +398,17 @@ export function currentMarker(context) {
 
 /**
  * Mirror the switches into the chat's module owners, which effectiveModules() reads: Theirs maps to 'preset'
- * (the extension sends none of its text for it), Ours to 'both' (the extension runs it; the working copy has
- * already taken the preset's blocks out of the request, so nothing runs twice).
+ * (the extension sends none of its text for it). Ours and Both map to 'both': the extension runs the feature and the host
+ * blocks stand. They differ in the working copy, which takes the preset's blocks out of the request for Ours only.
  */
+export const ownerFor = side => side === 'theirs' ? 'preset' : 'both';
 export function syncOwners(context = switchContext()) {
     if (!context || context.companion || !chatState()) return false;
     const switches = resolvedSwitches(context);
     const owners = chatState().v10?.moduleOwners?.[context.preset] || {};
     let changed = false;
     for (const item of context.features.switched) {
-        const value = switches[item.key] === 'ours' ? 'both' : 'preset';
+        const value = ownerFor(switches[item.key]);
         if (owners[item.key] !== value) { setModuleOwner(context.preset, item.key, value); changed = true; }
     }
     return changed;

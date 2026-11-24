@@ -139,11 +139,18 @@ async function run(browser, tag, viewport) {
     await shot('8-world-info');
     assert.equal(out.checks.search.landed.nested, 'world-info');
 
-    // Setup, Presets: flip Dice from its starting side.
+    // Setup, Presets: flip Dice from its starting side. Sides saved by earlier runs on this host would hide the default.
+    await page.evaluate(async BASE => { delete (await import(`${BASE}/src/store.js`)).settings().presetSwitches; }, BASE);
     await tap(page, '[data-ri-tab="setup"]');
     await tap(page, '[data-ri-nested="presets"]');
     await page.waitForSelector('#ri-switch-dice', { timeout: 30000 }).catch(async error => { await shot('fail-presets'); throw error; });
     const before = await page.locator('#ri-switch-dice').getAttribute('data-side');
+    // B24: a feature nobody has chosen is on Both, and the switch offers three sides.
+    assert.equal(before, 'both', 'the default side is Both');
+    assert.deepEqual(await page.locator('#ri-switch-dice .ri-ps-seg').allTextContents(), ['Ours', 'Theirs', 'Both']);
+    await page.locator('#ri-switch-dice').scrollIntoViewIfNeeded();
+    await shot('8b-presets-both-default');
+    const label = { ours: 'Ours', theirs: 'Theirs', both: 'Both' };
     const target = before === 'ours' ? 'Theirs' : 'Ours';
     const seg = page.locator('#ri-switch-dice .ri-ps-seg').filter({ hasText: target });
     await seg.scrollIntoViewIfNeeded();
@@ -212,7 +219,7 @@ async function run(browser, tag, viewport) {
     assert.equal(out.checks.afterReload.reopenedPage, 'presets', 'the menu reopens where it was');
 
     // Leave the bar open and the switch where it started for the next width.
-    const flipBack = page.locator('#ri-switch-dice .ri-ps-seg').filter({ hasText: before === 'ours' ? 'Ours' : 'Theirs' });
+    const flipBack = page.locator('#ri-switch-dice .ri-ps-seg').filter({ hasText: label[before] });
     const backBox = await flipBack.boundingBox();
     await page.touchscreen.tap(backBox.x + backBox.width / 2, backBox.y + backBox.height / 2);
     await page.evaluate(async BASE => { (await import(`${BASE}/src/quick-actions.js`)).setBarFolded(false); }, BASE);

@@ -1,4 +1,4 @@
-// Setup, Presets (DESIGN.md 7): the preset card, the per-feature Ours or Theirs switch, Works alongside,
+// Setup, Presets (DESIGN.md 7): the preset card, the per-feature Ours, Theirs or Both switch, Works alongside,
 // the preset's blocks, a read-only document view, its regex scripts and saved loadouts.
 // The page registers through B1's page registry, so it appears in today's panel and in B5's shell alike.
 import { h, button } from './dom.js';
@@ -7,7 +7,7 @@ import { presetBlockEditor } from './preset-workbench.js';
 import { home } from './homes.js';
 import { ctx, on, confirmBox, isChatOpen } from '../st.js';
 import { activePreset, enabledV10 } from '../v10.js';
-import { FEATURES, plainName, verdictChip, activeProfile } from '../preset-library.js';
+import { FEATURES, SIDES, plainName, verdictChip, activeProfile } from '../preset-library.js';
 import { profileStatus, profileValues, syncProfile, onProfileChange } from '../preset-profiles.js';
 import { listLoadouts, saveLoadout, updateLoadout, renameLoadout, deleteLoadout, loadoutConflicts, loadoutName } from '../preset-loadouts.js';
 import { ensureLibrary, libraryStatus, switchContext, resolvedSwitches, switchScope, setSwitches, pinSwitches, bulkSwitches,
@@ -19,6 +19,10 @@ const hint = text => h('p', { class: 'ri-help' }, text);
 const chip = (text, kind = '') => h('span', { class: `ri-ps-chip${kind ? ' ri-ps-chip-' + kind : ''}` }, text);
 const manager = () => ctx().getPresetManager?.('openai');
 const state = { status: '', loadoutName: '', renaming: null };
+const SIDE_LABEL = { ours: 'Ours', theirs: 'Theirs', both: 'Both' };
+const SIDE_NOTE = { ours: 'the extension supplies it and the preset’s blocks are switched off',
+    theirs: 'the preset supplies it; the extension sends none of its text',
+    both: 'the preset’s blocks stay on and the extension also sends its text' };
 
 /** Who supplies a feature now, for a feature page or the Features list; a tap opens the switch. */
 export function supplierChip(key, app) {
@@ -26,15 +30,15 @@ export function supplierChip(key, app) {
     const item = context?.features.switched.find(row => row.key === key);
     if (!item) return null;
     const side = resolvedSwitches(context)[key];
-    const text = side === 'ours' ? 'Ours' : `Theirs: ${item.blocks.map(block => plainName(block.name)).join(', ')}`;
+    const text = side === 'theirs' ? `Theirs: ${item.blocks.map(block => plainName(block.name)).join(', ')}` : SIDE_LABEL[side];
     return h('button', { type: 'button', class: `ri-ps-chip ri-ps-chip-${side}`, title: 'Change who supplies this feature',
         onclick: () => app?.openPage?.(PAGE_ID, { anchor: `#ri-switch-${key}` }) }, text);
 }
 
 function segmented(key, side, onPick) {
-    const option = value => h('button', { type: 'button', class: 'ri-ps-seg', 'aria-pressed': String(side === value),
-        onclick: () => side !== value && onPick(value) }, value === 'ours' ? 'Ours' : 'Theirs');
-    return h('div', { class: 'ri-ps-segmented', role: 'group', 'aria-label': `Who supplies ${FEATURES[key].label}` }, option('ours'), option('theirs'));
+    const option = value => h('button', { type: 'button', class: 'ri-ps-seg', 'data-side': value, 'aria-pressed': String(side === value),
+        onclick: () => side !== value && onPick(value) }, SIDE_LABEL[value]);
+    return h('div', { class: 'ri-ps-segmented', role: 'group', 'aria-label': `Who supplies ${FEATURES[key].label}` }, SIDES.map(option));
 }
 
 const size = value => Number(value).toLocaleString('en-US');
@@ -91,8 +95,8 @@ function presetCard(context, app, rerender) {
     const changes = h('details', { class: 'ri-ps-fold' }, h('summary', {}, 'What changes'),
         marker ? hint('A loadout is sent exactly as saved. The switches below come from its marker.')
             : off.length ? h('ul', {}, off.map(id => context.blocks.find(block => block.id === id)).filter(Boolean)
-                .map(block => h('li', {}, `${plainName(block.name)}: off in the working copy`))) : hint('The working copy matches the preset; every listed feature is on Theirs.'),
-        h('ul', {}, context.features.switched.map(item => h('li', {}, `${item.label}: ${resolvedSwitches(context)[item.key] === 'ours' ? 'the extension supplies it' : 'the preset supplies it; the extension sends none of its text'}`))));
+                .map(block => h('li', {}, `${plainName(block.name)}: off in the working copy`))) : hint('The working copy matches the preset; no block is switched off.'),
+        h('ul', {}, context.features.switched.map(item => h('li', {}, `${item.label}: ${SIDE_NOTE[resolvedSwitches(context)[item.key]]}`))));
     const overrides = edition?.overrides?.length ? h('details', { class: 'ri-ps-fold' }, h('summary', {}, `Overrides (${edition.overrides.length})`),
         edition.overrides.map(item => h('div', { class: 'ri-ps-line' }, h('strong', {}, plainName(item.name)), chip(item.kind === 'customization' ? 'Yours' : item.kind), hint(plainName(item.description))))) : null;
     const profiles = modelProfiles(follow);
@@ -136,17 +140,18 @@ function switchList(context, rerender) {
         const theirs = item.blocks.map(block => plainName(block.name)).join(', ');
         const conflict = conflicts.get(item.key);
         const blocksOff = context.marker && side === 'theirs' && item.blocks.every(block => !block.enabled);
-        const kept = side === 'ours' && !context.marker ? item.blocks.filter(block => (owners.get(block.id) || []).some(key => switches[key] === 'theirs')) : [];
+        const kept = side === 'ours' && !context.marker ? item.blocks.filter(block => (owners.get(block.id) || []).some(key => switches[key] !== 'ours')) : [];
         return h('div', { class: 'ri-ps-row', id: `ri-switch-${item.key}`, tabindex: -1, 'data-feature': item.key, 'data-side': side },
             h('div', { class: 'ri-ps-row-head' }, h('strong', {}, item.label), verdictChip(item.verdict) && chip(verdictChip(item.verdict), item.verdict === 'contradictory' ? 'conflict' : 'tag'),
                 item.matchedBy === 'name' && chip('Matched by block name')),
             h('div', { class: 'ri-ps-sides' },
                 h('p', { class: 'ri-ps-side' }, h('b', {}, 'Ours: '), FEATURES[item.key].ours),
-                h('p', { class: 'ri-ps-side' }, h('b', {}, 'Theirs: '), theirs)),
+                h('p', { class: 'ri-ps-side' }, h('b', {}, 'Theirs: '), theirs),
+                h('p', { class: 'ri-ps-side' }, h('b', {}, 'Both: '), 'Keeps those blocks on and also sends the extension’s text.')),
             segmented(item.key, side, value => { setSwitches(context, { [item.key]: value }); rerender(); }),
             item.rule && h('p', { class: 'ri-help' }, item.rule),
             kept.length ? hint(`Kept on: ${kept.map(block => `${plainName(block.name)} also serves ${(owners.get(block.id) || [])
-                .filter(key => switches[key] === 'theirs').map(key => FEATURES[key].label).join(' and ')}, which is on Theirs`).join('; ')}.`) : null,
+                .filter(key => switches[key] !== 'ours').map(key => `${FEATURES[key].label} (${SIDE_LABEL[switches[key]]})`).join(' and ')}`).join('; ')}.`) : null,
             conflict && conflictFixes(context, conflict, rerender),
             blocksOff && h('div', { class: 'ri-ps-conflict' }, chip('Blocks off', 'tag'), h('span', {}, 'This loadout keeps the preset’s blocks for it off.'),
                 button('Turn the blocks on', async () => {
@@ -166,7 +171,8 @@ function switchList(context, rerender) {
         scopeLine,
         switched.length ? h('div', { class: 'ri-ps-bulk' },
             button('Theirs for everything except memory', () => { bulkSwitches(context, 'theirs'); state.status = 'Theirs for everything except memory.'; rerender(); }, { kind: 'ghost' }),
-            button('Ours for everything', () => { bulkSwitches(context, 'ours'); state.status = 'Ours for everything.'; rerender(); }, { kind: 'ghost' }), undo)
+            button('Ours for everything', () => { bulkSwitches(context, 'ours'); state.status = 'Ours for everything.'; rerender(); }, { kind: 'ghost' }),
+            button('Both for everything', () => { bulkSwitches(context, 'both'); state.status = 'Both for everything.'; rerender(); }, { kind: 'ghost' }), undo)
             : hint('This preset offers none of the extension’s features, so the extension supplies them all.'),
         rows,
         alongside.length ? h('details', { class: 'ri-ps-fold' }, h('summary', {}, `Works alongside (${alongside.length})`),
@@ -202,11 +208,12 @@ function loadoutsSection(rerender) {
         list.length ? list.map(item => {
             const short = item.name.startsWith(`${item.marker.base} + RI `) ? item.name.slice(item.marker.base.length + 6) : item.name;
             const ours = Object.entries(item.marker.switches).filter(([, side]) => side === 'ours').map(([key]) => FEATURES[key].label);
+            const both = Object.entries(item.marker.switches).filter(([, side]) => side === 'both').map(([key]) => FEATURES[key].label);
             const renaming = state.renaming === item.name;
             const input = h('input', { class: 'ri-input', value: short, maxLength: 60, 'aria-label': `New name for ${item.name}` });
             return h('div', { class: 'ri-ps-line ri-ps-loadout', 'data-loadout': item.name },
                 h('strong', {}, plainName(item.name)), item.name === selected && chip('Selected', 'on'),
-                h('p', { class: 'ri-ps-meta' }, `Ours: ${ours.join(', ') || 'none'}; ${item.marker.off.length} preset blocks off`),
+                h('p', { class: 'ri-ps-meta' }, `Ours: ${ours.join(', ') || 'none'}${both.length ? `; Both: ${both.join(', ')}` : ''}; ${item.marker.off.length} preset blocks off`),
                 renaming ? h('div', { class: 'ri-row ri-row-tight' }, input, button('Rename', async () => {
                     try { const next = await renameLoadout(manager(), item.name, input.value); state.status = `Renamed to ${next}.`; state.renaming = null; }
                     catch (error) { state.status = error.message || String(error); }
@@ -263,7 +270,7 @@ export function mountPresetsPage() {
     mounted = true;
     loadPageStyles();
     registerPage({ id: PAGE_ID, group: 'setup', label: 'Presets', withoutChat: true, order: 0,
-        help: 'Choose Ours or Theirs for each feature the preset also offers, read its blocks and save loadouts.',
+        help: 'Choose Ours, Theirs or Both for each feature the preset also offers, read its blocks and save loadouts.',
         aliases: 'preset ours theirs switch loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
     ensureLibrary();
     on('GENERATION_STARTED', () => { try { applyWorkingCopy(); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });
