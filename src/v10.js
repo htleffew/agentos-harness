@@ -15,6 +15,8 @@ import { rollInt, createSet, cleanSetName, setInfo, setOfEntry } from './books.j
 import { chatWorld, setChatWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
 import { loadEffectiveWorld, worldBeforeGeneration } from './worldflow.js';
 import { foldRows, memoryActive } from './memory/import.js';
+// The quote check of memory DESIGN 7.2 replaces the old word-overlap test of a claim against its quote (M1a W2).
+import { quoteIn } from './memory/validate.js';
 import { statNames, sheet } from './dice.js';
 
 export const PRESET = 'Roleplay Instructions V10';
@@ -274,19 +276,6 @@ export function gate(record, rows, clock, scene) {
     return true;
 }
 
-const commonWords = new Set('with from into that this then they there their were have will would about after before could what when where while present heard saw said observed reported rumor belief completed finishes finish arrived started went gone'.split(' '));
-const evidenceTerms = value => normalize(value).match(/[\p{L}\p{N}]+/gu)?.filter(word=>word.length>=4 && !commonWords.has(word)).map(word=>word.replace(/(?:ing|ed|s)$/u,'')) || [];
-export function supportsClaim(claim, quote, subject, prose) {
-    const who = evidenceTerms(subject);
-    const wanted = evidenceTerms(claim).filter(term=>!who.includes(term));
-    const supplied = new Set(evidenceTerms(quote));
-    const source = normalize(prose), target = normalize(quote);
-    const where = source.indexOf(target);
-    const nearby = where<0 ? '' : source.slice(Math.max(0,where-110),where+target.length+110);
-    const subjectKnown = !subject || mentions(nearby,subject) || evidenceTerms(nearby).some(term=>who.includes(term));
-    return subjectKnown && wanted.some(term=>supplied.has(term));
-}
-
 export function portrayalSources(rows) {
     const sources = [];
     const context = ctx();
@@ -352,7 +341,7 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
     if (kind === 'emotion' && normalize(record.subject) === normalize(names().user)) return null;
     if (kind === 'knowledge') {
         if (!['observed','reported','rumor','belief'].includes(input.basis)) return null;
-        if (!manual && !supportsClaim(text,quote,record.subject,evidence)) return null;
+        if (!manual && !quoteIn(quote,evidence)) return null;
         record.basis = input.basis;
         record.private = input.private !== false;
         if (!manual && previous?.private) record.private = true;
@@ -432,7 +421,7 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
                     !Number.isSafeInteger(trip.minutes) || trip.minutes<1 || !Number.isSafeInteger(trip.departed+trip.minutes)) return null;
                 record.travel = {from,to,departed:trip.departed,minutes:trip.minutes,earliest:trip.departed+trip.minutes};
             } else if (trip) record.travel = trip;
-            if (!manual && status==='done' && !supportsClaim(record.whereabouts || text,quote,record.subject,evidence)) return null;
+            if (!manual && status==='done' && !quoteIn(quote,evidence)) return null;
             if (!manual && record.travel && status==='done' && (!mentions(quote,record.travel.to) ||
                 /\b(?:never arrived|not arrived|not yet (?:at|in)|planned to (?:travel|go)|still en route)\b/i.test(quote))) return null;
         }
@@ -440,7 +429,7 @@ export function normalizeRecord(input, { modules, rows, snapshot, evidence, cloc
         record.outcome = record.realized ? safeText(input.outcome ?? previous?.outcome,400) || quote : '';
         if (!manual && status === 'done') {
             if (!gate(record,rows,clock,scene)) return null;
-            if (kind !== 'agenda' && !supportsClaim(safeText(input.outcome,400) || text,quote,record.subject,evidence)) return null;
+            if (kind !== 'agenda' && !quoteIn(quote,evidence)) return null;
         }
     }
     if (manual && input.protected !== false) record.protected = true;
@@ -630,9 +619,11 @@ export const createGuidelines = createReusableBook;
 
 export async function rowsForWorld(type = 'normal') {
     const id = chatWorld();
-    // An imported chat reads its records from chat data, the same fold the Story World page reads (MB2).
-    if (id && memoryActive()) return foldRows(id,{before:worldBeforeGeneration(type)});
-    const data = id ? await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}) : null;
+    // A chat's records come from chat data, the same fold the Story World page reads (MB2, MB3). Only a chat whose first
+    // open has not moved it over yet (the settings backup failed) still reads its book.
+    if (!id) return [];
+    if (memoryActive()) return foldRows(id,{before:worldBeforeGeneration(type)});
+    const data = await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)});
     return data ? listWorld(data,id) : [];
 }
 
@@ -690,6 +681,14 @@ export function updateContract(modules, opening = false, { fieldsOnly = false } 
     ], prefs()?.moduleOrder);
     if (fieldsOnly || !sections.length) return sections.join('\n');
     return `After the visible prose, ${opening || modules.roast ? 'include' : 'when information changed, append'} one <story_update v="2"> JSON object with v:2 and only applicable fields </story_update>. No code fence.\n${sections.join('\n')}`;
+}
+
+/**
+ * What a reply may carry besides its prose and scene header: the Roast, in one <roast> block the extension lifts out of the
+ * reply, while the Roast card is on. Story state is captured after the reply (memory DESIGN 5.1).
+ */
+export function replyExtras(modules) {
+    return modules?.roast ? `After the prose, write one <roast>…</roast> block. ${promptText('structuredRoast')}\nCommentator voice (for roast only): ${roastVoiceText()}` : '';
 }
 
 export function sceneCheckPrompt(scene, {modules, type, preflight = PREFLIGHT, opening = false, checks = prefs()?.sceneChecks} = {}) {
@@ -782,8 +781,6 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         let draw = total ? rollInt(total) : 0;
         offer = candidates.find(row => (draw -= row.weight) < 0);
     }
-    const repair = type==='normal' && latest?.record.v10Invalid && !latest.record.v10RepairAttempt
-        ? { id:latest.record.time, text:safeText(latest.message.mes,1600) } : null;
     const feedback = modules.roastFeedback ? history.filter(x => x.record.roast).slice(-2).map(x => safeText(x.record.roast,300)) : [];
     const style = local.style ?? defaultWritingGuidance();
     const baseline = [...baselines.values()].filter(source=>
@@ -813,10 +810,11 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
     const beforeOffer=slot<0 ? null : [format,...guidance.slice(0,slot)].filter(Boolean).join('\n');
     if (slot>=0) guidance.splice(slot,1);
     const text = [format,...guidance,
-        repair && `If applicable, recover a missing state change from accepted reply ${repair.id}. Put it in repairChanges alongside "repair":${repair.id}. ${promptText('structuredRepair')} Prior prose: ${JSON.stringify(repair.text)}`,
-        updateContract(modules),
+        replyExtras(modules),
     ].filter(Boolean).join('\n');
-    return { text, offerOffset:beforeOffer?.length, offer, repair, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
+    // Story state reaches memory through capture after the reply (src/memory/capture.js), so the request asks for no
+    // update block and no repair of an earlier one (memory DESIGN 5.1, 7.2).
+    return { text, offerOffset:beforeOffer?.length, offer, repair:null, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
 }
 
 export function loreReceipt(entries, notes, rows, book, recalled = []) {

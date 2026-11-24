@@ -1,0 +1,130 @@
+{
+ "id": "engine",
+ "name": "Scene engine",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "engine.pura.dialogue-driven",
+   "label": "Dialogue-driven",
+   "text": "Dialogue-driven: conversation, interruption, and what is said or deliberately left unsaid carry the scene.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.pura.action-driven",
+   "label": "Action-driven",
+   "text": "Action-driven: movement and physical decisions create consequences.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.pura.reaction-driven",
+   "label": "Reaction-driven",
+   "text": "Reaction-driven: how characters process what just happened matters most; recalibration, stance shifts, internal weather.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.pura.problem-driven",
+   "label": "Problem-driven",
+   "text": "Problem-driven: a practical obstacle reveals character through approach.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.pura.social-pressure-driven",
+   "label": "Social-pressure-driven",
+   "text": "Social-pressure-driven: etiquette, hierarchy, or public scrutiny shapes every move; characters perform for an audience, even an audience of one.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.pura.discovery-driven",
+   "label": "Discovery-driven",
+   "text": "Discovery-driven: noticing, uncovering, or realizing something new reshapes the dynamic.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.pura.tension-driven",
+   "label": "Tension-driven",
+   "text": "Tension-driven: nothing explodes, but everything is loaded; silences work, proximity matters, the scene is a held breath.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.pura.task-driven",
+   "label": "Task-driven",
+   "text": "Task-driven: characters do something together; the task itself creates friction, cooperation, rhythm, and revelation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Driving Force"
+   }
+  },
+  {
+   "id": "engine.wb.responsive",
+   "label": "Responsive",
+   "text": "The story's momentum is Responsive: the turn resolves {{user}}'s input and lets the world react naturally. Introduce nothing beyond the input, no new consequences, no new events.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Responsive (Response should not progress past input)"
+   }
+  },
+  {
+   "id": "engine.wb.active",
+   "label": "Active",
+   "text": "The story's momentum is Active: the turn resolves {{user}}'s input and carries the scene forward on its own. Characters pursue their own aims and events continue whether or not {{user}} drives them.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Active (Responses are allowed to progress past input)"
+   }
+  },
+  {
+   "id": "engine.wb.driving",
+   "label": "Driving",
+   "text": "The story's momentum is Driving: Scene always ends on an unresolved action, arrival, question, threat or open ended action from characters other than the POV character that demands a response. \nCharacters pursue their own aims and events continue whether or not {{user}} drives them.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Driving (Responses should always end on an a scene demanding a response)"
+   }
+  }
+ ]
+}

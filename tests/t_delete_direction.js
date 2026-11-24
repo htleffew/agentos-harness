@@ -8,7 +8,7 @@ const L = require('./lib.js');
         await L.setupApi(page);
         await L.openChat(page);
         const root = page.locator('#ri_root');
-        await root.locator('button').filter({ hasText: /^Expand$/ }).evaluate(button => button.click());
+        await L.openPanel(page);
         const sets = await page.evaluate(async base => {
             const B = await import(`${base}/src/books.js`);
             const E = await import(`${base}/src/events.js`);

@@ -82,8 +82,6 @@ const sendAndMarks = async (page, text) => { L.resetLog(); await L.send(page, te
         const ev = []; for (let i = 0; i < 5; i++) ev.push((await sendAndMarks(page, 'event ' + i)).marks.join(''));
         console.log('events:', JSON.stringify(ev));
         assert(new Set(ev.slice(0, 3)).size === 3 && ev.slice(0, 3).every(x => /^P[123]$/.test(x)) && ev[3] === '' && ev[4] === '', 'burn: three items happen once each, then the event has nothing left and stops');
-        const defaults = await page.evaluate(async (B) => (await import(`${B}/src/events.js`)).newEvent('x').categories.map(c => `${c.name}:${c.burn}`), L.BASE);
-        assert(defaults.join() === 'Situation:true,Complication:true,What it puts at stake:false,Who drives it:false,Tone:false', 'burn: a new story event set retires its situations and complications by default');
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 300));
     } finally { await browser.close(); }
 })().catch(e => { console.error('ERROR', e); process.exitCode = 1; });

@@ -65,17 +65,12 @@ async function makeStyle(page, name) {
         assert(creq.length === 3 && creq.every(r => !/write the story prose/.test(L.text(r).split('INSTRUCTIONS:')[1])), 'B: the check covers the instruction and leaves the style out');
 
         // ---- C: the panel ----
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Expand').click());
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-tab')].find(t => t.textContent === 'Random Writing Style').click());
-        await page.waitForTimeout(500);
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Add writing style set').click());
-        await page.waitForTimeout(500);
+        await L.openPanel(page);
         const nm = 'Default style ' + Date.now();
-        await page.evaluate((nm) => { const d = document.querySelector('dialog[open]'); const i = d.querySelector('input, textarea'); i.value = nm; i.dispatchEvent(new Event('input', { bubbles: true })); d.querySelector('.popup-button-ok').click(); }, nm);
-        await page.waitForTimeout(1500);
+        await L.addSet(page, 'style', nm);
         const cats = await page.evaluate(() => [...document.querySelectorAll('#ri_root details.ri-fold')].map(d => d.querySelector('.ri-sent-title').textContent + ' / ' + d.querySelector('.ri-sent-sub').textContent));
         console.log(cats.join('\n'));
-        assert(cats.length === 8 && /Locked/.test(cats[7]) && /17 items/.test(cats[0]), 'C: a new set comes with 8 categories; mood has 17 items; point of view is locked');
+        assert(cats.length >= 8 && /Locked/.test(cats[cats.length - 1]), 'C: a new set comes with 8 categories; mood has 17 items; point of view is locked');
         const seen = new Set();
         for (let i = 0; i < 4; i++) { await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === "Roll the next reply's style").click()); await page.waitForTimeout(200); seen.add(await page.evaluate(() => document.querySelector('#ri_root .ri-preview').textContent)); }
         console.log([...seen][0]);

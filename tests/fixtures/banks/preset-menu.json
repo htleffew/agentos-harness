@@ -1,0 +1,24 @@
+{
+ "prompts": [
+  { "identifier": "h1", "name": "---Pace--- (Pick One)", "content": "" },
+  { "identifier": "p1", "name": "Crawl", "content": "<pace>\nThe story moves at a crawl: one moment per reply.\n</pace>" },
+  { "identifier": "p2", "name": "Stroll", "content": "<pace>\nThe story strolls: a few moments per reply.\n</pace>" },
+  { "identifier": "p3", "name": "Sprint", "content": "<pace>\nThe story sprints: hours pass in a reply.\n</pace>" },
+  { "identifier": "h2", "name": "---Flavours--- (Pick Many, choose as many as you want)", "content": "" },
+  { "identifier": "f1", "name": "\ud83c\udf4b Zesty", "content": "- Zesty: bright, sharp and quick to laugh." },
+  { "identifier": "f2", "name": "Mellow", "content": "- Mellow: unhurried and kind." },
+  { "identifier": "f3", "name": "Smoky", "content": "- Smoky: old rooms and older grudges." },
+  { "identifier": "h3", "name": "---Spice--- (Pick One)", "content": "" },
+  { "identifier": "s1", "name": "Explicit heat", "content": "Sexual content is written in full." },
+  { "identifier": "s2", "name": "Fade to black", "content": "Sexual content fades out." },
+  { "identifier": "rules", "name": "House Rules", "content": "# Rules\n1. Never write for the user.\n2. Keep replies under eight paragraphs." },
+  { "identifier": "rare", "name": "Odd Moment", "content": "{{random::::::::Something odd happens nearby.}}" },
+  { "identifier": "x1", "name": "Bubbly", "content": "- Bubbly: everything fizzes." },
+  { "identifier": "x2", "name": "Gloomy", "content": "- Gloomy: everything drips." }
+ ],
+ "prompt_order": [ { "character_id": 100001, "order": [
+  { "identifier": "h1" }, { "identifier": "p1" }, { "identifier": "p2" }, { "identifier": "p3" },
+  { "identifier": "h2" }, { "identifier": "f1" }, { "identifier": "f2" }, { "identifier": "f3" },
+  { "identifier": "h3" }, { "identifier": "s1" }, { "identifier": "s2" },
+  { "identifier": "rules" }, { "identifier": "rare" } ] } ]
+}

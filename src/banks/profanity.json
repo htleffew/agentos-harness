@@ -1,0 +1,53 @@
+{
+ "id": "profanity",
+ "name": "Profanity",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "profanity.wb.lightly",
+   "label": "Lightly",
+   "text": "Narration prose will swear Lightly: Light profanity only. Damn and hell equivalents only.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Lightly"
+   }
+  },
+  {
+   "id": "profanity.wb.natural",
+   "label": "Natural",
+   "text": "Narrator will swear Naturally: Swear as much as the situation warrant. Explicit swears (fuck, shit, cunt, etc.) are allowed.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Natural"
+   }
+  },
+  {
+   "id": "profanity.wb.heavy",
+   "label": "Heavy",
+   "text": "Narration prose will swear Heavily: Profanity is normal part of speech and narration (fuck, shit, damn, etc.), frequent and strong. Use other swears from vocabulary",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Heavy"
+   }
+  },
+  {
+   "id": "profanity.wb.setting-appropiate",
+   "label": "Setting Appropiate",
+   "text": "Narrator can swear Setting Appropriately: Profanity is based on setting, period, fantasy. Modern settings use modern profanity, medieval setting uses medieval profanity, etc.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Setting Appropiate"
+   }
+  }
+ ]
+}

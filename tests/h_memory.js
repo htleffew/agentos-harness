@@ -39,20 +39,15 @@ async function memory(page) {
     },L.BASE);
 }
 
+// B28: the menu opens through app.setExpanded and moves by the shell's top and nested tabs (data-ri-tab, data-ri-nested).
+const TOP_TABS = { Story: 'story', Direction: 'direction', 'Quick actions': 'quick', Review: 'review', Setup: 'setup' };
+const NESTED_TABS = { 'Context & Memory': 'context', Context: 'context', 'Story World': 'story-world', Corrections: 'scene', Scene: 'scene', Memory: 'memory' };
 async function tapPanel(page,group,target) {
-    const extension = page.locator('#extensions-settings-button > .drawer-toggle');
-    const header = page.locator('#ri_drawer .inline-drawer-header');
     const root = page.locator('#ri_root');
-    if (!await page.locator('#ri_root.ri-expanded').isVisible()) {
-        const drawer = page.locator('#rm_extensions_block.openDrawer');
-        if (!await drawer.count()) await extension.tap();
-        await drawer.waitFor();
-        if (!await root.isVisible()) await header.tap();
-        await root.getByRole('button',{name:'Expand',exact:true}).tap();
-        await page.locator('#ri_root.ri-expanded').waitFor();
-    }
-    await root.getByRole('button',{name:group,exact:true}).tap();
-    await root.getByRole('button',{name:target,exact:true}).tap();
+    await L.openPanel(page);
+    await page.locator('#ri_root.ri-expanded').waitFor();
+    await root.locator(`[data-ri-tab="${TOP_TABS[group] || group}"]`).tap();
+    await root.locator(`[data-ri-nested="${NESTED_TABS[target] || target}"]`).tap();
     return root.locator('#ri_panel_page');
 }
 
@@ -81,9 +76,7 @@ const due = () => L.requests().filter(request=>L.text(request).includes('Write t
 const result = (scope,text) => scope.getByRole('status').filter({hasText:text}).first().waitFor();
 const closeSheet = async (dialog) => dialog.getByRole('button',{name:'Close',exact:true}).tap();
 const assertOnlyExtension = async (page) => {
-    const disabled = await page.evaluate(()=>SillyTavern.getContext().extensionSettings.disabledExtensions);
-    assert(disabled.includes('quick-reply') && disabled.includes('memory'));
-    return disabled;
+    return L.assertQuietHost(page);
 };
 
 module.exports={...L,openMemory,newWorld,memory,tapPanel,closePanel,repairSheet,fact,due,result,closeSheet,assertOnlyExtension};

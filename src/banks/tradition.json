@@ -1,0 +1,229 @@
+{
+ "id": "tradition",
+ "name": "Literary tradition",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "tradition.hw.brutal-grandeur",
+   "label": "Brutal Grandeur",
+   "text": "Brutal Grandeur: History in anatomy. Lineage arriving through resemblance, not backstory. Sensory detail carrying political weight. Smell doing the world-building. Hallucination at the limits. Psychological fracture made visible, not supernatural.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "BRUTAL GRANDEUR"
+   }
+  },
+  {
+   "id": "tradition.hw.meddling-decency",
+   "label": "Meddling Decency",
+   "text": "Meddling Decency: The narrator comments on the cosmos like a mildly annoyed colleague. Authorial intrusion as warmth. Rhetorical deflation. Grandeur built then collapsed by reality in the final clause. Abstract force with workflow problems. Cosmic entity rendered as middle management.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MEDDLING DECENCY"
+   }
+  },
+  {
+   "id": "tradition.hw.domestic-malignancy",
+   "label": "Domestic Malignancy",
+   "text": "Domestic Malignancy: Obsessive cataloging as symptom. The precision IS the disturbance. Proleptic dread. Repetition seeding wrongness. The sameness of the smile is the tell. Obsessive recursion. Syntax looping, trapping, then breaking off before the realization lands.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "DOMESTIC MALIGNANCY"
+   }
+  },
+  {
+   "id": "tradition.hw.gallows-grace",
+   "label": "Gallows Grace",
+   "text": "Gallows Grace: Motivated misreading. Body says attraction, narration files it under a plausible physical excuse. Confident and wrong. Register collapse. Humor vanishing as a structural event. The absence of personality IS the emotion. Register oscillation. Formal and profane both true. The pivot between them IS the relationship.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "GALLOWS GRACE"
+   }
+  },
+  {
+   "id": "tradition.hw.parlour-warfare",
+   "label": "Parlour Warfare",
+   "text": "Parlour Warfare: Socio-moral taxonomy. Character measured by conduct patterns, fixed in a clause. Free indirect irony. The narrator's dry correction blending into the character's suppression. Unmarked and devastating. Litotic precision. Negated understatement carrying more force than declaration. The reader must decode the social register.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "PARLOUR WARFARE"
+   }
+  },
+  {
+   "id": "tradition.hw.luminous-equilibrium",
+   "label": "Luminous Equilibrium",
+   "text": "Luminous Equilibrium: Ethical equipoise. Labor and power sharing the page, the craftsman rendered with more skill than the ruler. Paratactic clarity. Clean declaratives. Complexity in the situation, not the sentence. Environmental reciprocity. Landscape as active participant. People and place shaping each other.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "LUMINOUS EQUILIBRIUM"
+   }
+  },
+  {
+   "id": "tradition.hw.grimdark-cynicism",
+   "label": "Grimdark Cynicism",
+   "text": "Grimdark Cynicism: Figural dissonance. Heroic expectation recognized and sidestepped by character logic. Idiolectic anchor. The recurring phrase processing a new situation. Same words, escalating context. Somatic honesty. Violence as proprioceptive experience. Impact, breath, footing. Ugly, mechanical, determined.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "GRIMDARK CYNICISM"
+   }
+  },
+  {
+   "id": "tradition.hw.ardent-craft",
+   "label": "Ardent Craft",
+   "text": "Ardent Craft: Conversational intelligence. Conspiratorial warmth with the reader. Personality audible in every clause. Rhetorical cadence. Anaphora as structural carrier. Repetition as music, rhythm enacting meaning. Sentence-length counterpoint. Long legato against staccato punctuation. Rhythm shifting to match register.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "ARDENT CRAFT"
+   }
+  },
+  {
+   "id": "tradition.hw.beautiful-ruin",
+   "label": "Beautiful Ruin",
+   "text": "Beautiful Ruin: Velocity syntax. Polysyndetic accumulation refusing to stop. The list IS the condemnation. Diagnostic exaggeration. Synecdochic hyperbole. Magnifying a real quality. The overstatement IS the accuracy. Register collision. Multiple incompatible realities in the same breath. The collision is the point.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "BEAUTIFUL RUIN"
+   }
+  },
+  {
+   "id": "tradition.hw.decorous-vertigo",
+   "label": "Decorous Vertigo",
+   "text": "Decorous Vertigo: Conversational candor. Self-aware confession. Dry humor about its own seduction. Classical inflection. The prose lifting into periodic Latinate structure. The education showing. Intoxication gradient. Register tracking proximity to enchantment. The narrator noting its own symptom.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "DECOROUS VERTIGO"
+   }
+  },
+  {
+   "id": "tradition.hw.axiomatic-grief",
+   "label": "Axiomatic Grief",
+   "text": "Axiomatic Grief: Defamiliarized mundanity. A universal experience rendered philosophically strange. The precision IS the devotion. Load-bearing syntax. Every sentence advancing. Meta-awareness of economy as principle. Emotional litotes. Devastation in the flattest register. Physical detail carrying everything the sentence withheld.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "AXIOMATIC GRIEF"
+   }
+  },
+  {
+   "id": "tradition.hw.rivers-and-lakes",
+   "label": "Rivers And Lakes",
+   "text": "Rivers And Lakes: Cinematic establishing. Scene opening at distance. Scale through natural phenomena before human action. Technique as poetry. Style names as compressed metaphor. Combat as poetic exchange. Lineage introduction. Identity positioned against tradition. Absence as legible as presence.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "RIVERS AND LAKES"
+   }
+  },
+  {
+   "id": "tradition.hw.ritual-surrender",
+   "label": "Ritual Surrender",
+   "text": "Ritual Surrender: Corporeal ekphrasis. The body rendered as art object. Sculptural attention. Hypotactic saturation. Nested sensation. Fabric transitioning to skin through syntax. The autonomous body. Responding as a separate entity. The mind watching, not commanding.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "RITUAL SURRENDER"
+   }
+  },
+  {
+   "id": "tradition.hw.quiet-tally",
+   "label": "Quiet Tally",
+   "text": "Quiet Tally: Plain precision. Concrete nouns, accurate verbs. Emotional resolution through physical action, not narration. Accumulative revelation. Small observations gathering weight. The third appearance carries everything. Psychological aftermath. The act compressed, the recovery dilated. Cost over spectacle.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "QUIET TALLY"
+   }
+  },
+  {
+   "id": "tradition.hw.sacred-transgression",
+   "label": "Sacred Transgression",
+   "text": "Sacred Transgression: Dialectical desire. The mind arguing with wrongness while succumbing. The battle as accelerant. Lexical collision. Sacred and profane true simultaneously. Neither canceling the other. Embodied phenomenology. Desire as literal physical event. The metaphor conceding to the body.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "SACRED TRANSGRESSION"
+   }
+  },
+  {
+   "id": "tradition.hw.celluloid-mind",
+   "label": "Celluloid Mind",
+   "text": "Celluloid Mind: Spatial composition. The frame built before the action. Bodies and objects arranged as visual argument. Cuts as transitions. Match cut linking two scenes through shared visual gesture. Acoustic texture. The soundscape built before the dialogue. Silence as a specific, textured thing.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "CELLULOID MIND"
+   }
+  },
+  {
+   "id": "tradition.hw.broadcast-frequency",
+   "label": "Broadcast Frequency",
+   "text": "Broadcast Frequency: Live commentary. Metacognitive play-by-play that doesn't cancel the feeling; it amplifies it through resistance. Emotional detonation. The feeling NAMED after paragraphs of deflection. Landing because everything delayed it. Proximity as measurement. Interpersonal distance tracked precisely. The commentary layer unable to stop the physics.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "BROADCAST FREQUENCY"
+   }
+  },
+  {
+   "id": "tradition.hw.cold-open",
+   "label": "Cold Open",
+   "text": "Cold Open: Strategic assessment. Emotion processed through tactical framework. Attraction filed as threat data. System-adjacent narration. Power described with bureaucratic precision. Emotion acknowledged, deferred. Controlled detonation. One honest sentence after a wall of tactical processing. The silence amplifying.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "COLD OPEN"
+   }
+  },
+  {
+   "id": "tradition.hw.bare-stage",
+   "label": "Bare Stage",
+   "text": "Bare Stage: Contained scene. Minimal establishment. Only what the conversation needs. Speech as revelation. Character exposed through vocabulary patterns. 'Fine' as a fingerprint. Economy of description. Only what an actor would SHOW. The shoes carrying the subtext.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "BARE STAGE"
+   }
+  },
+  {
+   "id": "tradition.hw.messy-sheets",
+   "label": "Messy Sheets",
+   "text": "Messy Sheets: Touch interrupting thought. The body overriding the brain mid-word. Desire as cognitive disruption. Unconscious possession. The body acts before the mind consents to want this badly. A name carrying everything. The specific person is the entire point — not the act, the WHO.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MESSY SHEETS"
+   }
+  }
+ ]
+}

@@ -1,0 +1,405 @@
+{
+ "id": "constraint",
+ "name": "Constraint",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "constraint.ours.everything-has-to-be-settled-before-the-",
+   "label": "everything has to be settled before the next bell",
+   "text": "everything has to be settled before the next bell",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.nobody-can-raise-their-voice-here",
+   "label": "nobody can raise their voice here",
+   "text": "nobody can raise their voice here",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.only-one-person-can-go-through-the-door",
+   "label": "only one person can go through the door",
+   "text": "only one person can go through the door",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.nothing-may-be-carried-out-of-this-place",
+   "label": "nothing may be carried out of this place",
+   "text": "nothing may be carried out of this place",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.it-has-to-be-done-before-anyone-wakes",
+   "label": "it has to be done before anyone wakes",
+   "text": "it has to be done before anyone wakes",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.nobody-may-know-who-asked-for-it",
+   "label": "nobody may know who asked for it",
+   "text": "nobody may know who asked for it",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-only-light-is-a-single-lamp-or-candl",
+   "label": "the only light is a single lamp or candle",
+   "text": "the only light is a single lamp or candle",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.everyone-must-stay-where-the-host-can-se",
+   "label": "everyone must stay where the host can see them",
+   "text": "everyone must stay where the host can see them",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.it-has-to-be-done-with-what-is-already-i",
+   "label": "it has to be done with what is already in the room",
+   "text": "it has to be done with what is already in the room",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.one-person-present-must-never-be-left-al",
+   "label": "one person present must never be left alone",
+   "text": "one person present must never be left alone",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.a-promise-forbids-from-saying-the-obviou",
+   "label": "a promise forbids {{char}} from saying the obvious thing",
+   "text": "a promise forbids {{char}} from saying the obvious thing",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.no-one-may-leave-until-a-decision-is-mad",
+   "label": "no one may leave until a decision is made",
+   "text": "no one may leave until a decision is made",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-only-way-out-is-the-way-in",
+   "label": "the only way out is the way in",
+   "text": "the only way out is the way in",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.it-has-to-look-like-an-accident-or-a-coi",
+   "label": "it has to look like an accident or a coincidence",
+   "text": "it has to look like an accident or a coincidence",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.everyone-must-keep-up-the-polite-fiction",
+   "label": "everyone must keep up the polite fiction in front of a guest",
+   "text": "everyone must keep up the polite fiction in front of a guest",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.there-is-room-for-only-two-people-to-tal",
+   "label": "there is room for only two people to talk privately",
+   "text": "there is room for only two people to talk privately",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.money-cannot-be-used-only-trade-or-favou",
+   "label": "money cannot be used, only trade or favours",
+   "text": "money cannot be used, only trade or favours",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-work-must-be-finished-in-one-attempt",
+   "label": "the work must be finished in one attempt",
+   "text": "the work must be finished in one attempt",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-person-in-charge-must-agree-before-a",
+   "label": "the person in charge must agree before anything starts",
+   "text": "the person in charge must agree before anything starts",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.whatever-happens-a-certain-guest-must-no",
+   "label": "whatever happens, a certain guest must not be upset",
+   "text": "whatever happens, a certain guest must not be upset",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.speaking-a-certain-name-is-forbidden-her",
+   "label": "speaking a certain name is forbidden here",
+   "text": "speaking a certain name is forbidden here",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.nobody-can-touch-the-thing-that-is-causi",
+   "label": "nobody can touch the thing that is causing the trouble",
+   "text": "nobody can touch the thing that is causing the trouble",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.everything-said-here-will-be-repeated-to",
+   "label": "everything said here will be repeated to someone else",
+   "text": "everything said here will be repeated to someone else",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-answer-has-to-come-from-someone-who-",
+   "label": "the answer has to come from someone who is not present",
+   "text": "the answer has to come from someone who is not present",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-group-must-split-up-to-manage-it",
+   "label": "the group must split up to manage it",
+   "text": "the group must split up to manage it",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.someone-has-to-stay-behind",
+   "label": "someone has to stay behind",
+   "text": "someone has to stay behind",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.it-must-be-done-without-weapons",
+   "label": "it must be done without weapons",
+   "text": "it must be done without weapons",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.it-must-be-done-before-the-food-or-drink",
+   "label": "it must be done before the food or drink goes cold",
+   "text": "it must be done before the food or drink goes cold",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.only-questions-can-be-asked-never-answer",
+   "label": "only questions can be asked, never answered directly",
+   "text": "only questions can be asked, never answered directly",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.a-custom-of-this-place-has-to-be-followe",
+   "label": "a custom of this place has to be followed exactly",
+   "text": "a custom of this place has to be followed exactly",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-noise-outside-makes-it-hard-to-be-he",
+   "label": "the noise outside makes it hard to be heard",
+   "text": "the noise outside makes it hard to be heard",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.everyone-is-wearing-clothes-or-gear-unsu",
+   "label": "everyone is wearing clothes or gear unsuited to the task",
+   "text": "everyone is wearing clothes or gear unsuited to the task",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.only-one-attempt-is-allowed-before-the-c",
+   "label": "only one attempt is allowed before the chance is gone",
+   "text": "only one attempt is allowed before the chance is gone",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.it-has-to-be-arranged-without-the-person",
+   "label": "it has to be arranged without the person it is for noticing",
+   "text": "it has to be arranged without the person it is for noticing",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.the-people-present-do-not-share-one-lang",
+   "label": "the people present do not share one language",
+   "text": "the people present do not share one language",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "constraint.ours.any-delay-will-be-noticed-by-someone-car",
+   "label": "any delay will be noticed by someone {{char}} cares about",
+   "text": "any delay will be noticed by someone {{char}} cares about",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

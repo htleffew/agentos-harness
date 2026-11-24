@@ -1,0 +1,119 @@
+{
+ "id": "pacing",
+ "name": "Pacing",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "pacing.ours.linger-on-small-actions",
+   "label": "linger on small actions",
+   "text": "linger on small actions",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.brisk-moving-quickly-between-moments",
+   "label": "brisk, moving quickly between moments",
+   "text": "brisk, moving quickly between moments",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.one-continuous-moment-told-closely",
+   "label": "one continuous moment, told closely",
+   "text": "one continuous moment, told closely",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.cover-more-time-in-fewer-words",
+   "label": "cover more time in fewer words",
+   "text": "cover more time in fewer words",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.a-jump-of-hours-between-paragraphs",
+   "label": "a jump of hours between paragraphs",
+   "text": "a jump of hours between paragraphs",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.a-slow-build-to-one-sharp-line",
+   "label": "a slow build to one sharp line",
+   "text": "a slow build to one sharp line",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.the-moment-stretched-out-second-by-secon",
+   "label": "the moment stretched out, second by second",
+   "text": "the moment stretched out, second by second",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.skim-the-routine-and-slow-down-for-the-o",
+   "label": "skim the routine and slow down for the one moment that counts",
+   "text": "skim the routine and slow down for the one moment that counts",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.brisk-scene-setting-then-linger-on-the-c",
+   "label": "brisk scene setting, then linger on the conversation",
+   "text": "brisk scene setting, then linger on the conversation",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pacing.ours.end-the-reply-as-soon-as-something-chang",
+   "label": "end the reply as soon as something changes",
+   "text": "end the reply as soon as something changes",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

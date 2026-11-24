@@ -1,0 +1,383 @@
+{
+ "version": 1,
+ "banks": [
+  {
+   "id": "genre",
+   "name": "Genre lens",
+   "kind": "event",
+   "adult": false,
+   "count": 50
+  },
+  {
+   "id": "tone",
+   "name": "Tone",
+   "kind": "both",
+   "adult": false,
+   "count": 49
+  },
+  {
+   "id": "situation",
+   "name": "Situation",
+   "kind": "event",
+   "adult": false,
+   "count": 72
+  },
+  {
+   "id": "complication",
+   "name": "Complication",
+   "kind": "event",
+   "adult": false,
+   "count": 48
+  },
+  {
+   "id": "constraint",
+   "name": "Constraint",
+   "kind": "event",
+   "adult": false,
+   "count": 36
+  },
+  {
+   "id": "twist",
+   "name": "Twist focus",
+   "kind": "event",
+   "adult": false,
+   "count": 28
+  },
+  {
+   "id": "stake",
+   "name": "What it puts at stake",
+   "kind": "event",
+   "adult": false,
+   "count": 30
+  },
+  {
+   "id": "consequence",
+   "name": "Consequence",
+   "kind": "event",
+   "adult": false,
+   "count": 37
+  },
+  {
+   "id": "driver",
+   "name": "Who drives it",
+   "kind": "event",
+   "adult": false,
+   "count": 5
+  },
+  {
+   "id": "engine",
+   "name": "Scene engine",
+   "kind": "event",
+   "adult": false,
+   "count": 11
+  },
+  {
+   "id": "tension",
+   "name": "Tension",
+   "kind": "event",
+   "adult": false,
+   "count": 16
+  },
+  {
+   "id": "social",
+   "name": "Social weather",
+   "kind": "event",
+   "adult": false,
+   "count": 24
+  },
+  {
+   "id": "ambient",
+   "name": "Ambient pulse",
+   "kind": "event",
+   "adult": false,
+   "count": 30
+  },
+  {
+   "id": "subtext",
+   "name": "Hidden subtext",
+   "kind": "event",
+   "adult": false,
+   "count": 30
+  },
+  {
+   "id": "pace",
+   "name": "Pace",
+   "kind": "event",
+   "adult": false,
+   "count": 12
+  },
+  {
+   "id": "author",
+   "name": "Author's style",
+   "kind": "style",
+   "adult": false,
+   "count": 30
+  },
+  {
+   "id": "stance",
+   "name": "Narrator stance",
+   "kind": "style",
+   "adult": false,
+   "count": 12
+  },
+  {
+   "id": "tradition",
+   "name": "Literary tradition",
+   "kind": "style",
+   "adult": false,
+   "count": 20
+  },
+  {
+   "id": "lens",
+   "name": "Voice lens",
+   "kind": "style",
+   "adult": false,
+   "count": 18
+  },
+  {
+   "id": "mood",
+   "name": "Mood of {{char}}",
+   "kind": "style",
+   "adult": false,
+   "count": 24
+  },
+  {
+   "id": "register",
+   "name": "Prose register",
+   "kind": "style",
+   "adult": false,
+   "count": 18
+  },
+  {
+   "id": "rhythm",
+   "name": "Sentence rhythm",
+   "kind": "style",
+   "adult": false,
+   "count": 6
+  },
+  {
+   "id": "density",
+   "name": "Paragraph density",
+   "kind": "style",
+   "adult": false,
+   "count": 6
+  },
+  {
+   "id": "figurative",
+   "name": "Figurative language",
+   "kind": "style",
+   "adult": false,
+   "count": 6
+  },
+  {
+   "id": "distance",
+   "name": "Narrative distance",
+   "kind": "style",
+   "adult": false,
+   "count": 13
+  },
+  {
+   "id": "thoughts",
+   "name": "Internal thoughts",
+   "kind": "style",
+   "adult": false,
+   "count": 3
+  },
+  {
+   "id": "showtell",
+   "name": "Show and tell",
+   "kind": "style",
+   "adult": false,
+   "count": 6
+  },
+  {
+   "id": "dialogue",
+   "name": "Dialogue amount",
+   "kind": "style",
+   "adult": false,
+   "count": 5
+  },
+  {
+   "id": "texture",
+   "name": "Dialogue texture",
+   "kind": "style",
+   "adult": false,
+   "count": 4
+  },
+  {
+   "id": "depth",
+   "name": "Dialogue depth",
+   "kind": "style",
+   "adult": false,
+   "count": 6
+  },
+  {
+   "id": "sense",
+   "name": "Sense to lead with",
+   "kind": "style",
+   "adult": false,
+   "count": 8
+  },
+  {
+   "id": "focus",
+   "name": "Narrative focus",
+   "kind": "style",
+   "adult": false,
+   "count": 16
+  },
+  {
+   "id": "pacing",
+   "name": "Pacing",
+   "kind": "style",
+   "adult": false,
+   "count": 10
+  },
+  {
+   "id": "rule",
+   "name": "Rule for this reply",
+   "kind": "style",
+   "adult": false,
+   "count": 20
+  },
+  {
+   "id": "habits",
+   "name": "Writing habits",
+   "kind": "style",
+   "adult": false,
+   "count": 31
+  },
+  {
+   "id": "pov",
+   "name": "Point of view and tense",
+   "kind": "style",
+   "adult": false,
+   "count": 8
+  },
+  {
+   "id": "tense",
+   "name": "Tense",
+   "kind": "style",
+   "adult": false,
+   "count": 5
+  },
+  {
+   "id": "length",
+   "name": "Length",
+   "kind": "style",
+   "adult": false,
+   "count": 15
+  },
+  {
+   "id": "profanity",
+   "name": "Profanity",
+   "kind": "style",
+   "adult": false,
+   "count": 4
+  },
+  {
+   "id": "violence",
+   "name": "Violence intensity",
+   "kind": "style",
+   "adult": false,
+   "count": 5
+  },
+  {
+   "id": "combat",
+   "name": "Combat choreography",
+   "kind": "style",
+   "adult": false,
+   "count": 4
+  },
+  {
+   "id": "persistence",
+   "name": "Consequence persistence",
+   "kind": "style",
+   "adult": false,
+   "count": 4
+  },
+  {
+   "id": "resistance",
+   "name": "Character change resistance",
+   "kind": "style",
+   "adult": false,
+   "count": 6
+  },
+  {
+   "id": "adherence",
+   "name": "Personality trait adherence",
+   "kind": "style",
+   "adult": false,
+   "count": 4
+  },
+  {
+   "id": "adult-position",
+   "name": "Adult: position and dynamic",
+   "kind": "event",
+   "adult": true,
+   "count": 8
+  },
+  {
+   "id": "adult-kink",
+   "name": "Adult: kink and flavour",
+   "kind": "event",
+   "adult": true,
+   "count": 8
+  },
+  {
+   "id": "adult-tempo",
+   "name": "Adult: pacing and tempo",
+   "kind": "event",
+   "adult": true,
+   "count": 6
+  },
+  {
+   "id": "adult-drive",
+   "name": "Adult: mental state and drive",
+   "kind": "event",
+   "adult": true,
+   "count": 6
+  },
+  {
+   "id": "adult-method",
+   "name": "Adult: escalation method",
+   "kind": "event",
+   "adult": true,
+   "count": 8
+  },
+  {
+   "id": "adult-speed",
+   "name": "Adult: escalation speed",
+   "kind": "event",
+   "adult": true,
+   "count": 4
+  },
+  {
+   "id": "adult-reason",
+   "name": "Adult: rationalization",
+   "kind": "event",
+   "adult": true,
+   "count": 8
+  },
+  {
+   "id": "adult-weight",
+   "name": "Adult: consequence weight",
+   "kind": "event",
+   "adult": true,
+   "count": 6
+  },
+  {
+   "id": "adult-tone",
+   "name": "Adult: tone and flavour",
+   "kind": "style",
+   "adult": true,
+   "count": 5
+  },
+  {
+   "id": "adult-genre",
+   "name": "Adult: genre",
+   "kind": "event",
+   "adult": true,
+   "count": 2
+  }
+ ]
+}

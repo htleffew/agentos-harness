@@ -1,0 +1,11 @@
+/* B34: Check conflicts findings. Colors come from the theme tokens; two columns at 600 px and wider, stacked below. */
+.ri-conflicts { display: grid; gap: var(--ri-gap, 4px); }
+.ri-conf-results { display: grid; gap: var(--ri-gap, 4px); }
+.ri-conf-item { display: grid; gap: var(--ri-gap, 4px); border-left: 3px solid var(--ri-problem); }
+.ri-conf-item.ri-conf-seen { border-left-color: var(--ri-line); opacity: 0.8; }
+.ri-conf-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ri-conf-side { min-width: 0; display: grid; gap: 4px; align-content: start; overflow-wrap: anywhere; }
+.ri-conf-span { margin: 0; padding: 4px 6px; border-left: 2px solid var(--ri-call-line); background: var(--ri-call-tint); color: var(--ri-text); font-size: var(--ri-type-data, 13px); }
+.ri-conf-reason, .ri-conf-problem { margin: 0; font-size: var(--ri-type-help, 13px); overflow-wrap: anywhere; }
+.ri-conf-problem b { color: var(--ri-problem); font-weight: 600; }
+@media (max-width: 600px) { .ri-conf-sides { grid-template-columns: 1fr; } }

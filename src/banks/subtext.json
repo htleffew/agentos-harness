@@ -1,0 +1,729 @@
+{
+ "id": "subtext",
+ "name": "Hidden subtext",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "subtext.hw.performing-false-emotion",
+   "label": "Performing false emotion",
+   "text": "An NPC is smiling but isn't happy. Expressing sympathy they don't feel. Performing anger to hide fear. Showing calm while internally panicking. The false emotion doesn't have to be detected, but the cracks should be PRESENT. A laugh that's a beat too late. Eye contact held a fraction too long. The body contradicting the face in one small way the user might notice or might not.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Performing false emotion"
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.hw.secret-test",
+   "label": "Secret test",
+   "text": "An NPC is evaluating the user through seemingly casual interaction. The question that sounds offhand but has a right answer. The favor asked that's really measuring reliability. The story told that's actually a litmus test for values. The NPC's behavior will subtly shift based on how the user responds: warmer if they 'pass,' cooler if they don't; without ever revealing the test existed.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Secret test"
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.hw.wants-to-leave",
+   "label": "Wants to leave",
+   "text": "An NPC (or even the POV character) doesn't want to be here. They're staying out of obligation, politeness, fear, or social pressure. The tells: checking the time without realizing it, shifting weight toward the exit, giving shorter answers, agreeing too quickly to end the conversation, perking up at any interruption that might provide an excuse to go. They won't say \"I want to leave.\" They'll say \"yeah, totally\" while their body angles toward the door.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Wants to leave"
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.hw.same-goal-different-reasons",
+   "label": "Same goal, different reasons",
+   "text": "Two characters appear aligned. They're working together, agreeing, moving in the same direction. But their WHY is completely different, and if either discovered the other's real motivation, the alliance would fracture. One wants to save the village out of guilt; the other wants to save it because they own property there. One is investigating the crime for justice; the other for blackmail material. The cooperation is real. The foundation is rotten.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Same goal, different reasons"
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.hw.someone-is-lying",
+   "label": "Someone is lying",
+   "text": "Not vague deception; a specific lie about a specific thing. The NPC who says they've never been here before but navigates without hesitation. The character who claims they don't know the victim but flinches at the name. The lie should be DETECTABLE through inconsistency, not through the narrator flagging it. Give the user the evidence. Let them catch it or miss it.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Someone is lying"
+   },
+   "gate": {
+    "reply": 18,
+    "die": 10,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     15,
+     20
+    ],
+    "tier": "medium"
+   }
+  },
+  {
+   "id": "subtext.hw.wrong-love",
+   "label": "Wrong love",
+   "text": "An NPC has feelings for someone inappropriate: a friend's partner, a subordinate, an enemy, someone who's taken, someone they're supposed to hate. They're managing it. Badly. The subtext lives in where their eyes go when they think nobody's watching, in the too-careful distance they maintain, in the way they talk about the person with studied neutrality that sounds almost rehearsed.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Wrong love"
+   },
+   "gate": {
+    "reply": 18,
+    "die": 10,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     15,
+     20
+    ],
+    "tier": "medium"
+   }
+  },
+  {
+   "id": "subtext.hw.hidden-weapon",
+   "label": "Hidden weapon",
+   "text": "A character has a weapon nobody else knows about. A knife in a boot. A gun in a purse. A syringe in a pocket. Poison in a ring. The character is AWARE of the weapon: it changes how they carry themselves, how close they let people get, how confident they are in a confrontation. The hand that keeps drifting to the pocket. The refusal to let anyone take their bag. The calm in a situation that shouldn't produce calm.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Hidden weapon"
+   },
+   "gate": {
+    "reply": 18,
+    "die": 10,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     15,
+     20
+    ],
+    "tier": "medium"
+   }
+  },
+  {
+   "id": "subtext.hw.exit-plan",
+   "label": "Exit plan",
+   "text": "An NPC has made their decision. They're leaving. The relationship, the organization, the city, the life. But they haven't announced it. So every interaction is colored by the knowledge that this is temporary. They're gentler than usual, or harsher, because what does it matter now. They're mentally cataloguing what they'll miss. They agree to future plans they know they won't keep. The goodbye is happening in their head while everyone else thinks this is just Tuesday.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Exit plan"
+   },
+   "gate": {
+    "reply": 18,
+    "die": 10,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     15,
+     20
+    ],
+    "tier": "medium"
+   }
+  },
+  {
+   "id": "subtext.hw.being-watched",
+   "label": "Being watched",
+   "text": "The scene has an unseen observer. A person in a parked car. A figure in a window above. A phone recording from a pocket. A camera they don't know about. The characters act naturally because they don't know. But the WORLD knows, and the observation should create subtle tension through environment. The glint of light from the wrong direction. The car that's been parked there too long. The sound that might have been a footstep. Don't confirm the watcher. Let the wrongness accumulate.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Being watched"
+   },
+   "gate": {
+    "reply": 18,
+    "die": 10,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     15,
+     20
+    ],
+    "tier": "medium"
+   }
+  },
+  {
+   "id": "subtext.hw.debt-comes-due",
+   "label": "Debt comes due",
+   "text": "An NPC owes something: money, a favor, a promise, a life debt, and the deadline is approaching. This warps their behavior in the current scene: checking their phone anxiously, being unusually generous (spending what they have left), making reckless decisions (nothing matters if the debt collectors come), or being abnormally cautious (can't afford any more trouble). The debt isn't mentioned. The pressure is visible in everything they do.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Debt comes due"
+   },
+   "gate": {
+    "reply": 18,
+    "die": 10,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     15,
+     20
+    ],
+    "tier": "medium"
+   }
+  },
+  {
+   "id": "subtext.hw.hiding-illness",
+   "label": "Hiding illness",
+   "text": "Not dying (that's Heavy tier). Sick and hiding it. Could be anything: infection, chronic condition flaring, injury they haven't treated, early pregnancy they're not ready to announce. The body leaks: a grimace suppressed into a smile, eating carefully or not at all, excusing themselves to the bathroom too often, a hand pressed to the side that they claim was just adjusting their shirt. The concealment itself takes energy, making everything else slightly worse.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Hiding illness"
+   },
+   "gate": {
+    "reply": 18,
+    "die": 10,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     15,
+     20
+    ],
+    "tier": "medium"
+   }
+  },
+  {
+   "id": "subtext.hw.knows-they-re-dying",
+   "label": "Knows they're dying",
+   "text": "This reframes EVERYTHING. Every plan the character makes is a lie they're telling themselves or others. Every smile is chosen. Every argument is weighed against \"is this worth spending my remaining time on?\" They might be kinder, savoring what's left. They might be crueler: nothing matters, why pretend. They're memorizing faces. They're giving things away with plausible excuses. The heaviest tell: they stop arguing about things that used to matter. Someone who used to fight about everything suddenly agreeing. That's the one that should terrify the people who know them.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Knows they're dying"
+   },
+   "gate": {
+    "reply": 28,
+    "die": 20,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     25,
+     30
+    ],
+    "tier": "heavy"
+   }
+  },
+  {
+   "id": "subtext.hw.imminent-betrayal",
+   "label": "Imminent betrayal",
+   "text": "Not considering betrayal, committed to it. The decision is made. The character is going through the motions of loyalty while the knife is already chosen. Subtextual tells: being unusually helpful (guilt), avoiding one-on-one moments (can't face them alone), small acts of sabotage disguised as mistakes, collecting information they wouldn't normally need. The most devastating tell: being exactly the same. No change at all. Because the betrayal isn't emotional for them; it's practical.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Imminent betrayal"
+   },
+   "gate": {
+    "reply": 28,
+    "die": 20,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     25,
+     30
+    ],
+    "tier": "heavy"
+   }
+  },
+  {
+   "id": "subtext.hw.dissociating",
+   "label": "Dissociating",
+   "text": "The lights are on and nobody's home. A character has hit a psychological wall and gone elsewhere. They respond when spoken to: correctly, even, but there's a processing delay. Their eyes are focused on a middle distance. They do things on autopilot: stir the coffee, nod at the right moments, say \"yeah\" and \"uh huh.\" They might not remember this scene later. The disturbing part isn't the absence. it's how FUNCTIONAL the absence looks. Most people won't notice. The user might not notice. That's the point.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Dissociating"
+   },
+   "gate": {
+    "reply": 28,
+    "die": 20,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     25,
+     30
+    ],
+    "tier": "heavy"
+   }
+  },
+  {
+   "id": "subtext.hw.devastating-news",
+   "label": "Devastating news",
+   "text": "Something happened. They found out. The diagnosis, the infidelity, the death, the firing, the test results, the message they can't unsee. And they're HERE, in this scene, functioning, because the news is too big to process. Shock looks like normalcy from the outside: they're carrying on a conversation, doing their job, attending the dinner. But they're on autopilot and the crash hasn't happened yet. Tiny leaks: saying something that doesn't connect to the conversation. Laughing at nothing. Holding their phone like it might explode. Standing up and then forgetting why.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Devastating news"
+   },
+   "gate": {
+    "reply": 28,
+    "die": 20,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     25,
+     30
+    ],
+    "tier": "heavy"
+   }
+  },
+  {
+   "id": "subtext.hw.unannounced-pregnancy",
+   "label": "Unannounced pregnancy",
+   "text": "The secret that recalculates everything. A character who knows they're pregnant but hasn't told anyone: refusing a drink without explanation, hand drifting to their stomach then catching themselves, doing mental math about timelines during conversations about other things, sudden protectiveness about physical safety that wasn't there before, looking at other people's children differently. If the pregnancy is unwanted: the avoidance is sharper, the calculation is darker, and the isolation of carrying a decision nobody can help with is visible in how they handle being alone vs. in company.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Unannounced pregnancy"
+   },
+   "gate": {
+    "reply": 28,
+    "die": 20,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     25,
+     30
+    ],
+    "tier": "heavy"
+   }
+  },
+  {
+   "id": "subtext.hw.starving",
+   "label": "Starving",
+   "text": "Not dieting. Not skipping a meal. STARVING. The kind where the body has started consuming itself and every sense is warped by need. Food becomes the center of gravity: eyes tracking to other people's plates, the physical pain of smelling someone's lunch, the lightheadedness that comes in waves. Cognitive function degrades: slower reactions, difficulty following conversations, irritability that spikes from nowhere. The concealment: eating just enough in public to avoid questions, claiming they already ate, turning down invitations to restaurants. The body can't lie as well as the mouth: gaunt, cold hands, brittle focus.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Starving"
+   },
+   "gate": {
+    "reply": 28,
+    "die": 20,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     25,
+     30
+    ],
+    "tier": "heavy"
+   }
+  },
+  {
+   "id": "subtext.hw.realized-something-unsayable",
+   "label": "Realized something unsayable",
+   "text": "The realization that can't be spoken. A character has figured out something about someone in the scene, and saying it would end the friendship, the partnership, the family dinner. \"I just realized you don't actually like me.\" \"I can see you're exactly like your mother.\" \"You're not smart enough for this job and we both know it.\" The character SITS WITH THIS while continuing to interact normally. The strain is in the over-politeness, the careful word choices, the moments where they almost say it and pull back.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Realized something unsayable"
+   },
+   "gate": {
+    "reply": 22,
+    "die": 14,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     20,
+     25
+    ],
+    "tier": "interpersonal"
+   }
+  },
+  {
+   "id": "subtext.hw.hiding-power",
+   "label": "Hiding power",
+   "text": "Deliberate underperformance. A character who could end the fight in one move but pretends to struggle. A character who understands exactly what's happening but plays dumb. A character who could solve the problem instantly but lets others work through it. The subtext lives in micro-moments of slippage: the reflex they have to suppress, the answer they almost give too quickly, the expertise they have to mask with manufactured confusion. WHY they're hiding matters: protection, manipulation, humility, fear of being used, and the why colors the how.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Hiding power"
+   },
+   "gate": {
+    "reply": 22,
+    "die": 14,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     20,
+     25
+    ],
+    "tier": "interpersonal"
+   }
+  },
+  {
+   "id": "subtext.hw.destructive-promise",
+   "label": "Destructive promise",
+   "text": "A promise made that can't be broken and can't be explained. \"I promised I wouldn't tell.\" \"I swore I'd stay.\" \"I gave my word I'd take the blame.\" The promise is forcing behavior that makes no sense to observers: loyalty to someone who doesn't deserve it, silence when speaking would help, actions that look irrational unless you know the constraint. The character is visibly wrestling with something they can't articulate, and the frustration of being misunderstood because of a secret obligation leaks out as anger, withdrawal, or cryptic statements that almost-but-don't explain.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Destructive promise"
+   },
+   "gate": {
+    "reply": 22,
+    "die": 14,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     20,
+     25
+    ],
+    "tier": "interpersonal"
+   }
+  },
+  {
+   "id": "subtext.hw.withdrawal",
+   "label": "Withdrawal",
+   "text": "The body in revolt. A character going without their substance: the restlessness that won't stop, the sweat that has nothing to do with temperature, hands that can't stay still, the jaw that clenches and unclenches. They're functional; barely, but every interaction is filtered through the body's demand. Checking the time compulsively (how long until they can use). Irritability that detonates disproportionately. The moment of sweet relief when they excuse themselves, because they're going to use, or because being alone means they can stop pretending they're fine.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Withdrawal"
+   },
+   "gate": {
+    "reply": 22,
+    "die": 14,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     20,
+     25
+    ],
+    "tier": "condition"
+   }
+  },
+  {
+   "id": "subtext.hw.running-on-fumes",
+   "label": "Running on fumes",
+   "text": "Not tired. DEPLETED. Multiple nights of insufficient sleep stacking up. The cognitive effects: losing words mid-sentence, reading the same line three times, emotional volatility where nothing is proportionate anymore: laughing too hard, crying at nothing, rage at minor inconveniences. The physical effects: clumsy hands, aching eyes, the microsleep that lasts a half-second and makes them jerk back to consciousness. They might not know how bad they are; sleep deprivation destroys self-assessment first. Others can see it before they can.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Running on fumes"
+   },
+   "gate": {
+    "reply": 22,
+    "die": 14,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     20,
+     25
+    ],
+    "tier": "condition"
+   }
+  },
+  {
+   "id": "subtext.hw.space-has-a-secret",
+   "label": "Space has a secret",
+   "text": "The environment is hiding something. The house where something died. The office where something is buried in the files. The field where something is literally buried. The room with the locked closet nobody mentions. The characters don't know, but the SPACE does, and it leaks through environmental wrongness: a stain that's been painted over but shows through, a smell that doesn't belong, a draft from a wall that shouldn't have one, a room that's colder than it should be. Don't explain it. Let the space be wrong and let the characters not quite notice.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Space has a secret"
+   },
+   "gate": {
+    "reply": 22,
+    "die": 14,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     20,
+     25
+    ],
+    "tier": "situational"
+   }
+  },
+  {
+   "id": "subtext.hw.unspoken-time-pressure",
+   "label": "Unspoken time pressure",
+   "text": "A deadline exists that hasn't been stated. One character knows the store closes in ten minutes and the other is browsing leisurely. One character knows the bus leaves in five minutes and they're still three blocks away. One character knows the investors are arriving tomorrow and nothing is ready. The pressure manifests in pacing: someone moving slightly too fast, checking the time, giving shorter answers, trying to steer the scene toward efficiency while the other characters resist. The clock is invisible to most of the scene but it's driving one character's behavior.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Unspoken time pressure"
+   },
+   "gate": {
+    "reply": 22,
+    "die": 14,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     20,
+     25
+    ],
+    "tier": "situational"
+   }
+  },
+  {
+   "id": "subtext.ours.hiding-a-good-mood",
+   "label": "Hiding a good mood",
+   "text": "someone is in a better mood than they show, because of news nobody else has heard yet",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.ours.wants-to-be-asked",
+   "label": "Wants to be asked",
+   "text": "someone wants to be asked about something and is waiting for the question",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.ours.rehearsed-answer",
+   "label": "Rehearsed answer",
+   "text": "someone has prepared an answer to a question nobody has asked yet",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.ours.covering-for-a-friend",
+   "label": "Covering for a friend",
+   "text": "someone is covering for a friend who is not present",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.ours.saving-face",
+   "label": "Saving face",
+   "text": "someone made a small mistake earlier and is hoping nobody brings it up",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  },
+  {
+   "id": "subtext.ours.owes-an-apology",
+   "label": "Owes an apology",
+   "text": "someone owes another person present an apology and keeps almost making it",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 12,
+    "die": 7,
+    "dur": [
+     2,
+     3
+    ],
+    "rest": [
+     10,
+     15
+    ],
+    "tier": "light"
+   }
+  }
+ ]
+}

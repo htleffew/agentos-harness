@@ -1,0 +1,69 @@
+{
+ "id": "driver",
+ "name": "Who drives it",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "driver.ours.item",
+   "label": "{{char}}",
+   "text": "{{char}}",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "from": "char"
+  },
+  {
+   "id": "driver.ours.any-character-other-than-one-already-in-",
+   "label": "any character other than {{user}}, one already in the story or a new arrival",
+   "text": "any character other than {{user}}, one already in the story or a new arrival",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "from": "other"
+  },
+  {
+   "id": "driver.ours.any-female-character-other-than-one-alre",
+   "label": "any female character other than {{user}}, one already in the story or a new arrival",
+   "text": "any female character other than {{user}}, one already in the story or a new arrival",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "from": "other"
+  },
+  {
+   "id": "driver.ours.any-male-character-other-than-one-alread",
+   "label": "any male character other than {{user}}, one already in the story or a new arrival",
+   "text": "any male character other than {{user}}, one already in the story or a new arrival",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "from": "other"
+  },
+  {
+   "id": "driver.ours.the-surroundings-weather-a-place-an-obje",
+   "label": "the surroundings: weather, a place, an object, an animal or a crowd",
+   "text": "the surroundings: weather, a place, an object, an animal or a crowd",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "from": "world"
+  }
+ ]
+}

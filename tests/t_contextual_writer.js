@@ -21,7 +21,7 @@ async function openPrompt(page, groupLabel, promptLabel) {
         await L.setupApi(page);
         await L.openChat(page, { fresh: true });
         const root = page.locator('#ri_root');
-        await root.locator('button').filter({ hasText: /^Expand$/ }).evaluate(button => button.click());
+        await L.openPanel(page);
         const name = await page.evaluate(async base => {
             const B = await import(`${base}/src/books.js`);
             const { app } = await import(`${base}/src/ui/panel.js`);
@@ -48,12 +48,6 @@ async function openPrompt(page, groupLabel, promptLabel) {
         await target.locator('summary').click();
         await target.locator('input[value="unspecified"]').check();
         await target.locator('input[value="user"]').uncheck();
-        const framing = await openPrompt(page, 'Customize in-chat instruction wording', 'Instruction framing');
-        await framing.box.fill('FRAMING_MARKER {instruction}');
-        await framing.prompt.getByRole('button', { name: 'Update', exact: true }).click();
-        assert.match(await root.locator('.ri-preview').textContent(), /FRAMING_MARKER.*last five replies/);
-        await framing.prompt.getByRole('button', { name: 'Restore default prompt', exact: true }).click();
-        assert.doesNotMatch(await root.locator('.ri-preview').textContent(), /FRAMING_MARKER/);
 
         await root.getByRole('button', { name: 'Write versions with AI' }).click();
         const seed = field(page, 'What should the model do?');

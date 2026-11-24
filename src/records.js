@@ -33,7 +33,7 @@ import { chatState } from './store.js';
 import { ctx } from './st.js';
 import { fold } from './memory/fold.js';
 import { memoryStore } from './memory/store.js';
-import { follow, currentWorldData, memoryActive, staleChapters } from './memory/import.js';
+import { fileBookEdits, currentWorldData, memoryActive, staleChapters } from './memory/import.js';
 import { freeUid } from './books.js';
 
 /** Every chat record kind, the screen that shows it and the feature that switches it on. */
@@ -79,7 +79,7 @@ export async function readRecordById(id, kinds = Object.keys(RECORD_KINDS)) {
 /** Save a record as before, then file the change as your edit in chat data. */
 export async function writeRecord(input, options = {}) {
     const result = await saveV10Record(input, options);
-    if (memoryActive()) await follow({ origin: 'you' });
+    if (memoryActive()) await fileBookEdits({ origin: 'you' });
     return result;
 }
 
@@ -151,7 +151,7 @@ export function recordHistory(record) {
 export function filingStatus() {
     return { ...storyJournalStatus(), slots:editableReplySlots(), memory:memoryStatus() };
 }
-export const refileStory = async () => { const result = await syncWorld(); if (memoryActive()) await follow(); return result; };
+export const refileStory = async () => { const result = await syncWorld(); if (memoryActive()) await fileBookEdits(); return result; };
 
 // A screen loads the book data, changes entries and saves it. For an imported chat the data it loads is the fold's
 // view; on save only the entries the screen changed reach the book, and the change is filed as your edit.
@@ -182,7 +182,7 @@ async function saveFromScreen(id, data) {
     book.extensions = { ...(book.extensions || {}), riNextUid: Math.max(freeUid(book), Number(data.extensions?.riNextUid) || 0) };
     await saveWorld(id, book);
     loadedFromFold.set(data, structuredClone(data.entries));
-    await follow({ origin: 'you' });
+    await fileBookEdits({ origin: 'you' });
 }
 
 export const entries = {
@@ -196,7 +196,7 @@ export const entries = {
     recall:storyRecall,
     effective:async id => isStoryWorld(id) ? currentWorldData(id) : loadEffectiveWorld(id),
     reserve:(data, id) => reserveStoryUids(data, id),
-    changed:async (id, uid, before, after) => { const result = recordManualWorldChange(id, uid, before, after); if (isStoryWorld(id)) await follow({ origin: 'you' }); return result; },
+    changed:async (id, uid, before, after) => { const result = recordManualWorldChange(id, uid, before, after); if (isStoryWorld(id)) await fileBookEdits({ origin: 'you' }); return result; },
     draftWithAI:options => writeWorldEntryWithAI(options),
 };
 /** The pinned Base World is read-only reference material and is not a Story World record. */

@@ -1,0 +1,14 @@
+{
+ "meta": { "name": "Invented test plugin", "author": "fixture", "tag": "PLUGIN" },
+ "entries": {
+  "1": { "uid": 1, "name": "Picnic snacks", "triggerGroups": [ { "type": "always", "chance": 40, "messageCountInterval": 3 } ],
+   "actions": { "default": [ { "type": "add_message", "role": "system", "pool": [ "a wedge of cheese", "a jar of pickles", "cold sausages", "a slab of cake" ] } ] } },
+  "2": { "uid": 2, "name": "Long craft note", "triggerGroups": [ { "type": "always", "chance": 5 } ],
+   "actions": { "default": [ { "type": "add_message", "role": "system", "pool": [
+    "{NOTE: Write the scene with careful attention to what each person holds in their hands, where they stand, which way they face, and what they can see from there. Keep every object where it was put down. Let the light come from somewhere. Let sounds come from somewhere. Do not let anyone know what they could not have seen. End each beat on something a camera could film, never on a moral or a summary of feelings. Vary the length of sentences and open each paragraph differently.}",
+    "<note>Write the scene with careful attention to what each person holds in their hands, where they stand, which way they face, and what they can see from there. Keep every object where it was put down. Let the light come from somewhere. Let sounds come from somewhere. Do not let anyone know what they could not have seen. End each beat on something a camera could film, never on a moral or a summary of feelings. Vary the length of sentences and open each paragraph differently.</note>",
+    "[NOTE: Write the scene with careful attention to what each person holds in their hands, where they stand, which way they face, and what they can see from there. Keep every object where it was put down. Let the light come from somewhere. Let sounds come from somewhere. Do not let anyone know what they could not have seen. End each beat on something a camera could film, never on a moral or a summary of feelings. Vary the length of sentences and open each paragraph differently.]" ] } ] } }
+ },
+ "variables": [ { "name": "mood" } ], "switches": [], "tables": [],
+ "agents": [ { "name": "Helper", "systemPrompt": "You brief the writer.", "userPromptTemplate": "Output these lines:\nWHO: whose eyes\nWHERE: the room\nTHING: one object to notice\nNOT: what to avoid" } ]
+}

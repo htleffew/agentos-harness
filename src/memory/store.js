@@ -93,9 +93,10 @@ export function createStore(host) {
 
     /**
      * Commit a model result for one reply. inputs: change entries without anchors; each is anchored to the revision the
-     * job read and depends on it. Resolves { committed, entries } or { discarded, reason }.
+     * job read and depends on it. onMessage(message) runs on the reply before the save, only when the revision still shows
+     * (capture writes its stamp and the swipe's tracker values there). Resolves { committed, entries } or { discarded, reason }.
      */
-    function commit(job, inputs, { reason = '' } = {}) {
+    function commit(job, inputs, { reason = '', onMessage = null } = {}) {
         return serial(job.chatId, async () => {
             const why = stillShows(job);
             if (why) {
@@ -107,6 +108,7 @@ export function createStore(host) {
             const message = chat()[indexOf(job.mark)];
             const entries = nextEntries(inputs.map(input => ({ ...input, anchor, depends: [].concat(input.depends || []).filter(d => d?.entry || d?.mark), reason: input.reason || reason })));
             appendToReply(message, entries);
+            onMessage?.(message);
             forgetFold(meta());
             await host.save();
             return { committed: true, entries };

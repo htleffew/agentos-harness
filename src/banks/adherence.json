@@ -1,0 +1,53 @@
+{
+ "id": "adherence",
+ "name": "Personality trait adherence",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "adherence.wb.restrained",
+   "label": "Restrained",
+   "text": "Character's personality traits are Restrained: traits surface selectively. Characters act on them when circumstances call for it and behave unremarkably otherwise.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Restrained"
+   }
+  },
+  {
+   "id": "adherence.wb.pronounced",
+   "label": "Pronounced",
+   "text": "Character's personality traits are Pronounced: traits are visible in most choices. Characters are recognizable from a single scene. Traits reliably inform behavior.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Pronounced"
+   }
+  },
+  {
+   "id": "adherence.wb.exaggerated",
+   "label": "Exaggerated",
+   "text": "Character's personality traits are Exaggerated: traits are expressed past realistic proportion, over the top. Characters read as heightened versions of their description.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Exaggerated"
+   }
+  },
+  {
+   "id": "adherence.wb.natural",
+   "label": "Natural",
+   "text": "Character's personality traits are Natural: traits reliably inform behavior.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Natural"
+   }
+  }
+ ]
+}

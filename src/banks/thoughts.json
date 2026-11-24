@@ -1,0 +1,42 @@
+{
+ "id": "thoughts",
+ "name": "Internal thoughts",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "thoughts.wb.occasional",
+   "label": "Occasional",
+   "text": "Interiority in narration is Occasional: Only a line or two of internal thought per generation, at decision points and reactions from the POV character.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Occasional"
+   }
+  },
+  {
+   "id": "thoughts.wb.frequent",
+   "label": "Frequent",
+   "text": "Interiority in narration is Frequent: most beats carry a reaction in thought. The POV character's running commentary is a constant presence alongside the action.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Frequent"
+   }
+  },
+  {
+   "id": "thoughts.wb.constant",
+   "label": "Constant",
+   "text": "Interiority in narration is Constant: narration is the POV character's continuous internal monologue. Every event is filtered through immediate reaction, aside, and commentary including asides that interrupt the action mid-beat.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Constant"
+   }
+  }
+ ]
+}

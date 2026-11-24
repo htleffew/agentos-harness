@@ -1,0 +1,141 @@
+{
+ "id": "pace",
+ "name": "Pace",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "pace.pura.stalled-and-circling",
+   "label": "Stalled and circling",
+   "text": "Stalled and circling",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.interrupted-and-jagged",
+   "label": "Interrupted and jagged",
+   "text": "Interrupted and jagged",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.slow-burn",
+   "label": "Slow burn",
+   "text": "Slow burn",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.compressed-and-breathless",
+   "label": "Compressed and breathless",
+   "text": "Compressed and breathless",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.awkwardly-prolonged",
+   "label": "Awkwardly prolonged",
+   "text": "Awkwardly prolonged",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.stop-start-with-false-recoveries",
+   "label": "Stop-start with false recoveries",
+   "text": "Stop-start with false recoveries",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.measured-but-tightening",
+   "label": "Measured but tightening",
+   "text": "Measured but tightening",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.brief-and-loaded",
+   "label": "Brief and loaded",
+   "text": "Brief and loaded",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.dragging-under-strain",
+   "label": "Dragging under strain",
+   "text": "Dragging under strain",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.pura.quick-with-hidden-aftershock",
+   "label": "Quick with hidden aftershock",
+   "text": "Quick with hidden aftershock",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "pace.ours.unhurried-with-time-to-notice-small-thin",
+   "label": "unhurried, with time to notice small things",
+   "text": "unhurried, with time to notice small things",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pace.ours.a-slow-build-to-one-sharp-line",
+   "label": "a slow build to one sharp line",
+   "text": "a slow build to one sharp line",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

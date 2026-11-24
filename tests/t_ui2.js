@@ -12,7 +12,7 @@ const setField = (page, label, value) => page.evaluate(([label, value]) => { con
         await L.openChat(page); L.resetLog();
         // pronouns: character she/her
         await page.evaluate(async (B) => { const S = await import(`${B}/src/store.js`); S.setPronouns('char', 'she'); S.setPronouns('user', 'he'); }, L.BASE);
-        await click(page, 'Expand');
+        await L.openPanel(page);
         // create a set through the UI
         const name = 'UI set ' + Date.now();
         await page.evaluate(async ([B, name]) => { const M = await import(`${B}/src/books.js`); await M.createSet(name); const P = await import(`${B}/src/ui/panel.js`); P.app.cache = {}; P.app.go({ view: 'set', name }); }, [L.BASE, name]);
@@ -68,8 +68,8 @@ const setField = (page, label, value) => page.evaluate(([label, value]) => { con
         await page.evaluate(() => document.querySelectorAll('#chat .mes .ri-under details').forEach(d => d.open = true));
         await page.evaluate(() => document.querySelector('#chat').scrollTo(0, 99999));
         await page.screenshot({ path: '/tmp/s7_under.png' });
-        await click(page, 'Expand');
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-tab')].find(t => t.textContent === 'What Was Sent').click());
+        await L.openPanel(page);
+        await L.openPanel(page, 'sent');
         await page.waitForTimeout(400);
         await page.evaluate(() => document.querySelectorAll('#ri_root details').forEach(d => d.open = true));
         await page.screenshot({ path: '/tmp/s8_sent.png' });

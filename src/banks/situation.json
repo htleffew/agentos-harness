@@ -1,0 +1,801 @@
+{
+ "id": "situation",
+ "name": "Situation",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "situation.pura.tonal-shift",
+   "label": "Tonal shift",
+   "text": "Tonal shift: the genre bends mid-scene. Tension becomes absurdity, intimacy becomes horror, mundane becomes surreal, or violence becomes comedy. Jarring but coherent.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.intrusion",
+   "label": "Intrusion",
+   "text": "Intrusion: the setting itself acts. Architecture moves, weather turns hostile, an animal intervenes, background NPCs collide with the main action, or the environment creates a new problem.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.character-rupture",
+   "label": "Character rupture",
+   "text": "Character rupture: someone acts sharply against their established pattern, justified by hidden pressure, breaking point, or context the scene suddenly reveals.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.surreal-logic",
+   "label": "Surreal logic",
+   "text": "Surreal logic: reality gets slippery. Time dilates, sensory input warps, coincidence becomes too perfect, or the physical world stops behaving predictably. Characters notice but cannot control it.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.chaotic-escalation",
+   "label": "Chaotic escalation",
+   "text": "Chaotic escalation: a small thing spirals. A minor annoyance becomes a crisis, a joke becomes a threat, a question becomes an interrogation, or a gesture becomes a fight. The scene accelerates past where it should have stopped.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.forbidden-juxtaposition",
+   "label": "Forbidden juxtaposition",
+   "text": "Forbidden juxtaposition: combine two elements that do not belong together. Intimacy during danger, laughter during grief, tenderness during cruelty, boredom during spectacle, or professionalism during chaos.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.unexpected-arrival",
+   "label": "Unexpected arrival",
+   "text": "Unexpected arrival: someone or something shows up that should not be here. A character from a different context, an object out of place, a message at the wrong time, or a stranger with inexplicable knowledge.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.power-reversal",
+   "label": "Power reversal",
+   "text": "Power reversal: the dynamic inverts. The person in control loses it, the vulnerable one seizes leverage, the observer becomes the observed, or the helper becomes the problem.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.constraint-introduced",
+   "label": "Constraint introduced",
+   "text": "Constraint introduced: a new rule suddenly applies. A time limit, a physical barrier, a social obligation, a resource running out, or a promise that must be kept. Possibility space narrows.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.information-rupture",
+   "label": "Information rupture",
+   "text": "Information rupture: something believed true is not. A lie is exposed, a misunderstanding clarifies in the worst way, or a secret spills.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.sensory-overload-or-deprivation",
+   "label": "Sensory overload or deprivation",
+   "text": "Sensory overload or deprivation: the scene's texture warps. Everything becomes too loud, too bright, too close; or muffled, distant, numb. Characters struggle to process their environment.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.pura.parallel-action-collision",
+   "label": "Parallel action collision",
+   "text": "Parallel action collision: something happening off-screen crashes into this scene. A consequence arrives early, a subplot intersects, or the world's momentum forces its way in.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "situation.work.they-re-in-a-good-mood-something-went-ri",
+   "label": "They're in a good mood. Something went right, or someone gave them something",
+   "text": "They're in a good mood. Something went right, or someone gave them something.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.they-just-got-bad-news",
+   "label": "They just got bad news",
+   "text": "They just got bad news.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.you-pissed-them-off",
+   "label": "You pissed them off",
+   "text": "You pissed them off.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.nothing-is-happening-small-talk-or-a-dul",
+   "label": "Nothing is happening. Small talk, or a dull errand",
+   "text": "Nothing is happening. Small talk, or a dull errand.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.a-stranger-bumps-into-them-in-the-street",
+   "label": "A stranger bumps into them in the street",
+   "text": "A stranger bumps into them in the street.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.someone-compliments-them-directly-to-the",
+   "label": "Someone compliments them directly, to their face",
+   "text": "Someone compliments them directly, to their face.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.they-re-asked-to-do-something-they-don-t",
+   "label": "They're asked to do something they don't want to do",
+   "text": "They're asked to do something they don't want to do.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.they-re-caught-in-a-mistake-or-a-lie",
+   "label": "They're caught in a mistake, or a lie",
+   "text": "They're caught in a mistake, or a lie.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.they-meet-someone-new-for-the-first-time",
+   "label": "They meet someone new for the first time",
+   "text": "They meet someone new for the first time.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.someone-they-care-about-is-threatened",
+   "label": "Someone they care about is threatened",
+   "text": "Someone they care about is threatened.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.someone-asks-about-their-past-or-somethi",
+   "label": "Someone asks about their past, or something they don't discuss",
+   "text": "Someone asks about their past, or something they don't discuss.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.someone-flirts-with-them",
+   "label": "Someone flirts with them",
+   "text": "Someone flirts with them.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.they-re-under-real-pressure-danger-a-dea",
+   "label": "They're under real pressure. Danger, a deadline, no good options",
+   "text": "They're under real pressure. Danger, a deadline, no good options.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS"
+   }
+  },
+  {
+   "id": "situation.work.meeting-for-the-first-time",
+   "label": "Meeting {{user}} for the first time",
+   "text": "Meeting {{user}} for the first time.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS_SIDE"
+   }
+  },
+  {
+   "id": "situation.work.wants-something-from-them",
+   "label": "{{user}} wants something from them",
+   "text": "{{user}} wants something from them.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS_SIDE"
+   }
+  },
+  {
+   "id": "situation.work.has-annoyed-them",
+   "label": "{{user}} has annoyed them",
+   "text": "{{user}} has annoyed them.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS_SIDE"
+   }
+  },
+  {
+   "id": "situation.work.talking-about-their-own-work-the-thing-t",
+   "label": "Talking about their own work, the thing they're here for",
+   "text": "Talking about their own work, the thing they're here for.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS_SIDE"
+   }
+  },
+  {
+   "id": "situation.work.something-goes-wrong-in-front-of-them",
+   "label": "Something goes wrong in front of them",
+   "text": "Something goes wrong in front of them.",
+   "source": {
+    "author": "Deiomo",
+    "work": "Writer's Workbench",
+    "file": "e9c2f57a-writers-workbench.html",
+    "block": "DLG_PROMPTS_SIDE"
+   }
+  },
+  {
+   "id": "situation.ours.a-message-meant-for-someone-else-reaches",
+   "label": "a message meant for someone else reaches {{char}}",
+   "text": "a message meant for someone else reaches {{char}}",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.the-lights-fail-halfway-through-a-conver",
+   "label": "the lights fail halfway through a conversation",
+   "text": "the lights fail halfway through a conversation",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-stranger-asks-the-way-to-a-place-that-",
+   "label": "a stranger asks the way to a place that closed years ago",
+   "text": "a stranger asks the way to a place that closed years ago",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-arrives-early-and-hears-what-was",
+   "label": "someone arrives early and hears what was not meant for them",
+   "text": "someone arrives early and hears what was not meant for them",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.an-old-acquaintance-of-turns-up-without-",
+   "label": "an old acquaintance of {{char}} turns up without warning",
+   "text": "an old acquaintance of {{char}} turns up without warning",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-lost-item-turns-up-in-the-wrong-pocket",
+   "label": "a lost item turns up in the wrong pocket",
+   "text": "a lost item turns up in the wrong pocket",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-collapses-or-falls-ill-in-front-",
+   "label": "someone collapses or falls ill in front of everyone",
+   "text": "someone collapses or falls ill in front of everyone",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.an-invitation-arrives-with-a-short-deadl",
+   "label": "an invitation arrives with a short deadline",
+   "text": "an invitation arrives with a short deadline",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.two-people-arrive-at-the-same-moment-and",
+   "label": "two people arrive at the same moment and want the same thing",
+   "text": "two people arrive at the same moment and want the same thing",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-child-or-a-young-person-attaches-thems",
+   "label": "a child or a young person attaches themself to {{char}}",
+   "text": "a child or a young person attaches themself to {{char}}",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-rumour-about-is-already-going-around",
+   "label": "a rumour about {{char}} is already going around",
+   "text": "a rumour about {{char}} is already going around",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-asks-to-keep-a-secret-for-one-ni",
+   "label": "someone asks {{char}} to keep a secret for one night",
+   "text": "someone asks {{char}} to keep a secret for one night",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-door-that-is-always-locked-is-found-st",
+   "label": "a door that is always locked is found standing open",
+   "text": "a door that is always locked is found standing open",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-sudden-noise-sends-everyone-looking-th",
+   "label": "a sudden noise sends everyone looking the same way",
+   "text": "a sudden noise sends everyone looking the same way",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-gift-arrives-with-no-name-on-it",
+   "label": "a gift arrives with no name on it",
+   "text": "a gift arrives with no name on it",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-crowd-gathers-around-something-that-ha",
+   "label": "a crowd gathers around something that has just happened",
+   "text": "a crowd gathers around something that has just happened",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-offers-a-trade-that-seems-too-ge",
+   "label": "someone offers a trade that seems too generous",
+   "text": "someone offers a trade that seems too generous",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-celebration-starts-nearby-and-pulls-pe",
+   "label": "a celebration starts nearby and pulls people in",
+   "text": "a celebration starts nearby and pulls people in",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.news-arrives-that-changes-what-wants",
+   "label": "news arrives that changes what {{char}} wants",
+   "text": "news arrives that changes what {{char}} wants",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.an-animal-follows-and-will-not-leave",
+   "label": "an animal follows {{char}} and will not leave",
+   "text": "an animal follows {{char}} and will not leave",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-letter-or-note-is-found-that-nobody-re",
+   "label": "a letter or note is found that nobody remembers writing",
+   "text": "a letter or note is found that nobody remembers writing",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.an-official-or-someone-in-charge-asks-qu",
+   "label": "an official or someone in charge asks questions",
+   "text": "an official or someone in charge asks questions",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-needs-a-hiding-place-right-now",
+   "label": "someone needs a hiding place right now",
+   "text": "someone needs a hiding place right now",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-familiar-face-appears-where-it-does-no",
+   "label": "a familiar face appears where it does not belong",
+   "text": "a familiar face appears where it does not belong",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-fight-breaks-out-between-two-other-peo",
+   "label": "a fight breaks out between two other people",
+   "text": "a fight breaks out between two other people",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-asks-for-a-favour-in-front-of-wi",
+   "label": "someone asks {{char}} for a favour in front of witnesses",
+   "text": "someone asks {{char}} for a favour in front of witnesses",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-promise-someone-made-earlier-is-called",
+   "label": "a promise someone made earlier is called in",
+   "text": "a promise someone made earlier is called in",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-storm-or-a-sudden-change-of-weather-tr",
+   "label": "a storm or a sudden change of weather traps everyone in place",
+   "text": "a storm or a sudden change of weather traps everyone in place",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-mistake-from-earlier-in-the-day-comes-",
+   "label": "a mistake from earlier in the day comes to light",
+   "text": "a mistake from earlier in the day comes to light",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-tells-a-story-that-turns-out-to-",
+   "label": "someone tells a story that turns out to be about {{char}}",
+   "text": "someone tells a story that turns out to be about {{char}}",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.an-object-goes-missing-from-the-room",
+   "label": "an object goes missing from the room",
+   "text": "an object goes missing from the room",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-mistakes-for-another-person",
+   "label": "someone mistakes {{char}} for another person",
+   "text": "someone mistakes {{char}} for another person",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-contest-wager-or-dare-is-proposed",
+   "label": "a contest, wager or dare is proposed",
+   "text": "a contest, wager or dare is proposed",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-who-has-been-absent-returns-chan",
+   "label": "someone who has been absent returns changed",
+   "text": "someone who has been absent returns changed",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-meal-or-drink-is-interrupted-by-bad-ne",
+   "label": "a meal or drink is interrupted by bad news",
+   "text": "a meal or drink is interrupted by bad news",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-starts-following-the-group-at-a-",
+   "label": "someone starts following the group at a distance",
+   "text": "someone starts following the group at a distance",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-place-everyone-relies-on-is-suddenly-c",
+   "label": "a place everyone relies on is suddenly closed",
+   "text": "a place everyone relies on is suddenly closed",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-asks-to-come-along",
+   "label": "someone asks to come along",
+   "text": "someone asks to come along",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-debt-or-obligation-of-s-is-mentioned-b",
+   "label": "a debt or obligation of {{char}}'s is mentioned by someone else",
+   "text": "a debt or obligation of {{char}}'s is mentioned by someone else",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.an-argument-heard-through-a-wall-stops-a",
+   "label": "an argument heard through a wall stops all at once",
+   "text": "an argument heard through a wall stops all at once",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.a-person-in-need-asks-for-help-and-has-n",
+   "label": "a person in need asks for help and has nothing to offer back",
+   "text": "a person in need asks for help and has nothing to offer back",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "situation.ours.someone-gives-a-warning-and-refuses-to-e",
+   "label": "someone gives {{char}} a warning and refuses to explain it",
+   "text": "someone gives {{char}} a warning and refuses to explain it",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

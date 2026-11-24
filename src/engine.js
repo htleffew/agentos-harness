@@ -9,6 +9,7 @@ import { beginBookTriggers, bookTriggerSource, scopedBookEntry, scopedTriggerTex
 import { streamUpdate } from './stream-update.js';
 import { filterExcludedBooks, observeHostBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from './components.js';
+import { queueCapture, startCapture } from './memory/capture.js';
 import { proseDialogue } from './dialogue.js';
 import { separateReply, hasReplyScaffolding, trimPartialReplyTag } from './reply-format.js';
 import { replyProgress, showReplyProgress, clearReplyProgress, setReplyPreview, setReplySections } from './reply-progress.js';
@@ -23,12 +24,13 @@ import { ctx, on, KEY, LOG, sub, scanLength, isReply, notePromptSent, isChatOpen
 import { request, isOwnPrompt } from './ai.js';
 import { settings, saveSettings, chatState, saveChatState, applyPronouns } from './store.js';
 import { isEvent, isStyle, rollEvent, rerollCategory, eventAllowed, withPreset, checkRules, burnStatus } from './events.js';
+import { polishItems } from './banks.js';
 import { NOTES_WORLD, isNotes, notesEntry, readScene } from './world.js';
 import { phaseFor, quietNow, previousRecord, countPresent } from './pacing.js';
 import { rollDice, DICE_QUESTION } from './dice.js';
 import { shownChanges } from './worldflow.js';
 import { chapterAfterReply } from './chapters.js';
-import { buildSceneAsk, cardsOn, PROFILE_STABLE, keptProfile, parseUpdate } from './worldflow.js';
+import { cardsOn, PROFILE_STABLE, keptProfile, parseUpdate } from './worldflow.js';
 import { ASK_WORLD, ORDER_WORLD, PACE_WORLD, DICE_WORLD, isAsk, isOrder, isPace, isDice, askEntry, orderEntry, paceEntry, diceEntry, isOocTurn, prepareWorld, liftBlock, afterReply, applyEffect, syncWorld, undoForSwipe, prepareGuidedSwipe, restoreGuidedSwipe, acceptGuidedSwipe, worldIdle, stripUpdateBlock } from './worldflow.js';
 import { GOAL_WORLD, isGoal, goals, goalEntry, goalProgress, goalDone, buildGoalOrder, advanceIfDone } from './goals.js';
 import { USER_LINE, instructionAgency, parseContent, readInstruction, wrapText, toStore, setOptions, setInfo, setName, setOfEntry, canonSet, pickWeighted, rollInt, SENT_AS, stickyToKeep, cooldownToWait, delayToReplyNumber } from './books.js';
@@ -313,7 +315,7 @@ async function onEntriesLoaded(lore) {
         const chance = Math.max(0,Math.min(100,Math.round(Number(settings().world.head)*scale/100) || 0));
         if (gen && gen.v10Schedule === undefined && native && !gen.dryRun) gen.v10Schedule = !quiet && kind === 'normal' && modules.worldEvents && chance > 0 && rollInt(100) < chance;
         const schedule = gen?.v10Schedule === true;
-        const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet, scale, native, freshStart, opportunities:schedule && modules?.plots }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
+        const flow = cs && Array.isArray(lore.chatLore) ? await prepareWorld(kind, history(kind).next, { quiet, scale, native, opportunities:schedule && modules?.plots }).catch((e) => { console.warn(LOG, 'story world', e); return null; }) : null;
         if (!isCurrent()) return;
         // A story phase can have a line of its own, sent with every reply of the phase.
         if (phase?.line && !quiet && Array.isArray(lore.chatLore)) lore.chatLore.push(paceEntry(phase.line));
@@ -344,9 +346,9 @@ async function onEntriesLoaded(lore) {
             if (contextAsk) lore.chatLore.push(askEntry(contextAsk));
         }
         else if (native && direction && Array.isArray(lore.chatLore)) { contextAsk = direction; lore.chatLore.push(askEntry(direction)); }
-        else if (!native && flow?.ask) { contextAsk = [corrections, stateText, direction, flow.ask].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
-        // With no story world, the scene lines are still asked for, so who is present, where and when are known under any preset.
-        else if (!native && cs && !quiet && (settings().scene?.track !== false || cardsOn()) && !isOocTurn() && Array.isArray(lore.chatLore)) { const a = buildSceneAsk(kind,{freshStart}); if (a || corrections || direction) { contextAsk = [corrections, stateText, direction, a].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); } }
+        // The request asks for no update block: the scene header (src/scene-header.js) and capture after the reply keep the scene and
+        // the records (memory DESIGN 5.1). The current state still goes out with the request.
+        else if (!native && cs && !quiet && !isOocTurn() && Array.isArray(lore.chatLore) && (corrections || stateText || direction)) { contextAsk = [corrections, stateText, direction].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
         else if ((direction || corrections) && Array.isArray(lore.chatLore)) { contextAsk = [corrections, stateText, direction].filter(Boolean).join('\n'); lore.chatLore.push(askEntry(contextAsk)); }
         if (gen && cs && !quiet && !isOocTurn() && Array.isArray(lore.chatLore)) {
             gen.prosePlan ??= prepareProseDiagnostics(ctx().chat || [], {
@@ -435,6 +437,10 @@ function makeItem(entry, sentAs, version, misses, kind, repeat = false, extra = 
     if (rule) item.recallRule = rule;
     // A story event also keeps what the dice picked, and the state of its categories after this event.
     if (extra?.event || extra?.parts) { item.event = extra.event; item.parts = extra.parts; }
+    // The roll record (seed, bank version, pools, counts and the values drawn) and the polished text stay with the reply.
+    if (extra?.roll) item.roll = extra.roll;
+    if (extra?.polished) item.polished = extra.polished;
+    if (extra?.polish && !repeat) { item.polishWanted = true; item.polishType = isStyle(entry) ? 'style' : 'event'; }
     if (entry.extensions?.ri?.actor === 'model') item.modelDirection = true;
     if (extra?.noCheck || item.modelDirection) item.noCheck = true;
     if (extra?.notes) item.notes = extra.notes;
@@ -509,7 +515,7 @@ function reconcile() {
     const rec = last && !last.is_user ? last.extra?.[KEY] : null;
     for (const it of rec?.items || []) {
         if (!['overdue', 'queued'].includes(it.status) || kept.some(o => o.key === canon(it.key))) continue;
-        kept.push({ key: canon(it.key), world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time, event: it.event, parts: it.parts, worldOrder: it.worldOrder, big: it.big });
+        kept.push({ key: canon(it.key), world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses: it.resend ?? Math.min(2, (it.misses || 0) + 1), from: rec.time, event: it.event, parts: it.parts, roll: it.roll, worldOrder: it.worldOrder, big: it.big });
     }
     if (JSON.stringify(kept) !== JSON.stringify(cs.overdue)) { cs.overdue = kept; saveChatState(); }
 }
@@ -571,6 +577,12 @@ export function unburnSet(book, e) {
 export function burnedSoFar() { return happened(); }
 
 /** What the scene and the story world offer the dice of a story event right now. */
+/** The number of the reply being written, for bank items that wait for an earliest reply. */
+function replyNumber(type) {
+    const replies = (ctx().chat || []).filter(m => m && !m.is_user && !m.is_system).length;
+    return Math.max(1, replies + (type === 'swipe' || type === 'regenerate' ? 0 : 1));
+}
+
 function sceneNow(type) {
     const read = countPresent(readScene(type).present);
     const notes = plan.notes;
@@ -664,7 +676,7 @@ function onScanDone(args) {
                     // "Pick again" for one picked item: that category gets a new pick, everything else stays.
                     const again = rerollCategory(withPreset(e.extensions?.ri, cs.presets?.[setOf(e)]), it.parts, it.event || states[it.key], rerollCat.catId, isEvent(e) ? blockedEventTags() : []);
                     if (again) {
-                        src = { ...it, version: again.text, parts: again.parts, event: it.event ? again.state : it.event };
+                        src = { ...it, version: again.text, parts: again.parts, event: it.event ? again.state : it.event, roll: again.roll, polished: undefined };
                         if (!it.event) states = { ...states, [it.key]: again.state };
                     }
                 }
@@ -688,7 +700,7 @@ function onScanDone(args) {
             for (const e of styles) {
                 const key = keyOf(e);
                 const ri = e.extensions.ri;
-                const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), plan.events?.get(key) || null, { locks: cs.locks?.[key] });
+                const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), plan.events?.get(key) || null, { locks: cs.locks?.[key], reply: replyNumber(type) });
                 states[key] = rolled.state;
                 const mine = rolled.parts.flatMap(p => p.dir || []);
                 dirs.push(...mine);
@@ -696,7 +708,7 @@ function onScanDone(args) {
                 carried = [];
                 const text = [rolled.text, note].filter(Boolean).join(' ');
                 if (!text) { map.delete(key); continue; }
-                items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', text, 0, 'new', false, { parts: rolled.parts, noCheck: true, ask: mine.filter(d => d.check).map(d => ({ q: d.check, pick: d.pick })) }));
+                items.push(makeItem(e, ri.sentAs === 'ooc' ? 'ooc' : 'system', text, 0, 'new', false, { parts: rolled.parts, noCheck: true, roll: rolled.roll, polish: rolled.polish, ask: mine.filter(d => d.check).map(d => ({ q: d.check, pick: d.pick })) }));
             }
             const eventLine = dirs.filter(d => d.event).map(d => (/[.!?]$/.test(d.event) ? d.event : `${d.event}.`)).join(' ');
             // The line of the story phase, when the phase has one.
@@ -732,7 +744,7 @@ function onScanDone(args) {
 
             // Hold back new instructions while one is overdue, or apply each set's per-reply limit.
             let held = [];
-            // Quiet after a big event: for a set number of replies nothing new starts. What is under way carries on.
+            // Calm after a big event: for a set number of replies nothing new starts. What is under way carries on.
             const quiet = quietNow(type);
             if (quiet) gen.quiet = quiet;
             if (quiet || (overdue.length && st.check.holdNew)) {
@@ -806,7 +818,7 @@ function onScanDone(args) {
                     const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
-                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type), blockedTags: blockedEventTags() });
+                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type), blockedTags: blockedEventTags(), reply: replyNumber(type) });
                     if (!rolled) {
                         map.delete(key);
                         // Tell the user once per chat when a set's main list is used up.
@@ -817,7 +829,7 @@ function onScanDone(args) {
                         }
                         continue;
                     }
-                    items.push(makeItem(e, sentAs, [rolled.text, eventLine].filter(Boolean).join(' '), 0, 'new', false, { event: rolled.state, parts: rolled.parts, big: !!ri.big }));
+                    items.push(makeItem(e, sentAs, [rolled.text, eventLine].filter(Boolean).join(' '), 0, 'new', false, { event: rolled.state, parts: rolled.parts, big: !!ri.big, roll: rolled.roll, polish: rolled.polish }));
                     continue;
                 }
                 const { sentAs, versions } = versionsOf(e);
@@ -844,7 +856,7 @@ function onScanDone(args) {
         gen.result = { texts: new Map(items.map(it => [it.key, it.text])) };
         if (askE && map.has(keyOf(askE))) gen.result.texts.set(keyOf(askE), askE.content);
         const pace = { phase: plan.phase ? { name: plan.phase.name, chance: plan.phase.chance } : null, quiet: gen.quiet || null };
-        cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
+        cs.lastScan = { len, states, pace, items: items.map(it => ({ key: it.key, sentAs: it.sentAs, version: it.version, misses: it.misses, kind: it.kind, event: it.event, parts: it.parts, roll: it.roll, polished: it.polished, noCheck: it.noCheck, notes: it.notes, worldOrder: it.worldOrder, big: it.big, pace: it.pace, ask: it.ask, dice: it.dice, ...('goalTask' in it ? { goalTask: it.goalTask, checkText: it.checkText } : {}) })) };
         if (gen.guided) { gen.guided.afterLastScan = structuredClone(cs.lastScan); gen.guided.afterOverdue = structuredClone(cs.overdue); }
         const notesItem = items.find(item=>item.notes);
         const receiptNotes = notesItem && { ids:notesItem.notes.ids,text:notesItem.text };
@@ -859,6 +871,11 @@ function onScanDone(args) {
         if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
         rerollCat = null;
         saveChatState();
+        // A set with "Smooth the rolled parts into prose" on: the rolled parts go to the background model before the
+        // reply request. SillyTavern waits for this handler, and any failure sends the raw parts.
+        const polish = items.filter(it => it.polishWanted);
+        if (polish.length) return polishItems(polish, { entries: map, texts: gen.result.texts, lastScan: cs.lastScan,
+            wrap: (sentAs, text) => sub(wrapText(sentAs, text, 0)), note: text => toast('info', text) }).then(() => saveChatState(), e => console.error(LOG, 'polish', e));
     } catch (e) { console.error(LOG, 'scan-done', e); }
 }
 
@@ -866,6 +883,14 @@ function onScanDone(args) {
 
 const SENT_BLOCK = /\s*<sent_instructions>[\s\S]*?<\/sent_instructions>/g;
 export const stripSentBlock = text => String(text ?? '').replace(SENT_BLOCK, '');
+
+const CAPTURE_STRIP_MS = 30000;
+/** Queue the capture this reply needs and resolve when it ends, or after 30 s so the Strip never waits on a paused job. */
+function captureAfterReply(modules = effectiveModules(), indices = null) {
+    return queueCapture({ modules: modules || {}, indices })
+        .then(queued => queued?.pending && Promise.race([queued.pending, new Promise(resolve => setTimeout(resolve, CAPTURE_STRIP_MS))]))
+        .catch(error => { console.warn(LOG, 'capture', error); return null; });
+}
 
 function attach(message, rec) {
     if (!message.extra || typeof message.extra !== 'object') message.extra = {};
@@ -903,6 +928,7 @@ function onMessageReceived(id, type) {
             const v10Lore = turn.lore.map(({text,...entry})=>entry);
             attach(message,{...previous,v:1,memory:true,items:previous?.items || [],type:turn.type,time,v10Lore,recall:turn.recall});
             try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
+            if (!isOocTurn()) captureAfterReply().finally(() => changed('checked',id));
             chapterAfterReply(time,history('normal').next-1,()=>changed('messages'));
             changed('sent',id);
             return;
@@ -1003,6 +1029,8 @@ function onMessageReceived(id, type) {
                 {clock:turn.clock,minutes:parsed.minutes,elapsed:parsed.elapsed});
             scene = timeline.scene;
             rec.v10Minutes=timeline.minutes;
+            // A reply that set the clock itself keeps it; otherwise capture moves it by the minutes the reply took.
+            if (parsed.minutes!==undefined || parsed.elapsed!==undefined) rec.v10ClockFromReply = true;
             if (timeline.issues.length) (rec.v10Issues ||= []).push(...timeline.issues);
             const moved = parsed.scene?.where && previousScene.where && parsed.scene.where.toLowerCase()!==previousScene.where.toLowerCase();
             rec.v10SceneId = earlier?.v10SceneId ?? (moved || previousRecord?.v10SceneEnded ? rec.time : previousRecord?.v10SceneId ?? previousRecord?.time ?? rec.time);
@@ -1086,18 +1114,16 @@ function onMessageReceived(id, type) {
         }
         // File what the reply established in the story world. With checking off, a world order counts as done when sent.
         if (earlier) rec.update = earlier.update;
+        // Capture reads the reply in its own call about a second later (memory DESIGN 7.2); the Strip says Capturing until it ends.
         if (progressTurn) showReplyProgress(progressTurn,'filing',id);
-        afterReply(id, rec, parsed, history('normal').next - 1, () => {
+        const captured = isOocTurn() ? Promise.resolve(null) : captureAfterReply(turn?.modules);
+        afterReply(id, rec, parsed, history('normal').next - 1, () => changed('checked',id), { v10:turn })
+            .finally(() => guidedAttempt?.finish?.(true));
+        captured.finally(() => {
             changed('checked',id);
-            if (!progressTurn) return;
-            if (!parsed.found || rec.v10Invalid) { clearReplyProgress(progressTurn); return; }
+            if (!progressTurn || replyProgress()?.turn !== progressTurn) return;
             showReplyProgress(progressTurn,'ready');
-        }, { v10:turn }).finally(() => {
-            guidedAttempt?.finish?.(true);
-            if (progressTurn && replyProgress()?.turn === progressTurn) {
-                if (replyProgress().phase === 'ready') setTimeout(()=>clearReplyProgress(progressTurn),850);
-                else clearReplyProgress(progressTurn);
-            }
+            setTimeout(()=>clearReplyProgress(progressTurn),850);
         });
         if (!turn && settings().check.mode === 'off') for (const it of rec.items) if (it.worldOrder) applyEffect(rec, it.worldOrder, () => changed('checked', id));
         // The story so far: a chapter is written in the background when a scene ended or enough replies went by.
@@ -1146,7 +1172,7 @@ function queueResend(cs, it, misses, from) {
     it.resend = misses;
     const key = canon(it.key);
     cs.overdue = cs.overdue.filter(o => o.key !== key);
-    cs.overdue.push({ key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from, event: it.event, parts: it.parts, worldOrder: it.worldOrder, big: it.big });
+    cs.overdue.push({ key, world: it.world, uid: it.uid, name: it.name, sentAs: it.sentAs, version: it.version, misses, from, event: it.event, parts: it.parts, roll: it.roll, worldOrder: it.worldOrder, big: it.big });
 }
 
 function markMissed(cs, it, from) {
@@ -1661,6 +1687,7 @@ export function init() {
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
     on('MESSAGE_SENT', id => bindQuickReply(gen, Number(id)).catch(error=>console.warn(LOG,'bind next-message direction',error)));
+    startCapture({ modules: () => effectiveModules() }).catch(error => console.warn(LOG, 'capture', error));
     on('MESSAGE_RECEIVED', onMessageReceived);
     on('MESSAGE_RECEIVED', rememberStoryTimeline);
     on('STREAM_TOKEN_RECEIVED', text => {
@@ -1794,7 +1821,7 @@ export async function acceptV10Opening(draft, prose) {
     const timeline = modules.state ? advanceStoryClock({},{...sceneFromReplyHeader(prose),...sceneUpdate(parsed.scene)},
         {minutes:parsed.minutes}) : null;
     const rec = { v:2, v10:true, items:[], time:Date.now(), type:'opening', stateChanges:modules.state ? changesFromProfiles(parsed.profiles || []) : [], scene:timeline?.scene ?? null,
-        v10Minutes:timeline?.minutes, roast:modules.roast ? parsed.roast : '' };
+        v10Minutes:timeline?.minutes, roast:modules.roast ? parsed.roast : '', ...(parsed.minutes!==undefined ? { v10ClockFromReply:true } : {}) };
     rec.v10SceneId = rec.time;
     attach(m,rec);
     if (modules.colors) registerSpeakers(prose,recordMap(rows));
@@ -1802,5 +1829,8 @@ export async function acceptV10Opening(draft, prose) {
     else c.updateMessageBlock?.(0,m);
     await afterReply(0,rec,parsed,0,() => changed('messages',0),{ v10:{ modules, records:recordMap(rows), baselines:portrayalSources(rows), base:baseWorld() }, propagate:true });
     await c.saveChat?.();
+    changed('messages',0);
+    // The opening is read by capture like any reply, so what it establishes is filed into chat data (memory DESIGN 7.2).
+    await captureAfterReply(modules, [0]);
     changed('messages',0);
 }

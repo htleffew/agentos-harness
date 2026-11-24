@@ -1,0 +1,21 @@
+{
+ "prompts": [
+  { "identifier": "head", "name": "-- Moods . Pick Many --", "content": "" },
+  { "identifier": "m1", "name": "SUNNY", "content": "{{//\nSUNNY\nBright days and easy smiles.\nEnable to add to the roulette.\n}}{{trim}}\n{{.mc = {{incvar mood_count}} }}{{trim}}\n{{.mr = {{roll 1d{{.mc}} }} }}{{trim}}\n{{if {{.mr == 1}} }}{{setvar::active_mood::SUNNY}}{{setvar::mood_line::{{random::The kettle sings.::Somebody hums.::A window is open.}}}}{{/if}}{{trim}}" },
+  { "identifier": "m2", "name": "STORMY", "content": "{{//\nSTORMY\nLow cloud and short tempers.\nEnable to add to the roulette.\n}}{{trim}}\n{{.mc = {{incvar mood_count}} }}{{trim}}\n{{.mr = {{roll 1d{{.mc}} }} }}{{trim}}\n{{if {{.mr == 1}} }}{{setvar::active_mood::STORMY}}{{/if}}{{trim}}" },
+  { "identifier": "m3", "name": "DRIZZLY", "content": "{{//\nDRIZZLY\nGrey and patient.\nEnable to add to the roulette.\n}}{{trim}}\n{{.mc = {{incvar mood_count}} }}{{trim}}\n{{.mr = {{roll 1d{{.mc}} }} }}{{trim}}\n{{if {{.mr == 1}} }}{{setvar::active_mood::DRIZZLY}}{{/if}}{{trim}}" },
+  { "identifier": "w1", "name": "Pulse: Bells", "content": "{{if {{getvar::wp_fire_this_turn}} }}{{addvar::wp_eligible::1}}{{.r = {{roll 1d{{getvar::wp_eligible}} }} }}{{if {{.r == 1}} }}{{setvar::wp_candidate_text::[PULSE: Bells]\nChurch bells ring somewhere across town.}}{{/if}}{{/if}}{{trim}}" },
+  { "identifier": "w2", "name": "Pulse: Cats", "content": "{{if {{getvar::wp_fire_this_turn}} }}{{addvar::wp_eligible::1}}{{.r = {{roll 1d{{getvar::wp_eligible}} }} }}{{if {{.r == 1}} }}{{setvar::wp_candidate_text::[PULSE: Cats]\nTwo cats argue on a wall.}}{{/if}}{{/if}}{{trim}}" },
+  { "identifier": "w3", "name": "Pulse: Steam", "content": "{{if {{getvar::wp_fire_this_turn}} }}{{addvar::wp_eligible::1}}{{.r = {{roll 1d{{getvar::wp_eligible}} }} }}{{if {{.r == 1}} }}{{setvar::wp_candidate_text::[PULSE: Steam]\nA pipe hisses and goes still.}}{{/if}}{{/if}}{{trim}}" },
+  { "identifier": "s1", "name": "Secret: Owes money", "content": "{{.t = {{getvar::turn}} }}{{if !{{getvar::sub_owes_dur}} }}{{if {{.t >= 14}} }}{{.r = {{roll 1d9}} }}{{if {{.r == 1}} }}{{setvar::sub_owes_dur::{{random::2::3}} }}{{/if}}{{/if}}{{/if}}{{trim}}\n{{if {{getvar::sub_owes_dur}} }}\n[ACTIVE SUBTEXT: Owes Money | LIGHT]\nSomeone in the room owes another person money and hopes it is forgotten.\n{{/if}}{{trim}}" },
+  { "identifier": "s2", "name": "Secret: Leaving town", "content": "{{.t = {{getvar::turn}} }}{{if !{{getvar::sub_leaving_dur}} }}{{if {{.t >= 30}} }}{{.r = {{roll 1d21}} }}{{if {{.r == 1}} }}{{setvar::sub_leaving_dur::{{random::2::3}} }}{{/if}}{{/if}}{{/if}}{{trim}}\n{{if {{getvar::sub_leaving_dur}} }}\n[ACTIVE SUBTEXT: Leaving Town | HEAVY]\nSomeone has a packed bag under the bed.\n{{/if}}{{trim}}" },
+  { "identifier": "e1", "name": "Trial: Whisper only", "content": "{{if {{getvar::exp_fire_this_turn}} }}{{addvar::exp_eligible::1}}{{.r = {{roll 1d{{getvar::exp_eligible}}}} }}{{if {{.r == 1}} }}{{setvar::exp_candidate_text::[TRIAL: Whisper]\nEvery spoken line is whispered.}}{{/if}}{{/if}}{{trim}}" },
+  { "identifier": "e2", "name": "Trial: One room", "content": "{{if {{getvar::exp_fire_this_turn}} }}{{addvar::exp_eligible::1}}{{.r = {{roll 1d{{getvar::exp_eligible}}}} }}{{if {{.r == 1}} }}{{setvar::exp_candidate_text::[TRIAL: One room]\nThe whole reply stays in one room.}}{{/if}}{{/if}}{{trim}}" },
+  { "identifier": "e3", "name": "Trial: Backwards", "content": "{{if {{getvar::exp_fire_this_turn}} }}{{addvar::exp_eligible::1}}{{.r = {{roll 1d{{getvar::exp_eligible}}}} }}{{if {{.r == 1}} }}{{setvar::exp_candidate_text::[TRIAL: Backwards]\nThe reply tells its moments in reverse order.}}{{/if}}{{/if}}{{trim}}" },
+  { "identifier": "init", "name": "Engine Init", "content": "{{setvar::turn::{{getvar::turn}}}}{{if {{getvar::turn}} >= 5 }}{{.r = {{roll 1d6}} }}{{/if}}" }
+ ],
+ "prompt_order": [ { "character_id": 100001, "order": [
+  { "identifier": "head" }, { "identifier": "m1" }, { "identifier": "m2" }, { "identifier": "m3" },
+  { "identifier": "w1" }, { "identifier": "w2" }, { "identifier": "w3" }, { "identifier": "s1" }, { "identifier": "s2" },
+  { "identifier": "e1" }, { "identifier": "e2" }, { "identifier": "e3" }, { "identifier": "init" } ] } ]
+}

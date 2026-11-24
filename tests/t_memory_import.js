@@ -139,7 +139,9 @@ test('a record screen edit is saved to the book and filed as your edit, locked, 
     out.edit = { uid: target.uid, versions: versions.length };
 });
 
-test('today\'s writer keeps working: a change it files after the import becomes an entry', async () => {
+// MB3 removed the follower of the update block; a change saved into the book (today's chapter writer, a record screen) is
+// still filed as an entry by fileBookEdits.
+test('a change saved into the book after the import becomes an entry', async () => {
     const id = fixture.bookName;
     const book = await host.loadWorldInfo(id);
     const entry = R.entries.blank(R.entries.reserve(book, id), 'thread');
@@ -147,7 +149,7 @@ test('today\'s writer keeps working: a change it files after the import becomes 
     Object.assign(entry, { name: 'The salt mark question', fields: { ...entry.fields, open: 'Who cut the salt marks on the posts.' }, auto: true });
     W.writeWorldEntry(book, entry, id);
     await host.saveWorldInfo(id, book);
-    await I.follow();
+    await I.fileBookEdits();
     const row = R.entries.list(I.foldWorldData(), id).find(r => r.uid === uid);
     assert.equal(row?.name, 'The salt mark question');
     const rec = F.fold(host.chat, host.chatMetadata).byId.get(`u${uid}`);
@@ -155,7 +157,7 @@ test('today\'s writer keeps working: a change it files after the import becomes 
     assert.equal(rec.threadType, 'Open');
     // A second look with nothing new files nothing.
     const n = (host.chatMetadata.ri_memory.log || []).length;
-    await I.follow();
+    await I.fileBookEdits();
     assert.equal(host.chatMetadata.ri_memory.log.length, n);
 });
 

@@ -240,3 +240,26 @@ export function advanceStoryClock(previous = {}, update = {}, { clock, minutes, 
     const storyMinute = validStoryMinute(candidate) ? candidate : known ? clock : undefined;
     return { scene,minutes:storyMinute,issues:issue };
 }
+
+const WEEKDAY_ANYWHERE = new RegExp(`\\b(?:${WEEK.join('|')})\\b,?\\s*`,'gi');
+/** The calendar part of a scene time such as "Day 3, Thursday, 21:40" or "Blossomtide 18, 348, dusk". */
+function datePart(value) {
+    const text=String(value || '').replace(WEEKDAY_ANYWHERE,'').replace(/\s+/g,' ').trim();
+    const chunks=text.split(/\s*[,;·|]\s*/).filter(Boolean);
+    for (let size=Math.min(3,chunks.length); size>0; size--) for (let i=0; i+size<=chunks.length; i++) {
+        const candidate=chunks.slice(i,i+size).join(', ');
+        if (dayNumber(candidate)) return candidate;
+    }
+    return '';
+}
+
+/**
+ * Whether two scene times fall on the same story day: true, false, or null when either has no readable date.
+ * Weather carried from an earlier reply expires when the day changed (memory DESIGN 7.1, M1a W11).
+ */
+export function sameStoryDay(a, b) {
+    const from=datePart(a), to=datePart(b);
+    if (!from || !to) return null;
+    const distance=dateDistance(from,to);
+    return distance ? distance.days===0 : from.toLowerCase()===to.toLowerCase();
+}

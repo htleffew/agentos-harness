@@ -351,6 +351,9 @@ const CARD_FIELD = { lore: 'entries', sent: 'sent', notes: 'notes' };
  */
 export function buildTrayCards(view, config = trayCardConfig()) {
     const cards = [];
+    // While capture of this reply is pending (memory DESIGN 7.2), story cards name the reply their state describes, so a fast
+    // next message never shows earlier state as this reply's own.
+    const asOf = view.capture?.pending ? view.capture.label : '';
     for (const def of orderedCards(config)) {
         const mode = cardMode(config, def.id);
         const render = RENDERERS.get(def.id);
@@ -359,6 +362,11 @@ export function buildTrayCards(view, config = trayCardConfig()) {
         let part;
         try { part = render(env); } catch (error) { console.warn(`[Roleplay Instructions] ${def.label} card`, error); continue; }
         if (!part) continue;
+        if (asOf && def.family === 'story' && !CARD_FIELD[def.id] && def.id !== 'changes') {
+            const body = part.body;
+            part = { ...part, asOf, first: [asOf, part.first].filter(Boolean).join(' · '),
+                ...(typeof body === 'function' ? { body: () => [h('p', { class: 'ri-c-source ri-c-as-of' }, asOf), ...[].concat(body())] } : {}) };
+        }
         cards.push({ id: def.id, label: def.label, icon: def.icon, family: def.family, module: def.module || undefined, stripOnly: mode === 'strip' || undefined, ...part });
     }
     return cards;

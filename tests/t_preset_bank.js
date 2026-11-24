@@ -216,6 +216,26 @@ test('a new stack holds the base as shipped, every RI feature that is on and the
     assert.equal(own.filter(item => item.group === 'main').length, companionFile.prompt_order[0].order.length);
 });
 
+test('a copy of the companion and the companion send each companion block once from their shared stack', () => {
+    const copyName = `${COMPANION}.432`;
+    const b = reset([{ name: COMPANION, data: companionFile }, { name: copyName, data: structuredClone(companionFile) }]);
+    assert.ok(b.sids[copyName], 'the copy is a listed preset of its own');
+    const stack = bank.stackFor(b, copyName);
+    assert.equal(stack.cards.filter(item => item.source === bank.SOURCE_COMPANION).length, 0, 'a companion edition gains no companion cards');
+    // A stack started on the copy before this fix holds both the copy's rows and the companion's cards under one edition key.
+    const twin = bank.shippedOn(b, bank.SOURCE_COMPANION)[0];
+    const id = bank.parseKey(twin).id;
+    const shared = { ...stack, cards: [...stack.cards, { ...stack.cards.find(item => item.key === `base::${id}`), key: twin, source: bank.SOURCE_COMPANION, on: true }] };
+    for (const base of [copyName, COMPANION]) {
+        const sent = planOf(b, shared, base).filter(item => item.on && item.id === id);
+        assert.equal(sent.length, 1, `${base} sends ${id} once`);
+        assert.equal(sent[0].key, `base::${id}`);
+    }
+    // With the base row taken out and the companion card on, the companion card is the one sent.
+    const off = { ...shared, cards: shared.cards.map(item => item.key === `base::${id}` ? { ...item, on: false } : item) };
+    assert.deepEqual(planOf(b, off, COMPANION).filter(item => item.on && item.id === id).map(item => item.key), [twin]);
+});
+
 test('stored Ours or Theirs switches do not carry into stacks and stay readable', () => {
     const b0 = reset();
     const switches = Object.fromEntries(lib.FEATURE_KEYS.map(key => [key, 'ours']));

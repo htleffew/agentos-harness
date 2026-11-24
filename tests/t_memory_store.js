@@ -9,6 +9,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import needsDocs from './needs-docs.cjs';
+needsDocs('t_memory_store', ['docs/ux-overhaul/memory/evidence/m1a']);
 import { MEMORY, fold, historyOf, hashText, proseOf, storedMark, swipeEntries, memoryBytes, makeEntry, entrySum } from '../src/memory/fold.js';
 import { createStore } from '../src/memory/store.js';
 import { Play, fresh, story, clone } from './fixtures/mb2/story-play.mjs';

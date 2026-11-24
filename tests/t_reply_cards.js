@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import needsDocs from './needs-docs.cjs';
+needsDocs('t_reply_cards', ['docs/ux-overhaul/DESIGN.md']);
 import { beforeEach, test } from 'node:test';
 
 // A small DOM, enough for the templates: elements, text, attributes, classes and text content.

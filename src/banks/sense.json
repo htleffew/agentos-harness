@@ -1,0 +1,97 @@
+{
+ "id": "sense",
+ "name": "Sense to lead with",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "sense.ours.sound",
+   "label": "sound",
+   "text": "sound",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "sense.ours.touch",
+   "label": "touch",
+   "text": "touch",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "sense.ours.smell",
+   "label": "smell",
+   "text": "smell",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "sense.ours.light-and-colour",
+   "label": "light and colour",
+   "text": "light and colour",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "sense.ours.movement",
+   "label": "movement",
+   "text": "movement",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "sense.ours.temperature",
+   "label": "temperature",
+   "text": "temperature",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "sense.ours.taste",
+   "label": "taste",
+   "text": "taste",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "sense.ours.balance-and-weight",
+   "label": "balance and weight",
+   "text": "balance and weight",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

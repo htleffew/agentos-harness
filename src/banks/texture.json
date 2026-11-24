@@ -1,0 +1,53 @@
+{
+ "id": "texture",
+ "name": "Dialogue texture",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "texture.wb.literary",
+   "label": "Literary",
+   "text": "Dialogue should be Literary: Standard novel dialogue. Contractions and fragments are natural; interruptions occur, but speech stays clean and purposeful. No filler words, no stumbling.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Literary"
+   }
+  },
+  {
+   "id": "texture.wb.casual",
+   "label": "Casual",
+   "text": "Dialogue should be Colloquial: Speech loosens. Slang, regional phrasing, sentence fragments, characters talking over each other and trailing off. Reads like a real conversation",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Casual"
+   }
+  },
+  {
+   "id": "texture.wb.verbatim",
+   "label": "Verbatim",
+   "text": "Dialogue should be Verbatim: Full disfluency. Filler words (\"Um.\",\"like.\", \"okay.\" etc.), false starts, self-corrections, repetitions, and trailing sentences. Disfluency scales with emotional state. Calm speech is close to casual and colloquial, and stress, drunkenness, exhaustion, or grief break it apart",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Verbatim"
+   }
+  },
+  {
+   "id": "texture.ours.halting",
+   "label": "Halting",
+   "text": "halting speech: people restart sentences, trail off and talk over each other",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

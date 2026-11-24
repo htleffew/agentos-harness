@@ -1,5 +1,5 @@
 import { historySourceMark, historySourceMatches, storyRevision } from './history-source.js';
-import { editableReplySlots, markPromoted, pendingStoryPatches, projectStoryJournal, replayStoryPatch, reserveStoryUids, revisionMatches, storySlots, unmarkPromoted, wasPromoted } from './memory-journal.js';
+import { projectStoryJournal, replayStoryPatch, reserveStoryUids, revisionMatches, storySlots, unmarkPromoted, wasPromoted } from './memory-journal.js';
 import { recallPolicy } from './recall.js';
 import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
@@ -8,8 +8,9 @@ import { promptText, promptStatus, roastVoiceText } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor, sceneAt, sceneFromReplyHeader, stripSceneTracker } from './state.js';
 import { currentWorldData, memoryActive } from './memory/import.js';
 // Keeping the story world up to date by itself.
-//  1. With each reply the extension asks the model to add one short block that records what the reply made true.
-//     The block is lifted out of the reply and filed as world entries. No extra AI request is made.
+//  1. The chat request carries no update block: capture (src/memory/capture.js) reads each reply in its own call and
+//     files the entries into chat data. A block an older reply still carries is lifted out of the reply and, for a chat
+//     whose memory is not yet in chat data, filed as world entries.
 //  2. Open threads build by themselves, and now and then something that is ready is ordered into the scene.
 //  3. Every automatic change is stored with the reply that caused it, and is undone when that reply is swiped
 //     away or deleted.
@@ -581,9 +582,9 @@ export function worldBeforeGeneration(type) {
 
 /**
  * Everything the story world adds to the reply that is about to be written.
- * Returns null when this chat has no world, else { notes, ask, order, id }.
+ * Returns null when this chat has no world, else { notes, order, id }.
  */
-export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, native = false, opportunities = false, freshStart = false, memory = false, components = memoryComponents() } = {}) {
+export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, native = false, opportunities = false, memory = false, components = memoryComponents() } = {}) {
     const id = chatWorld();
     if (quiet) return null;
     if (!id) {
@@ -592,24 +593,24 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, 
         if (!carried || !components.chapters) return null;
         const text = memory ? `[Story memory\n${carried}]` : `[The story before this chat. Use the established facts to continue the scene. ${promptText('memoryFacts')}\n${carried}]`;
         rememberStory(carried);
-        return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, ask: '', order: null };
+        return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, order: null };
     }
-    // An imported chat reads its records from chat data, the same fold the Story World page reads (MB2).
+    // A chat's records come from chat data, the same fold the Story World page reads (MB2, MB3). Only a chat whose first
+    // open has not moved it over yet (the settings backup failed) still reads its book.
     const data = memoryActive() ? await currentWorldData(id,{before:worldBeforeGeneration(type)}) : await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}).catch(() => null);
     if (!data) return null;
     const o = settings().world;
     const list = listWorld(data, id);
     const { rows, notes } = storyRecall(list,type,{memory,components});
-    if (memory) return {id,notes,rows,ask:'',order:null};
+    if (memory) return {id,notes,rows,order:null};
     const policy = recallPolicy(id,type);
     const eligible = list.filter(row=>policy(row).on);
     const ooc = isOocTurn();
-    const ask = !native && o.update !== 'off' && !ooc ? buildAsk(list, type, freshStart) : '';
     const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
     const order = ooc || (native && !opportunities) ? null : rollOrder(eligible, notes?.present || [], meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
     if (order) order.text = promptText('worldOrder', { order: order.text });
     // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene.
-    return { id, notes, ask, order, offers: worldOffers(eligible, notes?.present || [], meta) };
+    return { id, notes, order, offers: worldOffers(eligible, notes?.present || [], meta) };
 }
 
 // ---------- after the reply ----------
@@ -654,42 +655,6 @@ function updateForMemory(rec,wid) {
         rec.update = { world:wid, ops:[], ended:false, changes:[] };
     }
     return rec.update;
-}
-
-function setPending(rec,message,index,wid,changes) {
-    const update = updateForMemory(rec,wid);
-    update.windowVersion = 1;
-    if (!changes.length && !update.pending) return;
-    update.pending = {
-        ...update.pending,
-        chat:String(ctx().getCurrentChatId?.() || ''),
-        revision:storyRevision(message,index),
-        changes:[...(update.pending?.changes || []),...changes],
-    };
-}
-
-function clearPending(rec) {
-    delete rec.update.pending;
-    if (rec.memoryUncertain === 'Some changes could not be applied to the current Story World.') delete rec.memoryUncertain;
-}
-
-function patchEvidence(change) {
-    if (change.type === 'set' && change.field === 'data') {
-        try { return JSON.parse(change.after).quote || ''; } catch { return ''; }
-    }
-    if (change.type === 'create') {
-        const fields = change.entry?.fields || {};
-        if (fields.data) {
-            try { return JSON.parse(fields.data).quote || ''; } catch { return ''; }
-        }
-        return Object.values(fields).find(value=>clean(value).length >= 12) || '';
-    }
-    return change.type === 'set' ? String(change.after || '') : '';
-}
-
-function activePending(chat,wid) {
-    return storySlots(chat).filter(({rec})=>rec?.update?.world === wid &&
-        rec.update.pending && !rec.update.undone && !rec.stateStale);
 }
 
 function reconcileSceneProvenance(chat,index,previous,next) {
@@ -792,229 +757,6 @@ async function reconcileHistoricalFile(chat,root,wid,index,old) {
     catch (error) { root.historicalMemoryError = error.message; }
     if (current()) saveChatState();
     return true;
-}
-
-function reconcilePending(chat,root,wid,data,{continuing} = {}) {
-    let changed = false;
-    const prior = projectStoryJournal(data,wid,{root,chat:[]}).data;
-    for (const {message,index,rec} of activePending(chat,wid)) {
-        const pending = rec.update.pending;
-        if (wasPromoted(data,wid,pending)) continue;
-        const valid = rec.time === continuing || revisionMatches(message,index,pending.revision);
-        const historyChanged = pending.historySource?.length && !historySourceMatches(chat,index,pending.historySource);
-        if (historyChanged) {
-            const retained = pendingStoryPatches(chat,index,pending);
-            const affected = pending.changes.filter(change=>!retained.includes(change));
-            const records = new Set(affected.flatMap(change=>{
-                if (change.type==='create') return [readRecord(change.entry)?.id];
-                if (change.field==='data') {
-                    try { return [JSON.parse(change.after).id]; } catch { return []; }
-                }
-                return [];
-            }).filter(Boolean));
-            if (records.size) rec.v10Changes = (rec.v10Changes || []).filter(record=>!records.has(record.id));
-            pending.changes = retained;
-            delete pending.historySource;
-            delete rec.historySource;
-            if (rec.historyScene || pending.historyScene) {
-                const before = rec.scene;
-                rec.scene = {...sceneFromReplyHeader(message.mes),...rec.sceneOwn,...rec.sceneSnapshotEdits};
-                delete rec.historyScene;
-                delete pending.historyScene;
-                delete rec.v10Minutes;
-                rec.stateChanges = [];
-                reconcileSceneProvenance(chat,index,before,rec.scene);
-            }
-            rec.memoryUncertain = 'Source history changed. Catch up again to review the affected memory.';
-            changed = true;
-        }
-        if (!valid) {
-            const prose = clean(message.mes).toLowerCase();
-            pending.changes = pending.changes.filter(change=>{
-                const evidence = clean(patchEvidence(change)).toLowerCase();
-                return evidence.length >= 12 && prose.includes(evidence);
-            });
-            pending.revision = storyRevision(message,index);
-            rec.update.ops = [];
-            rec.v10Changes = [];
-            rec.stateChanges = [];
-            const lastScene = rec.scene;
-            delete rec.sceneOwn;
-            rec.scene = {...sceneFromReplyHeader(message.mes),...rec.sceneSnapshotEdits};
-            rec.profiles = [];
-            rec.v10Profiles = [];
-            rec.memoryUncertain = 'The prose changed. Facts without surviving evidence need review.';
-            reconcileSceneProvenance(chat,index,lastScene,rec.scene);
-            changed = true;
-        }
-        const result = replayStoryPatch(prior,wid,pending.changes);
-        const problem = 'Some changes could not be applied to the current Story World.';
-        if (result.conflicts.length) {
-            if (rec.memoryUncertain !== problem) { rec.memoryUncertain = problem; changed = true; }
-            const entries = new Set(result.conflicts.map(change=>change.name || change.entry?.name).filter(Boolean));
-            const priorProfiles = rec.v10Profiles?.length || 0;
-            rec.v10Profiles = rec.v10Profiles?.filter(profile=>!entries.has(profile.id) && !entries.has(profile.subject));
-            changed ||= priorProfiles !== (rec.v10Profiles?.length || 0);
-        } else if (rec.memoryUncertain === problem) { delete rec.memoryUncertain; changed = true; }
-        if (!valid || historyChanged) {
-            for (const holder of [message.swipe_info?.[message.swipe_id]]) if (holder?.extra) holder.extra[KEY] = rec;
-        }
-    }
-    return changed;
-}
-
-async function promotePending(chat,root,wid,{continuing} = {}) {
-    if (!wid) return;
-    const slots = storySlots(chat);
-    const through = Math.max(0,slots.length-editableReplySlots());
-    const eligible = new Set(slots.slice(0,through).map(({index})=>index));
-    const isCurrent = () => chat === ctx().chat && root === chatState() && wid === chatWorld();
-    const host = ctx();
-    const validWrite = activePending(chat,wid).some(row=>eligible.has(row.index)) ||
-        (root.storyJournalCarry || []).some(row=>row.world===wid && slots.length>=row.remaining);
-    let original;
-    try { original = await (validWrite ? loadDurableWorld(wid) : loadWorld(wid)); }
-    catch (error) {
-        if (isCurrent()) {
-            root.storyJournalError = error.message || String(error);
-            saveChatState();
-        }
-        return;
-    }
-    if (!original || !isCurrent()) return;
-    let changed = reconcilePending(chat,root,wid,original,{continuing});
-    const active = activePending(chat,wid);
-    const carries = (root.storyJournalCarry || []).filter(record=>record.world === wid);
-    const target = structuredClone(original);
-    let wrote = false;
-    const promoted = [];
-    const log = worldLog(root);
-    const review = new Set();
-    const candidates = [
-        ...carries.filter(pending=>slots.length>=pending.remaining).map(pending=>({pending})),
-        ...active.flatMap(({message,index,rec})=>eligible.has(index) ?
-            [{message,index,rec,pending:rec.update.pending}] : []),
-    ];
-    for (const row of candidates) {
-        const {message,index,rec,pending} = row;
-        if (rec && !revisionMatches(message,index,pending.revision)) break;
-        if (!wasPromoted(target,wid,pending)) {
-            const working = structuredClone(target);
-            const result = replayStoryPatch(working,wid,pending.changes);
-            if (result.conflicts.length) {
-                review.add('A pending fact conflicts with the current Story World. Review the entry or repair its source before retrying.');
-                break;
-            }
-            working.extensions ||= {};
-            markPromoted(working,wid,pending);
-            target.entries = working.entries;
-            target.extensions = working.extensions;
-            wrote = true;
-        }
-        promoted.push(row);
-    }
-    try {
-        if (wrote) {
-            const latest = await loadDurableWorld(wid);
-            if (!isCurrent()) return;
-            if (JSON.stringify(latest) !== JSON.stringify(original)) throw new Error('The Story World changed while filing. Retry to recheck the pending changes.');
-            await saveVerifiedWorld(wid,target);
-            if (!isCurrent()) return;
-        }
-        const pendingSet = new Set(promoted.map(row=>row.pending));
-        const priorCarry = root.storyJournalCarry;
-        const previous = promoted.flatMap(({rec,pending})=>rec ? [{rec,pending,changes:rec.update.changes,filed:rec.update.filedByJournal,
-            logItem:log.items[String(rec.time)],uncertain:rec.memoryUncertain}] : []);
-        for (const {rec,pending} of previous) {
-            rec.update.changes = [...rec.update.changes,...pending.changes];
-            rec.update.filedByJournal = [...(rec.update.filedByJournal || []),pending];
-            clearPending(rec);
-            log.items[String(rec.time)] = {world:wid,changes:rec.update.changes};
-        }
-        if (priorCarry?.length) root.storyJournalCarry = priorCarry.filter(row=>!pendingSet.has(row));
-        changed ||= !!promoted.length;
-        if (changed) {
-            try { await host.saveChat?.(); }
-            catch (error) {
-                for (const {rec,pending,changes,filed,logItem,uncertain} of previous) {
-                    rec.update.pending = pending;
-                    rec.update.changes = changes;
-                    rec.update.filedByJournal = filed;
-                    rec.memoryUncertain = uncertain;
-                    if (logItem) log.items[String(rec.time)] = logItem;
-                    else delete log.items[String(rec.time)];
-                }
-                root.storyJournalCarry = priorCarry;
-                throw error;
-            }
-        }
-        const error = [...review].join(' ');
-        changed ||= (root.storyJournalError || '') !== error;
-        if (error) root.storyJournalError = error; else delete root.storyJournalError;
-        if (changed && isCurrent()) saveChatState();
-    } catch (error) {
-        if (!isCurrent()) return;
-        root.storyJournalError = error.message || String(error);
-        saveChatState();
-        addLog({what:'File recent story',ok:false,result:root.storyJournalError});
-    }
-}
-
-/** Reopen formerly filed edits exposed by deleting part of the accepted timeline. */
-async function reopenRecentJournal() {
-    const host = ctx(), chat = host.chat || [], root = chatState(), wid = chatWorld();
-    const slots = editableReplySlots();
-    if (!root || !wid || !slots) return;
-    const newlyRecent = storySlots(chat).slice(-slots).filter(({rec})=>rec?.update?.world===wid &&
-        !rec.update.undone && rec.update.filedByJournal?.length &&
-        !rec.update.changes.some(change=>change.type==='hide' || change.kind==='chapter'));
-    if (!newlyRecent.length) return;
-    const current = () => chat === ctx().chat && root === chatState() && wid === chatWorld();
-    const original = await loadDurableWorld(wid);
-    if (!original || !current()) return;
-    let data = structuredClone(original);
-    const reopened = [];
-    for (const {message,index,rec} of [...newlyRecent].reverse()) {
-        const files = rec.update.filedByJournal;
-        const changes = files.flatMap(file=>file.changes);
-        const copy = structuredClone(data);
-        if (revertChanges(copy,wid,changes)!==changes.length) {
-            rec.memoryUncertain = 'A manual or newer filed fact protected this record from reopening.';
-            continue;
-        }
-        for (const file of files) unmarkPromoted(copy,wid,file);
-        data = copy;
-        reopened.push({message,index,rec,changes});
-    }
-    if (!reopened.length) return;
-    const previous = await loadDurableWorld(wid);
-    if (!current() || JSON.stringify(previous)!==JSON.stringify(original)) return;
-    await saveVerifiedWorld(wid,data);
-    if (!current()) return;
-    const log = worldLog(root);
-    for (const {message,index,rec,changes} of reopened) {
-        const filed = changes.map(change=>JSON.stringify(change));
-        rec.update.changes = rec.update.changes.filter(change=>{
-            const found = filed.indexOf(JSON.stringify(change));
-            if (found<0) return true;
-            filed.splice(found,1);
-            return false;
-        });
-        const pending = rec.update.pending;
-        const history = rec.update.filedByJournal.findLast(item=>item.historySource?.length);
-        rec.update.pending = {
-            ...pending,
-            chat:String(host.getCurrentChatId?.() || ''),
-            revision:storyRevision(message,index),
-            ...(history && !pending?.historySource && {historySource:history.historySource,historyScene:history.historyScene}),
-            changes:[...changes,...(pending?.changes || [])],
-        };
-        delete rec.update.filedByJournal;
-        if (log.items[String(rec.time)]) log.items[String(rec.time)].changes = rec.update.changes;
-    }
-    try { await host.saveChat?.(); }
-    catch (error) { root.storyJournalError = error.message; }
-    if (current()) saveChatState();
 }
 
 /** Take the block out of a reply, on the message and on its swipe. Returns what parseUpdate found. */
@@ -1132,6 +874,8 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
         if (!isCurrent()) return;
         rec.memoryRevision = accepted;
         if (!wid) return;
+        // Capture files this reply into chat data (src/memory/capture.js); a memory chat's book is not written per reply.
+        if (memoryActive()) { onDone?.(); return; }
         const o = settings().world;
         const data = await loadEffectiveWorld(wid,{before:options.historical ? id+Number(!!continuing) : Infinity,continuing});
         if (!data) { if (options.propagate) throw new Error('The story world could not be read.'); return; }
@@ -1158,8 +902,7 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
         });
         // A reply that was continued keeps what its first part filed.
         const update = updateForMemory(rec,wid);
-        if (id > 0 && (editableReplySlots() || update.pending)) setPending(rec,originChat[id],id,wid,changes);
-        else if (changes.length) {
+        if (changes.length) {
             await saveWorld(wid,data);
             if (!isCurrent()) return;
             update.changes = [...update.changes,...changes];
@@ -1179,7 +922,6 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
             if (options.propagate) throw error;
             return;
         }
-        if (update.pending) await promotePending(originChat,cs,wid);
         if (!isCurrent()) return;
         const shown = shownChanges(changes);
         if (options.v10 && parsed.modern) {
@@ -1225,12 +967,9 @@ export function applyEffect(rec, effect, onDone) {
         w.status = effect.to;
         writeWorldEntry(data, w, wid);
         const update = updateForMemory(rec,wid);
-        if (index > 0 && (editableReplySlots() || update.pending)) setPending(rec,originChat[index],index,wid,[change]);
-        else {
-            await saveWorld(wid,data);
-            if (!isCurrent()) return;
-            update.changes.push(change);
-        }
+        await saveWorld(wid,data);
+        if (!isCurrent()) return;
+        update.changes.push(change);
         const log = worldLog(cs);
         log.items[String(rec.time)] = { world:wid, changes:update.changes };
         saveChatState();
@@ -1239,7 +978,6 @@ export function applyEffect(rec, effect, onDone) {
             if (isCurrent()) { cs.storyJournalError = error.message; saveChatState(); }
             return;
         }
-        if (update.pending) await promotePending(originChat,cs,wid);
         if (!isCurrent()) return;
         addLog({ what: 'Story world update', ok: true, result: 'Something that was ordered into the scene happened.', details: [describeChange(change)], got: '' });
         onDone?.();
@@ -1291,40 +1029,9 @@ function staleHistoryStart(chat = ctx().chat || []) {
 
 export function invalidateAfterEdit(id, onDone) {
     return enqueue(async () => {
+        // A memory chat holds the edited reply's entries out by its text hash and captures it again (DESIGN 3.4).
+        if (memoryActive()) { onDone?.(null,{pending:false}); return; }
         const host = ctx(), chat = host.chat || [], wid = chatWorld(), current = chatState();
-        const record = chat[id]?.extra?.[KEY];
-        if (record?.update?.pending || (editableReplySlots() && id >= storySlots(chat).at(-editableReplySlots())?.index &&
-            !record?.update?.changes?.length)) {
-            if (record && !record.update?.pending && record.memoryRevision &&
-                !revisionMatches(chat[id],id,record.memoryRevision)) {
-                const old = record.scene;
-                record.scene = {...sceneFromReplyHeader(chat[id].mes),...record.sceneSnapshotEdits};
-                delete record.sceneOwn;
-                delete record.stateChanges;
-                delete record.v10Minutes;
-                record.memoryRevision = storyRevision(chat[id],id);
-                record.memoryUncertain = 'The prose changed. Scene details without surviving evidence need review.';
-                reconcileSceneProvenance(chat,id,old,record.scene);
-                await host.saveChat?.();
-            }
-            await promotePending(chat,current,wid);
-            onDone?.(null,{pending:true});
-            return;
-        }
-        if (record?.update?.world===wid && editableReplySlots() && id>0 && !record.update.undone && !current?.branchPendingWorld) {
-            const previous = record.scene;
-            const reconciled = await reconcileHistoricalFile(chat,current,wid,id,record);
-            if (ctx().chat!==chat || chatState()!==current) return;
-            if (reconciled) record.update.undone = true;
-            record.stateStale = true;
-            record.stateOutdated = true;
-            record.memoryUncertain = 'Edited filed prose needs source review.';
-            reconcileSceneProvenance(chat,id,previous,undefined);
-            saveChatState();
-            await host.saveChat?.();
-            onDone?.(Math.max(1,storySlots(chat).findIndex(row=>row.index===id)+1),{pending:false});
-            return;
-        }
         let start = Math.min(id,staleHistoryStart(chat));
         const boundaries = chat.flatMap((message,index)=>index>0 && isReply(message) ? [index] : []);
         const edited = Math.max(1,boundaries.filter(index=>index<=start).length);
@@ -1389,7 +1096,6 @@ async function syncNow({continuing} = {}) {
         for (const [t, rec] of current) log.items[t] = { world: rec.update.world, changes: rec.update.undone ? [] : rec.update.changes };
         delete log.fresh;
         saveChatState();
-        await promotePending(chat,cs,wid,{continuing});
         return;
     }
     for (const [index,message] of chat.entries()) {
@@ -1422,7 +1128,6 @@ async function syncNow({continuing} = {}) {
     // A reply that is back (swiped back to): file its block again.
     for (const [t, rec] of current) {
         if (log.items[t] || rec.update.undone) continue;
-        if (rec.update.pending) { log.items[t] = {world:rec.update.world,changes:rec.update.changes || []}; continue; }
         if (!isCurrent()) return;
         const data = wid && rec.update.world === wid ? await loadWorld(wid).catch(() => null) : null;
         if (!isCurrent()) return;
@@ -1463,9 +1168,8 @@ async function syncNow({continuing} = {}) {
         try { ctx().saveChat?.(); } catch { /* saved with the next change */ }
         addLog({ what: 'Story world update', ok: true, result: `${undone ? `${undone} ${undone === 1 ? 'change was' : 'changes were'} undone because the reply that made ${undone === 1 ? 'it' : 'them'} is no longer in the chat. ` : ''}${redone ? `${redone} ${redone === 1 ? 'change was' : 'changes were'} made again because that reply is back.` : ''}`.trim(), details: [], got: '' });
     }
-    await promotePending(chat,cs,wid,{continuing});
 }
-export const syncWorld = (onDone, {deleted=false} = {}) => {
+export const syncWorld = (onDone) => {
     const origin = ctx().chat;
     return enqueue(async () => {
         if (ctx().chat!==origin) return;
@@ -1483,8 +1187,6 @@ export const syncWorld = (onDone, {deleted=false} = {}) => {
         await invalidateFrom(staleHistoryStart());
         if (ctx().chat!==origin) return;
         await syncNow();
-        if (ctx().chat!==origin) return;
-        if (deleted) await reopenRecentJournal();
         if (ctx().chat===origin) onDone?.();
     });
 };
@@ -1607,7 +1309,7 @@ async function ownWorld() {
         const pending = rec.update.pending;
         if (pending && wasPromoted(source,from,pending)) {
             rec.update.changes.push(...pending.changes);
-            clearPending(rec);
+            delete rec.update.pending;
         }
         for (const change of rec.update.changes || []) if (change) remapChange(change);
         for (const filed of rec.update.filedByJournal || []) for (const change of filed.changes) remapChange(change);
@@ -1749,7 +1451,7 @@ export function undoReplyChanges(id, onDone) {
         if (!cs || !rec?.update || rec.update.undone) return;
         await revertItem({ world: rec.update.world, changes: rec.update.changes });
         rec.update.undone = true;
-        if (rec.update.pending) clearPending(rec);
+        delete rec.update.pending;
         const log = worldLog(cs);
         log.items[String(rec.time)] = { world: rec.update.world, changes: [] };
         saveChatState();
@@ -1821,8 +1523,7 @@ export async function saveV10Record(input, {create = false} = {}) {
         record.source = 'user';
         if (selected && !stored) {
             const prior = selected.fields.data;
-            const stages = [...(cs.storyJournalCarry || []).filter(row=>row.world===wid),
-                ...activePending(chat || [],wid).map(({rec})=>rec.update.pending)];
+            const stages = (cs.storyJournalCarry || []).filter(row=>row.world===wid);
             const owner = stages.findLast(stage=>stage.changes.some(change=>change.uid===selected.uid &&
                 (change.type==='create' || change.field==='data')));
             if (!owner) throw new Error('This editable record has no surviving source. Open the current record to retry.');

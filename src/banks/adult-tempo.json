@@ -1,0 +1,75 @@
+{
+ "id": "adult-tempo",
+ "name": "Adult: pacing and tempo",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-tempo.pura.frenzied",
+   "label": "Frenzied",
+   "text": "Frenzied: fast, desperate, breathless; racing toward climax.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-tempo.pura.slow-burn",
+   "label": "Slow burn",
+   "text": "Slow burn: agonizingly slow, every sensation and breath.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-tempo.pura.rhythmic",
+   "label": "Rhythmic",
+   "text": "Rhythmic: steady and hypnotic, tension built through repetition.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-tempo.pura.erratic",
+   "label": "Erratic",
+   "text": "Erratic: switching between tenderness and aggression, sudden speed changes.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-tempo.pura.clinical-precise",
+   "label": "Clinical/Precise",
+   "text": "Clinical/Precise: anatomical focus, maximum efficiency for pleasure.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-tempo.pura.tepid-teasing",
+   "label": "Tepid/Teasing",
+   "text": "Tepid/Teasing: barely touching, anticipation over action.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  }
+ ]
+}

@@ -11,6 +11,7 @@ import { startMemory } from './src/memory/import.js';
 import { startChapters } from './src/chapters.js';
 import { installGeneratedBookGuard } from './src/memory/story-world-book.js';
 import './src/ui/connections-spend.js';
+import { loadShipped, readBankBook } from './src/banks.js';
 
 (function start() {
     try {
@@ -24,6 +25,8 @@ import './src/ui/connections-spend.js';
         on('CHAT_CHANGED', () => setTimeout(refreshUnderReplies, 300));
         try { startDesktopQueue(); } catch (e) { console.warn(LOG, 'background queue did not start', e); }
         installGeneratedBookGuard().catch(e => console.warn(LOG, 'generated book guard did not start', e));
+        // Option banks: the shipped lists, then her book when it exists. Rolls read both from memory.
+        loadShipped().then(readBankBook).catch(e => console.warn(LOG, 'option banks did not load', e));
         try { startMemory(); } catch (e) { console.warn(LOG, 'chat memory did not start', e); }
         try { startChapters(); } catch (e) { console.warn(LOG, 'chapters did not start', e); }
         console.log(LOG, 'loaded', missing.length ? `missing events: ${missing.join(', ')}` : '');

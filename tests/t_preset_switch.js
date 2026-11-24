@@ -1,13 +1,17 @@
-// B12: recognition, the per-feature Ours or Theirs switch and the working copy. Run with: node --test tests/t_preset_switch.js
+// B12 and B30: recognition, the interim per-feature switch, and the block-bank stack applied as the working copy.
+// Run with: node --test tests/t_preset_switch.js
 // A fake SillyTavern context stands in for the host; the request a provider receives is modelled as the enabled
-// blocks of the global prompt order at the moment SillyTavern assembles the prompt (prepareOpenAIMessages reads them
-// between GENERATION_STARTED and CHAT_COMPLETION_PROMPT_READY in SillyTavern 1.19).
+// blocks of the global prompt order, each with the text of the first live prompt holding its identifier, at the moment
+// SillyTavern assembles the prompt (prepareOpenAIMessages reads them between GENERATION_STARTED and
+// CHAT_COMPLETION_PROMPT_READY in SillyTavern 1.19), plus effectiveModules() for the extension's own cards.
 // Pass --write to rewrite presets/preset-families.json from the analyst map.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import needsDocs from './needs-docs.cjs';
+needsDocs('t_preset_switch', ['docs/ux-overhaul/presets/preset-families.json']);
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const lib = await import('../src/preset-library.js');
@@ -40,7 +44,13 @@ const manager = {
 };
 globalThis.SillyTavern = { getContext: () => host };
 function select(name) { selected = name; host.chatCompletionSettings = structuredClone(stored[name]); }
+// Browser storage for the working copy's crash journal.
+const storage = new Map();
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: key => storage.has(key) ? storage.get(key) : null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) } });
 const wb = await import('../src/preset-workbench.js');
+const bank = await import('../src/preset-bank.js');
+const lo = await import('../src/preset-loadouts.js');
 const { effectiveModules } = await import('../src/v10.js');
 function openChat(id) { chat = id; chats[id].roleplay_instructions ||= {}; chats[id].roleplay_instructions.v10 = { ...(chats[id].roleplay_instructions.v10 || {}), enabled: true }; }
 // The prompt SillyTavern assembles: enabled blocks in order, read while the working copy is applied.
@@ -198,4 +208,268 @@ test('a model profile follows the selected model', () => {
     const edition = shipped.editions.find(item => item.profiles.some(profile => profile.models.includes('glm')));
     assert.ok(lib.activeProfile(edition, 'z-ai/glm-5.1'));
     assert.equal(lib.activeProfile(edition, 'some-other-model'), null);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// B30: the stack as the working copy.
+
+const settingsOf = () => host.extensionSettings.roleplay_instructions;
+/** The request SillyTavern assembles while the working copy is applied: enabled rows with the first live prompt's text. */
+function request({ stop = false } = {}) {
+    const count = wb.applyWorkingCopy();
+    const live = host.chatCompletionSettings;
+    const prompts = new Map();
+    for (const prompt of live.prompts) if (!prompts.has(prompt.identifier)) prompts.set(prompt.identifier, prompt);
+    const rows = live.prompt_order[0].order.filter(entry => entry.enabled && prompts.has(entry.identifier))
+        .map(entry => ({ id: entry.identifier, text: prompts.get(entry.identifier).marker ? null : prompts.get(entry.identifier).content }));
+    const modules = effectiveModules();
+    // A stopped generation fires GENERATION_STOPPED and never reaches CHAT_COMPLETION_PROMPT_READY; both call restore.
+    wb.restoreWorkingCopy();
+    return { rows, texts: rows.map(row => row.text).filter(text => text !== null), modules, count, stop };
+}
+const occurrences = (list, text) => list.filter(item => item === text).length;
+const block = (identifier, content, extra = {}) => ({ identifier, name: identifier, content, role: 'system', ...extra });
+function plainPreset(blocks, off = []) {
+    return { temperature: 1, prompts: blocks, prompt_order: [{ character_id: 100001, order: blocks.map(p => ({ identifier: p.identifier, enabled: !off.includes(p.identifier) })) }], extensions: {} };
+}
+function freshStacks() {
+    delete settingsOf().presetSwitches;
+    settingsOf().bankStacks = {};
+    settingsOf().bankVersions = {};
+    settingsOf().bankTexts = {};
+    if (chats.A.roleplay_instructions?.v10) { delete chats.A.roleplay_instructions.v10.bankPins; delete chats.A.roleplay_instructions.v10.moduleOwners; }
+}
+const solaOf = () => {
+    const data = presetFromEdition(editionOf('sola/kindling-v2'), [block('offblock', 'Shipped off block text.')]);
+    data.prompt_order[0].order.find(entry => entry.identifier === 'offblock').enabled = false;
+    return data;
+};
+
+test('a stack of the base, two cards from another preset, a third preset and a customized version sends each once, in stack order', () => {
+    freshStacks();
+    stored.Sola = solaOf();
+    stored.Other = plainPreset([block('o1', 'Other one text.'), block('o2', 'Other two text.'), block('o3', 'Other three text, never added.')]);
+    stored.Third = plainPreset([block('t1', 'Third one text.')]);
+    openChat('A');
+    select('Sola');
+    const b = bank.refreshBank();
+    const sid = b.sids.Other, tid = b.sids.Third;
+    const key = bank.stackFor(b, 'Sola').key;
+    assert.equal(key, 'sola/kindling-v2', 'a recognised preset keeps its stack under the edition key');
+    const o1 = `p:${sid}::o1`, o2 = `p:${sid}::o2`, t1 = `p:${tid}::t1`;
+    bank.includeCards(b, key, [o1, o2], { base: 'Sola', after: 'base::main' });
+    const mine = bank.createVersion(b, o1, { text: 'Her own take on other one.', base: 'Sola' });
+    bank.includeCards(b, key, [bank.versionKey(mine.id)], { base: 'Sola', after: o2 });
+    bank.includeCards(b, key, [t1], { base: 'Sola' });
+    const stackBefore = JSON.stringify(bank.storedStack(key));
+    const plan = bank.stackPlan(b, bank.storedStack(key), 'Sola').filter(item => item.group === 'main' && item.on && !item.marker);
+    const sent = request();
+    assert.deepEqual(sent.texts, plan.map(item => item.text), 'the request does not follow the stack');
+    for (const text of ['Other one text.', 'Other two text.', 'Her own take on other one.', 'Third one text.', 'Main.']) assert.equal(occurrences(sent.texts, text), 1, text);
+    assert.equal(occurrences(sent.texts, 'Other three text, never added.'), 0, 'a card she did not put in was sent');
+    const at = text => sent.texts.indexOf(text);
+    assert.ok(at('Main.') < at('Other one text.') && at('Other one text.') < at('Other two text.') && at('Other two text.') < at('Her own take on other one.'));
+    assert.ok(at('Third one text.') < sent.rows.findIndex(row => row.id === 'chatHistory'), 'a new card goes before Chat History');
+    // Namespaced identifiers: ri-bank-<source hash>-<id> and ri-bank-mine-<version id>.
+    const ids = sent.rows.map(row => row.id);
+    assert.ok(ids.includes(`ri-bank-${sid}-o1`) && ids.includes(`ri-bank-${sid}-o2`) && ids.includes(`ri-bank-${tid}-t1`) && ids.includes(`ri-bank-mine-${mine.id}`), ids.join());
+    assert.equal(new Set(ids).size, ids.length, 'an identifier was sent twice');
+    // The extension's own cards in the stack: each feature that is on runs once.
+    for (const item of bank.stackPlan(b, bank.storedStack(key), 'Sola').filter(entry => entry.source === 'ri' && entry.on)) assert.equal(sent.modules[item.id], true, item.id);
+    assert.equal(JSON.stringify(bank.storedStack(key)), stackBefore, 'the working copy edited the stack');
+});
+
+test('her taps on base blocks apply: one taken out, one put in that ships off, a moved block; untapped blocks keep their live state', () => {
+    select('Sola');
+    const b = bank.currentBank();
+    const key = 'sola/kindling-v2';
+    const first = stored.Sola.prompts[2].identifier, second = stored.Sola.prompts[3].identifier;
+    assert.equal(request().rows.some(row => row.id === 'offblock'), false, 'a block shipped off was sent before her tap');
+    bank.excludeCards(b, key, [`base::${first}`], { base: 'Sola' });
+    bank.includeCards(b, key, [`base::offblock`], { base: 'Sola' });
+    const index = bank.storedStack(key).cards.findIndex(item => item.key === 'base::main');
+    bank.moveCards(b, key, [`base::${second}`], index, { base: 'Sola' });
+    let ids = request().rows.map(row => row.id);
+    assert.equal(ids.includes(first), false, 'a block she took out was sent');
+    assert.equal(ids.includes('offblock'), true, 'a block she put in was not sent');
+    assert.ok(ids.indexOf(second) < ids.indexOf('main'), 'her order was not applied');
+    // A toggle in SillyTavern's prompt manager on a block she has not tapped in the stack still applies.
+    const third = stored.Sola.prompts[4].identifier;
+    host.chatCompletionSettings.prompt_order[0].order.find(entry => entry.identifier === third).enabled = false;
+    ids = request().rows.map(row => row.id);
+    assert.equal(ids.includes(third), false, 'the prompt manager toggle was overridden');
+    select('Sola');
+    bank.undoStack(b, key); bank.undoStack(b, key); bank.undoStack(b, key);
+});
+
+test('a preset block and the extension card for the same feature both reach the request', () => {
+    select('Sola');
+    const context = wb.switchContext();
+    const style = wb.featureBlockIds(context).style;
+    assert.ok(style.length);
+    const sent = request();
+    for (const id of style) assert.equal(sent.rows.some(row => row.id === id), true, `${id} was dropped for being duplicative`);
+    assert.equal(sent.modules.style, true, 'the extension writing guidance was dropped');
+    assert.equal(chats.A.roleplay_instructions.v10.moduleOwners.Sola.style, 'both');
+});
+
+test('saved presets and the live arrays are byte-identical after five generations, a stopped one included', () => {
+    select('Sola');
+    const saved = JSON.stringify(stored);
+    const live = JSON.stringify(host.chatCompletionSettings);
+    const stack = JSON.stringify(bank.storedStack('sola/kindling-v2'));
+    const references = [host.chatCompletionSettings.prompts, host.chatCompletionSettings.prompt_order[0].order];
+    for (let n = 0; n < 5; n++) {
+        const sent = request({ stop: n === 2 });
+        assert.ok(sent.count > 0, 'the working copy changed nothing');
+        assert.equal(JSON.stringify(host.chatCompletionSettings), live, `generation ${n + 1} left the live arrays changed`);
+    }
+    // A second start without a restore in between applies the copy once.
+    wb.applyWorkingCopy();
+    wb.applyWorkingCopy();
+    const ids = host.chatCompletionSettings.prompts.map(prompt => prompt.identifier);
+    assert.equal(new Set(ids).size, ids.length, 'a double start inserted a card twice');
+    wb.restoreWorkingCopy();
+    assert.equal(JSON.stringify(host.chatCompletionSettings), live);
+    assert.equal(JSON.stringify(stored), saved, 'a saved preset changed');
+    assert.equal(JSON.stringify(bank.storedStack('sola/kindling-v2')), stack, 'the stack changed');
+    assert.equal(host.chatCompletionSettings.prompts, references[0], 'the live prompt array was replaced');
+    assert.equal(host.chatCompletionSettings.prompt_order[0].order, references[1], 'the live order array was replaced');
+    assert.equal(storage.size, 0, 'the crash journal outlived the generation');
+});
+
+test('owners follow the stack for recognised and unrecognised presets, and effectiveModules() follows them', () => {
+    stored.Plain2 = plainPreset([block('dr', 'Roll a d20 for every attempt.', { name: 'Dice Rolls' }), block('pr', 'Write tight prose.', { name: 'Prose Rules' })]);
+    for (const name of ['Sola', 'Plain2']) {
+        select(name);
+        const b = bank.refreshBank();
+        const key = bank.stackFor(b, name).key;
+        request();
+        const owners = () => chats.A.roleplay_instructions.v10.moduleOwners[name];
+        for (const item of bank.storedStack(key).ri) assert.equal(owners()[item.key.slice(4)], 'both', `${name} ${item.key}`);
+        bank.excludeCards(b, key, ['ri::state', 'ri::dice'], { base: name });
+        const sent = request();
+        assert.equal(owners().state, 'preset', name);
+        assert.equal(owners().dice, 'preset', name);
+        assert.equal(sent.modules.state, false, `${name}: story state still runs`);
+        assert.equal(sent.modules.dice, false, `${name}: dice still run`);
+        bank.includeCards(b, key, ['ri::state', 'ri::dice'], { base: name });
+        const back = request();
+        assert.equal(owners().state, 'both');
+        assert.equal(back.modules.state, true);
+        assert.equal(back.modules.dice, true);
+    }
+    assert.equal(bank.stackFor(bank.currentBank(), 'Plain2').key, 'preset:Plain2');
+});
+
+test('namespaced identifiers never collide with base identifiers, and a stale insertion from a crash is removed at the next start', async () => {
+    const b0 = bank.refreshBank();
+    const sid = b0.sids.Other;
+    stored.Clash = plainPreset([block('main', 'Clash main.'), block(`ri-bank-${sid}-o1`, 'A base block that took the namespaced name.'), block('chatHistory', '', { marker: true })]);
+    select('Clash');
+    const b = bank.refreshBank();
+    const key = bank.stackFor(b, 'Clash').key;
+    bank.includeCards(b, key, [`p:${sid}::o1`], { base: 'Clash' });
+    bank.excludeCards(b, key, ['base::main'], { base: 'Clash' });
+    const saved = JSON.stringify(host.chatCompletionSettings);
+    let sent = request();
+    assert.equal(occurrences(sent.texts, 'A base block that took the namespaced name.'), 1);
+    assert.equal(occurrences(sent.texts, 'Other one text.'), 1);
+    assert.ok(sent.rows.some(row => row.id === `ri-bank-${sid}-o1~2`), sent.rows.map(row => row.id).join());
+    // A crash: the copy is applied, SillyTavern saved its settings with it, and the page reloaded.
+    wb.applyWorkingCopy();
+    const crashed = structuredClone(host.chatCompletionSettings);
+    const journal = storage.get('roleplay_instructions_working_copy');
+    assert.ok(crashed.prompts.some(prompt => prompt.ri_bank_insert) && journal);
+    wb.restoreWorkingCopy();
+    storage.set('roleplay_instructions_working_copy', journal);
+    host.chatCompletionSettings = crashed;
+    const reloaded = await import('../src/preset-workbench.js?reload');
+    reloaded.applyWorkingCopy();
+    const ids = host.chatCompletionSettings.prompts.map(prompt => prompt.identifier);
+    assert.equal(new Set(ids).size, ids.length, 'the stale copy was sent beside the new one');
+    reloaded.restoreWorkingCopy();
+    assert.equal(JSON.stringify(host.chatCompletionSettings), saved, 'the stale insertion or flag survived');
+    // Without the journal the flagged insertion is still found and removed.
+    wb.applyWorkingCopy();
+    const again = structuredClone(host.chatCompletionSettings);
+    wb.restoreWorkingCopy();
+    host.chatCompletionSettings = again;
+    const fresh = await import('../src/preset-workbench.js?again');
+    fresh.applyWorkingCopy();
+    fresh.restoreWorkingCopy();
+    assert.equal(host.chatCompletionSettings.prompts.some(prompt => prompt.ri_bank_insert), false);
+    assert.equal(host.chatCompletionSettings.prompts.length, stored.Clash.prompts.length);
+    select('Sola');
+});
+
+test('a card whose source was removed still sends its last text while it is in the stack', () => {
+    select('Sola');
+    const b = bank.currentBank();
+    const tid = b.sids.Third;
+    delete stored.Third;
+    const after = bank.refreshBank();
+    const item = bank.stackPlan(after, bank.storedStack('sola/kindling-v2'), 'Sola').find(entry => entry.key === `p:${tid}::t1`);
+    assert.equal(item.status, 'removed');
+    assert.equal(occurrences(request().texts, 'Third one text.'), 1, 'a removed source stopped sending');
+});
+
+test('nothing is excluded or reordered without her tap: the working copy sends the stored stack and never edits it', () => {
+    select('Sola');
+    const key = 'sola/kindling-v2';
+    const before = JSON.stringify(bank.storedStack(key));
+    const sent = request();
+    bank.refreshBank();
+    request();
+    assert.equal(JSON.stringify(bank.storedStack(key)), before);
+    const onKeys = bank.stackPlan(bank.currentBank(), bank.storedStack(key), 'Sola').filter(item => item.group === 'main' && item.on && !item.marker);
+    assert.equal(sent.texts.length, onKeys.length, 'the request and the stack hold different cards');
+});
+
+test('an Ours tap switches off a preset row the stack does not hold; the companion gets a preflight owner only for a card taken out', () => {
+    select('Sola');
+    const context = wb.switchContext();
+    const id = wb.featureBlockIds(context).state.find(item => !wb.featureBlockIds(context).style.includes(item));
+    // A row added after the stack was made: the stack does not hold it.
+    const stack = bank.storedStack('sola/kindling-v2');
+    settingsOf().bankStacks['sola/kindling-v2'] = { ...stack, cards: stack.cards.filter(item => item.key !== `base::${id}`) };
+    wb.setSwitches(context, { state: 'ours' });
+    assert.equal(request().rows.some(row => row.id === id), false, 'an Ours row outside the stack was sent');
+    wb.setSwitches(context, { state: 'both' });
+    assert.equal(request().rows.some(row => row.id === id), true);
+    settingsOf().bankStacks['sola/kindling-v2'] = stack;
+    select('Roleplay Instructions V10');
+    const b = bank.refreshBank();
+    const key = bank.stackFor(b, 'Roleplay Instructions V10').key;
+    request();
+    const owners = () => chats.A.roleplay_instructions.v10.moduleOwners?.['Roleplay Instructions V10'] || {};
+    // Both is the default for every feature (DECISIONS 2026-11-24, B24): only preflight is left without an owner on the
+    // companion, because hostSceneChecks reads an explicit 'both' there as unpaired.
+    assert.equal(owners().preflight, undefined, 'the companion got a preflight owner for a card that is on');
+    assert.equal(owners().relationships, 'both');
+    bank.excludeCards(b, key, ['ri::preflight'], { base: 'Roleplay Instructions V10' });
+    request();
+    assert.equal(owners().preflight, 'preset');
+    bank.includeCards(b, key, ['ri::preflight'], { base: 'Roleplay Instructions V10' });
+    request();
+    assert.equal(owners().preflight, undefined, 'putting the card back left the owner');
+    select('Sola');
+});
+
+test('with the extension off for the chat, and with a loadout selected as base, the preset sends as saved', async () => {
+    select('Sola');
+    const asSaved = data => data.prompt_order[0].order.filter(entry => entry.enabled).map(entry => entry.identifier);
+    chats.A.roleplay_instructions.v10.enabled = false;
+    assert.deepEqual(request().rows.map(row => row.id), asSaved(stored.Sola));
+    chats.A.roleplay_instructions.v10.enabled = true;
+    const data = lo.buildLoadout(stored.Sola, wb.currentMarker(wb.switchContext()));
+    stored['Sola + RI Night'] = data;
+    bank.refreshBank();
+    select('Sola + RI Night');
+    const live = JSON.stringify(host.chatCompletionSettings);
+    const sent = request();
+    assert.equal(sent.count, 0, 'a loadout got a working copy');
+    assert.deepEqual(sent.rows.map(row => row.id), asSaved(data));
+    assert.equal(JSON.stringify(host.chatCompletionSettings), live);
+    select('Sola');
 });

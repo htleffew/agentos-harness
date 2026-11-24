@@ -271,11 +271,14 @@ export function schemaProblem(value, schema, path = 'answer') {
     return '';
 }
 
-/** Read a schema answer from text: the first JSON value in it, checked against the schema. */
+/**
+ * Read a schema answer from text: the first JSON value in it, checked against the schema. schema.read, when given, is the
+ * schema code checks against; providers get schema.value (capture sends the strict form and reads the plain one, MB3).
+ */
 export function readSchemaAnswer(text, schema) {
     const value = parseJson(text, { object: schema?.value?.type === 'object' });
     if (value === null) return { value: null, problem: 'The answer held no JSON.' };
-    const problem = schemaProblem(value, schema?.value);
+    const problem = schemaProblem(value, schema?.read || schema?.value);
     return { value, problem: problem ? `The JSON does not match the schema: ${problem}.` : '' };
 }
 

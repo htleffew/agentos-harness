@@ -1,0 +1,75 @@
+{
+ "id": "adult-weight",
+ "name": "Adult: consequence weight",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-weight.pura.the-scene-leaves-lasting-physical-marks-",
+   "label": "The scene leaves lasting physical marks or injury",
+   "text": "The scene leaves lasting physical marks or injury.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-weight.pura.the-scene-creates-irreversible-social-fa",
+   "label": "The scene creates irreversible social fallout or exposure",
+   "text": "The scene creates irreversible social fallout or exposure.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-weight.pura.the-scene-breaks-trust-that-cannot-be-ea",
+   "label": "The scene breaks trust that cannot be easily rebuilt",
+   "text": "The scene breaks trust that cannot be easily rebuilt.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-weight.pura.the-scene-forces-the-victim-into-a-new",
+   "label": "The scene forces the victim into a new",
+   "text": "The scene forces the victim into a new, worse position.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-weight.pura.the-scene-establishes-a-power-dynamic-th",
+   "label": "The scene establishes a power dynamic that persists",
+   "text": "The scene establishes a power dynamic that persists.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-weight.pura.the-scene-creates-trauma-that-colors-fut",
+   "label": "The scene creates trauma that colors future interactions",
+   "text": "The scene creates trauma that colors future interactions.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  }
+ ]
+}

@@ -1,0 +1,75 @@
+{
+ "id": "resistance",
+ "name": "Character change resistance",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "resistance.wb.fluid",
+   "label": "Fluid",
+   "text": "Resistance of characters development is Fluid: Characters update readily. A single strong scene can shift a stance, and new information is absorbed easily.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Fluid"
+   }
+  },
+  {
+   "id": "resistance.wb.responsive",
+   "label": "Responsive",
+   "text": "Resistance of character development is Responsive: One significant event, or smaller converging ones, is enough to move a character.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Responsive"
+   }
+  },
+  {
+   "id": "resistance.wb.resistant",
+   "label": "Resistant",
+   "text": "Resistance of character development is Resistant: Development requires sustained cause and comes with backsliding. Characters revert partway toward baseline between pressures, and progress made in one scene is partially lost by the next.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Resistant"
+   }
+  },
+  {
+   "id": "resistance.wb.entrenched",
+   "label": "Entrenched",
+   "text": "Resistance of character development is Entrenched: Characters return to baseline quick. Change requires overwhelming, repeated cause, and even then it registers as strain rather than transformation. A position abandoned in one scene is usually reoccupied by the following one.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Entrenched"
+   }
+  },
+  {
+   "id": "resistance.wb.circular",
+   "label": "Circular",
+   "text": "Resistance of character development is Circular: characters change genuinely, then revert. Growth holds while the pressure that produced it lasts and decays once it lifts, returning them to baseline without their noticing. Each cycle may be sincere; none of them stick, and the pattern is not remarked on.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Circular"
+   }
+  },
+  {
+   "id": "resistance.wb.adaptive-resistance",
+   "label": "Adaptive Resistance",
+   "text": "Resistance of character development is Adaptive: Resistance scales based on character profile. Preferences, tactics, and surface opinions move easily; identity-level convictions, long-held grievances, and beliefs tied to a character's self-image require sustained pressure and resist reverting.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Resistance"
+   }
+  }
+ ]
+}

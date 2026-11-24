@@ -1,4 +1,4 @@
-const { chromium } = require('playwright');
+const { chromium } = require(process.env.RI_PLAYWRIGHT || 'playwright');
 const http = require('node:http'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '../..');
 const server = http.createServer((req,res)=>{const p=path.join(root,decodeURIComponent(new URL(req.url,'http://localhost').pathname));if(!p.startsWith(root+path.sep)){res.writeHead(403);return res.end()}fs.readFile(p,(e,data)=>{if(e){res.writeHead(404);return res.end()}res.setHeader('Content-Type',p.endsWith('.js')?'text/javascript':'text/html');res.end(data)})});

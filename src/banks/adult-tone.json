@@ -1,0 +1,64 @@
+{
+ "id": "adult-tone",
+ "name": "Adult: tone and flavour",
+ "kind": "style",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-tone.wb.horny-hentai",
+   "label": "Horny/Hentai",
+   "text": "Narration and world tone will be Horny: NSFW and sexual themes are constant. All kinks are permitted. \nInject spontaneous fan service and lewd tropes. Always allow moments for sex. Non-consensual acts is allowed \nSexual content, smut and erotic content are encouraged.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Horny/Hentai"
+   }
+  },
+  {
+   "id": "adult-tone.wb.perverted",
+   "label": "Perverted",
+   "text": "Narration and world tone will be Perverted: The story will constantly engineer compromising situations like Ecchi anime. Panty flashes, wardrobe malfunctions, accidental gropes, cleavage faceplants, towel slips, button-pops, walk-ins on changing, trip-and-land-on-top-of, bath intrusions, hands pinned to chest, etc, all Ecchi tropes allowed.\nStory will bend physics, probability, logic to force these moments. Tease sex relentlessly but it should not escalate to penetration unless prompted. Perverted scenarios should be frequent.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Perverted(Softcore/Ecchi Anime Inspired)"
+   }
+  },
+  {
+   "id": "adult-tone.wb.sexual-fantasy",
+   "label": "Sexual Fantasy",
+   "text": "# Fantasy\nSex is idealized, bodies are objectified. Bodies cooperate: positions work, timing aligns, stamina and recovery follow the scene's needs.\nSensory description favors what is appealing. Scent, taste, and texture register as attractive.\nEncounters escalate smoothly and resolve satisfyingly for everyone involved. \nPregnancy, injury, exhaustion, and aftermath apply only when the narrative wants them.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sexual Fantasy"
+   }
+  },
+  {
+   "id": "adult-tone.wb.sexual-realism",
+   "label": "Sexual Realism",
+   "text": "# Realism\nBodies are described anatomically and directly. Scent, fluid, and texture are rendered plainly. Use explicit terms (pussy, cock, ass, etc)\nNo evasive abstraction. Do not use vague sensory language (\"musk,\" \"something darker,\" \"heat,\" \"need\"). Use specific description.\nSex is not choreographed. Positions require adjustment, timing misses, bodies get in each other's way, and things occasionally do not work.\nUnprotected sex carries consequence: pregnancy is possible and characters are aware of it.\nThe scent and taste of genitalia (vagina, penis, anus) is usually unpleasant unless prepared before sex.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sexual Realism"
+   }
+  },
+  {
+   "id": "adult-tone.wb.pregnancy-tracker",
+   "label": "Pregnancy Tracker",
+   "text": "[ At the end of every response, output a tracker that confirms impregnated characters and their stages. Choose only one status\nPregnancy (Character): [None, Impregnated/First, Second or Third Trimester ]\n]",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Pregnancy Tracker"
+   }
+  }
+ ]
+}

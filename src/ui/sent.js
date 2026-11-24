@@ -10,6 +10,7 @@ import { chatTray, inScene, presentNames, replyTray, trayShows, traySettings } f
 import { headerMode, headerState, parseSceneHeader } from '../scene-header.js';
 import { replyWorld } from './reply-world.js';
 import { trayCardConfig } from './tray-settings.js';
+import { captureStatus } from '../memory/capture.js';
 import { chatWorld } from '../world.js';
 import { refreshMessageMenu } from './message-menu.js';
 import { snapshotState, snapshotScene, sceneDateLabel, STATE_FIELDS } from '../state.js';
@@ -27,6 +28,7 @@ import { settings } from '../store.js';
 import { ctx, KEY, isChatOpen, isReply, loadBook, replyLabels } from '../st.js';
 import { guidedTarget } from '../guided-context.js';
 import { executionScope } from '../execution.js';
+import { rollRecordView, itemSetData } from './roll-record.js';
 
 /** The directions that went with a reply (visible OOC or private), with the evidence for required ones. */
 export function deliveredDirections(receipt) {
@@ -134,6 +136,7 @@ function itemRow(id, rec, it, index, withButtons) {
             Array.isArray(it.rules) && it.rules.length ? kv('Rules checked', it.rules.map(r => `${r.ok ? 'Followed' : 'Not followed'}: ${r.label}`).join('  |  ')) : null,
             it.quote ? kv('Shown by this part of the reply', `"${it.quote}"`) : null),
         Array.isArray(it.parts) && it.parts.length ? [h('div', { class: 'ri-label' }, 'What the dice picked'), partRows(it, rec === recentRecords(1)[0]?.rec, withButtons)] : null,
+        it.roll ? rollRecordView(it.roll, itemSetData(it), { polished: it.polished }) : null,
         buttons.length ? h('div', { class: 'ri-row ri-row-tight' }, buttons) : null);
 }
 
@@ -393,7 +396,9 @@ function trayCardsFor(id, msg, rec, view) {
         sent: sentShown ? {first:summaryLine(rec),calls:[rec.checkExecution && 'Follow-through check',rec.automaticSwipeExecution && 'Automatic swipe'].filter(Boolean),
             body:()=>recordBody(id,rec,latest,false)} : null,
     };
-    return buildTrayCards({id,rec,modules,snapshot,showState,people,profiles,records,planning,roast,strip,presentNames:names,saved,latest,redraw,extras});
+    // MB3: while capture of this reply is pending, its story cards say which reply their state describes.
+    const capture=captureStatus(ctx().chat || [],id);
+    return buildTrayCards({id,rec,modules,snapshot,showState,people,profiles,records,planning,roast,strip,presentNames:names,saved,latest,redraw,extras,capture});
 }
 
 function refreshV10Replies(chat) {

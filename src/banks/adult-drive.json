@@ -1,0 +1,75 @@
+{
+ "id": "adult-drive",
+ "name": "Adult: mental state and drive",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-drive.pura.pure-lust",
+   "label": "Pure lust",
+   "text": "Pure lust: blinded by hunger, raw instinct and need.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-drive.pura.devotional",
+   "label": "Devotional",
+   "text": "Devotional: the act as worship, love, or total surrender.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-drive.pura.dominating",
+   "label": "Dominating",
+   "text": "Dominating: focused on control, the look of submission, the feeling of power.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-drive.pura.submissive",
+   "label": "Submissive",
+   "text": "Submissive: pleasure in being used or following orders.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-drive.pura.cruel-playful",
+   "label": "Cruel/Playful",
+   "text": "Cruel/Playful: teasing and tormenting for amusement.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-drive.pura.desperate",
+   "label": "Desperate",
+   "text": "Desperate: need for connection, validation, or release after long deprivation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  }
+ ]
+}

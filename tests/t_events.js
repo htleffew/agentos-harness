@@ -60,8 +60,8 @@ async function makeEvents(page, name, opts = {}) {
         console.log(content.slice(0, 330));
         assert(/Alpha: \{\{random::a1::a2::a3::a4\}\}; Beta: \{\{random::/.test(content) && /Gamma: c2;/.test(content) && !/Epsilon/.test(content) && !/z2 secret/.test(content), 'C: the lorebook entry holds a {{random}} list per category for use with the extension off');
         // ---- D: the panel ----
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Expand').click());
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-tab')].find(t => t.textContent === 'Random Story Events').click());
+        await L.openPanel(page);
+        await L.openPanel(page, 'events');
         await page.waitForTimeout(600);
         await page.evaluate((n) => [...document.querySelectorAll('#ri_root .ri-setcard .ri-card-name')].find(b => b.textContent === n).click(), name);
         await page.waitForTimeout(800);

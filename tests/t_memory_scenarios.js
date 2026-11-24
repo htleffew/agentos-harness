@@ -7,6 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
+require('./needs-docs.cjs')('t_memory_scenarios', ['docs/ux-overhaul/memory/evidence/m1g/harness/mb11', 'docs/ux-overhaul/memory/evidence/MB11']);
 
 const H = path.join(__dirname, '..', 'docs', 'ux-overhaul', 'memory', 'evidence', 'm1g', 'harness', 'mb11');
 const MB11 = path.join(__dirname, '..', 'docs', 'ux-overhaul', 'memory', 'evidence', 'MB11');

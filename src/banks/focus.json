@@ -1,0 +1,185 @@
+{
+ "id": "focus",
+ "name": "Narrative focus",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "focus.pura.hands-objects-and-small-tasks",
+   "label": "Hands, objects, and small tasks",
+   "text": "Hands, objects, and small tasks",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.distance-posture-and-spatial-pressure",
+   "label": "Distance, posture, and spatial pressure",
+   "text": "Distance, posture, and spatial pressure",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.faces-and-failed-expression-control",
+   "label": "Faces and failed expression control",
+   "text": "Faces and failed expression control",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.noise-crowding-and-interruption",
+   "label": "Noise, crowding, and interruption",
+   "text": "Noise, crowding, and interruption",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.texture-temperature-and-bodily-discomfor",
+   "label": "Texture, temperature, and bodily discomfort",
+   "text": "Texture, temperature, and bodily discomfort",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.eye-lines-avoidance-and-attention-drift",
+   "label": "Eye-lines, avoidance, and attention drift",
+   "text": "Eye-lines, avoidance, and attention drift",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.doorways-exits-and-who-can-leave",
+   "label": "Doorways, exits, and who can leave",
+   "text": "Doorways, exits, and who can leave",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.shared-surfaces-and-territorial-use-of-s",
+   "label": "Shared surfaces and territorial use of space",
+   "text": "Shared surfaces and territorial use of space",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.clothing-disarray-and-self-presentation",
+   "label": "Clothing, disarray, and self-presentation",
+   "text": "Clothing, disarray, and self-presentation",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.breath-pauses-and-speech-rhythm",
+   "label": "Breath, pauses, and speech rhythm",
+   "text": "Breath, pauses, and speech rhythm",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.weight-balance-and-shifts-in-stance",
+   "label": "Weight, balance, and shifts in stance",
+   "text": "Weight, balance, and shifts in stance",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.watching-and-being-watched",
+   "label": "Watching and being watched",
+   "text": "Watching and being watched",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.food-drink-and-appetite",
+   "label": "Food, drink, and appetite",
+   "text": "Food, drink, and appetite",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.lighting-visibility-and-concealment",
+   "label": "Lighting, visibility, and concealment",
+   "text": "Lighting, visibility, and concealment",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.sound-carrying-farther-than-intended",
+   "label": "Sound carrying farther than intended",
+   "text": "Sound carrying farther than intended",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "focus.pura.touch-near-touch-and-withheld-contact",
+   "label": "Touch, near-touch, and withheld contact",
+   "text": "Touch, near-touch, and withheld contact",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  }
+ ]
+}

@@ -104,7 +104,7 @@ async function world(page, name, entries) {
         assert(seen.join(' ') === 'EI -- -- EI --', 'quiet: after a big event has happened, nothing new starts for 2 replies, and then things start again');
         assert(quietRec[1] && quietRec[1].left === 2 && /Pace big/.test(quietRec[1].name) && quietRec[2].left === 1 && !quietRec[3], 'quiet: the record on each quiet reply says what happened and how long the quiet lasts');
         await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'sent'; P.app.render(); }, L.BASE);
-        await page.evaluate(() => { const b = [...document.querySelectorAll('#ri_root button')].find(x => x.textContent.trim() === 'Expand'); if (b) b.click(); });
+        await L.openPanel(page);
         await page.waitForTimeout(500);
         const sentText = await page.evaluate(() => document.querySelector('#ri_root').textContent);
         assert(/Nothing new was started with this reply: it is quiet after "Story event: Pace big/.test(sentText) || /nothing new started \(quiet after a big event\)/.test(sentText), 'quiet: What Was Sent says why nothing new was started');
@@ -130,7 +130,7 @@ async function world(page, name, entries) {
         await setsOn(page, []);
         await world(page, 'Quiet world ' + t, [['character', 'Hale', { role: 'captain' }], ['character', 'Mira', { role: 'fruit seller', wants: 'To be asked along' }]]);
         await L.setSettings(page, { pace: { silent: 2 } });
-        L.mode({ reply: hud('Hale, Mira') });
+        L.mode({ reply: hud('Hale, Mira'), capture: { decisions: { durable_change: false, scene_ended: false, out_of_character: false }, ops: [], state: { scene: { place: 'The camp', time: 'Day 1, evening', present: ['Hale', 'Mira'] } } } });
         const sl = [];
         for (let i = 0; i < 4; i++) { const r = await send(page, 's' + i); sl.push(/Mira must speak or act in this reply, in a way that fits who Mira is and what Mira wants \(To be asked along\)\./.test(r.text) ? 'O' : '-'); }
         const slRec = await lastRec(page);
@@ -183,14 +183,18 @@ async function world(page, name, entries) {
             S.settings().words.on = false;
             out.off = V.validateVersion('{{char}} must name the debt.').warns.filter(x => /word list/.test(x)).length;
             S.settings().words.on = true;
-            const style = E.newStyle('x').categories.flatMap(c => c.items.map(i => i.text)).join(' | ');
-            out.defaults = { plain: /people say plainly what they mean/.test(style), old: /implied by action|understatement|temperature|on edge|scared|nervous/.test(style) };
+            // B37: the starting style categories link option banks, whose items ship as their authors wrote them
+            // (DECISIONS 2026-11-24), so the dice read each category's bank items through liveCategory.
+            const cats = E.newStyle('x').categories;
+            const live = cats.map(E.liveCategory);
+            const style = live.flatMap(c => c.items.map(i => i.text)).join(' | ');
+            out.defaults = { linked: cats.every(c => c.bank && !c.items.length), filled: live.every(c => c.items.length > 0), plain: /people say plainly what they mean/.test(style) };
             return out;
         }, L.BASE);
         console.log('words:', JSON.stringify(words));
         assert(words.version.length === 1 && /"ledgers", "debt"/.test(words.version[0]) && words.clean.length === 0 && /"permit", "clerk"/.test(words.entry[0] || ''), 'words: a version and a story world entry that use words from the list get one line naming them, and plain text gets none');
         assert(words.hits.join() === 'shifted,cracked,mask,Tapestry' && words.off === 0, 'words: whole words only (costume and landlord are left alone), a star stands for any ending, and off flags nothing');
-        assert(words.defaults.plain && !words.defaults.old, 'defaults: the starting writing style lists are in plain words');
+        assert(words.defaults.linked && words.defaults.filled && words.defaults.plain, 'defaults: the starting writing style lists read their option banks');
         L.mode({ writer: '["a letter arrives", "a debt is called in"]' }); L.resetLog();
         const wr = await page.evaluate(async (B) => { const Wr = await import(`${B}/src/writer.js`); const S = await import(`${B}/src/store.js`); const a = await Wr.writeItems({ category: { name: 'Situation' }, theme: 'a harbour town', count: 2, context: {}, existing: [], others: [] }); S.settings().writer.rules = 'Only kind things happen RULEMARK'; await Wr.writeItems({ category: { name: 'Situation' }, theme: 'a harbour town', count: 2, context: {}, existing: ['zzz'], others: [] }); const P = await import(`${B}/src/pacing.js`); S.settings().writer.rules = P.DEFAULT_WRITER_RULES; return a.map(x => x.text); }, L.BASE);
         const wreq = L.requests().map(r => L.text(r));
@@ -206,7 +210,7 @@ async function world(page, name, entries) {
         await page.waitForTimeout(500);
         const rules = await readPage();
         const setText = [...connections.titles, ...rules.titles], setLabels = [...connections.labels, ...rules.labels];
-        assert(setText.includes('Pacing') && setText.includes('What the AI writes for you') && ['Quiet after a big event (replies)', 'Order a character who has gone quiet (replies)', 'Story phases', 'Rules given to the AI writer', 'Your word list'].every(x => setLabels.includes(x)), 'panel: Settings has the pacing settings, the rules for the AI writer and the word list');
+        assert(setText.includes('Pacing') && setText.includes('What the AI writes for you') && ['Calm after a big event (replies)', 'Order a character who has gone silent (replies)', 'Story phases', 'Rules given to the AI writer', 'Your word list'].every(x => setLabels.includes(x)), 'panel: Settings has the pacing settings, the rules for the AI writer and the word list');
         await page.screenshot({ path: '/tmp/s55_settings.png', fullPage: false });
         // an item's condition is set in the editor and kept when the set is saved
         await page.evaluate(async ([B, name]) => { const P = await import(`${B}/src/ui/panel.js`); const K = await import(`${B}/src/books.js`); const E = await import(`${B}/src/events.js`); const data = await K.loadSet(name); const entry = E.findEventEntry(data, 'event', name); P.app.tab = 'events'; const draft = E.readEvent(entry, name); P.app.eroute = { view: 'edit', name, draft, open: { [draft.categories[0].id]: true } }; P.app.render(); }, [L.BASE, BIG]);

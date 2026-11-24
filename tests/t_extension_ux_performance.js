@@ -33,13 +33,18 @@ const L = require('./lib.js');
                 for (let i=0;i<7;i++) values.push(Math.round(100*await measure())/100);
                 return {values,median:[...values].sort((a,b)=>a-b)[3]};
             }
-            const entry=document.querySelector('.ri-quick-entry');
-            if (entry.getAttribute('aria-expanded')==='false') entry.click();
-            const launcher=document.querySelector('.ri-quick-more') || entry;
+            // B28: the launcher toolbar is gone. The bar's More menu opens the sheet with every quick action.
+            const fold=document.querySelector('[aria-label="Open quick actions"]');
+            if (fold) fold.click();
+            const launcher=document.querySelector('.ri-bar-more');
+            const openAll=()=>{
+                launcher.click();
+                [...document.querySelectorAll('.ri-bar-pop button')].find(node=>node.textContent.trim()==='All quick actions').click();
+                return document.querySelector('.ri-quick-sheet');
+            };
             const openSheet=await sample(()=>{
                 const start=performance.now();
-                launcher.click();
-                const sheet=document.querySelector('.ri-quick-sheet');
+                const sheet=openAll();
                 layout(sheet);
                 sheet.querySelector('[data-quick-close]').click();
                 return performance.now()-start;
@@ -62,8 +67,7 @@ const L = require('./lib.js');
                 return performance.now()-start;
             });
             await app.setExpanded(false);
-            launcher.click();
-            const sheet=document.querySelector('.ri-quick-sheet');
+            const sheet=openAll();
             (button(sheet,'Browse directions') || button(sheet,'Browse all')).click();
             const searchField=()=>document.querySelector('.ri-quick-scroll[data-view="browse"] input[type="search"]');
             await waitDOM(searchField);

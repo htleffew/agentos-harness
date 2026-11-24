@@ -5,6 +5,25 @@ import { h, button, toggle, select, choiceList, numberInput, textInput, textArea
 import { loadSet, editSet, createSet, forgetSet, exportSet, setName, setInfo, wrapText, SENT_AS } from '../books.js';
 import { keptIn, removeText, deleteButton, onForChat } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
+import { bankItems, bankInfo, bankChoices, ensureBankBook, editBankBook, setBankItems, SEND_RULES, BANK_BOOK } from '../banks.js';
+import { openPoolSheet, poolSummary, importBox } from './bank-sheets.js';
+import { rollRecordView } from './roll-record.js';
+
+let banksReady = false;
+/** The set as the preview rolls it. */
+const previewData = draft => ({ type: cfg.type, categories: draft.categories, neverTogether: draft.neverTogether, cap: draft.cap });
+
+/** Add values to one bank of "RI Option banks", marked as hers. */
+async function addToBank(dim, texts) {
+    try {
+        await editBankBook(book => {
+            const entry = Object.values(book.entries).find(e => e?.extensions?.ri?.dim === dim);
+            if (!entry) throw new Error('That bank is not in the book.');
+            setBankItems(book, dim, [...entry.extensions.ri.items, ...texts.map(t => ({ id: `${dim}.mine.${newId()}`, label: t, text: t, on: true, weight: 1, tags: '', source: { author: 'You', work: 'Added in the editor', file: BANK_BOOK, mine: true } }))]);
+        });
+        toast('success', `${texts.length} ${texts.length === 1 ? 'value was' : 'values were'} added to the bank.`);
+    } catch (e) { toast('error', `Could not add to the bank: ${e.message}`); }
+}
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { validateVersion, swapNames, userDrives } from '../validate.js';
 import { writeItems, rewriteAnywhere, itemContextPromptIds } from '../writer.js';
@@ -117,7 +136,9 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     const modeLabel = { new: 'New pick every time', keepRandom: `Keep for a random number of ${tick}`, keepFixed: 'Keep until I turn it off' };
     const modeHelp = { new: tick === 'events' ? 'Each event gets a fresh pick from this category.' : 'Each reply gets a fresh pick from this category.', keepRandom: `The pick stays for several ${tick} in a row, then changes.`, keepFixed: tick === 'events' ? 'You choose the item. Every event uses it until you change this.' : 'You choose the item. Every reply uses it until you change this.' };
     const ui = r.cat?.[cat.id] || ((r.cat = r.cat || {})[cat.id] = { adding: '', editing: '', ai: null });
-    const usable = cat.items.filter(i => i.on);
+    // A linked category draws from its option bank; its pool and pick count belong to this set.
+    const values = cat.bank ? (bankItems(cat.bank) || []) : cat.items;
+    const usable = values.filter(i => i.on);
     const summary = [h('span', { class: 'ri-sent-title' }, versionText(cat.name || 'Category')),
         h('span', { class: 'ri-sent-sub' }, cat.locked ? 'Locked' : cat.on ? `${usable.length} ${usable.length === 1 ? 'item' : 'items'} · ${modeLabel[cat.mode]}` : 'Turned off')];
     const body = [];
@@ -149,12 +170,23 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     body.push(h('div', { class: 'ri-grid2' },
         field('Name of this category', tick === 'events' ? 'Shown to the AI in front of the picked item, for example "Complication: a locked door".' : 'Shown to the AI in front of the picked item, for example "Prose style: short sentences".', textInput(cat.name, (v) => { cat.name = v; dirty(); }, { placeholder: 'Example: Complication' })),
         cat.locked ? null : field('Use this category', tick === 'events' ? 'Off leaves it out of every event.' : 'Off leaves it out of the style order.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.on ? 'on' : 'off', (v) => { cat.on = v === 'on'; dirty(); redraw(); }))));
+    // The option bank and the pool: one multi-select over the bank. None ticked draws from every value that is on,
+    // one ticked is a fixed value, several limit the draw to those.
+    const poolButton = h('button', { type: 'button', class: 'ri-btn ri-pool-btn', 'data-ri-pool': cat.id, 'aria-haspopup': 'dialog',
+        onclick: () => openPoolSheet({ title: `${cat.name || 'Category'}: pool`, items: values, pool: cat.pool, onChange: (pool) => { cat.pool = pool; dirty(); poolButton.textContent = `Pool: ${poolSummary(pool, values)}`; } }) },
+        `Pool: ${poolSummary(cat.pool, values)}`);
+    body.push(h('div', { class: 'ri-grid2' },
+        field('Option bank', cat.bank ? `Values come from "${bankInfo(cat.bank)?.name || cat.bank}" in the World Info book "${BANK_BOOK}". The pool and pick count are saved with this set.` : 'Its own list: the items below. Pick a bank to draw from a shared list of values instead.',
+            select([{ value: '', label: 'Its own list' }, ...bankChoices(cfg.type, { adult: !!settings().banksAdult || !!bankInfo(cat.bank)?.adult }).map(b => ({ value: b.id, label: `${b.name} (${b.count})${b.adult ? ', adult' : ''}` }))],
+                cat.bank, (v) => { cat.bank = v; cat.pool = []; cat.fixed = ''; dirty(); redraw(); }, { 'aria-label': `Option bank for ${cat.name}` })),
+        field('Pool', 'Tick the values a roll may use. None ticked: every value that is on. One ticked: that value every time. Several: only those.', poolButton)));
     body.push(h('div', { class: 'ri-grid2' },
         field('How it changes', modeHelp[cat.mode], select(Object.keys(MODES).map(value => ({ value, label: modeLabel[value] })), cat.mode, (v) => { cat.mode = v; dirty(); redraw(); })),
         ...durationFields,
         cat.mode === 'keepRandom' ? field('Chance to change once that time is over (%)', `100 changes the pick as soon as the time is up. 30 lets it stay on a little longer: each of the following ${tick} it has a 30% chance to change.`, numberInput(cat.changeChance, { min: 1, max: 100, unit: '%' }, (n) => { cat.changeChance = n; dirty(); })) : null,
         cat.mode === 'keepFixed' ? field('Item to keep', tick === 'events' ? 'Every event uses this item.' : 'Every reply uses this item.', select([{ value: '', label: usable.length ? 'Choose an item' : 'Add an item first' }, ...usable.map(i => ({ value: i.id, label: i.text.slice(0, 70) }))], cat.fixed || '', (v) => { cat.fixed = v; dirty(); })) : null,
-        cat.mode === 'keepFixed' ? null : field('Items per pick', tick === 'events' ? 'How many items from this category go into one event.' : 'How many items from this category are used at the same time.', numberInput(cat.count, { min: 1, max: 5, unit: 'items' }, (n) => { cat.count = n; dirty(); })),
+        cat.mode === 'keepFixed' ? null : field('Pick count', tick === 'events' ? 'How many different values from the pool go into one event. A count above the pool size uses the whole pool.' : 'How many different values from the pool are used at the same time. A count above the pool size uses the whole pool.', numberInput(cat.count, { min: 1, max: 5, unit: 'values', label: `Pick count for ${cat.name}` }, (n) => { cat.count = n; dirty(); redraw(); })),
+        cat.mode === 'keepFixed' || cat.count < 2 ? null : field('How the picks share the reply', 'All together, one for each beat in turn, or one for each paragraph in turn.', select(Object.entries(SEND_RULES).map(([value, s]) => ({ value, label: s.label })), cat.send || 'together', (v) => { cat.send = v; dirty(); }, { 'aria-label': `How the picks of ${cat.name} share the reply` })),
         cat.mode === 'keepFixed' || cfg.kind === 'style' ? null : field('Retire an item once it has happened', 'On: an item from this list that has happened in a chat never comes back in that chat. The first list that retires its items is the main list (Situation, to start with): when it is used up, the set sends no more events in that chat and you are told so. Any other list that is used up is simply left out of the events that follow. With checking on, an item retires when the check finds the event happened. With checking off, it retires when it is sent.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.burn ? 'on' : 'off', (v) => { cat.burn = v === 'on'; dirty(); })),
         cat.mode === 'keepFixed' ? null : field('Use every item before repeating', 'On: no item comes back until all the others have had a turn.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.useAll ? 'on' : 'off', (v) => { cat.useAll = v === 'on'; dirty(); })),
         cat.mode === 'keepFixed' ? null : field('Wait before an item can return (picks)', 'An item that was just used sits out this many fresh picks. 0 turns this off.', numberInput(cat.itemWait, { min: 0, max: 50, unit: 'picks' }, (n) => { cat.itemWait = n; dirty(); })),
@@ -163,9 +195,9 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         field('Never use items tagged', 'Items with any of these tags are left out. Separate tags with commas.', textInput(cat.neverTags, (v) => { cat.neverTags = v; dirty(); }, { placeholder: 'No tags' }))));
     if (cfg.kind === 'style') body.push(field('Words added after the pick', 'Sent in brackets after the picked item, to say how the pick is to be applied. Leave empty for nothing.', textInput(cat.after, (v) => { cat.after = v; dirty(); }, { placeholder: 'Nothing added' })));
 
-    // Items
+    // Items: a linked category shows its bank through the pool; a category with its own list shows the list.
     const list = h('div', { class: 'ri-versions' });
-    cat.items.forEach((it, i) => {
+    (cat.bank ? [] : cat.items).forEach((it, i) => {
         const flags = itemFlags(cat, it.text);
         if (ui.editing === it.id) {
             // The edit works on a copy, so Cancel leaves the item as it was.
@@ -214,21 +246,25 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
                 button('Edit', () => { ui.editing = it.id; ui.edit = null; redraw(); }, { kind: 'ghost', title: cfg.kind === 'style' ? 'Change the text, and what this item adds while it is the pick' : 'Change the text, and when the dice may use this item' }),
                 button('Delete', () => { cat.items.splice(i, 1); if (cat.fixed === it.id) cat.fixed = ''; dirty(); redraw(); }, { kind: 'danger' }))));
     });
-    if (!cat.items.length) list.appendChild(h('div', { class: 'ri-empty' }, 'No items yet. Type one below, or press "Write items with AI".'));
-    body.push(h('div', { class: 'ri-label' }, 'Items (a higher weight is picked more often)'), list);
+    if (cat.bank) body.push(h('div', { class: 'ri-help' }, `${values.length} values in the bank, ${usable.length} of them on. Edit the bank in World Info (book "${BANK_BOOK}"), or add a value below; it goes into the bank for every set that uses it.`));
+    else {
+        if (!cat.items.length) list.appendChild(h('div', { class: 'ri-empty' }, 'No items yet. Type one below, or press "Write items with AI".'));
+        body.push(h('div', { class: 'ri-label' }, 'Items (a higher weight is picked more often)'), list);
+    }
     body.push(h('div', { class: 'ri-help' }, `Tags are your own words for grouping items, separated by commas. They are used by "Never use items tagged" and "Never together".${cfg.kind === 'style' ? ' Four tags are also checked against the reply and shown in What Was Sent: rule:no-dialogue, rule:mostly-dialogue, rule:max-sentences-2 and rule:max-words-200 (any number works).' : ''}`));
 
     const addBox = textInput(ui.adding, (v) => { ui.adding = v; }, { placeholder: cfg.itemPlaceholder });
     const addItem = () => {
         const t = swapNames(String(ui.adding || '').trim()).text;
         if (!t) { toast('info', 'Type the item first.'); return; }
+        if (cat.bank) { ui.adding = ''; addToBank(cat.bank, [t]).then(redraw); return; }
         cat.items.push({ id: newId(), text: t, on: true, weight: 1, tags: '', always: false });
         ui.adding = ''; dirty(); redraw();
     };
     addBox.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); addItem(); } });
     body.push(h('div', { class: 'ri-control' }, addBox), h('div', { class: 'ri-row' },
         button('Add this item', addItem),
-        cfg.kind === 'events' && cat.items.length ? button('Make these work anywhere', () => { ui.rw = { busy: false, error: '', results: null, which: 'on' }; ui.ai = null; redraw(); }, { title: 'One AI request rewrites the items of this list so each works in any setting, keeping what it does to the people. You see every change before it is made.' }) : null,
+        cfg.kind === 'events' && !cat.bank && cat.items.length ? button('Make these work anywhere', () => { ui.rw = { busy: false, error: '', results: null, which: 'on' }; ui.ai = null; redraw(); }, { title: 'One AI request rewrites the items of this list so each works in any setting, keeping what it does to the people. You see every change before it is made.' }) : null,
         button('Write items with AI', () => { ui.rw = null; ui.ai = { theme: app[cfg.route].lastTheme || '', count: 12, busy: false, error: '', results: null }; redraw(); }, { kind: 'primary' })));
 
     if (!ui.ai) body.push(itemWriterPrompts(cat));
@@ -312,7 +348,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                 ai.busy = true; ai.error = ''; redraw();
                 app[cfg.route].lastTheme = ai.theme;
                 try {
-                    const list = await writeItems({ style: cfg.kind === 'style', origins: ai.origins || [''], category: cat, theme: ai.theme.trim(), count: ai.count, context: settings().writer.context, existing: cat.items.map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
+                    const list = await writeItems({ style: cfg.kind === 'style', origins: ai.origins || [''], category: cat, theme: ai.theme.trim(), count: ai.count, context: settings().writer.context, existing: (cat.bank ? bankItems(cat.bank) || [] : cat.items).map(i => i.text), others: draft.categories.filter(c => c !== cat && c.on).map(c => c.name) });
                     ai.results = list.map(x => ({ ...x, keep: x.anywhere !== false && (f => f.blocks.length === 0 && f.checks.length === 0)(itemFlags(cat, x.text)) }));
                 } catch (e) { ai.error = e.message; }
                 ai.busy = false; redraw();
@@ -334,6 +370,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
         button('Add the ticked items', () => {
             const picked = ai.results.filter(x => x.keep);
             if (!picked.length) { toast('info', 'Tick at least one item to add.'); return; }
+            if (cat.bank) { ui.ai = null; addToBank(cat.bank, picked.map(x => x.text)).then(redraw); return; }
             cat.items.push(...picked.map(x => ({ id: newId(), text: x.text, on: true, weight: 1, tags: '', always: false, ...(x.from ? { from: x.from } : {}) })));
             ui.ai = null; dirty(); redraw();
         }, { kind: 'primary' }),
@@ -348,6 +385,8 @@ function renderEdit(body, app) {
     const { name, draft } = r;
     const redraw = () => app.render();
     const dirty = () => { r.dirty = true; };
+    // First use of an editor makes "RI Option banks", or brings a shipped update into the book she has.
+    if (!banksReady) { banksReady = true; ensureBankBook().then(redraw, e => toast('error', `The option banks could not be set up: ${e.message}`)); }
 
     body.appendChild(h('div', { class: 'ri-row' }, button(`‹ Back to ${cfg.sets}`, async () => {
         if (r.dirty && !await confirmBox(`Leave without saving your changes to this ${cfg.set}?`)) return;
@@ -382,7 +421,19 @@ function renderEdit(body, app) {
             const cat = newCategory(STAKES_NAME, STAKES);
             const at = draft.categories.findIndex(c => c.driver);
             draft.categories.splice(at < 0 ? draft.categories.length : at, 0, cat); r.open[cat.id] = true; dirty(); redraw();
-        }, { title: 'A list of what an event puts at stake and for whom. It starts with ten items that work in any setting. The dice pick one with every event.' }) : null)));
+        }, { title: 'A list of what an event puts at stake and for whom. It starts with ten items that work in any setting. The dice pick one with every event.' }) : null,
+        button('Import options from a preset or plugin file', () => { r.importing = { open: true, found: null, error: '', done: '' }; redraw(); }, { title: 'Read value lists from a file on this device into the option banks. Nothing in the file is run or sent.' })),
+        r.importing?.open ? importBox(r.importing, cfg.type, redraw) : null));
+
+    // How a roll is built
+    body.appendChild(section('How a roll is built',
+        h('div', { class: 'ri-help' }, 'Each roll draws from the pools in code, with no AI request, and saves a roll record with the reply.'),
+        h('div', { class: 'ri-grid2' },
+            field('Most categories in one roll', 'Categories over this number wait for the next roll, in turn, so the order stays short.', numberInput(draft.cap || 6, { min: 1, max: 30, unit: 'categories', label: 'Most categories in one roll' }, (n) => { draft.cap = n; dirty(); })),
+            field('Smooth the rolled parts into prose', 'On: after a roll that fires, the rolled parts and the last reply go to the background model, which returns one or two sentences keeping every part. That is one extra AI request per fired roll. After 8 seconds or a failure the parts are sent as rolled.',
+                select([{ value: 'off', label: 'Off' }, { value: 'on', label: 'On (one AI request per fired roll)' }], draft.polish ? 'on' : 'off', (v) => { draft.polish = v === 'on'; dirty(); redraw(); })),
+            field('Show adult option banks', 'The adult banks ship off. On lists them in each category\'s Option bank choice.',
+                select([{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }], settings().banksAdult ? 'on' : 'off', (v) => { settings().banksAdult = v === 'on'; saveSettings(); redraw(); })))));
 
     // Never together
     const pairs = pairList(draft.neverTogether);
@@ -412,13 +463,14 @@ function renderEdit(body, app) {
     const preview = h('div', { class: 'ri-preview' }, r.example || 'Press the button to see one example of what the AI would receive.');
     body.appendChild(section('Try it',
         h('div', { class: 'ri-row' }, button(cfg.example, () => {
-            const rolled = rollEvent({ type: cfg.type, categories: draft.categories, neverTogether: draft.neverTogether }, r.exampleState || null);
-            if (!rolled) { r.example = 'Nothing to roll yet. Turn on a category and give it at least one item.'; r.exampleState = null; }
-            else if (!rolled.text) { r.example = 'For this reply no category is in use (resting, or left out by chance), so nothing would be sent.'; r.exampleState = rolled.state; }
-            else { r.example = sub(wrapText(draft.sentAs, rolled.text, 0)); r.exampleState = rolled.state; }
+            const rolled = rollEvent(previewData(draft), r.exampleState || null);
+            if (!rolled) { r.example = 'Nothing to roll yet. Turn on a category and give it at least one item.'; r.exampleState = null; r.exampleRoll = null; }
+            else if (!rolled.text) { r.example = 'For this reply no category is in use (resting, or left out by chance), so nothing would be sent.'; r.exampleState = rolled.state; r.exampleRoll = rolled.roll; }
+            else { r.example = sub(wrapText(draft.sentAs, rolled.text, 0)); r.exampleState = rolled.state; r.exampleRoll = rolled.roll; }
             redraw();
         })),
         field('Exactly what the AI would receive', cfg.exampleHelp, preview),
+        r.exampleRoll ? rollRecordView(r.exampleRoll, () => previewData(draft)) : null,
         homeLink(app, cfg.kind === 'style' ? 'style-wording' : 'event-wording')));
 
     body.appendChild(section('Notes', field('Notes for yourself', 'Never sent in the chat.', textArea(draft.notes, (v) => { draft.notes = v; dirty(); }, { rows: 2 }))));
@@ -426,7 +478,7 @@ function renderEdit(body, app) {
     const save = async () => {
         const blocked = draft.categories.flatMap(c => c.items.filter(i => itemFlags(c, i.text).blocks.length).map(() => c.name));
         if (blocked.length) { toast('error', `${blocked.length} ${blocked.length === 1 ? 'item is' : 'items are'} empty (in ${[...new Set(blocked)].join(', ')}). Type something or delete ${blocked.length === 1 ? 'it' : 'them'} first.`); return; }
-        const fixedMissing = draft.categories.find(c => c.on && c.mode === 'keepFixed' && !c.items.some(i => i.on && i.id === c.fixed));
+        const fixedMissing = draft.categories.find(c => c.on && c.mode === 'keepFixed' && !(c.bank ? bankItems(c.bank) || [] : c.items).some(i => i.on && i.id === c.fixed));
         if (fixedMissing) { toast('info', `Choose the item to keep in "${fixedMissing.name}", or change how it changes.`); return; }
         try {
             await editSet(name, data => {
@@ -436,7 +488,7 @@ function renderEdit(body, app) {
                 writeEvent(data, draft, name);
             });
             r.dirty = false;
-            const ready = draft.categories.some(c => c.on && c.items.some(i => i.on));
+            const ready = draft.categories.some(c => c.on && (c.bank ? bankItems(c.bank) || [] : c.items).some(i => i.on));
             go(app, {view:'list',notice:ready ? `${c.Set} saved.` : 'Saved. It has no items to pick yet, so it sends nothing.'},c);
         } catch (e) { toast('error', `Could not save: ${e.message}`); }
     };

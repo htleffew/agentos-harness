@@ -1,0 +1,75 @@
+{
+ "id": "showtell",
+ "name": "Show and tell",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "showtell.wb.pure-tell",
+   "label": "Pure Tell",
+   "text": "In narration, show and tell should be Pure Tell: Emotions and character traits are reported plainly and explicitly. The narration says what characters feel think, and are.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Pure Tell"
+   }
+  },
+  {
+   "id": "showtell.wb.tell-weighted",
+   "label": "Tell-Weighted",
+   "text": "In narration, show and tell should be Tell-Weighted: Emotion and character traits are stated directly. Behavior supplements the statement rather than replacing it; showing is reserved for the scene's strongest beats.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Tell-Weighted"
+   }
+  },
+  {
+   "id": "showtell.wb.balanced",
+   "label": "Balanced",
+   "text": "In narration, show and tell should be Balanced: Emotion and character traits may be named where naming it is efficient, and shown using physical actions.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Balanced"
+   }
+  },
+  {
+   "id": "showtell.wb.show-weighted",
+   "label": "Show-Weighted",
+   "text": "In narration, show and tell should be Show-Weighted: Emotion and character traits is conveyed through physical actions by default. Direct statement of emotions and traits appears only where behavior would be ambiguous.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Show-Weighted"
+   }
+  },
+  {
+   "id": "showtell.wb.pure-show",
+   "label": "Pure Show",
+   "text": "In narration, show and tell should be Pure Show: Emotion and character traits is never stated. Both are conveyed through action, physical response, dialogue, and what the character attends to.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Pure Show"
+   }
+  },
+  {
+   "id": "showtell.wb.adaptive-show-and-tell",
+   "label": "Adaptive Show and Tell",
+   "text": "In narration, show and tell should be:\n- Show by default. Scene-critical emotion — turns, revelations is shown.\n- Tell where efficiency matters more than immersion. Minor emotional beats, transitional passages, and background characters are stated plainly.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Show and Tell"
+   }
+  }
+ ]
+}

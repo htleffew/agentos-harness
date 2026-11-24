@@ -1,0 +1,64 @@
+{
+ "id": "tense",
+ "name": "Tense",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "tense.wb.present-tense",
+   "label": "Present-Tense",
+   "text": "Narration is in present tense.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Present-Tense"
+   }
+  },
+  {
+   "id": "tense.wb.past-tense",
+   "label": "Past-Tense",
+   "text": "Narration is in past tense.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Past-Tense"
+   }
+  },
+  {
+   "id": "tense.hw.past-tense",
+   "label": "Past Tense",
+   "text": "\"She opened the door. The hallway stretched ahead of her.\" Events have already happened. Past tense lets you control pacing through temporal compression: \"The next three hours were quiet\" is easy. Action sequences stay punchy. Reflection feels organic.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Past Tense"
+   }
+  },
+  {
+   "id": "tense.hw.present-tense",
+   "label": "Present Tense",
+   "text": "\"She opens the door. The hallway stretches ahead of her.\" Events happen NOW. Present tense creates immediacy and urgency. the character doesn't know what happens next because it hasn't happened yet. The trade-off is pacing: you can't easily skip time, and every moment carries equal weight. Works best for action-heavy, tension-heavy, or stream-of-consciousness scenes. Harder to sustain over long sessions but electric when it lands.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Present Tense"
+   }
+  },
+  {
+   "id": "tense.hw.future-tense",
+   "label": "Future Tense",
+   "text": "\"She will open the door. The hallway will stretch ahead of her.\" Events haven't happened yet. Prophetic, dreamlike, fatalistic. This is weird and that's the point. Future tense implies inevitability: things WILL happen, and neither character nor reader can stop them. Use sparingly. Works for prophecy, fate-driven narratives, or deliberately unsettling prose. Not recommended for general RP unless you're doing something very specific.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Future Tense"
+   }
+  }
+ ]
+}

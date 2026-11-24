@@ -21,7 +21,7 @@ const state = page => page.evaluate(async B => {
         divider: document.querySelector('.ri-chapter-divider')?.textContent || '' };
 }, B);
 const settle = async page => { for (let i = 0; i < 40; i++) { await page.waitForTimeout(400); const busy = await page.evaluate(async B => { const Q = await import(`${B}/src/memory/queue.js`); const s = Q.desktopQueue().stats(); return !!s.running; }, B); if (!busy) break; } await page.waitForTimeout(600); };
-const chatRequest = () => { const all = L.requests().filter(r => /^Reply \d+\./.test(r.answer || '')); return all.at(-1); };
+const chatRequest = () => { const all = L.requests('all').filter(r => /^Reply \d+\./.test(r.answer || '')); return all.at(-1); };
 const history = r => (r?.messages || []).filter(m => !/<story_so_far>/.test(String(m.content))).map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
 const asText = r => (r?.messages || []).map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
 
@@ -56,14 +56,14 @@ async function turn(page, n) {
         const assembly = await page.evaluate(async B => (await import(`${B}/src/hide.js`)).lastChapterAssembly(), B);
         assert(assembly?.removed === 12 && assembly.inserted, 'the interceptor took 12 messages out and put the view in the same request', JSON.stringify(assembly));
         assert(s.hidden === 0, 'no hidden flag is stored on any message');
-        assert(L.requests().every(r => !/Condense these stored chapter records/.test(asText(r))), 'no condensed call at the first close');
+        assert(L.requests('all').every(r => !/Condense these stored chapter records/.test(asText(r))), 'no condensed call at the first close');
         out.closes.push({ close: 1, request: sent.length });
 
         // B. Second and third closes: one condensed call, at the third, from chapter records alone.
         L.resetLog();
         for (let n = 8; n <= 18; n++) await turn(page, n);
         s = await state(page);
-        const condensed = L.requests().filter(r => /Condense these stored chapter records/.test(asText(r)));
+        const condensed = L.requests('all').filter(r => /Condense these stored chapter records/.test(asText(r)));
         assert(s.chapters.length === 3, 'three chapters closed', String(s.chapters.length));
         assert(condensed.length === 1, 'one condensed call, at the third close', String(condensed.length));
         assert(condensed.every(r => !/<condensed>|<story_so_far>/.test(asText(r))), 'the condensed call reads stored chapter records and no earlier condensed account');

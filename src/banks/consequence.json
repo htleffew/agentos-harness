@@ -1,0 +1,416 @@
+{
+ "id": "consequence",
+ "name": "Consequence",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "consequence.pura.the-chaos-creates-an-opportunity",
+   "label": "The chaos creates an opportunity",
+   "text": "The chaos creates an opportunity.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "consequence.pura.the-chaos-creates-a-threat",
+   "label": "The chaos creates a threat",
+   "text": "The chaos creates a threat.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "consequence.pura.the-chaos-creates-a-revelation",
+   "label": "The chaos creates a revelation",
+   "text": "The chaos creates a revelation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "consequence.pura.the-chaos-creates-a-choice",
+   "label": "The chaos creates a choice",
+   "text": "The chaos creates a choice.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "consequence.pura.the-chaos-creates-a-bond",
+   "label": "The chaos creates a bond",
+   "text": "The chaos creates a bond.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "consequence.pura.the-chaos-creates-a-rift",
+   "label": "The chaos creates a rift",
+   "text": "The chaos creates a rift.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Chaos Mode"
+   }
+  },
+  {
+   "id": "consequence.pura.the-complication-creates-urgency",
+   "label": "The complication creates urgency",
+   "text": "The complication creates urgency.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "consequence.pura.the-complication-forces-a-choice-between",
+   "label": "The complication forces a choice between competing prioritie",
+   "text": "The complication forces a choice between competing priorities.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "consequence.pura.the-complication-reveals-character-throu",
+   "label": "The complication reveals character through response",
+   "text": "The complication reveals character through response.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "consequence.pura.the-complication-forces-negotiation-or-c",
+   "label": "The complication forces negotiation or cooperation",
+   "text": "The complication forces negotiation or cooperation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "consequence.pura.the-complication-exposes-a-weakness-or-l",
+   "label": "The complication exposes a weakness or limit",
+   "text": "The complication exposes a weakness or limit.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "consequence.pura.a-relationship-shifts-slightly",
+   "label": "A relationship shifts slightly",
+   "text": "A relationship shifts slightly",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-practical-problem-gets-worse",
+   "label": "A practical problem gets worse",
+   "text": "A practical problem gets worse",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-new-obligation-is-created",
+   "label": "A new obligation is created",
+   "text": "A new obligation is created",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-secret-becomes-harder-to-keep",
+   "label": "A secret becomes harder to keep",
+   "text": "A secret becomes harder to keep",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.someone-gains-leverage",
+   "label": "Someone gains leverage",
+   "text": "Someone gains leverage",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.someone-loses-face",
+   "label": "Someone loses face",
+   "text": "Someone loses face",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.the-plan-gets-messier",
+   "label": "The plan gets messier",
+   "text": "The plan gets messier",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-future-scene-gets-set-up",
+   "label": "A future scene gets set up",
+   "text": "A future scene gets set up",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.trust-is-tested-without-resolution",
+   "label": "Trust is tested without resolution",
+   "text": "Trust is tested without resolution",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.an-apology-becomes-harder",
+   "label": "An apology becomes harder",
+   "text": "An apology becomes harder",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.someone-is-drawn-in-deeper-than-intended",
+   "label": "Someone is drawn in deeper than intended",
+   "text": "Someone is drawn in deeper than intended",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-boundary-is-set-or-crossed",
+   "label": "A boundary is set or crossed",
+   "text": "A boundary is set or crossed",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-favor-is-owed",
+   "label": "A favor is owed",
+   "text": "A favor is owed",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-risk-becomes-unavoidable",
+   "label": "A risk becomes unavoidable",
+   "text": "A risk becomes unavoidable",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-misunderstanding-hardens",
+   "label": "A misunderstanding hardens",
+   "text": "A misunderstanding hardens",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-new-suspicion-takes-root",
+   "label": "A new suspicion takes root",
+   "text": "A new suspicion takes root",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.an-option-quietly-closes-off",
+   "label": "An option quietly closes off",
+   "text": "An option quietly closes off",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.someone-leaves-with-the-wrong-impression",
+   "label": "Someone leaves with the wrong impression",
+   "text": "Someone leaves with the wrong impression",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-fragile-alignment-forms",
+   "label": "A fragile alignment forms",
+   "text": "A fragile alignment forms",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-private-tension-becomes-social",
+   "label": "A private tension becomes social",
+   "text": "A private tension becomes social",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "consequence.pura.a-future-scene-is-set-up",
+   "label": "A future scene is set up.",
+   "text": "A future scene is set up.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Combined Director's Cut"
+   }
+  },
+  {
+   "id": "consequence.pura.a-choice-between-competing-priorities-be",
+   "label": "A choice between competing priorities becomes unavoidable.",
+   "text": "A choice between competing priorities becomes unavoidable.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Combined Director's Cut"
+   }
+  },
+  {
+   "id": "consequence.pura.a-weakness-or-limit-is-exposed",
+   "label": "A weakness or limit is exposed.",
+   "text": "A weakness or limit is exposed.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Combined Director's Cut"
+   }
+  },
+  {
+   "id": "consequence.ours.someone-now-owes-a-favour",
+   "label": "someone now owes {{char}} a favour",
+   "text": "someone now owes {{char}} a favour",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "consequence.ours.the-plan-has-to-start-again-from-the-beg",
+   "label": "the plan has to start again from the beginning",
+   "text": "the plan has to start again from the beginning",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "consequence.ours.two-people-part-on-worse-terms-than-they",
+   "label": "two people part on worse terms than they met",
+   "text": "two people part on worse terms than they met",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

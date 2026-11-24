@@ -482,3 +482,34 @@ button.ri-glance-card:hover { border-color: var(--ri-style-accent); }
 .ri-spend-notice[data-kind="back"] { background: transparent; }
 .ri-spend-notice-text { flex: 1 1 14em; min-width: 0; }
 .ri-spend-dismiss { min-height: var(--ri-hit-min); border-radius: var(--ri-radius); }
+
+/* ---------------------------------------------------------------- Option bank pool sheet (B37) */
+.ri-pool-btn { max-width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.ri-pool-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30020; margin: 0 auto; width: 100%; max-width: 640px; box-sizing: border-box;
+    max-height: min(60vh, calc(var(--ri-vv-height, 100vh) * 0.6)); display: flex; flex-direction: column;
+    background: var(--ri-raised); color: var(--ri-text); font-family: var(--ri-font); font-size: var(--ri-type-body);
+    border: 1px solid var(--ri-line); border-bottom: 0; box-shadow: 0 -4px 24px color-mix(in srgb, var(--ri-void) 50%, transparent);
+    padding: 0 var(--ri-pad) env(safe-area-inset-bottom, 0); overscroll-behavior: contain;
+}
+.ri-pool-grab { width: var(--ri-handle-w); height: var(--ri-gap); margin: var(--ri-gap) auto; background: var(--ri-line); }
+.ri-pool-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ri-gap) var(--ri-pad); }
+.ri-pool-title { flex: 1 1 12em; margin: 0; font-size: var(--ri-type-title); color: var(--ri-text); overflow-wrap: anywhere; }
+.ri-pool-count { flex: 1 1 100%; margin: 0; color: var(--ri-text-muted); font-size: var(--ri-type-help); }
+.ri-pool-actions { display: flex; gap: var(--ri-gap); }
+.ri-pool-tools { display: flex; flex-wrap: wrap; gap: var(--ri-gap); padding: var(--ri-gap) 0; }
+.ri-pool-search { flex: 1 1 12em; min-width: 0; min-height: var(--ri-hit-size); box-sizing: border-box; background: var(--ri-surface); color: var(--ri-text); border: 1px solid var(--ri-line); font: inherit; padding: 0 var(--ri-pad); }
+.ri-pool-tools select { min-height: var(--ri-hit-size); max-width: 100%; background: var(--ri-surface); color: var(--ri-text); border: 1px solid var(--ri-line); font: inherit; }
+.ri-pool-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: var(--ri-pad); }
+.ri-pool-row { display: flex; align-items: flex-start; gap: var(--ri-pad); min-height: var(--ri-hit-size); padding: var(--ri-gap) 0; border-bottom: 1px solid var(--ri-line-faint); cursor: pointer; }
+.ri-pool-row .ri-check { flex: 0 0 auto; width: max(18px, calc(var(--ri-hit-size) * 0.6)); height: max(18px, calc(var(--ri-hit-size) * 0.6)); margin: 0; }
+.ri-pool-row.ri-off { color: var(--ri-text-dim); }
+.ri-pool-text { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.ri-pool-label { font-size: var(--ri-type-body); color: inherit; }
+.ri-pool-sub { font-size: var(--ri-type-help); color: var(--ri-text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ri-pool-src { font-size: var(--ri-type-help); color: var(--ri-text-dim); }
+.ri-roll-record { border-left: 2px solid var(--ri-fam-line, var(--ri-line)); padding-left: var(--ri-pad); margin-top: var(--ri-pad); overflow-wrap: anywhere; }
+.ri-call-dot { display: inline-block; width: var(--ri-dot); height: var(--ri-dot); border-radius: 50%; background: var(--ri-call); margin-right: var(--ri-gap); vertical-align: middle; }
+.ri-import-row .ri-vbody { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .ri-pool-sheet { animation: none; } }
+.ri-pool-sheet { --ri-fam: var(--ri-direction); --ri-fam-tint: var(--ri-direction-tint); --ri-fam-line: var(--ri-direction-line); }

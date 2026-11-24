@@ -1,0 +1,75 @@
+{
+ "id": "depth",
+ "name": "Dialogue depth",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "depth.wb.surface-level",
+   "label": "Surface Level",
+   "text": "Depth of dialogue should be Surface Level: Speech is factual and direct, no deeper thoughts. Talk stays concrete and present-tense in scope: what characters want, see, and feel right now.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Surface Level"
+   }
+  },
+  {
+   "id": "depth.wb.grounded",
+   "label": "Grounded",
+   "text": "Depth of dialogue should be Grounded: Occasional reflection or generalization, tied closely to the scene at hand. A character may draw a conclusion about themselves or someone else, but the abstraction stays short and returns to the concrete.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Grounded"
+   }
+  },
+  {
+   "id": "depth.wb.layered",
+   "label": "Layered",
+   "text": "Depth of dialogue should be Layered: Conversations carry more than their surface. Characters argue past the ostensible subject. Abstraction is present.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Layered"
+   }
+  },
+  {
+   "id": "depth.wb.philosophical",
+   "label": "Philosophical",
+   "text": "Depth of dialogue should be Philosophical: Characters theorize, generalize, and pivot from concrete detail to abstract meaning. Digressions are permitted and extended; a conversation may leave its original subject and not return.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Philosophical"
+   }
+  },
+  {
+   "id": "depth.wb.realistic",
+   "label": "Realistic",
+   "text": "Depth of dialogue should be Realistic: Depth follows what the speaker is capable of and what the moment supports. Functional exchanges stay functional; pressure, intimacy, and idleness are the conditions under which characters reach for larger statements. Education, temperament, and self-awareness cap how abstract any given character gets.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Realistic"
+   }
+  },
+  {
+   "id": "depth.wb.simple",
+   "label": "Simple",
+   "text": "Depth of dialogue should be Simple: Talk stays concrete and present-tense in scope: what characters want, see, and feel right now.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Simple"
+   }
+  }
+ ]
+}

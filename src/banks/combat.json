@@ -1,0 +1,53 @@
+{
+ "id": "combat",
+ "name": "Combat choreography",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "combat.wb.stylized",
+   "label": "Stylized",
+   "text": "Combat should be Stylized: Fights will be cool and over-the-top akin to RWBY and Metal Gear Solid: The Twin Snakes. Impossible movement and reaction speed, sustained exchanges, environmental destruction. Fights should be described like a dance. Fights escalate through set pieces. Logic must be bent to make things cool.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Stylized"
+   }
+  },
+  {
+   "id": "combat.wb.cinematic",
+   "label": "Cinematic",
+   "text": "Combat should be Cinematic: Fights are staged for spectacle. Exchanges run long, choreography prioritizes clarity and escalation, and the environment is used deliberately.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Cinematic"
+   }
+  },
+  {
+   "id": "combat.wb.brutal",
+   "label": "Brutal",
+   "text": "Combat should be Brutal: Fights are desperate and graceless. Combatants grapple, bite, use terrain and improvised weapons, and abandon technique under pressure.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Brutal"
+   }
+  },
+  {
+   "id": "combat.wb.realistic",
+   "label": "Realistic",
+   "text": "Combat should be Realistic: Fights are short, ugly, and decided quickly. Technique is limited by fatigue, fear, and injury; exchanges last seconds.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Realistic"
+   }
+  }
+ ]
+}

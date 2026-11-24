@@ -34,17 +34,17 @@ const clearLog = (page) => page.evaluate(async (B) => (await import(`${B}/src/lo
         L.mode({ writerNeedsRoom: 999999 });
         let r = await write(page);
         console.log('empty:', r.message);
-        assert(!r.ok && /empty answer/.test(r.message) && /retry with more room could not produce an answer/.test(r.message) && /Log tab/.test(r.message), 'reason: an empty answer says so, and says a second try was made');
+        assert(!r.ok && /empty answer/.test(r.message) && /Run the action again to retry/.test(r.message), 'reason: an empty answer says so and tells the player to run the action again (the extension makes one try)');
         let e = await log(page);
-        assert(e.length === 2 && e.every(x => x.ok === false) && /second try/.test(e[0].what) && e[1].details.some(d => /Room for the answer: \d+ tokens/.test(d)) && /compliments the user/.test(e[1].sent), 'log: both tries are logged with room, connection and what was sent');
+        assert(e.length === 1 && e[0].ok === false && e[0].details.some(d => /Room for the answer: \d+ tokens/.test(d)) && /compliments the user/.test(e[0].sent), 'log: the try is logged with room, connection and what was sent');
         const rooms = L.requests().filter(q => /Return only a JSON list of strings/.test(L.text(q))).map(q => q.max_tokens);
         console.log('rooms asked for:', rooms);
-        assert(rooms.length === 2 && rooms[1] > rooms[0] * 2, 'retry: the second try asks for more room');
+        assert(rooms.length === 1, 'retry: an empty answer is not retried on its own');
 
         await clearLog(page); L.mode({ writer: '<think>I should think about this for a very long time and never finish' });
         r = await write(page);
         console.log('thinking:', r.message);
-        assert(!r.ok && /spent its whole room for the answer \(\d+ tokens\) on thinking/.test(r.message), 'reason: an answer that is only thinking says the room ran out');
+        assert(!r.ok && /used its \d+ answer tokens on thinking/.test(r.message), 'reason: an answer that is only thinking says the room ran out');
 
         await clearLog(page); L.mode({ writer: '{"oops": 1}' });
         r = await write(page);
@@ -58,28 +58,22 @@ const clearLog = (page) => page.evaluate(async (B) => (await import(`${B}/src/lo
         console.log('same:', r.message);
         assert(!r.ok && /wrote 2 versions, and every one matches a version this instruction already has/.test(r.message), 'reason: all duplicates says so');
 
-        // ----- a second try that works turns "more room" on
+        // ----- an empty first answer is reported, not retried
         await clearLog(page); L.mode({ writerNeedsRoom: 2000 });
         r = await write(page);
-        const more = await page.evaluate(async (B) => (await import(`${B}/src/store.js`)).settings().writer.moreRoom, L.BASE);
         e = await log(page);
-        console.log('retry worked:', JSON.stringify(r), 'moreRoom', more, e.map(x => `${x.what} ${x.ok}`));
-        assert(r.ok && r.n === 5 && more === true && e[0].ok === true && /second try/.test(e[0].what) && e[1].ok === false, 'retry: an empty first answer is fixed by a second try, and "more room" turns itself on');
-        r = await write(page);
-        e = await log(page);
-        assert(r.ok && e[0].ok === true && !/second try/.test(e[0].what), 'retry: with "more room" on, the first try is enough');
+        assert(!r.ok && e.length === 1 && e[0].ok === false, 'retry: an empty first answer ends the action and the Log keeps one failed entry');
 
         // ----- Log tab
-        await click(page, 'Expand');
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-tab')].find(t => t.textContent === 'Log').click());
+        await L.openPanel(page);
+        await L.openPanel(page, 'log');
         await page.waitForTimeout(300);
         const tab = await page.evaluate(() => ({ cards: document.querySelectorAll('#ri_root .ri-fold').length, failed: document.querySelectorAll('#ri_root .ri-log-failed').length, buttons: [...document.querySelectorAll('#ri_root .ri-body button')].map(b => b.textContent) }));
         console.log(JSON.stringify(tab));
-        assert(tab.cards === 3 && tab.failed === 1 && tab.buttons.includes('Copy the log') && tab.buttons.includes('Clear the log'), 'Log tab: one card per request, failed ones marked');
-        await page.evaluate(() => document.querySelector('#ri_root .ri-log-failed summary').click());
-        await page.screenshot({ path: '/tmp/s_log.png' });
+        assert(tab.cards === 1 && tab.failed === 1 && tab.buttons.includes('Copy the log') && tab.buttons.includes('Clear the log'), 'Log tab: one card per request, failed ones marked');
         const text = await page.evaluate(async (B) => (await import(`${B}/src/log.js`)).logText(), L.BASE);
-        assert(/--- What was sent ---/.test(text) && /--- What came back ---/.test(text) && /Failed/.test(text), 'Log tab: the copied text holds what was sent and what came back');
+        console.log(text.slice(0, 600));
+        assert(/--- What was sent ---/.test(text) && /Failed/.test(text), 'Log tab: the copied text holds what was sent and how it ended');
 
         // ----- a flagged version can be ticked, added and saved
         L.mode({ writer: JSON.stringify(['{{char}} must pay {{user}} a compliment about {{user.their}} work.', '{{char}} must ask what {{user}} wants.', 'User decides to kiss Seraphina.', '{{char}} must take {{user}} by the hand.', '{{char}} must tell {{user}} one thing {{char.they}} admires.']) }); await L.setSettings(page, { writer: { moreRoom: false } });
@@ -106,7 +100,7 @@ const clearLog = (page) => page.evaluate(async (B) => (await import(`${B}/src/lo
         assert(saved && saved.length === 5 && saved.some(t => /^\{\{user\}\} decides/.test(t)), 'save: an instruction with a flagged version saves');
 
         // ----- the reply check is logged
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Close full screen').click());
+        await page.evaluate(async B => (await (await import(`${B}/src/ui/panel.js`)).app.setExpanded(false)), L.BASE);
         await clearLog(page);
         await L.makeSet(page, 'Log check ' + Date.now(), [{ name: 'One', versions: ['A1'] }]);
         await L.send(page, 'Hello'); await L.waitChecks(page);

@@ -1,0 +1,207 @@
+{
+ "id": "register",
+ "name": "Prose register",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "register.wb.plain",
+   "label": "Plain",
+   "text": "Vocabulary level of narration prose should be Plain: Common words only. Concrete nouns, everyday verbs, no elevated synonyms, informal.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Plain (Everyday words)"
+   }
+  },
+  {
+   "id": "register.wb.clean",
+   "label": "Clean",
+   "text": "Vocabulary level of narration prose should be Clean: Standard contemporary novel prose. Precise word choice.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Clean (Standard Novel Prose)"
+   }
+  },
+  {
+   "id": "register.wb.literary",
+   "label": "Literary",
+   "text": "Vocabulary level in narration prose should be Literary: Deliberate, textured diction. Uncommon words are used where they carry meaning a common word wouldn't.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Literary"
+   }
+  },
+  {
+   "id": "register.wb.purple",
+   "label": "Purple",
+   "text": "Vocabulary level in narration prose choices should be Purple: Elevated register throughout. Formal syntax, Latinate word choice, rare and archaic words used freely.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Purple"
+   }
+  },
+  {
+   "id": "register.wb.adaptive-based-on-protagonist",
+   "label": "Adaptive Based on Protagonist",
+   "text": "Vocabulary level in narration lexicon should be Adaptive: Narration lexicon derives from the POV character's profile: class, education, age, occupation, and era appropriate word choice.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Based on Protagonist"
+   }
+  },
+  {
+   "id": "register.wb.ornate",
+   "label": "Ornate",
+   "text": "Vocabulary level of narration prose should be Ornate: Elevated register throughout. Formal syntax, Latinate word choice, rare and archaic words used freely.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Ornate"
+   }
+  },
+  {
+   "id": "register.hw.roleplay-prose",
+   "label": "Roleplay Prose",
+   "text": "*This is how it reads.* \"Dialogue sits in quotes.\" *Everything that isn't speech wraps in asterisks — movement, sensation, environment, reaction.* Action grounds the scene, dialogue moves it.\n\nPUNCTUATION:\n— *Asterisks* hold all narration: action, description, environment, body language\n— \"Double quotes\" hold all spoken dialogue\n— *Italics inside asterisks* for unspoken thought\n— Paragraph break between speakers\n\nRHYTHM:\n*Two to four sentences of action.* \"Then dialogue.\" *Then reaction.* Action grounds the scene, dialogue moves it, reaction colors it. Action paragraphs: four sentences max. Anchor every dialogue exchange with action. The asterisk and the quote take turns. That's the rhythm.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Roleplay Prose"
+   }
+  },
+  {
+   "id": "register.hw.literary-prose",
+   "label": "Literary Prose",
+   "text": "There are no asterisks here. The prose does its own structural work; actions unfold within sentences, carried by clauses and subordinate structures that never need a formatting crutch. Dialogue arrives in quotes, yes, but embedded in paragraph (never floating alone on its line). Attribution is syntax: she said, he murmured, they didn’t answer.\n\nPUNCTUATION:\n— No asterisks. No formatting markers. Narration is unmarked prose.\n— \"Double quotes\" for dialogue, embedded within paragraphs\n— Semicolons join related thoughts; colons introduce what follows: lists, revelations, the thing the sentence has been building toward.\n— Parenthetical commas for asides, subordinate clauses, the thought-within-the-thought.\n— Em dashes for interruption or pivot. Ellipses for the trailing, unfinished thought...\n— The period, used sparingly and deliberately. For emphasis. For finality.\n\nRHYTHM:\nSentence length varies with purpose: short sentences land. Longer ones carry the reader through a thought that needs space to unfold, subordinate clauses layering meaning the way conversation layers subtext, building toward a resolution the reader can feel arriving before the period confirms it. Full paragraphs; prose-dense. Description, action, and dialogue coexist within the same paragraph (not separated by formatting). Every sentence is a choice, not a default.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Literary Prose"
+   }
+  },
+  {
+   "id": "register.hw.pulp-fiction",
+   "label": "Pulp Fiction",
+   "text": "Short. Punchy. Every sentence earns its period.\n\nDialogue gets its own line.\n\"Like this.\"\nNo flowery tags. Said or nothing.\n\nPUNCTUATION:\n— Periods. Lots of them. Sentence fragments are sentences.\n— Em dashes for interrupts—\n— Ellipses for the thing nobody says...\n— \"Double quotes\" for dialogue. Minimal attribution.\n— No semicolons. No complex clauses. No subordination.\n\nRHYTHM:\nWhite space does half the work. Paragraph breaks are pacing. One thought, one paragraph, move on. Active verbs only — no was, no seemed, no appeared to be. Things happen. Then the next thing happens. Don’t describe the room. Describe the thing in the room that matters. Then get out.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Pulp Fiction"
+   }
+  },
+  {
+   "id": "register.hw.dialogue-heavy",
+   "label": "Dialogue Heavy",
+   "text": "\"This style lives in the conversation.\"\n\"Between the lines?\"\n\"Between the lines. Prose is just stage direction — who moved, who looked away, who didn’t answer fast enough. Everything that matters is spoken.\"\n\"What about description?\"\n\"One sentence. Maybe two. Then back to the talking.\"\n\nPUNCTUATION:\n— \"Double quotes\" for all dialogue\n— Action tags: one sentence max between spoken lines\n— Paragraph break per speaker, always\n— Italics for internal reaction when someone CAN’T say it\n— Minimal narration. If nobody’s talking, ask why.\n\nRHYTHM:\nScenes are conversations. Description exists to anchor the speaker — a gesture, a pause, a glance — then gets out of the way. Internal monologue runs in tight bursts between lines when the character is thinking something they won’t say. The plot advances through what people tell each other. Including what they choose not to.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Dialogue Heavy"
+   }
+  },
+  {
+   "id": "register.hw.screenplay",
+   "label": "Screenplay",
+   "text": "INT. THE SCENE — CONTINUOUS\n\nPresent tense. External only. The lens sees surfaces.\n\nCHARACTER NAME\nDialogue lives under the name. No quotes.\n\n(beat)\n(doesn’t look up)\n\nDirection describes what is VISIBLE. Not felt. Not thought. What the camera captures.\n\nPUNCTUATION:\n— INT./EXT. LOCATION — TIME for scene headers\n— CHARACTER NAME on its own line before dialogue\n— (Parenthetical) for action and beats within dialogue\n— No quotes around spoken lines\n— Present tense only. No past tense narration.\n— No internal monologue. No emotional interpretation. Surfaces only.\n\nRHYTHM:\nStage direction is lean. One line. Two if the geography matters. Then someone speaks or moves. The camera doesn’t editorialize. It doesn’t know what anyone is feeling. It knows what they DO — the glass set down too hard, the door not walked through, the hand that almost reached. Direction brings the frame. The characters bring everything else.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Screenplay"
+   }
+  },
+  {
+   "id": "register.hw.web-novel",
+   "label": "Web Novel",
+   "text": "Short paragraphs.\n\nOne idea per block. Two at most.\n\n\"Dialogue gets its own line. Always.\"\n\nScroll is the medium. White space is structure. If the thumb stops moving, you’ve lost them.\n\nPUNCTUATION:\n— Short paragraphs: 1-3 sentences max\n— \"Double quotes\" for dialogue, always on its own line\n— Line break between every beat\n— Ellipses for tension...\n— Em dash for the reveal—\n— Exclamation points are allowed. This isn’t literary. Excitement is fine.\n\nRHYTHM:\nEvery line pulls forward. Every paragraph break is a micro-hook. End on the thing that makes them keep reading — not resolution, never resolution. Pacing is aggressive. Skip transitions. Cut to the next interesting thing. If exposition needs to happen, hide it in dialogue or action. Never stop the story to explain the story.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Web Novel"
+   }
+  },
+  {
+   "id": "register.hw.standard-prose",
+   "label": "Standard Prose",
+   "text": "Plain text does the heavy lifting. No asterisks around narration or action — just clean, unformatted prose. Internal thoughts wrap in *asterisks* to set them apart from spoken and narrated text. Dialogue sits in \"double quotes\" as usual.\n\nEach named NPC's text is wrapped in a `<font color=X>` tag using a consistent hex color assigned per character. If BunnyMo's `<COLOR:>` tag is present for a character, use that exact hex code. If no color tag exists, assign one on first appearance and keep it consistent.\n\nFORMAT:\n— Plain text for all narration, action, description, environment\n— *Asterisks* for internal thought ONLY (character's private mind)\n— \"Double quotes\" for spoken dialogue\n— <font color=#HEX>NPC's complete turn text</font> wrapping each NPC's output\n\nEXAMPLE:\n<font color=#7F00FF>*Gods, another one. Crying, bowing, asking if I'm alright. Do they think I'm a child? That I'll soften if they touch that nerve? Mother would have had her thrown out for less.* The thought is bitter, automatic. A defense mechanism polished smooth by years of use.</font>\n\n\"I appreciate the concern.\" Her voice carries precisely enough warmth to be polite and not one degree more. She sets the teacup down without looking at it. \"Was there something else?\"\n\n<font color=#7F00FF>The visitor's hands are trembling. Good. That means this will be brief.</font>\n\nRULES:\n— Never use asterisks for action or narration — only for the private contents of a character's mind\n— Color assignment is per-character, per-session: once a character gets a color, they keep it\n— If multiple NPCs speak in the same turn, each gets their own color wrap\n— {{user}}'s character text is NEVER color-wrapped ({{user}} controls their own character)\n— Pick colors that are readable against dark backgrounds: avoid pure white, pure black, very dark colors\n— The color wrap contains EVERYTHING that NPC does: action, thought, dialogue, narration from their perspective",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Standard Prose"
+   }
+  },
+  {
+   "id": "register.ours.short-sentences-and-concrete-nouns",
+   "label": "short sentences and concrete nouns",
+   "text": "short sentences and concrete nouns",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "register.ours.long-flowing-sentences-with-few-adjectiv",
+   "label": "long, flowing sentences with few adjectives",
+   "text": "long, flowing sentences with few adjectives",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "register.ours.plain-words-and-brisk-rhythm",
+   "label": "plain words and brisk rhythm",
+   "text": "plain words and brisk rhythm",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "register.ours.close-attention-to-small-physical-action",
+   "label": "close attention to small physical actions",
+   "text": "close attention to small physical actions",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "register.ours.spare-description-and-plenty-of-spoken-l",
+   "label": "spare description and plenty of spoken lines",
+   "text": "spare description and plenty of spoken lines",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

@@ -42,14 +42,16 @@ const knowledge = {kind:'knowledge',id:'seen-bell',subject:'Mira',text:'The bell
 const rows = new Map();
 const valid = {modules,rows,evidence:'Mira saw that the bell warned the town.'};
 assert(normalizeRecord(knowledge,valid));
-assert.equal(normalizeRecord({...knowledge,evidence:'A leaf fell.'},{...valid,evidence:'Mira saw a leaf. A leaf fell.'}),null);
+// The quote check (memory DESIGN 7.2) asks only that the quote is in the prose; what it proves is the model's ruling.
+assert(normalizeRecord({...knowledge,evidence:'A leaf fell.'},{...valid,evidence:'Mira saw a leaf. A leaf fell.'}));
+assert.equal(normalizeRecord({...knowledge,evidence:'A bell rang twice.'},{...valid,evidence:'Mira saw a leaf. A leaf fell.'}),null);
 const seed = {id:'ring',kind:'seed',status:'open',text:'The town has a bell.',payoff:'The bell calls the hidden ferryman.',requires:['seen-bell']};
 rows.set('seen-bell',{...knowledge,basis:'rumor'});
 assert.equal(gate(seed,rows,200,{}),false);
 rows.set('seen-bell',knowledge);
 assert.equal(gate(seed,rows,200,{}),true);
 const payoff = {...seed,status:'done',outcome:'The ferryman brought the missing lantern.'};
-assert(!normalizeRecord({...payoff,evidence:'Snow started.'},{...valid,evidence:'Snow started.'}));
+assert(!normalizeRecord({...payoff,evidence:'Snow started.'},{...valid,evidence:'The ferry left at dawn.'}));
 assert(normalizeRecord({...payoff,evidence:payoff.outcome},{...valid,evidence:payoff.outcome,clock:200}));
 rows.set('old',{kind:'arc',status:'retired',realized:true});
 assert.equal(gate({...seed,requires:['old']},rows,200,{}),true);
@@ -133,4 +135,5 @@ assert.deepEqual(flaggedNpcNames(arrival,arrivalState,{established:['elara']}),[
 assert.deepEqual(flaggedNpcNames(arrival,arrivalState,{prior:()=> 'Marcus Vale waited outside. Elara rang the bell.'}),[]);
 assert.deepEqual(flaggedNpcNames(arrival,arrivalState,{list:''}),[]);
 assert.doesNotMatch(cleanTurn,new RegExp(DEFAULT_NPC_AVOID.split('\n').join('|')));
-assert.match(cleanTurn,/Express them in plain affirmative language/);
+// Story state is captured after the reply (memory DESIGN 5.1, MB3): the turn asks for no update block.
+assert.doesNotMatch(cleanTurn,/story_update|repairChanges/);

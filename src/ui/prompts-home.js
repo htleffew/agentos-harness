@@ -33,7 +33,7 @@ const PAGE_PROMPTS = {
     writing: ['proseReview', 'groundedRealism', 'heightenedRealism', 'sceneSolo', 'sceneEnsemble', 'sceneUnknown', 'sceneContinue',
         'checkPhysical', 'checkSocial', 'checkCraft', 'checkContinuity'],
     checks: ['resolvedActionGuidance', 'dice'],
-    v10: ['playerDraft', 'playerChoices', 'playerExpansion', 'planGuidance', 'proseFirst', 'parityEvaluation'],
+    v10: ['playerDraft', 'playerChoices', 'playerExpansion', 'planGuidance', 'proseFirst', 'conflictCheck'],
     display: ['structuredRoast', 'roastFeedback', ...Object.keys(VOICES)],
     settings: ['guided', 'guidedContinue', 'historicalSwipe', 'historicalContinue', 'freshStart', 'checker', 'systemCheck', 'scene', 'profile', 'stateContext', 'dice'],
 };

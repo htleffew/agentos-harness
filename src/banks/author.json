@@ -1,0 +1,339 @@
+{
+ "id": "author",
+ "name": "Author's style",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "author.ours.shirley-jackson",
+   "label": "Shirley Jackson",
+   "text": "In the manner of Shirley Jackson: small domestic details that slowly turn wrong, told in a calm and reasonable voice.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.p-g-wodehouse",
+   "label": "P. G. Wodehouse",
+   "text": "In the manner of P. G. Wodehouse: elaborate comic similes, a cheerful narrator and people talking themselves into trouble.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.raymond-chandler",
+   "label": "Raymond Chandler",
+   "text": "In the manner of Raymond Chandler: first-person wisecracks under hard city light, with sharp similes and tired honesty.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.jane-austen",
+   "label": "Jane Austen",
+   "text": "In the manner of Jane Austen: dry irony about manners and money, with the narrator's judgment tucked inside polite sentences.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.ernest-hemingway",
+   "label": "Ernest Hemingway",
+   "text": "In the manner of Ernest Hemingway: short declarative sentences, concrete nouns, and feeling left under the surface.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.virginia-woolf",
+   "label": "Virginia Woolf",
+   "text": "In the manner of Virginia Woolf: thought moving from one mind to the next, long sentences that follow attention.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.cormac-mccarthy",
+   "label": "Cormac McCarthy",
+   "text": "In the manner of Cormac McCarthy: long rolling sentences joined by \"and\", plain speech without quotation marks, a hard landscape.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.terry-pratchett",
+   "label": "Terry Pratchett",
+   "text": "In the manner of Terry Pratchett: warm satire, footnote-style asides worked into the prose, and jokes that turn out to be about people.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.ursula-k-le-guin",
+   "label": "Ursula K. Le Guin",
+   "text": "In the manner of Ursula K. Le Guin: calm, exact prose, a world described through its customs, and choices with weight.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.agatha-christie",
+   "label": "Agatha Christie",
+   "text": "In the manner of Agatha Christie: brisk scenes, clues placed in plain sight, and characters sketched by one telling habit.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.elmore-leonard",
+   "label": "Elmore Leonard",
+   "text": "In the manner of Elmore Leonard: the story carried by dialogue, loose and funny, with the narration staying out of the way.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.charles-dickens",
+   "label": "Charles Dickens",
+   "text": "In the manner of Charles Dickens: vivid eccentrics, lists that run on for comic effect, and a narrator who takes sides.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.kazuo-ishiguro",
+   "label": "Kazuo Ishiguro",
+   "text": "In the manner of Kazuo Ishiguro: a restrained narrator who reveals more than they mean to, gently and too late.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.neil-gaiman",
+   "label": "Neil Gaiman",
+   "text": "In the manner of Neil Gaiman: a fairy-tale cadence, ordinary places with a door to somewhere strange, a light touch on dread.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.toni-morrison",
+   "label": "Toni Morrison",
+   "text": "In the manner of Toni Morrison: rich, rhythmic prose, memory pressing on the present, and names that carry history.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.douglas-adams",
+   "label": "Douglas Adams",
+   "text": "In the manner of Douglas Adams: deadpan cosmic absurdity, long sentences that end on a joke, and bureaucracy as comedy.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.anne-rice",
+   "label": "Anne Rice",
+   "text": "In the manner of Anne Rice: lush sensual description, a confessing narrator, and old houses full of feeling.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.stephen-king",
+   "label": "Stephen King",
+   "text": "In the manner of Stephen King: a chatty, close voice, brand names and small-town detail, and fear growing out of the everyday.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.hilary-mantel",
+   "label": "Hilary Mantel",
+   "text": "In the manner of Hilary Mantel: close present tense inside one shrewd mind, history felt as gossip and danger.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.haruki-murakami",
+   "label": "Haruki Murakami",
+   "text": "In the manner of Haruki Murakami: a detached first-person voice, ordinary routines, and strange events accepted calmly.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.donna-tartt",
+   "label": "Donna Tartt",
+   "text": "In the manner of Donna Tartt: a looking-back narrator, lush detail of rooms and drink, and guilt that colours everything.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.mark-twain",
+   "label": "Mark Twain",
+   "text": "In the manner of Mark Twain: a vernacular voice, tall-tale exaggeration, and satire aimed at the respectable.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.patricia-highsmith",
+   "label": "Patricia Highsmith",
+   "text": "In the manner of Patricia Highsmith: close to a clever, amoral mind, with everyday details made uneasy.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.dashiell-hammett",
+   "label": "Dashiell Hammett",
+   "text": "In the manner of Dashiell Hammett: hard, flat narration of what people do and say, with motives left for the reader.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.leigh-bardugo",
+   "label": "Leigh Bardugo",
+   "text": "In the manner of Leigh Bardugo: quick, witty ensemble scenes, schemes within schemes, and wounded people who joke.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.george-r-r-martin",
+   "label": "George R. R. Martin",
+   "text": "In the manner of George R. R. Martin: one point-of-view character at a time, politics and appetite, and food described in detail.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.diana-wynne-jones",
+   "label": "Diana Wynne Jones",
+   "text": "In the manner of Diana Wynne Jones: brisk, funny magic, bickering families, and plots that fold back on themselves.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.oscar-wilde",
+   "label": "Oscar Wilde",
+   "text": "In the manner of Oscar Wilde: epigrams in conversation, elegant surfaces, and moral rot treated as a joke.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.rainbow-rowell",
+   "label": "Rainbow Rowell",
+   "text": "In the manner of Rainbow Rowell: warm, funny, specific detail of ordinary life and feelings said out loud with care.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "author.ours.sarah-waters",
+   "label": "Sarah Waters",
+   "text": "In the manner of Sarah Waters: careful period detail, slow-building desire, and a twist that rereads what came before.",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

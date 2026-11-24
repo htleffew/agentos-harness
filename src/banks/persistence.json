@@ -1,0 +1,53 @@
+{
+ "id": "persistence",
+ "name": "Consequence persistence",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "persistence.wb.realistic",
+   "label": "Realistic",
+   "text": "Consequences in the story are Realistic: injury, damage, and loss do not reverse. Wounds heal at realistic rates or not at all, broken things stay broken unless repaired, and the dead stay dead.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Realistic"
+   }
+  },
+  {
+   "id": "persistence.wb.persistent",
+   "label": "Persistent",
+   "text": "Consequences in the story are Persistent: damage carries forward but does not accumulate. Injuries heal faster than realistically, property is repaired between arcs somehow, and characters recover, but nothing resets within a scene.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Persistent"
+   }
+  },
+  {
+   "id": "persistence.wb.soft",
+   "label": "Soft",
+   "text": "Consequences in the story are Soft: damage matters while a scene is running and fades between them. Characters arrive at the next scene functional. Destruction goes unremarked or repaired once the scene ends.\nDo not reference wounds from the previous scene.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Soft"
+   }
+  },
+  {
+   "id": "persistence.wb.reset",
+   "label": "Reset",
+   "text": "Consequences in the story are Reset: damage and injuries matters while a scene is running and fades between them. Characters arrive at the next scene completely healed. Destruction is completely repaired next scene.\nDo not reference injuries or wounds from previous scene.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Reset"
+   }
+  }
+ ]
+}

@@ -27,11 +27,9 @@ const L=require('./lib.js');
         L.resetLog();
         await composer.fill('Unsent player draft.');
         await composer.evaluate(input=>input.setSelectionRange(2,8));
+        // B3 moved authoring to Quick actions, Library (t_quick_action_setup.js covers the form); the saved nudge is stored directly here.
+        await page.evaluate(async ({base,title})=>(await import(base+'/src/quick-actions.js')).saveQuickAction({family:'steer',title,text:'Let the cloud clear.'}),{base:L.BASE,title});
         await family('Steer the next reply');
-        await click('Create saved nudge');
-        await sheet.getByLabel('Button name',{exact:true}).fill(title);
-        await sheet.getByLabel('Direction',{exact:true}).fill('Let the cloud clear.');
-        await click('Save button');
         await click(title);
         await direction().fill('Local pending wording.');
         assert.equal(L.requests().length,0);

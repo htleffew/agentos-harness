@@ -1,0 +1,185 @@
+{
+ "id": "tension",
+ "name": "Tension",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "tension.pura.direct-disagreement",
+   "label": "Direct disagreement",
+   "text": "Direct disagreement",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.avoidance-and-deflection",
+   "label": "Avoidance and deflection",
+   "text": "Avoidance and deflection",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.competing-priorities",
+   "label": "Competing priorities",
+   "text": "Competing priorities",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.emotional-asymmetry",
+   "label": "Emotional asymmetry",
+   "text": "Emotional asymmetry",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.status-imbalance",
+   "label": "Status imbalance",
+   "text": "Status imbalance",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.misread-intentions",
+   "label": "Misread intentions",
+   "text": "Misread intentions",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.moral-disagreement",
+   "label": "Moral disagreement",
+   "text": "Moral disagreement",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.uneven-vulnerability",
+   "label": "Uneven vulnerability",
+   "text": "Uneven vulnerability",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.conflicting-loyalties",
+   "label": "Conflicting loyalties",
+   "text": "Conflicting loyalties",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.one-sided-urgency",
+   "label": "One-sided urgency",
+   "text": "One-sided urgency",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.territorial-friction",
+   "label": "Territorial friction",
+   "text": "Territorial friction",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.testing-boundaries",
+   "label": "Testing boundaries",
+   "text": "Testing boundaries",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.unspoken-resentment",
+   "label": "Unspoken resentment",
+   "text": "Unspoken resentment",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.practical-dependence-without-trust",
+   "label": "Practical dependence without trust",
+   "text": "Practical dependence without trust",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.different-ideas-of-what-this-moment-is",
+   "label": "Different ideas of what this moment is",
+   "text": "Different ideas of what this moment is",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "tension.pura.flirtation-masked-as-something-else",
+   "label": "Flirtation masked as something else",
+   "text": "Flirtation masked as something else",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  }
+ ]
+}

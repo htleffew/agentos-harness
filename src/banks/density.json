@@ -1,0 +1,75 @@
+{
+ "id": "density",
+ "name": "Paragraph density",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "density.wb.minimal",
+   "label": "Minimal",
+   "text": "Paragraphs should be Minimal: One to two sentences of narration per paragraph. Frequent paragraph breaks; heavy white space. \nDialogues are unaffected and don't count as sentences.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Minimal (1-2 sentences)"
+   }
+  },
+  {
+   "id": "density.wb.light",
+   "label": "Light",
+   "text": "Paragraphs should be Light: One to three sentences of narration per paragraph. Breaks come often.\nDialogues are unaffected and don't count as sentences.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Light (1-3 sentences)"
+   }
+  },
+  {
+   "id": "density.wb.standard",
+   "label": "Standard",
+   "text": "Paragraphs should be Standard: one to five sentences of narration per paragraph. Conventional novel paragraphing; a paragraph holds one beat and closes. \nDialogues are unaffected and don't count as sentences.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Standard (1-5 sentences)"
+   }
+  },
+  {
+   "id": "density.wb.full",
+   "label": "Full",
+   "text": "Paragraphs should be Full: one to eight sentences per paragraph. Paragraphs accumulate detail before breaking; a single block can carry an entire action or observation sequence. \nDialogues are unaffected and don't count as sentences.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Full (1-8 sentences)"
+   }
+  },
+  {
+   "id": "density.wb.dense",
+   "label": "Dense",
+   "text": "Paragraphs should be Dense: Eight or more sentences of narration per paragraph. Breaks occur only at hard shifts in subject or scene; description, action, and interiority together. \nDialogues are unaffected and don't count as sentences.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Dense (8+ sentences)"
+   }
+  },
+  {
+   "id": "density.wb.adaptive-density",
+   "label": "Adaptive Density",
+   "text": "Paragraphs should be Adaptive: Determine required number of sentences of narration needed per paragraph for scene. Use as much it the scene demands. Developmental and transitional scenes should have 1-5 sentences, reactive should have 1-2, climax can be 1-8. \nDialogues are unaffected and don't count as sentences.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Density"
+   }
+  }
+ ]
+}

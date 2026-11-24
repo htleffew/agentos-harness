@@ -1,0 +1,12 @@
+{
+ "prompts": [
+  { "identifier": "main", "name": "Main Prompt", "content": "You narrate a story. Keep the facts straight." },
+  { "identifier": "flavour", "name": "Flavour Roller", "content": "{{// Readme: pick a flavour each turn. {{random::not::a::list}}}}{{trim}}\n### Flavour Roller\nThis scene leans on:\n{{random::Lantern: warm light and long shadows.::Harbour: wet rope, gulls and arguments over money.::Orchard: ripe fruit, wasps and old ladders.::Foundry: heat, soot and shouted orders.}}\n**Weather:** {{random::Fog rolls in::A dry wind picks up::Hail rattles the roof}}\nMood: {{random::Brittle::Sleepy::Giddy::Sour}}\nRules:\n- Keep it light." },
+  { "identifier": "gate", "name": "Rare Surprise", "content": "Surprise: {{random::::.::0::A goose wanders in and steals a hat.::.}}" },
+  { "identifier": "copy", "name": "Flavour Roller Copy", "content": "Same flavours again: {{random::Lantern: warm light and long shadows.::Harbour: wet rope, gulls and arguments over money.::Orchard: ripe fruit, wasps and old ladders.::Foundry: heat, soot and shouted orders.}}" },
+  { "identifier": "kinky", "name": "Spicy Roller (NSFW)", "content": "Heat: {{random::Slow tease::Playful dare::Candlelit}}" }
+ ],
+ "prompt_order": [ { "character_id": 100001, "order": [
+  { "identifier": "main", "enabled": true }, { "identifier": "flavour", "enabled": true }, { "identifier": "gate", "enabled": true },
+  { "identifier": "copy", "enabled": true }, { "identifier": "kinky", "enabled": false } ] } ]
+}

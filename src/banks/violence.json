@@ -1,0 +1,64 @@
+{
+ "id": "violence",
+ "name": "Violence intensity",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "violence.wb.restrained",
+   "label": "Restrained",
+   "text": "Violence should be Restrained: Violence is depicted without dwelling. The injury is summarized quickly.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Restrained"
+   }
+  },
+  {
+   "id": "violence.wb.grounded",
+   "label": "Grounded",
+   "text": "Violence should be Grounded: Violence carries physical consequence. Wounds are described, pain persists, and injury affects what a character can do afterward.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Grounded"
+   }
+  },
+  {
+   "id": "violence.wb.unflinching",
+   "label": "Unflinching",
+   "text": "Violence should be Unflinching: Nothing is spared or omitted. Extended graphic detail, prolonged suffering, and the full physical reality of death are on the page for as long as the scene lasts.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Unflinching"
+   }
+  },
+  {
+   "id": "violence.wb.visceral",
+   "label": "Visceral",
+   "text": "Violence should be Visceral: Violence is rendered in sensory detail: the specific mechanics of injury, sound, texture, blood, the body's failure.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Visceral"
+   }
+  },
+  {
+   "id": "violence.wb.adaptive-violence",
+   "label": "Adaptive Violence",
+   "text": "Violence should be match intensity to the scene's stakes. Incidental violence and skirmishes stay restrained: The injury is summarized quickly. \nViolence with consequence for a named character, injury that matters, death, torture, rises to visceral: the specific mechanics of injury, sound, texture, blood, the body's failure.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Violence"
+   }
+  }
+ ]
+}

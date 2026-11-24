@@ -1,0 +1,31 @@
+{
+ "id": "adult-genre",
+ "name": "Adult: genre",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-genre.hw.dead-dove",
+   "label": "Dead Dove",
+   "text": "Dead Dove: Section: Exposed Nerve. The tag warned you.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "PITH Dead Dove"
+   }
+  },
+  {
+   "id": "adult-genre.hw.smut",
+   "label": "Smut",
+   "text": "Smut: Department of Shameless Escalation. Knows exactly where to put the camera and keeps it there.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "SLICK Smut"
+   }
+  }
+ ]
+}

@@ -1,0 +1,273 @@
+{
+ "id": "social",
+ "name": "Social weather",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "social.pura.everyone-is-a-little-tired",
+   "label": "Everyone is a little tired",
+   "text": "Everyone is a little tired",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-distracted-by-something-else",
+   "label": "Someone is distracted by something else",
+   "text": "Someone is distracted by something else",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-wants-out-of-the-conversation",
+   "label": "Someone wants out of the conversation",
+   "text": "Someone wants out of the conversation",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-unusually-generous",
+   "label": "Someone is unusually generous",
+   "text": "Someone is unusually generous",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-touchy-and-easy-to-set-off",
+   "label": "Someone is touchy and easy to set off",
+   "text": "Someone is touchy and easy to set off",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-wants-approval-more-than-they-ad",
+   "label": "Someone wants approval more than they admit",
+   "text": "Someone wants approval more than they admit",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-bored-and-making-it-everyone-",
+   "label": "Someone is bored and making it everyone's problem",
+   "text": "Someone is bored and making it everyone's problem",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-trying-to-keep-the-peace",
+   "label": "Someone is trying to keep the peace",
+   "text": "Someone is trying to keep the peace",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-carrying-private-embarrassmen",
+   "label": "Someone is carrying private embarrassment",
+   "text": "Someone is carrying private embarrassment",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-more-uncomfortable-than-they-",
+   "label": "Someone is more uncomfortable than they admit",
+   "text": "Someone is more uncomfortable than they admit",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-feels-watched",
+   "label": "Someone feels watched",
+   "text": "Someone feels watched",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-in-a-better-mood-than-the-sce",
+   "label": "Someone is in a better mood than the scene deserves",
+   "text": "Someone is in a better mood than the scene deserves",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-spoiling-for-a-reaction",
+   "label": "Someone is spoiling for a reaction",
+   "text": "Someone is spoiling for a reaction",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-more-affected-than-they-want-",
+   "label": "Someone is more affected than they want to show",
+   "text": "Someone is more affected than they want to show",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-treating-this-as-lighter-than",
+   "label": "Someone is treating this as lighter than it is",
+   "text": "Someone is treating this as lighter than it is",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.pura.someone-is-overcompensating-for-earlier-",
+   "label": "Someone is overcompensating for earlier weakness",
+   "text": "Someone is overcompensating for earlier weakness",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Scene Pressure Cocktail"
+   }
+  },
+  {
+   "id": "social.ours.someone-is-tired-and-short-with-everyone",
+   "label": "someone is tired and short with everyone",
+   "text": "someone is tired and short with everyone",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "social.ours.someone-keeps-changing-the-subject",
+   "label": "someone keeps changing the subject",
+   "text": "someone keeps changing the subject",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "social.ours.someone-is-trying-too-hard-to-be-liked",
+   "label": "someone is trying too hard to be liked",
+   "text": "someone is trying too hard to be liked",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "social.ours.someone-is-hiding-how-worried-they-are",
+   "label": "someone is hiding how worried they are",
+   "text": "someone is hiding how worried they are",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "social.ours.someone-is-enjoying-the-trouble-a-little",
+   "label": "someone is enjoying the trouble a little too much",
+   "text": "someone is enjoying the trouble a little too much",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "social.ours.someone-is-waiting-for-a-chance-to-leave",
+   "label": "someone is waiting for a chance to leave",
+   "text": "someone is waiting for a chance to leave",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "social.ours.someone-keeps-glancing-at-the-door",
+   "label": "someone keeps glancing at the door",
+   "text": "someone keeps glancing at the door",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "social.ours.someone-has-had-a-drink-or-two-already",
+   "label": "someone has had a drink or two already",
+   "text": "someone has had a drink or two already",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

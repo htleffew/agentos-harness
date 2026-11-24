@@ -200,18 +200,18 @@ const chatLore = (page, name) => page.evaluate((name) => { const c = globalThis.
 
         // ----- K. the panel
         await L.setSettings(page, { home: S });
-        await click(page, 'Expand');
-        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'settings'; P.app.render(); }, L.BASE);
+        await L.openPanel(page);
+        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'set-rules'; P.app.render(); }, L.BASE);
         await page.waitForTimeout(400);
         const ui = await page.evaluate(([S, own2]) => {
-            const sec = [...document.querySelectorAll('#ri_root .ri-section')].find(s => /Where your sets are kept/.test(s.textContent));
+            const sec = [...document.querySelectorAll('#ri_root .ri-section, #ri_root details, #ri_root section')].reverse().find(s => /Where your sets are kept/.test(s.textContent) && s.querySelector('.ri-where'));
             const rows = [...sec.querySelectorAll('.ri-where')].map(r => ({ name: r.querySelector('.ri-where-name').firstChild.textContent, kind: r.querySelector('.ri-where-kind').textContent, value: r.querySelector('select').value }));
             return { home: sec.querySelector('select').value, mine: rows.filter(r => (['Alpha', 'Beta', 'Happenings', 'Voice'].includes(r.name) && r.value === S) || r.name === own2), moveAll: [...sec.querySelectorAll('button')].map(b => b.textContent).find(x => /^Move all/.test(x)) || '' };
         }, [S, out.r.id]);
         console.log('settings:', JSON.stringify(ui));
         assert(ui.home === S && ui.mine.length === 5 && ui.mine.filter(r => r.value === S).length === 4 && ui.mine.find(r => r.name === out.r.id).value === '', 'panel: Settings shows where new sets go and where each set is kept');
         assert(/^Move all/.test(ui.moveAll), 'panel: a button offers to move the sets that are elsewhere into the shared lorebook');
-        await page.evaluate(() => { const sec = [...document.querySelectorAll('#ri_root .ri-section')].find(s => /Where your sets are kept/.test(s.textContent)); sec.scrollIntoView(); });
+        await page.evaluate(() => { const sec = [...document.querySelectorAll('#ri_root .ri-section, #ri_root details, #ri_root section')].reverse().find(s => /Where your sets are kept/.test(s.textContent) && s.querySelector('.ri-where')); sec.scrollIntoView(); });
         await page.screenshot({ path: '/tmp/s51_where.png' });
         // move one set with the control in Settings
         await page.evaluate(([name, S]) => { const row = [...document.querySelectorAll('#ri_root .ri-where')].find(r => r.querySelector('.ri-where-name').firstChild.textContent === name); const sel = row.querySelector('select'); sel.value = S; sel.dispatchEvent(new Event('change', { bubbles: true })); }, [out.r.id, S]);
@@ -220,12 +220,7 @@ const chatLore = (page, name) => page.evaluate((name) => { const c = globalThis.
         console.log('moved with the control:', JSON.stringify(afterUi));
         assert(afterUi.length === 1 && afterUi[0].startsWith(S + '|'), 'panel: choosing a lorebook in Settings moves the set there');
         // a new set made with the panel's own button goes into the shared lorebook
-        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'instructions'; P.app.go({ view: 'sets' }); }, L.BASE);
-        await page.waitForTimeout(300);
-        await click(page, 'Add instruction set');
-        await page.waitForSelector('dialog[open] .popup-input', { timeout: 5000 });
-        await page.fill('dialog[open] .popup-input', 'Made in panel');
-        await page.click('dialog[open] .popup-button-ok');
+        await L.addSet(page, 'instructions', 'Made in panel');
         await page.waitForFunction(() => document.querySelector('#ri_root .ri-h2')?.textContent === 'Made in panel' && /Kept in the shared lorebook/.test(document.querySelector('#ri_root .ri-kept')?.textContent || ''), null, { timeout: 8000 });
         const panelMade = await page.evaluate(async ([B, S]) => { const K = await import(`${B}/src/books.js`); const P = await import(`${B}/src/ui/panel.js`); return { route: P.app.route.name, info: K.setInfo(P.app.route.name), kept: document.querySelector('#ri_root .ri-kept').textContent, title: document.querySelector('#ri_root .ri-h2').textContent }; }, [L.BASE, S]);
         console.log('panel set:', JSON.stringify(panelMade));

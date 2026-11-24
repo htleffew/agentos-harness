@@ -181,9 +181,9 @@ export function paceSection(app) {
             textInput(p.line || '', (v) => { p.line = v; save(); }, { placeholder: 'Nothing is sent' })),
         h('div', { class: 'ri-row ri-row-tight' }, button('Delete this phase', () => { o.phases.splice(i, 1); save(); app.render(); }, { kind: 'danger' }))));
     return section('Pacing',
-        field('Quiet after a big event (replies)', 'After a big event has happened, nothing new starts for this many replies, across every set, the goal and the story world. What is already under way carries on. Big events are: story event sets marked "Events from this set are big", and an open thread of the story world coming to a head. 0 turns this off.',
+        field('Calm after a big event (replies)', 'After a big event has happened, nothing new starts for this many replies, across every set, the goal and the story world. What is already under way carries on. Big events are: story event sets marked "Events from this set are big", and an open thread of the story world coming to a head. 0 turns this off.',
             numberInput(o.quiet, { min: 0, max: 20, unit: 'replies' }, (n) => { o.quiet = n; save(); })),
-        field('Order a character who has gone quiet (replies)', 'Needs a story world. A character of the world who has been in the scene for this many replies, and is named in the story text of none of them, is ordered to speak or act. The order counts as the one new thing of that reply and is checked. 0 turns this off.',
+        field('Order a character who has gone silent (replies)', 'Needs a story world. A character of the world who has been in the scene for this many replies, and is named in the story text of none of them, is ordered to speak or act. The order counts as the one new thing of that reply and is checked. 0 turns this off.',
             numberInput(o.silent, { min: 0, max: 30, unit: 'replies' }, (n) => { o.silent = n; save(); })),
         field('Story phases', o.phasesOn ? 'A phase starts at a reply number and lasts until the next one starts. It changes how often something new starts, and it can send a line of its own.' : 'Off: every chance stays as you set it for the whole chat.',
             onOff(o.phasesOn, (v) => { o.phasesOn = v; save(); app.render(); })),

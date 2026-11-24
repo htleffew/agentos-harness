@@ -13,6 +13,7 @@ import { listLoadouts, saveLoadout, updateLoadout, renameLoadout, deleteLoadout,
 import { ensureLibrary, libraryStatus, switchContext, resolvedSwitches, switchScope, setSwitches, pinSwitches, bulkSwitches,
     bulkUndoAvailable, undoBulkSwitches, featureBlockIds, blockFeatures, workingCopyOff, currentMarker, applyWorkingCopy, restoreWorkingCopy,
     onPresetSelected, syncOwners, onSwitchChange, editPresetBlock, presetBlockRevision } from '../preset-workbench.js';
+import { installBankHooks } from '../preset-bank.js';
 
 export const PAGE_ID = 'presets';
 const hint = text => h('p', { class: 'ri-help' }, text);
@@ -273,6 +274,7 @@ export function mountPresetsPage() {
         help: 'Choose Ours, Theirs or Both for each feature the preset also offers, read its blocks and save loadouts.',
         aliases: 'preset ours theirs switch loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
     ensureLibrary();
+    installBankHooks();
     on('GENERATION_STARTED', () => { try { applyWorkingCopy(); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });
     for (const name of ['CHAT_COMPLETION_PROMPT_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED']) on(name, restoreWorkingCopy);
     on('OAI_PRESET_CHANGED_AFTER', () => { state.status = ''; onPresetSelected(); syncProfile('preset'); });

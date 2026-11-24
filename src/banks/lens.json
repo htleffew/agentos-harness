@@ -1,0 +1,207 @@
+{
+ "id": "lens",
+ "name": "Voice lens",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "lens.hw.newlywed",
+   "label": "Newlywed",
+   "text": "Newlywed: Cloud nine. Everything glows. The world is generous and you believe it.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "NEWLYWED"
+   }
+  },
+  {
+   "id": "lens.hw.grieving",
+   "label": "Grieving",
+   "text": "Grieving: Carrying weight. Every word costs something. You write around the shape of what's missing.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "GRIEVING"
+   }
+  },
+  {
+   "id": "lens.hw.sleepless",
+   "label": "Sleepless",
+   "text": "Sleepless: 3am. Raw. Edges blurring. Clarity comes in flashes between the fog.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "SLEEPLESS"
+   }
+  },
+  {
+   "id": "lens.hw.apex",
+   "label": "Apex",
+   "text": "Apex: Top of your game. Everything clicks. Bold choices because you can afford them.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "APEX"
+   }
+  },
+  {
+   "id": "lens.hw.burnout",
+   "label": "Burnout",
+   "text": "Burnout: Going through motions. Sparks are rare. When one comes, it's blinding.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "BURNOUT"
+   }
+  },
+  {
+   "id": "lens.hw.displaced",
+   "label": "Displaced",
+   "text": "Displaced: New city. Everything unfamiliar. You notice what locals have stopped seeing.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "DISPLACED"
+   }
+  },
+  {
+   "id": "lens.hw.masking",
+   "label": "Masking",
+   "text": "Masking: Performing fine. Cracks showing. The surface is immaculate. Underneath, not so much.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MASKING"
+   }
+  },
+  {
+   "id": "lens.hw.first-day",
+   "label": "First Day",
+   "text": "First Day: Everything is new. Trying too hard. The enthusiasm is genuine and slightly exhausting.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "FIRST DAY"
+   }
+  },
+  {
+   "id": "lens.hw.hungover",
+   "label": "Hungover",
+   "text": "Hungover: Too loud. Too bright. Painful clarity. The filter between observation and page is tissue-thin.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "HUNGOVER"
+   }
+  },
+  {
+   "id": "lens.hw.numb",
+   "label": "Numb",
+   "text": "Numb: Nothing lands. Flat affect. Then something small breaks through.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "NUMB"
+   }
+  },
+  {
+   "id": "lens.hw.pent-up",
+   "label": "Pent-Up",
+   "text": "Pent-Up: Wound tight. Everything is almost. The fuse is lit but it hasn't gone off yet.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "PENT-UP"
+   }
+  },
+  {
+   "id": "lens.hw.mindbroken",
+   "label": "Mindbroken",
+   "text": "Mindbroken: Past thinking. Past words. The brain checked out and the body stayed.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MINDBROKEN"
+   }
+  },
+  {
+   "id": "lens.ours.the-morning-after-a-sleepless-night",
+   "label": "The morning after a sleepless night",
+   "text": "the narrator sees everything through the morning after a sleepless night: too bright, slow, and easily irritated",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "lens.ours.the-first-week-in-a-new-city",
+   "label": "The first week in a new city",
+   "text": "the narrator sees everything through the first week in a new city: alert, a little lost, noticing what locals ignore",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "lens.ours.the-day-after-very-good-news",
+   "label": "The day after very good news",
+   "text": "the narrator sees everything through the day after very good news: generous, light, ready to forgive",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "lens.ours.waiting-for-an-answer",
+   "label": "Waiting for an answer",
+   "text": "the narrator sees everything through someone waiting for an important answer: distracted, counting time",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "lens.ours.back-home-after-years-away",
+   "label": "Back home after years away",
+   "text": "the narrator sees everything through someone back home after years away: what changed, what did not",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "lens.ours.the-last-day-before-leaving",
+   "label": "The last day before leaving",
+   "text": "the narrator sees everything through the last day before leaving: everything is being seen for the final time",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

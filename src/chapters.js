@@ -33,6 +33,7 @@ import { MEMORY, fold, forgetFold, revisionOf, storedMark } from './memory/fold.
 import * as SF from './memory/story-so-far.js';
 import { desktopQueue } from './memory/queue.js';
 import { storyWorld } from './memory/story-world-book.js';
+import { remainderForChapter, chapterWithCapture } from './memory/capture.js';
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
 const chatId = () => String(ctx().getCurrentChatId?.() || '');
@@ -1287,10 +1288,17 @@ async function writeChapterJob(span, { why = '', manual = false, signal } = {}) 
     const titles = chapters.filter(ch => ch.last < span.from).slice(-3).map(ch => ch.record.title || ch.record.subject);
     const sources = spanSources(chat, span.from, span.to);
     const base = { chat, from: span.from, to: span.to, cast, textOf: chapterText };
-    const call = await writerCall('chapter', { system: SF.CHAPTER_SYSTEM, schema: SF.CHAPTER_SCHEMA, prompt: o => SF.chapterPrompt({ ...base, titles, ...o }),
+    // Replies still uncaptured inside the chapter ride in this call, so they are filed before their messages leave the
+    // request (memory DESIGN 7.2, MB3): their exchanges follow the chapter input and the answer carries them in "capture".
+    const remainder = span.rebuild ? null : await remainderForChapter(span.to, { from: span.from }).catch(() => null);
+    const withRemainder = remainder ? chapterWithCapture(remainder) : null;
+    const call = await writerCall('chapter', { system: withRemainder ? `${SF.CHAPTER_SYSTEM}\n\n${withRemainder.system}` : SF.CHAPTER_SYSTEM,
+        schema: withRemainder ? withRemainder.schema(SF.CHAPTER_SCHEMA) : SF.CHAPTER_SCHEMA,
+        prompt: o => [SF.chapterPrompt({ ...base, titles, ...o }), withRemainder?.user].filter(Boolean).join('\n\n'),
         check: a => SF.checkChapter(a, { ...base, places }), label: `Chapter close, messages ${span.from} to ${span.to}`, signal, background: !manual });
     if (!call.ok) return { ok: false, waiting: call.waiting, reason: call.reason };
     if (call.problems.length) return { ok: true, value: { failed: { problems: call.problems, answer: call.answer, from: storedMark(chat[span.from]), to: storedMark(chat[span.to]), why } } };
+    if (remainder && call.answer?.capture) await remainder.commit(call.answer.capture, { route: call.route, model: call.model });
     const record = SF.chapterRecord(call.answer, { chat, from: span.from, to: span.to, id: span.rebuild });
     const anchor = { mark: record.to };
     const inputs = [{ op: span.rebuild ? 'revise' : 'add', target: span.rebuild ? [span.rebuild] : [], record, origin: { type: 'chapter', route: call.route, model: call.model },

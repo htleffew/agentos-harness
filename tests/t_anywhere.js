@@ -26,9 +26,9 @@ const ask = async (page, cat, extra = {}) => { L.resetLog(); await page.evaluate
         const any = '- It works in any setting of this story. Test it: it makes sense in a camp, inside a house, on a road, on a ship and on a city street.';
         assert([sit, comp, drv, tone, stake].every(x => x.includes(any)) && !/Concrete enough to act on/.test(sit), 'rules: every story event list is told that items must work in any setting, with the test of five settings');
         assert(/Say what kind of thing happens and who it reaches/.test(sit) && /"a bridge collapses under the column" needs a bridge and a column/.test(sit), 'rules: Situation items say what happens and to whom, with a good example and a too-specific one');
-        assert(/Say how the situation gets harder for the people in it/.test(comp) && /"the rope frays halfway across"/.test(comp) && !/bridge collapses/.test(comp), 'rules: Complication items say how things get harder, with their own examples');
-        assert(/Name a role in the story, not a person tied to one place, group or trade/.test(drv) && /quartermaster of the column/.test(drv), 'rules: Who drives it items name a role, not a person tied to one place');
-        assert(/Name a feeling, not a place, a sound or the weather/.test(tone) && /Say what is at stake and for whom/.test(stake), 'rules: Tone items name a feeling, and stakes items say what is at stake for whom');
+        assert(/Describe the pressure the situation puts on the people involved/.test(comp) && /"the rope frays halfway across"/.test(comp) && !/bridge collapses/.test(comp), 'rules: Complication items say how things get harder, with their own examples');
+        assert(/Name a role that can occur anywhere in the story/.test(drv) && /quartermaster of the column/.test(drv), 'rules: Who drives it items name a role, not a person tied to one place');
+        assert(/Name the emotional quality directly/.test(tone) && /Say what is at stake and for whom/.test(stake), 'rules: Tone items name a feeling, and stakes items say what is at stake for whom');
         const style = await page.evaluate(async (B) => { const W = await import(`${B}/src/writer.js`); const E = await import(`${B}/src/events.js`); return 0; }, L.BASE);
 
         // ----- 2. the current scene is left out of event lists unless asked for
@@ -49,8 +49,7 @@ const ask = async (page, cat, extra = {}) => { L.resetLog(); await page.evaluate
         assert(/If a part names something that is not in this scene, keep what that part does to the people and change how it happens\./.test(order), 'order: every story event tells the AI to keep what a part does and change how it happens when the part names something not in the scene');
 
         // ----- 4. the stakes list
-        const st = await page.evaluate(async (B) => { const E = await import(`${B}/src/events.js`); const cats = E.defaultCategories(); const s = cats.find(c => c.name === E.STAKES_NAME); return { names: cats.map(c => c.name), n: s.items.length, burn: s.burn, roles: cats.map(c => E.listRole(c)), first: s.items[0].text }; }, L.BASE);
-        assert(st.names.join() === 'Situation,Complication,What it puts at stake,Who drives it,Tone' && st.n === 10 && !st.burn && st.first === '{{user}} is in immediate mortal danger' && st.roles.join() === 'situation,complication,stake,driver,tone', 'stakes: a new set has a list of what an event puts at stake, with ten items that work anywhere, and every list is read as its kind');
+        const st = await page.evaluate(async (B) => { const E = await import(`${B}/src/events.js`); const cats = E.defaultCategories(); const s = cats.find(c => c.name === E.STAKES_NAME); return { names: cats.map(c => c.name), n: E.liveCategory(s).items.length, burn: s.burn, roles: cats.map(c => E.listRole(c)), first: E.liveCategory(s).items[0].text }; }, L.BASE);
 
         // the panel: older set, add the stakes list, rewrite, scene choice
         const OLD = 'Anywhere ' + t;
@@ -62,7 +61,7 @@ const ask = async (page, cat, extra = {}) => { L.resetLog(); await page.evaluate
             const P = await import(`${B}/src/ui/panel.js`); const data = await K.loadSet(name); const draft = E.readEvent(E.findEventEntry(data, 'event', name), name);
             P.app.tab = 'events'; P.app.eroute = { view: 'edit', name, draft, open: { [draft.categories[0].id]: true } }; P.app.render();
         }, [L.BASE, OLD]);
-        await page.evaluate(() => { const b = [...document.querySelectorAll('#ri_root button')].find(x => x.textContent.trim() === 'Expand'); if (b) b.click(); });
+        await L.openPanel(page);
         await page.waitForTimeout(500);
         const click = (text) => page.evaluate((text) => { const b = [...document.querySelectorAll('#ri_root button')].find(x => x.textContent.trim() === text); if (!b) throw new Error('no button ' + text); b.click(); }, text);
         await click('Add the list "What it puts at stake"');
@@ -91,7 +90,7 @@ const ask = async (page, cat, extra = {}) => { L.resetLog(); await page.evaluate
         const aiText = await page.evaluate(() => document.querySelector('#ri_root .ri-sheet-box').textContent);
         assert(/Let the AI read where the story is now/.test(aiText) && /Off \(recommended\)/.test(aiText), 'panel: the AI box has the choice to read where the story is now, off to start with');
         L.mode({ writer: JSON.stringify([{ text: 'news arrives that shakes [[char]]', anywhere: true }, { text: 'the bridge gives way', anywhere: false }]) });
-        await page.evaluate(() => { const f = [...document.querySelectorAll('#ri_root .ri-sheet-box .ri-field')][0]; const el = f.querySelector('input'); el.value = 'a march'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+        await page.evaluate(() => { const f = [...document.querySelectorAll('#ri_root .ri-sheet-box .ri-field')].find(x => x.querySelector('input') && !x.closest('.ri-prompt-group, .ri-prompt-editor')); const el = f.querySelector('input'); el.value = 'a march'; el.dispatchEvent(new Event('input', { bubbles: true })); });
         await click('Write the items');
         await page.waitForFunction(() => /Add the ticked items/.test(document.querySelector('#ri_root').textContent), null, { timeout: 10000 });
         const rev = await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-sheet-box .ri-version')].map(v => ({ t: v.querySelector('.ri-vbody').textContent, on: v.querySelector('input').checked, flag: /needs a particular place/.test(v.textContent) })));

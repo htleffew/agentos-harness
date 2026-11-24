@@ -1,11 +1,9 @@
-import { ctx, parseJson } from './st.js';
+import { ctx } from './st.js';
 import { settings, saveSettings, chatState, saveChatState } from './store.js';
-import { activePreset, defaultWritingGuidance, PREFLIGHT, prefs, MODULES, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
+import { activePreset, prefs, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
 import { FEATURES, FEATURE_KEYS, MEMORY_FEATURES, DEFAULT_SIDE, isSide, startingSwitches, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
 import { readMarker, makeMarker } from './preset-loadouts.js';
-import { MODULE_PROMPTS } from './module-layout.js';
-import { promptText, roastVoiceText } from './prompts.js';
-import { request } from './ai.js';
+import { currentBank, refreshBank, stackFor, stackPlan, ownersFromStack, useBankLibrary, presetSource, SOURCE_BASE, SOURCE_COMPANION, SOURCE_RI } from './preset-bank.js';
 
 const own = (obj,key) => obj && Object.hasOwn(obj,key) ? obj[key] : undefined;
 function put(obj,key,value) {
@@ -233,40 +231,6 @@ export async function editPresetBlock(preset,id,change) {
         }
     });
 }
-export function savePair(preset,id,keys) {
-    const all=settings().promptPairs ||= {};
-    const per=own(all,preset) || {};
-    if (keys===null) delete per[id];
-    else put(per,id,keys.filter(key=>Object.hasOwn(MODULES,key)));
-    put(all,preset,per); saveSettings();
-}
-export async function evaluateParity(rows) {
-    const blocks=rows.filter(row=>!row.marker);
-    const modules=Object.fromEntries(Object.entries(MODULES).map(([key,label])=>[key,{label,instructions:MODULE_PROMPTS[key].map(id=>promptText(id))}]));
-    modules.style.instructions.unshift(prefs()?.style ?? defaultWritingGuidance());
-    modules.preflight.instructions.unshift(prefs()?.preflight ?? PREFLIGHT);
-    modules.roast.instructions.push(roastVoiceText());
-    // Give every block representation even for very large imported presets.
-    const excerptLimit=Math.min(4000, Math.max(100, Math.floor(120000/Math.max(1,blocks.length))));
-    const input=blocks.map(({id,name,content})=>{
-        if (content.length<=excerptLimit) return {id,name,content};
-        const n=Math.floor(excerptLimit/3), middle=Math.floor((content.length-n)/2);
-        return {id,name,excerpts:[content.slice(0,n),content.slice(middle,middle+n),content.slice(-n)]};
-    });
-    const result=await request({operation:'presetParity',authorization:'manual',what:'Compare preset blocks and extension modules',promptSystemId:'parityEvaluation',
-        user:JSON.stringify({modules,blocks:input}),tokens:3500});
-    const parsed=parseJson(result.text);
-    if (!Array.isArray(parsed)) { result.note('Could not read suggestions.',false); throw new Error('The model returned an unreadable comparison. Your settings are unchanged.'); }
-    const ids=new Set(input.map(p=>p.id)), seen=new Set();
-    const suggestions=parsed.filter(item=>{
-        if (!ids.has(item?.id) || !Object.hasOwn(MODULES,item.module) || typeof item.reason!=='string') return false;
-        const key=JSON.stringify([item.id,item.module]); if (seen.has(key)) return false;
-        seen.add(key); return true;
-    });
-    result.note(`Received ${suggestions.length} valid suggested pairings.`);
-    return suggestions;
-}
-
 // Per-feature Ours or Theirs switch (DESIGN.md 7). Switches save per preset edition in extension settings;
 // a chat can pin its own copy in its metadata. A loadout's marker supplies its switches when it is selected.
 let library = null;
@@ -278,10 +242,10 @@ const notify = () => { for (const fn of listeners) { try { fn(); } catch (error)
 export function ensureLibrary() {
     if (libraryState !== 'idle') return;
     libraryState = 'loading';
-    loadLibrary().then(data => { library = data; libraryState = data ? 'ready' : 'missing'; syncOwners(); notify(); });
+    loadLibrary().then(data => { library = data; libraryState = data ? 'ready' : 'missing'; useBankLibrary(data); syncOwners(); notify(); });
 }
 export const libraryStatus = () => libraryState;
-export function useLibrary(data) { library = data; libraryState = data ? 'ready' : 'missing'; recognized.clear(); }
+export function useLibrary(data) { library = data; libraryState = data ? 'ready' : 'missing'; recognized.clear(); useBankLibrary(data); }
 
 const recognized = new Map();
 function recognizeCached(name, data) {
@@ -396,47 +360,259 @@ export function currentMarker(context) {
         switches: resolvedSwitches(context), off: context.companion ? [] : oursOnly(context, resolvedSwitches(context)) });
 }
 
+// ----------------------------------------------------------------------------------------------------------------------
+// The stack as the working copy (A11 c.9 and d.3, ticket B30).
+//
+// The stack of the selected base (preset-bank.js) is applied for the length of one prompt assembly. When a generation
+// starts, the live prompt order switches off base blocks she took out, switches on base blocks she put in that ship off,
+// takes her order when she moved base blocks, and gains a namespaced copy of every other card that is on (another preset,
+// the companion, her customized versions); when the prompt is ready, or the generation ends or stops, the live arrays get
+// back the very objects they held. The saved preset file and the stored stack are never written here.
+// A base block she has not tapped in the stack keeps its live state, so a toggle in SillyTavern's prompt manager still
+// applies. The extension's own cards (ri::) are sent by the extension in its fixed group; the stack sets their owners.
+//
+// The interim Ours, Theirs and Both switch keeps its current path until the bank page ships (B32): Both changes nothing,
+// an Ours tap also switches that feature's preset blocks off in the working copy, and a Theirs tap sets the owner 'preset'.
+
+/** Inserted prompts carry this flag, so a copy left in the live arrays by a crash is found and removed at the next start. */
+export const INSERT_FLAG = 'ri_bank_insert';
+const JOURNAL = 'roleplay_instructions_working_copy';
+const isInsert = prompt => !!prompt && prompt[INSERT_FLAG] === true;
+function journalStore() { try { return globalThis.localStorage || null; } catch { return null; } }
+function readJournal() { try { return JSON.parse(journalStore()?.getItem(JOURNAL) || 'null'); } catch { return null; } }
+function writeJournal(value) { try { if (value) journalStore()?.setItem(JOURNAL, JSON.stringify(value)); else journalStore()?.removeItem(JOURNAL); } catch { /* No storage: the insert flag still finds stale copies. */ } }
+
+/** The bank source of the selected base: its own preset source, or the companion source for the companion preset. */
+function baseSourceOf(bank, base) {
+    const sid = bank?.sids && Object.hasOwn(bank.sids, base) ? bank.sids[base] : '';
+    if (sid && bank.sources.has(presetSource(sid))) return bank.sources.get(presetSource(sid));
+    return isCompanionPreset(base) ? bank?.sources?.get(SOURCE_COMPANION) || null : null;
+}
+
 /**
- * Mirror the switches into the chat's module owners, which effectiveModules() reads: Theirs maps to 'preset'
- * (the extension sends none of its text for it). Ours and Both map to 'both': the extension runs the feature and the host
- * blocks stand. They differ in the working copy, which takes the preset's blocks out of the request for Ours only.
+ * The stack plan the working copy sends for a context: { bank, stack, plan, source }, or null for a loadout (it sends as
+ * saved), a host with no preset list, or a base the bank does not hold. Reading it saves a starting stack the first time.
+ */
+export function workingPlan(context = switchContext()) {
+    if (!context || context.marker) return null;
+    let bank = currentBank() || refreshBank('working-copy');
+    // A preset saved or imported since the last refresh is read now rather than after the scheduled refresh.
+    if (!baseSourceOf(bank, context.preset)) bank = refreshBank('working-copy');
+    const source = baseSourceOf(bank, context.preset);
+    if (!source) return null;
+    const stack = stackFor(bank, context.preset, context.data);
+    if (!stack) return null;
+    return { bank, stack, source, plan: stackPlan(bank, stack, context.preset) };
+}
+
+/**
+ * Mirror the stack into the chat's module owners, which effectiveModules() reads: the extension's card for a feature on in
+ * the stack gives 'both', taken out gives 'preset' (the extension sends none of its text and runs none of it). A feature
+ * whose card was never in the stack follows its own on or off setting ('both'). A Theirs tap on the interim switch gives
+ * 'preset'; a loadout keeps the owners its marker's switches give.
  */
 export const ownerFor = side => side === 'theirs' ? 'preset' : 'both';
-export function syncOwners(context = switchContext()) {
-    if (!context || context.companion || !chatState()) return false;
-    const switches = resolvedSwitches(context);
+export function syncOwners(context = switchContext(), work = undefined) {
+    if (!context || !chatState()) return false;
+    const switches = context.companion ? {} : resolvedSwitches(context);
+    const switched = new Set(context.features.switched.map(item => item.key));
+    let wanted;
+    const plan = context.marker ? null : (work === undefined ? workingPlan(context) : work)?.plan;
+    if (!plan) wanted = Object.fromEntries([...switched].map(key => [key, ownerFor(switches[key])]));
+    else {
+        // Her versions of an extension card are sent as inserted blocks; the owner follows the extension's own card.
+        const cards = plan.filter(item => item.source === SOURCE_RI);
+        const fromStack = ownersFromStack(cards);
+        const placed = new Set(cards.map(item => item.id));
+        wanted = Object.fromEntries(FEATURE_KEYS.map(key => [key,
+            switched.has(key) && switches[key] === 'theirs' ? 'preset' : placed.has(key) ? fromStack[key] : 'both']));
+        // The companion pairs its own scene checks with the extension's (hostSceneChecks reads an explicit 'both' on
+        // preflight as unpaired), so on it a preflight card taken out sets an owner and putting it back clears that owner.
+        // Every other feature gets 'both' as on any preset: with no owner, a block the stack sends that matches a feature
+        // (an Internal States Template copied in from another preset) would hand the feature to the preset.
+        const held = chatState().v10?.moduleOwners?.[context.preset] || {};
+        if (context.companion && wanted.preflight === 'both') { if (held.preflight === 'preset') wanted.preflight = undefined; else delete wanted.preflight; }
+    }
     const owners = chatState().v10?.moduleOwners?.[context.preset] || {};
     let changed = false;
-    for (const item of context.features.switched) {
-        const value = ownerFor(switches[item.key]);
-        if (owners[item.key] !== value) { setModuleOwner(context.preset, item.key, value); changed = true; }
+    for (const [key, value] of Object.entries(wanted)) {
+        if (owners[key] !== value) { setModuleOwner(context.preset, key, value); changed = true; }
     }
     return changed;
 }
 
-// The working copy is applied for the length of one prompt assembly: the Ours blocks are switched off in the live
-// prompt order when a generation starts and switched back when the prompt is ready, so the saved preset file and
-// SillyTavern's own preset state never change.
+/** Remove inserted prompts a crash left in the live arrays, and put back the flags and text the journal recorded. */
+function clearStale(data, preset) {
+    const order = sequence(data);
+    const journal = readJournal();
+    writeJournal(null);
+    if (!Array.isArray(order) || !Array.isArray(data?.prompts)) return 0;
+    const stale = new Set(data.prompts.filter(isInsert).map(prompt => prompt.identifier));
+    let removed = 0;
+    if (stale.size) {
+        const keep = data.prompts.filter(prompt => !isInsert(prompt));
+        removed = data.prompts.length - keep.length;
+        data.prompts.splice(0, data.prompts.length, ...keep);
+        const live = new Set(keep.map(prompt => prompt.identifier));
+        const rows = order.filter(entry => !(stale.has(entry.identifier) && !live.has(entry.identifier)));
+        order.splice(0, order.length, ...rows);
+    }
+    if (journal?.preset === preset) {
+        const entries = new Map(order.map(entry => [entry.identifier, entry]));
+        for (const flag of journal.flags || []) {
+            const entry = entries.get(flag.id);
+            if (!entry || entry.enabled !== flag.sent) continue;
+            if (flag.had) entry.enabled = flag.value; else delete entry.enabled;
+        }
+        const prompts = new Map(data.prompts.map(prompt => [prompt.identifier, prompt]));
+        for (const text of journal.texts || []) {
+            const prompt = prompts.get(text.id);
+            if (prompt && prompt.content === text.sent) prompt.content = text.value;
+        }
+        const ids = journal.order || [];
+        const now = order.map(entry => entry.identifier);
+        if (ids.length === now.length && new Set(ids).size === ids.length && ids.every(id => entries.has(id)) && ids.some((id, i) => id !== now[i])) {
+            order.splice(0, order.length, ...ids.map(id => entries.get(id)));
+        }
+    }
+    return removed;
+}
+
+/** An identifier no live prompt uses: the card's send id, with ~2, ~3 and so on added when the base already has it. */
+function freeId(id, used) {
+    let value = id;
+    for (let n = 2; used.has(value); n++) value = `${id}~${n}`;
+    used.add(value);
+    return value;
+}
+function insertedPrompt(item, identifier) {
+    const placement = item.placement || {};
+    return { identifier, name: item.label ? `${item.name} (${item.label})` : item.name, role: item.role || 'system', content: item.text,
+        system_prompt: false, marker: false, injection_position: placement.position === 1 ? 1 : 0,
+        injection_depth: Number.isInteger(placement.depth) ? placement.depth : 4, injection_order: Number.isInteger(placement.order) ? placement.order : 100,
+        injection_trigger: Array.isArray(placement.triggers) ? [...placement.triggers] : [], forbid_overrides: false, [INSERT_FLAG]: true };
+}
+
+/**
+ * The live order the stack gives, without touching the live arrays: the entries in send order, the prompts to insert,
+ * the flags to set and the texts to swap. Pure over its inputs, so tests and the page can read it.
+ */
+export function workingCopyChanges(data, work, off = []) {
+    const order = sequence(data);
+    const out = { order: [...order], inserts: [], flags: [], texts: [] };
+    const live = new Map();
+    for (const prompt of data.prompts) if (prompt?.identifier && !live.has(prompt.identifier)) live.set(prompt.identifier, prompt);
+    const entryOf = new Map();
+    for (const entry of order) if (entry?.identifier && !entryOf.has(entry.identifier)) entryOf.set(entry.identifier, entry);
+    const stored = new Map(work.source.cards.map(card => [card.id, card]));
+    const used = new Set(data.prompts.map(prompt => prompt?.identifier).filter(Boolean));
+    const main = work.plan.filter(item => item.group === 'main');
+    const isBase = item => item.source === SOURCE_BASE && live.has(item.id);
+    // Her order applies once she has moved a base block: the stack's base sequence then differs from the saved one.
+    const baseIds = main.filter(item => isBase(item) && entryOf.has(item.id)).map(item => item.id);
+    const inStack = new Set(baseIds);
+    const savedIds = work.source.cards.filter(card => card.listed && inStack.has(card.id)).map(card => card.id);
+    if (baseIds.some((id, i) => id !== savedIds[i])) {
+        const sorted = baseIds.map(id => entryOf.get(id));
+        let anchor = null;
+        for (const entry of order) {
+            if (inStack.has(entry.identifier) && entryOf.get(entry.identifier) === entry) { anchor = entry; continue; }
+            // A live row the stack does not hold stays after the row it followed in the live order.
+            sorted.splice(anchor ? sorted.indexOf(anchor) + 1 : 0, 0, entry);
+            anchor = entry;
+        }
+        out.order = sorted;
+    }
+    const firstBase = () => { const at = out.order.findIndex(entry => inStack.has(entry.identifier)); return at < 0 ? out.order.length : at; };
+    let anchor = null;
+    const place = entry => {
+        const at = anchor ? out.order.indexOf(anchor) + 1 : firstBase();
+        out.order.splice(at, 0, entry);
+        anchor = entry;
+    };
+    for (const item of main) {
+        if (isBase(item)) {
+            const prompt = live.get(item.id);
+            const entry = entryOf.get(item.id);
+            const card = stored.get(item.id);
+            // Only her tap changes a base block: on in the stack and off as shipped, or the reverse.
+            const tapped = !card || item.on !== card.shippedOn;
+            let want = entry ? entry.enabled === true : false;
+            if (tapped) want = item.on;
+            if (off.includes(item.id)) want = false;
+            if (!entry) {
+                if (want) { const row = { identifier: item.id, enabled: true }; place(row); out.flags.push({ entry: row, added: true }); }
+                continue;
+            }
+            anchor = entry;
+            if ((entry.enabled === true) !== want) out.flags.push({ entry, value: want });
+            if (item.on && item.status === 'changed' && !prompt.marker && typeof item.text === 'string' && prompt.content !== item.text) out.texts.push({ prompt, value: item.text });
+            continue;
+        }
+        if (!item.on || item.marker) continue;
+        const identifier = freeId(item.sendId || item.key, used);
+        const prompt = insertedPrompt(item, identifier);
+        out.inserts.push(prompt);
+        place({ identifier, enabled: true });
+    }
+    // An Ours tap on the interim switch also covers preset rows the stack does not hold.
+    const flagged = new Set(out.flags.map(flag => flag.entry));
+    for (const entry of order) if (off.includes(entry.identifier) && entry.enabled === true && !flagged.has(entry)) out.flags.push({ entry, value: false });
+    // Her versions of the extension's cards go with the RI group, at the placement the card carries (depth 0 at the end).
+    for (const item of work.plan.filter(entry => entry.group === 'ri' && entry.source !== SOURCE_RI && entry.on)) {
+        const identifier = freeId(item.sendId || item.key, used);
+        out.inserts.push(insertedPrompt(item, identifier));
+        out.order.push({ identifier, enabled: true });
+    }
+    return out;
+}
+
 let applied = null;
 export function applyWorkingCopy() {
     restoreWorkingCopy();
     const c = ctx();
     if (c.mainApi && c.mainApi !== 'openai') return 0;
+    const data = c.chatCompletionSettings;
+    const order = sequence(data);
+    if (!Array.isArray(order) || !Array.isArray(data?.prompts)) return 0;
+    const name = activePreset();
+    clearStale(data, name);
     const context = switchContext();
-    if (!context || !enabledV10()) return 0;
-    syncOwners(context);
-    const off = new Set(workingCopyOff(context));
-    const order = sequence(context.data);
-    if (!off.size || !Array.isArray(order)) return 0;
-    const changed = order.filter(entry => off.has(entry.identifier) && entry.enabled === true);
-    for (const entry of changed) entry.enabled = false;
-    applied = { order, entries: changed };
-    return changed.length;
+    // With the extension off for the chat, or a loadout selected, the preset sends as saved.
+    if (!context || context.marker || !enabledV10()) return 0;
+    const work = workingPlan(context);
+    syncOwners(context, work);
+    // A base the bank cannot read (no preset list on this host) still gets the interim switch's Ours taps.
+    const changes = workingCopyChanges(data, work || { source: { cards: [] }, plan: [] }, workingCopyOff(context));
+    const unchanged = !changes.inserts.length && !changes.flags.length && !changes.texts.length && changes.order.every((entry, i) => entry === order[i]);
+    if (unchanged) return 0;
+    const snapshot = { prompts: data.prompts, order, promptList: [...data.prompts], entries: [...order], flags: [], texts: [] };
+    for (const { entry, value, added } of changes.flags) {
+        if (added) continue;
+        snapshot.flags.push({ entry, had: Object.hasOwn(entry, 'enabled'), value: entry.enabled, sent: value });
+        entry.enabled = value;
+    }
+    for (const { prompt, value } of changes.texts) {
+        snapshot.texts.push({ prompt, value: prompt.content, sent: value });
+        prompt.content = value;
+    }
+    data.prompts.push(...changes.inserts);
+    order.splice(0, order.length, ...changes.order);
+    applied = snapshot;
+    writeJournal({ preset: name, order: snapshot.entries.map(entry => entry.identifier),
+        flags: snapshot.flags.map(flag => ({ id: flag.entry.identifier, had: flag.had, value: flag.value, sent: flag.sent })),
+        texts: snapshot.texts.map(text => ({ id: text.prompt.identifier, value: text.value, sent: text.sent })) });
+    return changes.inserts.length + changes.flags.length + changes.texts.length;
 }
 export function restoreWorkingCopy() {
     if (!applied) return;
-    for (const entry of applied.entries) entry.enabled = true;
+    const snapshot = applied;
     applied = null;
+    snapshot.prompts.splice(0, snapshot.prompts.length, ...snapshot.promptList);
+    snapshot.order.splice(0, snapshot.order.length, ...snapshot.entries);
+    for (const flag of snapshot.flags) { if (flag.had) flag.entry.enabled = flag.value; else delete flag.entry.enabled; }
+    for (const text of snapshot.texts) text.prompt.content = text.value;
+    writeJournal(null);
 }
 
 /** When a loadout becomes active, drop unsaved switch edits for it so its marker's switches are restored. */

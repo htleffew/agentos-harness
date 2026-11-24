@@ -1,0 +1,75 @@
+{
+ "id": "rhythm",
+ "name": "Sentence rhythm",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "rhythm.wb.standard",
+   "label": "Standard",
+   "text": "Sentences in narration should be Standard: Use multiclausal sentences to vary prose rhythm.\nDoes not affect dialogue",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Standard"
+   }
+  },
+  {
+   "id": "rhythm.wb.sprawling",
+   "label": "Sprawling",
+   "text": "Sentences in narration should be Sprawling: Long, clause-heavy sentences run as the default. \nDoes not affect dialogue",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sprawling"
+   }
+  },
+  {
+   "id": "rhythm.wb.percussive",
+   "label": "Percussive",
+   "text": "Sentences in narration should be Percussive: Short punchy sentences dominate. Fragments are permitted.\nDoes not affect dialogue",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Percussive"
+   }
+  },
+  {
+   "id": "rhythm.wb.dynamic",
+   "label": "Dynamic",
+   "text": "Sentences in narration should be Dynamic: Sentence length follows what the scene is doing. Use multiclausal sentences to vary prose rhythm.\n- Physical action: short sentences and fragments. Visceral verbs, minimal subordination. \"He lunged. A crack of bone. Pain exploded.\"\n- Interiority and observation: longer, subordinated sentences that let a thought extend. The scene may pause while the character thinks.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Dynamic"
+   }
+  },
+  {
+   "id": "rhythm.wb.uniform",
+   "label": "Uniform",
+   "text": "Sentences in narration should be Uniform: Sentences hold a consistent length and shape. Little variation between adjacent sentences. \nDoes not affect dialogue",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Uniform"
+   }
+  },
+  {
+   "id": "rhythm.ours.one-long-then-one-short",
+   "label": "One long, then one short",
+   "text": "one long sentence and then a short one, as a repeating pattern",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

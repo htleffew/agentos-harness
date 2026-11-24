@@ -3,7 +3,8 @@ import { promptText } from './prompts.js';
 // Complication, ...), each with a list of items. When the entry fires, dice pick items from the categories that
 // are on, and one order is sent: an event must happen, built from those parts.
 import { itemFits, fillNeed, NEEDS } from './pacing.js';
-import { SENT_AS, blankEntry, entriesOf, keepTags, toStore, keepToSticky, waitToCooldown, replyNumberToDelay, stickyToKeep, cooldownToWait, delayToReplyNumber, pickWeighted, rollInt } from './books.js';
+import { SENT_AS, blankEntry, entriesOf, keepTags, toStore, keepToSticky, waitToCooldown, replyNumberToDelay, stickyToKeep, cooldownToWait, delayToReplyNumber, rollInt } from './books.js';
+import { bankItems, bankVersion, seededRandom, pickSeeded, joinValues, gatedRoll, newSeed, DEFAULT_CAP, DEFAULT_GATE_MAX, SEND_RULES } from './banks.js';
 
 export const MODES = {
     new: { label: 'New pick every time', help: 'Each event gets a fresh pick from this category.' },
@@ -14,9 +15,14 @@ export const MODES = {
 let counter = 0;
 export const newId = () => `${Date.now().toString(36)}${(counter++).toString(36)}${rollInt(1296).toString(36)}`;
 
+/**
+ * One category. bank: the option bank it draws from ('' uses its own items). pool: the ticked item ids (none ticked
+ * draws from every item that is on). count: how many different values one roll draws. send: how several values
+ * share the reply. gate: 'tier' for hidden subtext and ambient items, which fire on their own earliest reply and die.
+ */
 export function newCategory(name, items = [], extra = {}) {
     return { id: newId(), name, on: true, mode: 'new', fixed: '', keepMin: 2, keepMax: 4, count: 1, useAll: true, itemWait: 0, burn: false, neverTags: '', driver: false,
-        chance: 100, restAfter: 0, changeChance: 100, after: '', hint: '', locked: false,
+        chance: 100, restAfter: 0, changeChance: 100, after: '', hint: '', locked: false, bank: '', pool: [], send: 'together', gate: '', gateMax: DEFAULT_GATE_MAX,
         items: items.map(x => Array.isArray(x) ? { id: newId(), text: x[0], on: true, weight: 1, tags: x[1] || '', always: false } : { id: newId(), text: x, on: true, weight: 1, tags: '', always: false }), ...extra };
 }
 
@@ -48,15 +54,27 @@ export function listRole(cat) {
     return 'situation';
 }
 
-const withOrigins = (cat, list) => { cat.items.forEach((it, i) => { if (list[i]) it.from = list[i]; }); return cat; };
+
+/** A category that draws from an option bank. */
+const linked = (name, bank, extra = {}) => newCategory(name, [], { bank, ...extra });
 
 export function defaultCategories() {
     return [
-        newCategory('Situation', [], { burn: true }),
-        newCategory('Complication', [], { burn: true }),
-        newCategory('What it puts at stake', STAKES),
-        withOrigins(newCategory('Who drives it', ['{{char}}', 'any character other than {{user}}, one already in the story or a new arrival', 'any female character other than {{user}}, one already in the story or a new arrival', 'any male character other than {{user}}, one already in the story or a new arrival', 'the surroundings: weather, a place, an object, an animal or a crowd'], { driver: true }), ['char', 'other', 'other', 'other', 'world']),
-        newCategory('Tone'),
+        linked('Situation', 'situation', { burn: true }),
+        linked('Complication', 'complication', { burn: true }),
+        linked('What it puts at stake', 'stake'),
+        linked('Who drives it', 'driver', { driver: true }),
+        linked('Tone', 'tone'),
+        linked('Genre lens', 'genre'),
+        linked('Constraint', 'constraint', { on: false }),
+        linked('Twist focus', 'twist', { on: false }),
+        linked('Consequence', 'consequence', { on: false }),
+        linked('Scene engine', 'engine', { on: false }),
+        linked('Tension', 'tension', { on: false }),
+        linked('Social weather', 'social', { on: false }),
+        linked('Pace', 'pace', { on: false }),
+        linked('Ambient pulse', 'ambient', { on: false, gate: 'tier' }),
+        linked('Hidden subtext', 'subtext', { on: false, gate: 'tier' }),
     ];
 }
 
@@ -65,26 +83,36 @@ export function newEvent(name) {
     return { type: 'event', uid: 0, name, on: true, chance: 10, keep: 0, wait: 5, notBefore: 0, sentAs: 'system', notes: '', categories: defaultCategories(), isNew: true };
 }
 
-const MOODS = ['curious', 'focused', 'plotting', 'carried away', 'confident', 'lucky', 'emboldened', 'eager', 'reckless', 'playful', 'defiant', 'stubborn', 'hopeful', 'suspicious', 'smug', 'tender', 'irritable'];
-
 export function defaultStyleCategories() {
     return [
-        newCategory("{{char}}'s mood", MOODS, { mode: 'keepRandom', keepMin: 4, keepMax: 8,
+        linked("{{char}}'s mood", 'mood', { mode: 'keepRandom', keepMin: 4, keepMax: 8,
             after: "this mood drives at least one of {{char}}'s choices and colours {{char}}'s established feelings, which stay as they are",
             hint: 'A temperament for the main character over a stretch of the story, in one to three words, such as curious, playful, defiant or suspicious. A temperament, never a circumstance.' }),
-        newCategory('Prose style', ['short sentences and concrete nouns', 'long, flowing sentences with few adjectives', 'plain words and brisk rhythm', 'close attention to small physical actions', 'spare description and plenty of spoken lines'], { mode: 'keepRandom', keepMin: 4, keepMax: 8,
+        linked('Prose style', 'register', { mode: 'keepRandom', keepMin: 4, keepMax: 8,
             hint: 'One instruction about sentence length, word choice or what the prose pays attention to, in 4 to 12 words.' }),
-        newCategory('In the manner of this author', [], { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10,
+        linked('Tone', 'tone', { on: false, mode: 'keepRandom', keepMin: 3, keepMax: 6, count: 2, send: 'beat' }),
+        linked('In the manner of this author', 'author', { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10,
             hint: 'The name of one published prose author with a recognisable style. The name only.' }),
-        newCategory('Writing habits', ['dry humour in plain words', 'one-line paragraphs at tense moments', 'people say plainly what they mean', 'each paragraph ends on a concrete image', 'humour that comes from what people do'], { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10,
+        linked('Narrator stance', 'stance', { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10 }),
+        linked('Voice lens', 'lens', { on: false, mode: 'keepRandom', keepMin: 4, keepMax: 8 }),
+        linked('Writing habits', 'habits', { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10,
             hint: 'One concrete writing habit of a skilled novelist, stated as an instruction in 3 to 10 words.' }),
-        newCategory('Sense to lead with', ['sound', 'touch', 'smell', 'light and colour', 'movement'], { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4,
+        linked('Sense to lead with', 'sense', { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4,
             hint: 'One of the senses, or one kind of physical detail, in one to four words.' }),
-        newCategory('Pacing', ['linger on small actions', 'brisk, moving quickly between moments', 'one continuous moment, told closely', 'cover more time in fewer words'], { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4,
+        linked('Narrative focus', 'focus', { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4 }),
+        linked('Pacing', 'pacing', { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4,
             hint: 'One instruction about how much time the reply covers and how fast it moves, in 3 to 10 words.' }),
-        newCategory('Rule for this reply', [['the reply is all action and description, with nothing spoken aloud', 'rule:no-dialogue'], ['the reply is mostly spoken lines', 'rule:mostly-dialogue'], 'the reply stays inside one continuous minute', ['every paragraph is two sentences or fewer', 'rule:max-sentences-2'], 'the reply uses one sense only'], { on: false, mode: 'new', chance: 50, restAfter: 1,
+        linked('Sentence rhythm', 'rhythm', { on: false, mode: 'keepRandom', keepMin: 4, keepMax: 8 }),
+        linked('Paragraph density', 'density', { on: false, mode: 'keepRandom', keepMin: 4, keepMax: 8 }),
+        linked('Figurative language', 'figurative', { on: false, mode: 'keepRandom', keepMin: 4, keepMax: 8 }),
+        linked('Narrative distance', 'distance', { on: false, mode: 'keepRandom', keepMin: 6, keepMax: 10 }),
+        linked('Show and tell', 'showtell', { on: false, mode: 'keepRandom', keepMin: 4, keepMax: 8 }),
+        linked('Dialogue amount', 'dialogue', { on: false, mode: 'keepRandom', keepMin: 2, keepMax: 4 }),
+        linked('Dialogue texture', 'texture', { on: false, mode: 'keepRandom', keepMin: 4, keepMax: 8 }),
+        linked('Length', 'length', { on: false, mode: 'keepRandom', keepMin: 4, keepMax: 8 }),
+        linked('Rule for this reply', 'rule', { on: false, mode: 'new', chance: 50, restAfter: 1,
             hint: 'One formal rule for the prose of a single reply, stated as a plain fact about the reply, in 6 to 14 words.' }),
-        newCategory('Point of view and tense', ['third person, past tense', 'third person, present tense', 'first person, past tense', 'first person, present tense'], { on: false, locked: true, mode: 'keepFixed',
+        linked('Point of view and tense', 'pov', { on: false, locked: true, mode: 'keepFixed',
             hint: 'A narrative point of view and tense, in three to six words.' }),
     ];
 }
@@ -95,13 +123,15 @@ export function newStyle(name) {
 }
 
 const tagList = s => String(s || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+/** How many categories one roll may use (A12 d.4). */
+const capOf = ev => Math.max(1, Math.min(30, Math.round(Number(ev?.cap) || DEFAULT_CAP)));
 
 /**
  * How much of each list that retires its items is left in a chat. burned: the ids that have happened.
  * Returns [{ name, left, total, main }] and whether the set is used up (its main list has none left).
  */
 export function burnStatus(ri, burned) {
-    const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory).filter(c => c.on && usable(c).length);
+    const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(liveCategory).filter(c => c.on && usable(c).length);
     const main = cats.find(c => c.burn && !c.driver);
     const lists = cats.filter(c => c.burn).map((c) => { const pool = usable(c); return { name: c.name, total: pool.length, left: pool.filter(it => !burned?.has(it.id)).length, main: c === main }; });
     return { lists, usedUp: !!main && lists.find(l => l.main).left === 0 };
@@ -134,6 +164,12 @@ export function normalItem(it) {
     const min = Math.max(0, Math.min(20, Math.round(Number(it?.min) || 0)));
     if (min) out.min = min;
     for (const k of ['dEvent', 'dCheck', 'dNext']) { const v = String(it?.[k] || '').replace(/\s+/g, ' ').trim(); if (v) out[k] = v; }
+    // Bank items carry a short label (shown in the pool), their source, an import group, and for gated items their gate.
+    if (it?.label && it.label !== out.text) out.label = String(it.label);
+    if (it?.source) out.source = it.source;
+    if (it?.group) out.group = String(it.group);
+    if (it?.gate && typeof it.gate === 'object') out.gate = { reply: Math.max(0, Math.round(Number(it.gate.reply) || 0)), die: Math.max(1, Math.round(Number(it.gate.die) || 1)),
+        dur: Array.isArray(it.gate.dur) ? it.gate.dur : [2, 3], rest: Array.isArray(it.gate.rest) ? it.gate.rest : [10, 15], tier: String(it.gate.tier || '') };
     return out;
 }
 
@@ -154,6 +190,18 @@ function normalCategory(c) {
     out.locked = !!out.locked;
     if (out.locked) out.on = false;
     if (!MODES[out.mode]) out.mode = 'new';
+    out.bank = String(out.bank || '');
+    out.pool = [...new Set((Array.isArray(out.pool) ? out.pool : []).map(String))];
+    if (!SEND_RULES[out.send]) out.send = 'together';
+    out.gate = out.gate === 'tier' ? 'tier' : '';
+    out.gateMax = Math.max(1, Math.min(5, Math.round(Number(out.gateMax) || DEFAULT_GATE_MAX)));
+    return out;
+}
+
+/** A category as the dice see it: a linked category takes the items of its bank, a category without one keeps its own. */
+export function liveCategory(c) {
+    const out = normalCategory(c);
+    if (out.bank) out.items = (bankItems(out.bank) || []).map(normalItem).filter(it => it.text.trim());
     return out;
 }
 
@@ -180,14 +228,21 @@ export function readEvent(entry, name) {
         sentAs: ri.sentAs === 'ooc' ? 'ooc' : 'system', notes: String(ri.notes || ''),
         big: !!ri.big,
         neverTogether: String(ri.neverTogether || ''), presets: ri.presets && typeof ri.presets === 'object' ? structuredClone(ri.presets) : {},
+        cap: capOf(ri), polish: !!ri.polish,
         categories: (Array.isArray(ri.categories) ? ri.categories : []).map(normalCategory),
     };
 }
 
-/** Items of a category that the dice may use. */
-function usable(cat) {
+/**
+ * Items of a category that the dice may use: on, without a tag the category leaves out, and in its pool. A pool
+ * with no ticked item that still exists draws from every item that is on.
+ */
+export function usable(cat) {
     const never = new Set(tagList(cat.neverTags));
-    return cat.items.filter(it => it.on && it.text.trim() && !tagList(it.tags).some(t => never.has(t)));
+    const on = cat.items.filter(it => it.on && it.text.trim() && !tagList(it.tags).some(t => never.has(t)));
+    const ids = new Set(cat.items.map(it => it.id));
+    const pool = new Set((cat.pool || []).filter(id => ids.has(id)));
+    return pool.size ? on.filter(it => pool.has(it.id)) : on;
 }
 
 /** The entry text saved in the lorebook, so the set also works (with plain random picks) when the extension is off. */
@@ -195,7 +250,8 @@ export function buildEventContent(ev) {
     const w = SENT_AS[ev.sentAs] || SENT_AS.system;
     const clean = t => toStore(t).replace(/\s*\n+\s*/g, ' ').replace(/::/g, ':').trim();
     const parts = [];
-    for (const cat of ev.categories) {
+    for (const raw of ev.categories) {
+        const cat = liveCategory(raw);
         if (!cat.on) continue;
         const pool = usable(cat);
         if (!pool.length) continue;
@@ -233,7 +289,7 @@ export function writeEvent(data, ev, id = '') {
     entry.position = 4; entry.depth = 1;
     entry.role = (SENT_AS[ev.sentAs] || SENT_AS.system).role;
     entry.excludeRecursion = true; entry.preventRecursion = true;
-    const ri = { v: 1, type: style ? 'style' : 'event', sentAs: ev.sentAs, notes: ev.notes, ...(ev.big && !style ? { big: true } : {}), neverTogether: String(ev.neverTogether || ''), presets: ev.presets || {}, categories: ev.categories.map(normalCategory) };
+    const ri = { v: 1, type: style ? 'style' : 'event', sentAs: ev.sentAs, notes: ev.notes, ...(ev.big && !style ? { big: true } : {}), neverTogether: String(ev.neverTogether || ''), presets: ev.presets || {}, cap: capOf(ev), ...(ev.polish ? { polish: true } : {}), categories: ev.categories.map(normalCategory) };
     keepTags(ri, entry.extensions?.ri, id);
     entry.extensions = { ...(entry.extensions || {}), ri };
     entry.content = buildEventContent(ev);
@@ -242,12 +298,13 @@ export function writeEvent(data, ev, id = '') {
 
 // ---------- saved category settings ----------
 
-const SETTING_KEYS = ['on', 'mode', 'fixed', 'keepMin', 'keepMax', 'count', 'useAll', 'itemWait', 'burn', 'neverTags', 'chance', 'restAfter', 'changeChance'];
+const SETTING_KEYS = ['on', 'mode', 'fixed', 'keepMin', 'keepMax', 'count', 'useAll', 'itemWait', 'burn', 'neverTags', 'chance', 'restAfter', 'changeChance', 'pool', 'send'];
+const copyValue = v => Array.isArray(v) ? [...v] : v;
 
-/** The settings (not the items) of every category, to save under a name. */
+/** The settings (not the items) of every category, to save under a name. Pools and pick counts are part of it. */
 export function snapshotSettings(categories) {
     const cats = {};
-    for (const c of categories) { cats[c.id] = {}; for (const k of SETTING_KEYS) cats[c.id][k] = c[k]; }
+    for (const c of categories) { cats[c.id] = {}; for (const k of SETTING_KEYS) cats[c.id][k] = copyValue(c[k]); }
     return { cats };
 }
 
@@ -256,7 +313,7 @@ export function loadSettings(categories, preset) {
     for (const c of categories) {
         const saved = preset?.cats?.[c.id];
         if (!saved || c.locked) continue;
-        for (const k of SETTING_KEYS) if (saved[k] !== undefined) c[k] = saved[k];
+        for (const k of SETTING_KEYS) if (saved[k] !== undefined) c[k] = copyValue(saved[k]);
     }
     return categories;
 }
@@ -277,15 +334,20 @@ export function pairList(text) {
 
 const clash = (tags, chosen, pairs) => pairs.some(([a, b]) => (tags.includes(a) && chosen.has(b)) || (tags.includes(b) && chosen.has(a)));
 
+/** One line of the order for one category: its header and its values, joined by its send rule (A12 d.1a). */
+export function buildLine(part) {
+    return `${part.name}: ${joinValues(part.items, part.send)}${part.after ? ` (${part.after})` : ''}`;
+}
+
 function sentenceFor(type, parts) {
-    const lines = parts.map(p => `${p.name}: ${p.items.join(' and ')}${p.after ? ` (${p.after})` : ''}`);
+    const lines = parts.map(buildLine);
     return type === 'style' ? styleSentence(lines) : eventSentence(lines);
 }
 
 /** Inspect the same explicit story restrictions used by a manual recipe roll. */
 export function eventChoices(ri, prev, opts = {}) {
     const blocked = new Set((ri?.type === 'style' ? [] : (opts.blockedTags || [])).map(t => String(t).trim().toLowerCase()));
-    const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory);
+    const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(liveCategory);
     const mainBurn = cats.find(cat => cat.on && cat.burn && !cat.driver && usable(cat).length);
     return cats.map(cat => {
         const lock = opts.locks?.[cat.id] || (cat.mode === 'keepFixed' ? [cat.fixed || prev?.cats?.[cat.id]?.picks?.[0]].filter(Boolean) : []);
@@ -305,20 +367,28 @@ export function eventChoices(ri, prev, opts = {}) {
     });
 }
 
+/** What a roll record keeps of the state it rolled from, so the same seed rolls the same values again. */
+const slimState = prev => prev ? structuredClone({ cats: prev.cats || {}, ...(prev.rot ? { rot: prev.rot } : {}), ...(prev.reply ? { reply: prev.reply } : {}) }) : null;
+
 /**
  * Roll the dice for one event, or for one reply's writing style.
  * ri: the entry's saved data. prev: the category state stored with the last roll of this set (or null).
- * opts.locks: { categoryId: [itemIds] } picks locked for this chat.
- * Returns { text, parts, state }. For a story event with nothing to pick it returns null. For a writing style
- * with no category in use this time, text is null and state is still returned.
+ * opts.locks: { categoryId: [itemIds] } picks locked for this chat. opts.seed: roll with this seed (a new one when left
+ * out). opts.reply: the number of the reply being written, for items that wait for an earliest reply.
+ * Returns { text, parts, state, roll }. For a story event with nothing to pick it returns null. For a writing style
+ * with no category in use this time, text is null and state is still returned. roll is the record saved with the
+ * reply: the seed, the bank version, each category's pool and count, and the values drawn. No step makes a request.
  */
 export function rollEvent(ri, prev, opts = {}) {
+    const seed = Number.isSafeInteger(opts.seed) && opts.seed >= 0 ? opts.seed : newSeed();
+    const rnd = seededRandom(seed);
     const parts = [];
     const blocked = new Set((ri?.type === 'style' ? [] : (opts.blockedTags || [])).map(t => String(t).trim().toLowerCase()));
     const allowedItem = it => !tagList(it.tags).some(t => blocked.has(t));
     const state = { cats: {} };
     const pairs = pairList(ri?.neverTogether);
-    const cats = (Array.isArray(ri?.categories) ? ri.categories : []).map(normalCategory).filter(c => c.on && usable(c).length);
+    const all = (Array.isArray(ri?.categories) ? ri.categories : []).map(liveCategory);
+    const cats = all.filter(c => c.on && usable(c).length);
     const chosen = new Set(); // tags of everything picked so far in this roll
     const burned = opts.burned instanceof Set ? opts.burned : new Set(); // items that already happened in this chat
     let spent = false;        // the main list that retires its items has none left, or a list waits for the scene
@@ -327,6 +397,9 @@ export function rollEvent(ri, prev, opts = {}) {
     const scene = opts.scene || null;   // what the scene and the story world offer right now (null: conditions are not looked at)
     const filled = [];        // world entries that items of this roll were filled with
     const note = (byId, ids) => { for (const id of ids) for (const t of tagList(byId.get(id).tags)) chosen.add(t); };
+    const reply = Math.max(0, Math.round(Number(opts.reply) || (Number(prev?.reply) || 0) + 1));
+    const cap = capOf(ri);
+    state.reply = reply;
 
     // First, the categories that keep the pick they already have.
     const info = new Map();
@@ -343,6 +416,7 @@ export function rollEvent(ri, prev, opts = {}) {
         const valid = ids => Array.isArray(ids) && ids.length > 0 && ids.every(id => byId.has(id) && (!available || available.has(id)));
         const lock = opts.locks?.[cat.id];
         let kept = null; let left = 0; let linger = false; let pinned = false;
+        if (cat.gate) { info.set(cat.id, { pool, byId, old, kept, left, linger, pinned }); continue; }
         if (manualChoices && Object.hasOwn(manualPicks, cat.id)) {
             const explicit = manualPicks[cat.id];
             if (!valid(explicit) || explicit.length > cat.count || new Set(explicit).size !== explicit.length
@@ -354,7 +428,7 @@ export function rollEvent(ri, prev, opts = {}) {
         else if (manualChoices && lock?.length) return null;
         else if (cat.mode === 'keepFixed') { const c = byId.get(cat.fixed) || byId.get((old.picks || [])[0]); if (c && valid([c.id])) { kept = [c.id]; pinned = true; } }
         else if (cat.mode === 'keepRandom' && Number(old.left) > 0 && valid(old.picks)) { kept = [...old.picks]; left = Number(old.left) - 1; }
-        else if (cat.mode === 'keepRandom' && cat.changeChance < 100 && valid(old.picks) && rollInt(100) >= cat.changeChance) { kept = [...old.picks]; linger = true; }
+        else if (cat.mode === 'keepRandom' && cat.changeChance < 100 && valid(old.picks) && rnd(100) >= cat.changeChance) { kept = [...old.picks]; linger = true; }
         info.set(cat.id, { pool, byId, old, kept, left, linger, pinned });
         if (kept) {
             if (manualChoices && kept.some(id => clash(tagList(byId.get(id).tags), chosen, pairs))) return null;
@@ -365,7 +439,7 @@ export function rollEvent(ri, prev, opts = {}) {
     // Where the event comes from: the "Who drives it" list is rolled first, and the other lists only offer items that
     // fit the driver it picked. A driver is only offered when every list has something that fits it.
     let origin = '';
-    const markedCats = cats.filter(c => !c.driver && usable(c).some(it => it.from));
+    const markedCats = cats.filter(c => !c.driver && !c.gate && usable(c).some(it => it.from));
     const fitsOrigin = (it, c, o) => c.driver || !o || !it.from || it.from === o;
     const canServe = (o) => !o || markedCats.every((c) => {
         const inf = info.get(c.id);
@@ -376,19 +450,41 @@ export function rollEvent(ri, prev, opts = {}) {
     if (manualChoices && !canServe(origin)) return null;
     const partsBy = new Map();
 
+    // The cap on categories in one roll: picks that are kept count first; the categories due a fresh pick take the
+    // room left in turn, starting one further along each roll, so every category gets a turn.
+    let active = cats.filter(c => info.get(c.id).kept).length;
+    const others = cats.filter(c => !c.driver);
+    const rot = others.length ? (Number(prev?.rot) || 0) % others.length : 0;
+    const order = [...cats.filter(c => c.driver), ...others.slice(rot), ...others.slice(0, rot)];
+    let fresh = 0;
+
     // Then the categories that are due a fresh pick, the driver first.
-    for (const cat of [...cats.filter(c => c.driver), ...cats.filter(c => !c.driver)]) {
+    for (const cat of order) {
         const { pool, byId, old, kept, linger, pinned } = info.get(cat.id);
         let { left } = info.get(cat.id);
         let used = (Array.isArray(old.used) ? old.used : []).filter(id => byId.has(id));
         let recent = cat.itemWait ? (Array.isArray(old.recent) ? old.recent : []).slice(-cat.itemWait) : [];
         const idle = (rest) => { state.cats[cat.id] = { picks: [], left: 0, used, recent, rest }; };
+        if (cat.gate) {
+            // Hidden subtext and ambient items keep their own earliest reply, die, duration and rest. Over the cap,
+            // the category keeps its state for the next roll.
+            if (active >= cap) { state.cats[cat.id] = structuredClone({ picks: [], left: 0, used: [], recent: [], rest: 0, active: old.active || {}, restUntil: old.restUntil || {} }); continue; }
+            const g = gatedRoll(pool.filter(it => !clash(tagList(it.tags), chosen, pairs)), old, reply, rnd, cat.gateMax);
+            state.cats[cat.id] = { picks: g.ids, left: 0, used: [], recent: [], rest: 0, ...g.state };
+            if (!g.ids.length) continue;
+            active++;
+            note(byId, g.ids);
+            partsBy.set(cat.id, { name: cat.name, items: g.ids.map(id => byId.get(id).text), after: cat.after, catId: cat.id, ids: g.ids, send: cat.send });
+            continue;
+        }
         let picks = kept;
         if (!picks) {
             if (cat.mode !== 'keepFixed' && !manualChoices) {
                 // The category may be resting after its last pick, or may sit this one out by chance.
                 if (Number(old.rest) > 0) { idle(Number(old.rest) - 1); continue; }
-                if (cat.chance < 100 && rollInt(100) >= cat.chance) { idle(0); continue; }
+                if (cat.chance < 100 && rnd(100) >= cat.chance) { idle(0); continue; }
+                // Over the cap, the category waits for the next roll with no rest.
+                if (!cat.driver && active >= cap) { idle(0); continue; }
             }
             const fitting = pool.filter(it => itemFits(it, scene) && (cat.driver ? canServe(originOf(it, cat)) : fitsOrigin(it, cat, origin)));
             // Every item of this list asks for something the scene does not have right now: the event waits.
@@ -410,14 +506,25 @@ export function rollEvent(ri, prev, opts = {}) {
                     options = rest.filter(it => !resting.has(it.id));
                     if (options.length < need) options = rest;
                 }
-                picks.push(...pickWeighted(options, it => it.weight, need).map(it => it.id));
+                // One value at a time, so two values of one category never clash with each other either.
+                const mine = new Set(chosen);
+                for (const id of picks) for (const t of tagList(byId.get(id).tags)) mine.add(t);
+                for (let n = 0; n < need; n++) {
+                    const open = options.filter(it => !picks.includes(it.id) && !clash(tagList(it.tags), mine, pairs));
+                    if (!open.length) break;
+                    const [it] = pickSeeded(open, x => x.weight, 1, rnd);
+                    picks.push(it.id);
+                    for (const t of tagList(it.tags)) mine.add(t);
+                }
             }
             if (!picks.length) { idle(0); continue; } // "never together" left nothing that fits
             note(byId, picks);
             if (cat.driver && !origin) origin = originOf(byId.get(picks[0]), cat);
             if (cat.useAll) used = [...new Set([...used, ...picks])];
             if (cat.itemWait) recent = [...recent, picks].slice(-cat.itemWait);
-            if (cat.mode === 'keepRandom') left = cat.keepMin + rollInt(cat.keepMax - cat.keepMin + 1) - 1;
+            if (cat.mode === 'keepRandom') left = cat.keepMin + rnd(cat.keepMax - cat.keepMin + 1) - 1;
+            if (!cat.driver) fresh++;
+            active++;
         }
         if (manualChoices && picks.some(id => !fitsOrigin(byId.get(id), cat, origin))) return null;
         if (manualChoices && manualPicks[cat.id]) {
@@ -427,19 +534,39 @@ export function rollEvent(ri, prev, opts = {}) {
         const lastOfItsRun = !pinned && !linger && (cat.mode === 'new' || (cat.mode === 'keepRandom' && left === 0));
         state.cats[cat.id] = { picks, left, used, recent, rest: linger ? (Number(old.rest) || 0) : lastOfItsRun ? cat.restAfter : 0 };
         const rules = picks.flatMap(id => tagList(byId.get(id).tags)).filter(t => t.startsWith('rule:'));
-        const texts = picks.map((id) => { const f = fillNeed(byId.get(id), scene, list => list[rollInt(list.length)]); if (f.used) filled.push(f.used); return f.text; });
+        const texts = picks.map((id) => { const f = fillNeed(byId.get(id), scene, list => list[rnd(list.length)]); if (f.used) filled.push(f.used); return f.text; });
         // A writing style item can carry three more lines for as long as it is the pick.
         const dir = picks.map(id => byId.get(id)).filter(it => it.dEvent || it.dCheck || it.dNext).map(it => ({ pick: it.text, ...(it.dEvent ? { event: it.dEvent } : {}), ...(it.dCheck ? { check: it.dCheck } : {}), ...(it.dNext ? { next: it.dNext } : {}) }));
-        partsBy.set(cat.id, { name: cat.name, items: texts, after: cat.after, catId: cat.id, ids: picks, ...(rules.length ? { rules } : {}), ...(dir.length ? { dir } : {}) });
+        partsBy.set(cat.id, { name: cat.name, items: texts, after: cat.after, catId: cat.id, ids: picks, ...(cat.send !== 'together' ? { send: cat.send } : {}), ...(rules.length ? { rules } : {}), ...(dir.length ? { dir } : {}) });
     }
+    if (others.length) state.rot = (rot + Math.max(1, fresh)) % others.length;
     for (const cat of cats) if (partsBy.has(cat.id)) parts.push(partsBy.get(cat.id));
     if (origin) state.origin = origin;
     if (filled.length) state.filled = filled;
-    if (ri?.type === 'style') return { text: parts.length ? sentenceFor('style', parts) : null, parts, state };
+    const roll = {
+        seed, reply, bank: bankVersion(all.map(c => c.bank)),
+        cats: all.filter(c => c.on).map(c => ({ id: c.id, name: c.name, ...(c.bank ? { bank: c.bank } : {}), pool: [...c.pool], count: c.count, send: c.send })),
+        drawn: parts.map(p => ({ catId: p.catId, ids: [...p.ids], texts: [...p.items] })),
+        prev: slimState(prev),
+        ...(burned.size ? { burned: [...burned] } : {}), ...(blocked.size ? { blocked: [...blocked] } : {}), ...(opts.locks ? { locks: structuredClone(opts.locks) } : {}),
+    };
+    const polish = !!ri?.polish;
+    if (ri?.type === 'style') return { text: parts.length ? sentenceFor('style', parts) : null, parts, state, roll, ...(polish && parts.length ? { polish } : {}) };
     if (!parts.length || spent) return null; // the main list is used up, so this event has nothing new left to offer
     if (usedUp.length) state.usedUp = usedUp;
-    return { text: sentenceFor('event', parts), parts, state };
+    return { text: sentenceFor('event', parts), parts, state, roll, ...(polish ? { polish } : {}) };
 }
+
+/** Roll a saved record again: the same seed, pools, counts and starting state. Same bank, same values. */
+export function replayRoll(ri, roll) {
+    const saved = new Map((roll?.cats || []).map(c => [c.id, c]));
+    const categories = (ri?.categories || []).map(c => saved.has(c.id) ? { ...c, pool: [...(saved.get(c.id).pool || [])], count: saved.get(c.id).count, send: saved.get(c.id).send || c.send } : c);
+    return rollEvent({ ...ri, categories }, roll?.prev || null, { seed: roll?.seed, reply: roll?.reply,
+        burned: new Set(roll?.burned || []), blockedTags: roll?.blocked || [], ...(roll?.locks ? { locks: roll.locks } : {}) });
+}
+
+/** Whether two roll records drew the same values. */
+export const sameDraw = (a, b) => JSON.stringify((a?.drawn || []).map(d => [d.catId, d.ids])) === JSON.stringify((b?.drawn || []).map(d => [d.catId, d.ids]));
 
 /** Whether a previously selected event remains allowed by explicit chat-level tag limits. */
 export function eventAllowed(ri, parts, blockedTags = []) {
@@ -448,7 +575,7 @@ export function eventAllowed(ri, parts, blockedTags = []) {
     for (const part of parts || []) {
         const raw = (ri?.categories || []).find(c => c.id === part.catId);
         if (!raw) continue;
-        const items = normalCategory(raw).items;
+        const items = liveCategory(raw).items;
         for (const id of part.ids || []) {
             const item = items.find(x => x.id === id);
             if (item && tagList(item.tags).some(tag => blocked.has(tag))) return false;
@@ -458,21 +585,26 @@ export function eventAllowed(ri, parts, blockedTags = []) {
 }
 
 /** Pick again for one category only, leaving the rest of the roll as it was. Returns null when there is no other item. */
-export function rerollCategory(ri, parts, state, catId, blockedTags = []) {
+export function rerollCategory(ri, parts, state, catId, blockedTags = [], opts = {}) {
     const raw = (ri?.categories || []).find(c => c.id === catId);
     const part = (parts || []).find(p => p.catId === catId);
     if (!raw || !part) return null;
-    const cat = normalCategory(raw);
+    const cat = liveCategory(raw);
+    const seed = Number.isSafeInteger(opts.seed) && opts.seed >= 0 ? opts.seed : newSeed();
+    const rnd = seededRandom(seed);
     const blocked = new Set(blockedTags.map(t => String(t).trim().toLowerCase()));
     const options = usable(cat).filter(it => !(part.ids || []).includes(it.id) && !tagList(it.tags).some(t => blocked.has(t)));
     if (!options.length) return null;
-    const picked = pickWeighted(options, it => it.weight, Math.min(Math.max(1, (part.ids || []).length), options.length));
+    const picked = pickSeeded(options, it => it.weight, Math.min(Math.max(1, (part.ids || []).length), options.length), rnd);
     const rules = picked.flatMap(it => tagList(it.tags)).filter(t => t.startsWith('rule:'));
-    const newParts = parts.map(p => p.catId === catId ? { name: p.name, items: picked.map(it => it.text), after: p.after, catId, ids: picked.map(it => it.id), ...(rules.length ? { rules } : {}) } : p);
+    const newParts = parts.map(p => p.catId === catId ? { name: p.name, items: picked.map(it => it.text), after: p.after, catId, ids: picked.map(it => it.id), ...(p.send ? { send: p.send } : {}), ...(rules.length ? { rules } : {}) } : p);
     const newState = structuredClone(state || { cats: {} });
     if (!newState.cats) newState.cats = {};
     newState.cats[catId] = { ...(newState.cats[catId] || { left: 0, used: [], recent: [], rest: 0 }), picks: picked.map(it => it.id) };
-    return { text: sentenceFor(ri?.type === 'style' ? 'style' : 'event', newParts), parts: newParts, state: newState };
+    const roll = { seed, reply: Number(state?.reply) || 0, bank: bankVersion([cat.bank]), again: catId,
+        cats: [{ id: cat.id, name: cat.name, ...(cat.bank ? { bank: cat.bank } : {}), pool: [...cat.pool], count: cat.count, send: cat.send }],
+        drawn: newParts.map(p => ({ catId: p.catId, ids: [...(p.ids || [])], texts: [...(p.items || [])] })) };
+    return { text: sentenceFor(ri?.type === 'style' ? 'style' : 'event', newParts), parts: newParts, state: newState, roll };
 }
 
 // ---------- rules that can be checked without AI ----------

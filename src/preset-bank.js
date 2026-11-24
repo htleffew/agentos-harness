@@ -594,7 +594,9 @@ export function startingStack(bank, base, { key = stackKey(base, null, bank) } =
     const baseSource = sid ? bank.sources.get(presetSource(sid)) : isCompanionPreset(base) ? bank?.sources?.get(SOURCE_COMPANION) : null;
     const cards = (baseSource?.cards || []).filter(card => card.listed).map(card => stackCardOf(card, cardKey(SOURCE_BASE, card.id), card.shippedOn));
     const companion = bank?.sources?.get(SOURCE_COMPANION);
-    if (companion && baseSource !== companion) {
+    // A companion edition (the companion itself or a copy saved under a companion name) already holds those blocks as its
+    // own rows, so its stack gains no companion cards.
+    if (companion && baseSource !== companion && !isCompanionPreset(base)) {
         // Each run of shipped-on companion blocks goes before the first landmark after it that the base also has; blocks
         // with no such landmark go before the base's Chat History row, or at the end when the base has none.
         const pending = [];
@@ -845,7 +847,22 @@ export function stackPlan(bank, stack, base = stack?.base || activePreset()) {
             verdicts: base_.verdicts || {}, tokens: (base_.marker ?? item.marker) ? 0 : cardTokens(text), raw: hasMacros(text),
             cleanStatus: base_.cleanStatus || '', origin: base_.origin || '', versionOf: base_.versionOf || '', sendId: sendId(item.key, bank, base) };
     };
-    return [...stack.cards.map(item => resolve(item, 'main')), ...stack.ri.map(item => resolve(item, 'ri'))];
+    return [...companionTwins(stack.cards, base).map(item => resolve(item, 'main')), ...stack.ri.map(item => resolve(item, 'ri'))];
+}
+
+/**
+ * On a companion edition a companion card and the base block with its identifier are one block. Companion editions share
+ * one stored stack (the edition key), so a stack started on a copy of the companion can hold both; the base row is sent,
+ * and the companion card only when the base row is off and the card is on, so the block goes out once at most.
+ */
+function companionTwins(cards, base) {
+    if (!isCompanionPreset(base)) return cards;
+    const rows = new Map(cards.filter(item => parseKey(item.key).source === SOURCE_BASE).map(item => [parseKey(item.key).id, item]));
+    return cards.filter(item => {
+        const { source, id } = parseKey(item.key);
+        if (source !== SOURCE_COMPANION || !rows.has(id)) return true;
+        return item.on && !rows.get(id).on;
+    });
 }
 
 /** The identifier a card is sent under in the live prompt list: base blocks keep theirs, other cards are namespaced (B30). */

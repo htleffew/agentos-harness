@@ -9,7 +9,7 @@ const HOST = process.env.RI_HOST_URL || 'http://127.0.0.1:8247';
 const LOG = process.env.RI_MOCK_LOG;
 const OUT = process.env.RI_EVIDENCE || path.join(__dirname, '../docs/ux-overhaul/audit/evidence/build/B9');
 const BASE = '/scripts/extensions/third-party/roleplay-instructions';
-const modelRequests = () => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).length : 0);
+const modelRequests = () => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(row => !['capture', 'chapter', 'condensed'].includes(row.kind)).length : 0);
 const results = { host: HOST, runs: [] };
 
 async function run(tag, viewport) {

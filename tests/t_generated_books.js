@@ -16,6 +16,8 @@ import {
     listGeneratedBooks, deleteGeneratedBook, FLAG_KIND, stampText, reflectedReply,
 } from '../src/memory/story-world-book.js';
 import { fresh, clone, story } from './fixtures/mb2/story-play.mjs';
+import needsDocs from './needs-docs.cjs';
+needsDocs('t_generated_books', ['docs/ux-overhaul/memory/evidence/m1g/harness/mb11/register.js']);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const EVIDENCE = path.join(here, '..', 'docs', 'ux-overhaul', 'memory', 'evidence', 'MB13');

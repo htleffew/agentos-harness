@@ -12,7 +12,7 @@ import { timelineDependents } from './reply-world.js';
 import { runFactRepair } from './corrections.js';
 import { afterReply, liftBlock, syncWorld, undoContinuationEffects } from './worldflow.js';
 import { changesFromProfiles, sceneAt, sceneUpdate, storyMinuteAt } from './state.js';
-import { defaultWritingGuidance, effectiveModules, enabledV10, prefs, recordMap, sceneCheckPrompt, updateContract } from './v10.js';
+import { defaultWritingGuidance, effectiveModules, enabledV10, prefs, recordMap, sceneCheckPrompt, replyExtras } from './v10.js';
 import { rememberStoryTimeline } from './story-refresh.js';
 
 const modelFunctions = { draft: 'playerDraft', choices: 'playerChoices', expand: 'playerExpansion' };
@@ -378,7 +378,7 @@ function historicalSystem(family, context, modules) {
         !hasUnscopedMacro(row.content) && (!row.triggers.length || row.triggers.includes(family))).map(row => row.content) : [];
     const behavior = promptText(family === 'continue' ? 'historicalContinue' : 'historicalSwipe');
     return [...configured, behavior, modules.style && (prefs()?.style ?? defaultWritingGuidance()),
-        sceneCheckPrompt(context.scene, { modules, type: family }), updateContract(modules)].filter(Boolean).map(scopedGuidedTemplate).join('\n\n');
+        sceneCheckPrompt(context.scene, { modules, type: family }), replyExtras(modules)].filter(Boolean).map(scopedGuidedTemplate).join('\n\n');
 }
 
 function selectedSourceLabels(cues) {

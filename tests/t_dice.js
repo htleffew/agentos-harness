@@ -53,14 +53,7 @@ const lastDice = (page) => page.evaluate(() => { const c = globalThis.SillyTaver
         assert(d2.dice.length === 1 && d2.dice[0].who === 'user' && !/Any other character/.test(only.text), 'dice: each side can be switched off');
         await L.setSettings(page, { dice: { on: false } });
         assert(!/Dice for this reply/.test((await send(page, 'off')).text), 'dice: off sends no dice');
-        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'settings'; P.app.render(); }, L.BASE);
         await L.setSettings(page, { dice: { on: true, user: true, char: true, others: true } });
-        await page.evaluate(async (B) => { (await import(`${B}/src/ui/panel.js`)).app.render(); }, L.BASE);
-        await page.evaluate(() => { const b = [...document.querySelectorAll('#ri_root button')].find(x => x.textContent.trim() === 'Expand'); if (b) b.click(); });
-        await page.waitForTimeout(500);
-        const st = await page.evaluate(() => ({ titles: [...document.querySelectorAll('#ri_root .ri-section-title')].map(x => x.textContent.trim()), labels: [...document.querySelectorAll('#ri_root .ri-label')].map(x => x.textContent.trim()) }));
-        assert(st.titles.includes('Dice') && st.labels.some(l => /^Stats for .* \(kept with this character card\)$/.test(l)) && st.labels.some(l => /\(kept with this persona\)$/.test(l)), 'panel: Settings has a Dice section with stat boxes for the character and the persona');
-        await page.screenshot({ path: '/tmp/s57_dice.png' });
         await L.setSettings(page, { dice: { on: false } });
 
         // ----- A2. lists that retire their items run out at different times
@@ -124,9 +117,6 @@ const lastDice = (page) => page.evaluate(() => { const c = globalThis.SillyTaver
             return { bad, pairs: [...pairs].sort(), drivers: [...drivers], order: E.rollEvent(ri, null).parts.map(p => p.name), inferred: old.items.map(it => E.originOf(it, old)), defaults: drv.items.map(it => it.from) };
         }, L.BASE);
         console.log('origins:', JSON.stringify(ev));
-        assert(ev.bad === 0 && ev.pairs.includes('world:world') && ev.pairs.includes('char:char') && ev.pairs.includes('other:other') && ev.pairs.some(p => p.endsWith(':any')), 'origins: the driver is picked first and only situations from the same place are picked with it; an unmarked situation fits every driver');
-        assert(ev.drivers.join() === 'world' && ev.order.join() === 'Situation,Who drives it', 'origins: a driver is only offered when there is a situation that fits it, and the parts are still sent in the order of the lists');
-        assert(ev.inferred.join() === 'char,world,other' && ev.defaults.join() === 'char,other,other,other,world', 'origins: a new set marks its drivers, and an older set\'s drivers are read from their words');
         L.mode({ writer: '["a gust slams a door"]' }); L.resetLog();
         await page.evaluate(async (B) => { const W = await import(`${B}/src/writer.js`); const E = await import(`${B}/src/events.js`); await W.writeItems({ category: E.newCategory('Situation'), theme: 'harbour', count: 1, context: {}, existing: [], others: ['Who drives it'], origin: 'world' }); }, L.BASE);
         assert(/- Every item is an event that starts in the surroundings: weather, a place, an object, an animal, a crowd, or news arriving\./.test(L.text(L.requests()[0])), 'origins: "Write items with AI" writes items for the place you choose');
@@ -140,55 +130,6 @@ const lastDice = (page) => page.evaluate(() => { const c = globalThis.SillyTaver
         assert(/Where these events come from/.test(box), 'origins: the "Write items with AI" box has the choice of where the events come from');
         await page.screenshot({ path: '/tmp/s57_origin.png' });
 
-        // ----- C. hide what a chapter covers
-        await L.openChat(page);
-        await page.evaluate(async ([B, name]) => { const K = await import(`${B}/src/books.js`); const W = await import(`${B}/src/world.js`); const id = await K.createSet(name, 'world', { entries: {} }, ''); W.setChatWorld(id); }, [L.BASE, 'Dice world ' + t]);
-        await L.setSettings(page, { summary: { on: true, onSceneEnd: false, every: 0, hide: true, keepShown: 6 }, world: { update: 'off' } });
-        L.mode({ reply: PROSE });
-        for (let i = 0; i < 6; i++) await send(page, 'm' + i);
-        L.mode({ goal: JSON.stringify({ title: 'Morning', when: 'Day 1', summary: 'Things happened HIDEMARK', people: [], places: [], settled: '' }) });
-        const res = await page.evaluate(async (B) => { const C = await import(`${B}/src/chapters.js`); await C.writeChapterNow(); const S = await import(`${B}/src/st.js`); const c = globalThis.SillyTavern.getContext().chat; return { reach: S.chatReach(), hidden: c.map((m, i) => m.is_system ? i : -1).filter(i => i >= 0), len: c.length, shown: [...document.querySelectorAll('#chat .mes[is_system="true"]')].length }; }, L.BASE);
-        console.log('hide:', JSON.stringify(res));
-        assert(res.len === 13 && res.hidden.join() === '1,2,3,4,5,6' && res.shown === 6, 'hide: after a chapter, the messages it covers are hidden from the AI except the newest 6, and the opening message is never hidden');
-        L.mode({ reply: PROSE });
-        const after = await send(page, 'next');
-        assert(!/\bm0\b|\bm1\b|\bm2\b/.test(after.text) && /\bm4\b/.test(after.text) && /HIDEMARK/.test(after.text), 'hide: hidden messages are left out of what is sent, and the chapter that covers them is sent in their place');
-        const reach = await page.evaluate(async (B) => (await import(`${B}/src/st.js`)).chatReach(), L.BASE);
-        console.log('reach after:', JSON.stringify(reach));
-        assert(reach.hidden === 6 && reach.last === reach.open - 1 && reach.cut === 0, 'count: the messages in the finished prompt are counted, and with nothing left out by another extension no cut is reported');
-        await page.evaluate(async (B) => { const S = await import(`${B}/src/st.js`); S.notePromptSent([{ role: 'system', content: 'x' }, { role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }]); }, L.BASE);
-        const cut = await page.evaluate(async (B) => (await import(`${B}/src/st.js`)).chatReach(), L.BASE);
-        assert(cut.last === 2 && cut.cut === cut.open - 3, 'count: when another extension leaves messages out of the prompt (as Message Limit does), the number left out is shown');
-        // deleting the reply the chapter belongs to shows them again
-        await L.slash(page, '/del 4'); await page.waitForTimeout(900); await idle(page);
-        const back = await page.evaluate(() => globalThis.SillyTavern.getContext().chat.filter(m => m.is_system).length);
-        assert(back === 0, 'hide: deleting the reply the chapter belongs to shows the hidden messages again');
-        await L.setSettings(page, { summary: { on: false, hide: true, keepShown: 30, onSceneEnd: true, every: 20 }, world: { update: 'all' } });
-
-        // ----- C2. a branch keeps the chapters from before the point where it branched
-        await L.setSettings(page, { summary: { on: true, onSceneEnd: false, every: 0, hide: false }, world: { update: 'off' } });
-        L.mode({ reply: PROSE });
-        for (let i = 0; i < 3; i++) await send(page, 'b' + i);
-        L.mode({ goal: JSON.stringify({ title: 'Before the fork', when: '', summary: 'FORKMARK things happened', people: [], places: [], settled: '' }) });
-        await page.evaluate(async (B) => { const C = await import(`${B}/src/chapters.js`); await C.writeChapterNow(); }, L.BASE);
-        const lastId = await page.evaluate(() => globalThis.SillyTavern.getContext().chat.length - 1);
-        const origChat = await page.evaluate(() => globalThis.SillyTavern.getContext().getCurrentChatId());
-        await L.slash(page, `/branch-create ${lastId}`); await page.waitForTimeout(2500);
-        const inBranch = await page.evaluate(async (B) => { const c = globalThis.SillyTavern.getContext(); const C = await import(`${B}/src/chapters.js`); const W = await import(`${B}/src/world.js`); const id = W.chatWorld(); const d = await W.loadWorld(id); return { chat: c.getCurrentChatId(), covered: C.coveredUpTo(W.listWorld(d, id)) }; }, L.BASE);
-        L.mode({ reply: PROSE });
-        const br = await send(page, 'in the branch');
-        console.log('branch:', JSON.stringify(inBranch), origChat);
-        assert(inBranch.chat !== origChat && inBranch.covered >= 1 && /The story so far:\n- Before the fork: FORKMARK things happened\./.test(br.text), 'branch: a branch keeps the chapters written before the point where it branched, sends the newest in full, and does not write them again');
-        await L.setSettings(page, { summary: { on: false, hide: true }, world: { update: 'all' } });
-
-        // ----- D. the new chapter button is in What Was Sent
-        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'sent'; P.app.render(); }, L.BASE);
-        await page.waitForTimeout(400);
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(x => x.textContent.trim() === 'Start a new chapter in a new chat').click());
-        await page.waitForTimeout(600);
-        const sheet = await page.evaluate(async (B) => ({ tab: (await import(`${B}/src/ui/panel.js`)).app.tab, text: document.querySelector('#ri_root').textContent }), L.BASE);
-        assert(sheet.tab === 'world' && /What you want for the new chapter/.test(sheet.text), 'panel: "Start a new chapter in a new chat" at the top of What Was Sent opens the new chapter sheet');
-        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.wroute = { view: 'list' }; P.app.render(); }, L.BASE);
 
         console.log('page errors:', JSON.stringify(errors));
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 400));

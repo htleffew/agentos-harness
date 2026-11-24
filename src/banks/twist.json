@@ -1,0 +1,317 @@
+{
+ "id": "twist",
+ "name": "Twist focus",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "twist.ours.someone-s-loyalty",
+   "label": "someone's loyalty",
+   "text": "someone's loyalty",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-an-object-really-is",
+   "label": "what an object really is",
+   "text": "what an object really is",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-sent-the-message",
+   "label": "who sent the message",
+   "text": "who sent the message",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-has-been-paying-for-everything",
+   "label": "who has been paying for everything",
+   "text": "who has been paying for everything",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.why-a-person-really-came-here",
+   "label": "why a person really came here",
+   "text": "why a person really came here",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.how-long-someone-has-known-the-truth",
+   "label": "how long someone has known the truth",
+   "text": "how long someone has known the truth",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-is-related-to-whom",
+   "label": "who is related to whom",
+   "text": "who is related to whom",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-happened-the-night-everyone-talks-a",
+   "label": "what happened the night everyone talks around",
+   "text": "what happened the night everyone talks around",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-started-the-rumour",
+   "label": "who started the rumour",
+   "text": "who started the rumour",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-someone-gave-up-to-be-here",
+   "label": "what someone gave up to be here",
+   "text": "what someone gave up to be here",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.whose-idea-the-plan-really-was",
+   "label": "whose idea the plan really was",
+   "text": "whose idea the plan really was",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-a-familiar-place-used-to-be",
+   "label": "what a familiar place used to be",
+   "text": "what a familiar place used to be",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-has-been-listening",
+   "label": "who has been listening",
+   "text": "who has been listening",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-someone-was-doing-when-they-said-th",
+   "label": "what someone was doing when they said they were elsewhere",
+   "text": "what someone was doing when they said they were elsewhere",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-a-gift-was-meant-to-say",
+   "label": "what a gift was meant to say",
+   "text": "what a gift was meant to say",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-the-stranger-is-to",
+   "label": "who the stranger is to {{char}}",
+   "text": "who the stranger is to {{char}}",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.why-a-door-was-left-open",
+   "label": "why a door was left open",
+   "text": "why a door was left open",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.whose-side-an-ally-has-been-on",
+   "label": "whose side an ally has been on",
+   "text": "whose side an ally has been on",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-someone-is-afraid-of",
+   "label": "what someone is afraid of",
+   "text": "what someone is afraid of",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.why-a-promise-was-broken",
+   "label": "why a promise was broken",
+   "text": "why a promise was broken",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-the-person-in-charge-does-not-know",
+   "label": "what the person in charge does not know",
+   "text": "what the person in charge does not know",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-wrote-the-note",
+   "label": "who wrote the note",
+   "text": "who wrote the note",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-someone-already-tried-and-failed-to",
+   "label": "what someone already tried and failed to do",
+   "text": "what someone already tried and failed to do",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-is-really-in-charge-here",
+   "label": "who is really in charge here",
+   "text": "who is really in charge here",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-someone-has-been-hiding-in-plain-si",
+   "label": "what someone has been hiding in plain sight",
+   "text": "what someone has been hiding in plain sight",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.whose-name-is-on-the-agreement",
+   "label": "whose name is on the agreement",
+   "text": "whose name is on the agreement",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.what-a-missing-person-left-behind",
+   "label": "what a missing person left behind",
+   "text": "what a missing person left behind",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "twist.ours.who-benefits-if-nothing-changes",
+   "label": "who benefits if nothing changes",
+   "text": "who benefits if nothing changes",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

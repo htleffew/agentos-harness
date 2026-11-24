@@ -261,7 +261,13 @@ function fakeHost() {
                 const bad = host.mode.failChapter;
                 const evidence = replies.slice(0, 3).map(x => ({ message: x.label, quote: bad ? 'words that are in no reply at all' : x.text.slice(0, 48) }));
                 const summary = replies.map(x => x.text).join(' ').split(' ').slice(0, 170).join(' ');
-                return JSON.stringify({ evidence, title: `Part at ${(replies[0]?.text.match(/rode to ([A-Z]\w+(?: [A-Z]\w+)?)/) || [])[1] || 'the road'}`, start_time: '', end_time: '', summary, people: ['Hale', 'Heather', 'Edren'], places: [], threads_opened: [], threads_closed: [], importance: 6, secrets: [], final_changes: [], event_seeds: [] });
+                // MB3: replies still uncaptured ride in the chapter call; the answer files them under "capture".
+                const ride = host.mode.chapterCapture && /Records to file:/.test(user) ? (() => {
+                    const first = /Exchange 1 \(reply \d+\):[\s\S]*?The reply[^\n]*:\n([^\n]+)/.exec(user)?.[1] || '';
+                    return { capture: { decisions: { durable_change: true, scene_ended: false, out_of_character: false }, time: [], state: [],
+                        ops: [{ op: 'add', id: 'ridden-fact', target: [], kind: 'fact', subject: 'Hale', text: 'Hale filed this in the chapter call.', quote: first.slice(0, 40), exchange: 1 }] } };
+                })() : {};
+                return JSON.stringify({ ...ride, evidence, title: `Part at ${(replies[0]?.text.match(/rode to ([A-Z]\w+(?: [A-Z]\w+)?)/) || [])[1] || 'the road'}`, start_time: '', end_time: '', summary, people: ['Hale', 'Heather', 'Edren'], places: [], threads_opened: [], threads_closed: [], importance: 6, secrets: [], final_changes: [], event_seeds: [] });
             }
             if (/Condense these stored chapter records/.test(user)) {
                 const parts = [...user.matchAll(/^\[(\S+)\] target (\d+) words\. (.+)$/gm)].map(m => ({ id: m[1], text: m[3].split(' ').slice(0, Number(m[2])).join(' ') }));
@@ -396,6 +402,28 @@ test('a swipe of the newest reply leaves out no chapter that covers it, and the 
     const state = C.chapterState({ forRequest: 'swipe' });
     assert.equal(state.chapters[0].valid, false, 'a chapter that covers the reply being swiped is not used for that request');
     assert.equal(C.chapterState().chapters[0].valid, true);
+});
+
+test('replies still uncaptured ride in the chapter call and are filed before their messages leave the request (MB3)', async () => {
+    const { host, calls } = fakeHost();
+    host.mode = { ...(host.mode || {}), chapterCapture: true };
+    const C = await import('../src/chapters.js');
+    const CAP = await import('../src/memory/capture.js');
+    C.startChapters();
+    await openChat(host, 8, 'flow-remainder');
+    const replies = host.chat.map((m, i) => i).filter(i => i > 0 && !host.chat[i].is_user);
+    assert.ok(replies.every(i => !CAP.isCaptured(host.chat[i])));
+    await C.queueChapterWork();
+    await runQueue();
+    const state = C.chapterState();
+    assert.equal(state.chapters.length, 1);
+    const call = calls.find(c => /Write the record of one chapter/.test(c.user));
+    assert.match(call.user, /Records to file:[\s\S]*Exchange 1 \(reply \d+\)/);
+    const covered = replies.filter(i => i <= state.chapters[0].last);
+    assert.ok(covered.length && covered.every(i => CAP.isCaptured(host.chat[i])), 'every reply the chapter covers is captured');
+    const filed = fold(host.chat, host.chatMetadata).byId.get('ridden-fact');
+    assert.ok(filed, 'the chapter call\'s capture entry is filed');
+    assert.equal(filed.versions[0].origin.type, 'capture');
 });
 
 test('a chapter close schedules one write of the generated Story World book (MB13)', async () => {

@@ -24,7 +24,8 @@ const PROFILE = process.env.RI_PROFILE || 'C:\\pw-b2';
 const BASE = '/scripts/extensions/third-party/roleplay-instructions';
 const results = { host: HOST, runs: [] };
 
-const rows = () => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : []);
+// Background memory calls (capture, chapter, condensed) follow each reply and are not counted; tests/mock.js tags every row with a kind.
+const rows = () => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(row => !['capture', 'chapter', 'condensed'].includes(row.kind)) : []);
 const modelRequests = () => rows().filter(row => !row.url.includes('models'));
 const requestCount = () => modelRequests().length;
 const since = start => modelRequests().slice(start);

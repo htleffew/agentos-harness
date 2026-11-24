@@ -122,8 +122,7 @@ async function ordinaryInstruction(page, name) {
         await h.openChat(page);
         await h.setupApi(page, { preset: initialPreset, legacyAutomation: false });
         assert.equal(await page.locator('#settings_preset_openai option:checked').textContent(), initialPreset);
-        disabled = await page.evaluate(() => SillyTavern.getContext().extensionSettings.disabledExtensions);
-        assert(disabled.includes('quick-reply') && disabled.includes('memory'));
+        disabled = await h.assertQuietHost(page);
         const names = await makeStoryWorld(page);
         await open('Steer the next reply');
         await direction().fill(`${marker.oldCue} Have the guard gesture toward the clock.`);

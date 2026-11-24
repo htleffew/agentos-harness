@@ -1,0 +1,53 @@
+{
+ "id": "adult-speed",
+ "name": "Adult: escalation speed",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-speed.pura.immediate",
+   "label": "Immediate",
+   "text": "Immediate: the character acts in the first paragraph, bypassing buildup.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-speed.pura.calculated",
+   "label": "Calculated",
+   "text": "Calculated: the character sets a trap, then springs it mid-scene.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-speed.pura.compounding",
+   "label": "Compounding",
+   "text": "Compounding: small violations stack until the scene becomes inescapable.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-speed.pura.explosive",
+   "label": "Explosive",
+   "text": "Explosive: simmering tension detonates into sudden, severe action.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  }
+ ]
+}

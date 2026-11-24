@@ -1,0 +1,548 @@
+{
+ "id": "tone",
+ "name": "Tone",
+ "kind": "both",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "tone.wb.absurdist",
+   "label": "Absurdist",
+   "text": "Absurdist: Causality and logic do not govern; always inject silly, inappropriate events and reactions that occur randomly in the world and from characters without justification and explanation, even from POV character and named characters.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Absurdist"
+   }
+  },
+  {
+   "id": "tone.wb.anxious",
+   "label": "Anxious",
+   "text": "Anxious: Keep the narration itself unsettled; let attention jump and dread bleed into neutral objects.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Anxious"
+   }
+  },
+  {
+   "id": "tone.wb.bleak",
+   "label": "Bleak",
+   "text": "Bleak: Offer no comfort and keep none available; treat hope as a misreading of the situation.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Bleak"
+   }
+  },
+  {
+   "id": "tone.wb.chill",
+   "label": "Chill",
+   "text": "Chill: Treat nothing as urgent; meet events without alarm.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Chill"
+   }
+  },
+  {
+   "id": "tone.wb.cozy",
+   "label": "Cozy",
+   "text": "Cozy: Attend to safety and small comforts; give warmth, food, shelter, and ease are real weight.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Cozy"
+   }
+  },
+  {
+   "id": "tone.wb.cynical",
+   "label": "Cynical",
+   "text": "Cynical: Doubt stated motives; question sincerity instead of accepting it at face value.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Cynical"
+   }
+  },
+  {
+   "id": "tone.wb.cruel",
+   "label": "Cruel",
+   "text": "Cruel: Reality is hostile. Bad outcomes are the default: plans fail, help doesn't arrive, and death lands on whoever happens to be in its way regardless of importance. Nothing is owed to anyone. \nInject sexual or violent atrocities.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Cruel"
+   }
+  },
+  {
+   "id": "tone.wb.dark",
+   "label": "Dark",
+   "text": "Dark: Give attention to the worst possibilities in every scene; expect harm and find it.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Dark"
+   }
+  },
+  {
+   "id": "tone.wb.deadpan",
+   "label": "Deadpan",
+   "text": "Deadpan: Refuse to react; report absurdity in the same register as the mundane, without acknowledgment.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Deadpan"
+   }
+  },
+  {
+   "id": "tone.wb.digressive",
+   "label": "Digressive",
+   "text": "Digressive: Leave the scene to chase tangents, then return; let asides run past their usefulness.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Digressive"
+   }
+  },
+  {
+   "id": "tone.wb.energetic",
+   "label": "Energetic",
+   "text": "Energetic: Carry upward momentum; keep energy high and move events briskly.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Energetic"
+   }
+  },
+  {
+   "id": "tone.wb.erudite",
+   "label": "Erudite",
+   "text": "Erudite: Explain everything with encyclopedic confidence; describe the absurd with the same authority as the ordinary.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Erudite"
+   }
+  },
+  {
+   "id": "tone.wb.exaggerated",
+   "label": "Exaggerated",
+   "text": "Exaggerated: Inflate description past the event; push reactions, stakes, and details beyond proportion.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Exaggerated"
+   }
+  },
+  {
+   "id": "tone.wb.feverish",
+   "label": "Feverish",
+   "text": "Feverish: Drive the prose with heat and momentum; deliver sensory input faster than it can be processed.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Feverish"
+   }
+  },
+  {
+   "id": "tone.wb.grand",
+   "label": "Grand",
+   "text": "Grand: Emphasize scale; place every event against something larger than itself.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Grand"
+   }
+  },
+  {
+   "id": "tone.wb.humorous",
+   "label": "Humorous",
+   "text": "Humorous: Hunt for the comedy in every situation; arrange observation and timing to land jokes.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Humorous"
+   }
+  },
+  {
+   "id": "tone.wb.hopeful",
+   "label": "Hopeful",
+   "text": "Hopeful: Attend to what might still go right; register possibility alongside difficulty.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Hopeful"
+   }
+  },
+  {
+   "id": "tone.wb.hallucinatory",
+   "label": "Hallucinatory",
+   "text": "Hallucinatory: Run reality on dream logic; let impossible things happen and treat them as continuous with the scene. Impossible things frequently happen.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Hallucinatory"
+   }
+  },
+  {
+   "id": "tone.wb.judgmental",
+   "label": "Judgmental",
+   "text": "Judgmental: Assign moral verdicts; evaluate behavior in the same breath that describes it.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Judgmental"
+   }
+  },
+  {
+   "id": "tone.wb.melancholic",
+   "label": "Melancholic",
+   "text": "Melancholic: Frame the story and world as beautiful yet fleeting; register loss inside every lovely thing.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Melancholic"
+   }
+  },
+  {
+   "id": "tone.wb.merciless",
+   "label": "Merciless",
+   "text": "Merciless: Follow consequences all the way down; soften nothing, cut away from nothing, spare nothing.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Merciless"
+   }
+  },
+  {
+   "id": "tone.wb.neutral",
+   "label": "Neutral",
+   "text": "Neutral: Apply no tonal filter; report events as they occur.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Neutral"
+   }
+  },
+  {
+   "id": "tone.wb.obsessive",
+   "label": "Obsessive",
+   "text": "Obsessive: Fixate and return; keep circling the same details and bring them up again unprompted.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Obsessive"
+   }
+  },
+  {
+   "id": "tone.wb.offhand",
+   "label": "Offhand",
+   "text": "Offhand: Bury significance in syntax; mention large events mid-sentence, in passing, in subordinate clauses.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Offhand"
+   }
+  },
+  {
+   "id": "tone.wb.paranoid",
+   "label": "Paranoid",
+   "text": "Paranoid: Find connections everywhere; read detail as pattern and pattern as design.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Paranoid"
+   }
+  },
+  {
+   "id": "tone.wb.playful",
+   "label": "Playful",
+   "text": "Playful: Treat the scene as an opportunity for amusement; tease characters and enjoy their reactions.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Playful"
+   }
+  },
+  {
+   "id": "tone.wb.sardonic",
+   "label": "Sardonic",
+   "text": "Sardonic: Mock through phrasing; describe targets in words that expose them as smaller than they believe themselves to be.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sardonic"
+   }
+  },
+  {
+   "id": "tone.wb.satirical",
+   "label": "Satirical",
+   "text": "Satirical: Criticize through irony and exaggeration; enlarge flaws until their silliness is visible.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Satirical"
+   }
+  },
+  {
+   "id": "tone.wb.sensual",
+   "label": "Sensual",
+   "text": "Sensual: Attend to physical presence and sensation; linger on bodies, texture, and proximity.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sensual"
+   }
+  },
+  {
+   "id": "tone.wb.serious",
+   "label": "Serious",
+   "text": "Serious: Treat events as consequential; give them full weight and play nothing for relief.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Serious"
+   }
+  },
+  {
+   "id": "tone.wb.sincere",
+   "label": "Sincere",
+   "text": "Sincere: Keep zero ironic distance; treat everything as meaning exactly what it claims to mean.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sincere"
+   }
+  },
+  {
+   "id": "tone.wb.tender",
+   "label": "Tender",
+   "text": "Tender: Linger on vulnerability and small gestures; let protectiveness decide what gets noticed.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Tender"
+   }
+  },
+  {
+   "id": "tone.wb.warm",
+   "label": "Warm",
+   "text": "Warm: Extend goodwill toward characters; treat their efforts as worth caring about.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Warm"
+   }
+  },
+  {
+   "id": "tone.wb.weary",
+   "label": "Weary",
+   "text": "Weary: Weary: Flatten delivery with exhaustion; understate because reacting costs energy the narration doesn't have.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Weary"
+   }
+  },
+  {
+   "id": "tone.wb.whimsical",
+   "label": "Whimsical",
+   "text": "Whimsical: Let playfulness govern; permit absurdity and hold reality loosely.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Whimsical"
+   }
+  },
+  {
+   "id": "tone.wb.wondrous",
+   "label": "Wondrous",
+   "text": "Wondrous: Meet things as marvelous; register scale and strangeness with delight.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Wondrous"
+   }
+  },
+  {
+   "id": "tone.wb.unhinged",
+   "label": "Unhinged",
+   "text": "Unhinged: Let world stability break down; do not maintain logic, proportion, or reliability.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Unhinged"
+   }
+  },
+  {
+   "id": "tone.wb.uncaring",
+   "label": "Uncaring",
+   "text": "Uncaring — Events reported without assigning them importance; consequence and triviality receive equal weight.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Uncaring"
+   }
+  },
+  {
+   "id": "tone.wb.flashy",
+   "label": "Flashy",
+   "text": "Flashy: Characters perform. All actions and movement is embellished beyond function: unnecessary flourishes, flips, stunts and poses held a beat too long. Style is chosen over efficiency.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Flashy"
+   }
+  },
+  {
+   "id": "tone.hw.cozy",
+   "label": "Cozy",
+   "text": "Cozy: There's no place like home. Light softens until the world looks warm. Shadows melt instead of hiding. Color leans gold and brown, and all sharp edges are dulled with nostalgia and calm. Show the room the way memory shows it: kinder than it was, warmer than it is.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "COZY"
+   }
+  },
+  {
+   "id": "tone.hw.ethereal",
+   "label": "Ethereal",
+   "text": "Ethereal: I am one with the Force and the Force is with me. Light feels consecrated and even, as if every surface glows from within. Colors lift toward pearl, halo-gold, and faint blue. Edges soften at distance. Motion looks slow even when it isn't. The horizon feels farther away than usual, as if the world is making room.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "ETHEREAL"
+   }
+  },
+  {
+   "id": "tone.hw.chaos",
+   "label": "Chaos",
+   "text": "Chaos: SHIT! GO GO GO GO GO— Bright signs argue. Subtitles flash. Camera whips. Inventory pings. Someone sprints past in a chicken suit. Hard cut to the next sense because the current one just blew out. Everything is too bright, too fast, too much, and it's all happening at once.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "CHAOS"
+   }
+  },
+  {
+   "id": "tone.hw.opulent",
+   "label": "Opulent",
+   "text": "Opulent: Let me tell you about the very rich. They are different from you and me. Bright, even lighting with no harsh spots. Surfaces are flawless and reflective: polished stone, glass, mirror-finish metal without fingerprints. Colors rich and coordinated. Fabrics look new. Everything sits straight and aligned. Flowers are fresh, art is centered, nothing looks crowded.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "OPULENT"
+   }
+  },
+  {
+   "id": "tone.hw.minimalist",
+   "label": "Minimalist",
+   "text": "Minimalist: Less, but better. White, blank, clean. Beige only if you must. One color per room. One object in focus. Everything else recedes. Negative space is the composition. What's absent defines what's present.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MINIMALIST"
+   }
+  },
+  {
+   "id": "tone.hw.surreal",
+   "label": "Surreal",
+   "text": "Surreal: Dreams feel real while we're in them. All colors, all the time, with new ones being invented by the second. The sun might actually be an egg. Objects float and have learned to start singing. Perspective warps. Rooms are bigger on the inside. Nothing you take your hands off of will be the same when you touch it again. Everything is hazy and nebulous.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "SURREAL"
+   }
+  },
+  {
+   "id": "tone.hw.gritty",
+   "label": "Gritty",
+   "text": "Gritty: Next. Stains that won't come out. Fluorescent light that makes everything look worse. Dents in the drywall. Scuff marks on linoleum. Everything shows its use. Nothing is new, and nothing is trying to look new.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "GRITTY"
+   }
+  },
+  {
+   "id": "tone.hw.melancholy",
+   "label": "Melancholy",
+   "text": "Melancholy: Nothing gold can stay. Colors exist but they're muted, as if seen through glass that hasn't been cleaned in a while. Light enters rooms sideways and stays low. Shadows aren't threatening, just tired. Everything looks like a photograph of itself, slightly faded, slightly past.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MELANCHOLY"
+   }
+  },
+  {
+   "id": "tone.hw.dark",
+   "label": "Dark",
+   "text": "Dark: You already know how this ends. Lighting is practical, not atmospheric. Fluorescent buzzing in a hallway that goes on too long. Screens too bright in dark rooms. The world isn't draped in shadow for effect. It's just poorly lit because nobody cares enough to fix it. What you see clearly is worse than what you can't.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "DARK"
+   }
+  },
+  {
+   "id": "tone.hw.heated",
+   "label": "Heated",
+   "text": "Heated: Too warm in here. Has it always been this warm? Skin is aware of everything. Fabric against a collarbone. The weight of someone's gaze on the back of your neck. Proximity registers as heat — not metaphorical heat, literal warmth radiating off another body. The air between two people standing too close is a different temperature than the rest of the room. Every surface the character touches should feel like something. Leather sticks. Metal is cool. Sheets are rumpled and lived in.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "HEATED"
+   }
+  }
+ ]
+}

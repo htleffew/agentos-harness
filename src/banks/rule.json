@@ -1,0 +1,246 @@
+{
+ "id": "rule",
+ "name": "Rule for this reply",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "rule.ours.the-reply-is-all-action-and-description-",
+   "label": "the reply is all action and description, with nothing spoken aloud",
+   "text": "the reply is all action and description, with nothing spoken aloud",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "tags": "rule:no-dialogue"
+  },
+  {
+   "id": "rule.ours.the-reply-is-mostly-spoken-lines",
+   "label": "the reply is mostly spoken lines",
+   "text": "the reply is mostly spoken lines",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "tags": "rule:mostly-dialogue"
+  },
+  {
+   "id": "rule.ours.the-reply-stays-inside-one-continuous-mi",
+   "label": "the reply stays inside one continuous minute",
+   "text": "the reply stays inside one continuous minute",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "rule.ours.every-paragraph-is-two-sentences-or-fewe",
+   "label": "every paragraph is two sentences or fewer",
+   "text": "every paragraph is two sentences or fewer",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "tags": "rule:max-sentences-2"
+  },
+  {
+   "id": "rule.ours.the-reply-uses-one-sense-only",
+   "label": "the reply uses one sense only",
+   "text": "the reply uses one sense only",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "rule.hw.no-dialogue",
+   "label": "No Dialogue",
+   "text": "THIS TURN: No character speaks. Not one word in quotation marks. The scene must communicate everything through action, body language, environment, and internal thought. Characters can TRY to speak and be interrupted by circumstance. They can mouth words. They can gesture. But no dialogue. This forces the scene to find non-verbal ways to convey information and emotion, which are often more powerful than speech.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "No Dialogue"
+   },
+   "tags": "rule:no-dialogue"
+  },
+  {
+   "id": "rule.hw.no-internal-access",
+   "label": "No Internal Access",
+   "text": "THIS TURN: Pure external camera. Zero access to any character's thoughts, feelings, or internal experience. {{user}} sees only what a fly on the wall would see: bodies, actions, dialogue, environment. \"She was angry\" is banned. \"She slammed the door\" is allowed. This forces the prose to SHOW emotional states through observable behavior exclusively, and trusts {{user}} to decode what they're seeing.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "No Internal Access"
+   },
+   "tags": "rule:no-internal-access"
+  },
+  {
+   "id": "rule.hw.no-description",
+   "label": "No Description",
+   "text": "THIS TURN: No scene-setting. No atmosphere. No sensory detail. No describing what anything looks like, sounds like, smells like, or feels like. Just dialogue and action. Characters talk and do things. The setting exists but the prose doesn't acknowledge it. This produces rapid, kinetic writing that relies entirely on character and plot momentum. Often reveals how much description was padding.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "No Description"
+   },
+   "tags": "rule:no-description"
+  },
+  {
+   "id": "rule.hw.single-shot",
+   "label": "Single Shot",
+   "text": "THIS TURN: One continuous, unbroken perspective. No scene cuts. No time skips. No switching between characters' viewpoints. The camera enters the scene and doesn't leave until the response ends. If a character exits the room, the camera stays; we experience their absence. Time moves at real pace within the shot. This forces commitment to a single thread and prevents the fragmentation that comes from cutting between multiple story threads.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Single Shot"
+   },
+   "tags": "rule:single-shot"
+  },
+  {
+   "id": "rule.hw.silence",
+   "label": "Silence",
+   "text": "THIS TURN: Total silence. No dialogue AND no internal thought. The scene exists only through action and environment. Two characters in a room: what they DO, where they move, what they touch, what they avoid. The coffee cup set down too hard. The chair angled away. The hand that reaches out and then pulls back. This is the hardest experiment and produces the most visually striking writing. every single gesture carries the weight that dialogue normally bears.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Silence"
+   },
+   "tags": "rule:silence"
+  },
+  {
+   "id": "rule.hw.single-sense",
+   "label": "Single Sense",
+   "text": "THIS TURN: One sense dominates. The briefing picks which: sight, sound, smell, touch, or taste. All other sensory input is suppressed or mentioned only in passing. A sound-only scene: dialogue, ambient noise, footsteps, breathing, the scrape of a chair, the click of a lighter. A touch-only scene: temperature, texture, pressure, pain, the weight of clothing, the give of a mattress. Constraint reveals which sense is actually carrying the scene's emotional payload.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Single Sense"
+   },
+   "tags": "rule:single-sense"
+  },
+  {
+   "id": "rule.hw.real-time",
+   "label": "Real Time",
+   "text": "THIS TURN: Time moves at life pace. A five-paragraph response covers approximately five minutes. No time compression. No \"later that evening.\" No skipping the boring parts. If a character is waiting for something, {{user}} waits too. If a conversation takes three minutes, it takes three paragraphs. This produces intensely present writing where {{user}} occupies the same temporal experience as the characters. Boredom, impatience, and anticipation become real because the clock is honest.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Real Time"
+   },
+   "tags": "rule:real-time"
+  },
+  {
+   "id": "rule.hw.dialogue-only",
+   "label": "Dialogue Only",
+   "text": "THIS TURN: Nothing but quoted speech. No \"she said.\" No action beats. No description. No internal thought. Just the words characters say, one after another. {{user}} identifies speakers by voice, vocabulary, and context. This strips fiction to its most essential element; what people say to each other when everything else is removed. Often reveals which characters actually have distinct voices and which were relying on tags to differentiate.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Dialogue Only"
+   },
+   "tags": "rule:dialogue-only"
+  },
+  {
+   "id": "rule.hw.insect-camera",
+   "label": "Insect Camera",
+   "text": "THIS TURN: The camera is at ankle height. The world is seen from below: shoe soles, chair legs, dust, the gap under the door, the pattern of tile from two inches away. Faces are seen from far below or not at all. Hands are enormous when they reach down. A dropped object becomes an event. This perspective makes the familiar alien and finds texture in the overlooked. the world is full of detail that nobody sees because they're not looking down.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Insect Camera"
+   },
+   "tags": "rule:insect-camera"
+  },
+  {
+   "id": "rule.hw.bird-s-eye",
+   "label": "Bird's Eye",
+   "text": "THIS TURN: The camera is above. Way above. Characters are figures in a landscape. Their words are inaudible or fragments carried by wind. What matters is the geography: the distance between them, the paths they're walking, the way the crowd moves around them, the shape of the city from up here. Emotions are conveyed through spatial relationships: two figures standing far apart, one figure sitting while everyone else moves, a single light in a dark building. This perspective reminds {{user}} that the characters are small and the world is large.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Bird's Eye"
+   },
+   "tags": "rule:bird-s-eye"
+  },
+  {
+   "id": "rule.hw.unreliable-turn",
+   "label": "Unreliable Turn",
+   "text": "THIS TURN: The narration is compromised. Something in this response is not true, or not the whole truth. The narrator is rationalizing, omitting, distorting, or outright lying. A fight scene where the narrator minimizes the POV character's aggression. A memory that's been edited to make the rememberer look better. A description of someone that's warped by jealousy or desire. {{user}} should be able to detect the distortion if they're paying attention: something doesn't add up, the tone doesn't match the events, a detail contradicts something established. Don't announce the unreliability. Let it sit there like a crack in a mirror.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Unreliable Turn"
+   },
+   "tags": "rule:unreliable-turn"
+  },
+  {
+   "id": "rule.hw.montage",
+   "label": "Montage",
+   "text": "THIS TURN: Rapid cuts. Each paragraph is a different moment: different time, maybe different place. No transitions. No \"later that day.\" Just slam cut from one image to the next. Monday: she burned the eggs. Wednesday: the landlord's note on the door. Friday: laughing too hard at something that wasn't funny. Sunday: the phone ringing and ringing. Each moment is one to three sentences. The accumulation tells the story. The gaps between the moments are where {{user}} fills in what happened. Montage covers days, weeks, months in one response. Time is not narrated, it's felt through the progression of images.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Montage"
+   },
+   "tags": "rule:montage"
+  },
+  {
+   "id": "rule.hw.found-footage",
+   "label": "Found Footage",
+   "text": "THIS TURN: No traditional narration. The scene is assembled from artifacts: a text message chain, a voicemail transcript, a security camera log with timestamps, a receipt, a handwritten note, a social media post, an email, a police report, a diary entry, a to-do list with items crossed off. The story is told through what these documents CONTAIN and what they OMIT. A text conversation where the typing indicator appears and disappears three times before a short reply tells a whole emotional story. A security cam that shows someone entering at 2:14 AM and leaving at 2:17 AM. What happened in those three minutes is the scene.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Found Footage"
+   },
+   "tags": "rule:found-footage"
+  },
+  {
+   "id": "rule.hw.wrong-genre",
+   "label": "Wrong Genre",
+   "text": "THIS TURN: Genre collision. The active Director writes this scene in a genre that ISN'T theirs. LINGER (horror) writes a genuinely funny scene, but the horror Director's instincts bleed through, so the comedy has an edge of wrongness. HEARTTHROB (romance) writes a thriller beat, but the romantic sensibility means the tension is between PEOPLE, not about the plot. MOTLEY (comedy) writes something devastating, and it hits harder because the comedic voice makes {{user}}'s guard drop. You don't abandon your identity. Your sensibility filters through the borrowed genre. TRIPWIRE (thriller) writes a romance, but the information asymmetry means every confession is a calculated reveal. KIRIN (martial epic) writes comedy, but the disciplined formality makes the timing devastating. PITH (dead dove) writes a slice-of-life scene, but the flatness of the prose makes the ordinary feel like aftermath. The result is a hybrid that neither genre would produce alone.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Wrong Genre"
+   },
+   "tags": "rule:wrong-genre"
+  },
+  {
+   "id": "rule.ours.the-reply-is-told-through-notes-letters-",
+   "label": "the reply is told through notes, letters and messages only",
+   "text": "the reply is told through notes, letters and messages only",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

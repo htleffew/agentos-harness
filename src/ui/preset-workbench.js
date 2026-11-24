@@ -1,16 +1,15 @@
 import { h, button, select } from './dom.js';
 import { slot, homeLink } from './homes.js';
+import { conflictSection } from './preset-conflicts.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
-import { functionExecution } from './execution.js';
-import { executionReceipt } from '../execution.js';
 import { ctx } from '../st.js';
 import { saveChatState } from '../store.js';
 import { estimateTokens } from '../context-budget.js';
 import { moduleOrder, MODULE_PROMPTS } from '../module-layout.js';
 import { activePreset, prefs, MODULES, enabledV10, blockCompanions, stripPresetComments } from '../v10.js';
 import { FEATURES, plainName } from '../preset-library.js';
-import { presetRows, hasPresetEdit, editPresetBlock, savePair, evaluateParity, presetBlockRevision, presetBlockVariation,
+import { presetRows, hasPresetEdit, editPresetBlock, presetBlockRevision, presetBlockVariation,
     validateBlockVariation, presetRestoreBaselines, presetRestoreFileName, presetRestoreUndo, linkPresetRestoreFile,
     switchContext, resolvedSwitches, workingCopyOff } from '../preset-workbench.js';
 // Registers Setup, Presets with the page registry when the panel loads this module.
@@ -101,7 +100,7 @@ export function presetWorkbench(preset,app) {
 /** Preset blocks grouped by the preset's headings, each editable, for Setup, Presets. */
 export function presetBlockEditor(preset,app,profile) {
     const context=keyFor();
-    if (app.presetWorkspace?.context!==context) app.presetWorkspace={context,drafts:new Map(),matches:[],confirm:null};
+    if (app.presetWorkspace?.context!==context) app.presetWorkspace={context,drafts:new Map(),confirm:null};
     const ui=app.presetWorkspace;
     const details=h('details',{id:'ri-preset-workbench',class:'ri-card ri-preset-workbench',open:ui.open});
     const body=h('div');
@@ -222,13 +221,6 @@ export function presetBlockEditor(preset,app,profile) {
                 },`${source.label} restored.`)));
             }
             if (presetRestoreUndo(preset)?.id===id) panel.append(button('Undo restore',()=>run(()=>editPresetBlock(preset,id,{type:'undo'}),'Previous preset block restored.')));
-            const keys=blockCompanions(block,preset);
-            const mapping=h('details',{},h('summary',{},'Choose matching features by hand'));
-            const boxes=Object.keys(MODULES).map(key=>h('input',{type:'checkbox',checked:keys.includes(key),value:key}));
-            mapping.append(hint('Used when the preset library does not recognise this preset.'),...boxes.map(box=>h('label',{class:'ri-vpick'},box,FEATURES[box.value]?.label || MODULES[box.value])),
-                btns(button('Save matches',()=>{savePair(preset,id,boxes.filter(box=>box.checked).map(box=>box.value));redraw();}),
-                    button('Restore automatic matches',()=>{savePair(preset,id,null);redraw();})));
-            panel.append(mapping);
         }
         if (card.open) expand();
         card.ontoggle=()=>{if(card.open){ui.current=id;expand();}else if(ui.current===id){ui.current=null;}};
@@ -301,19 +293,6 @@ export function presetBlockEditor(preset,app,profile) {
         const title=h('input',{class:'ri-input',value:ui.newName || ''});
         const text=h('textarea',{class:'ri-input ri-textarea',value:ui.newText || ''});
         title.oninput=()=>{ui.newName=title.value;};text.oninput=()=>{ui.newText=text.value;};
-        const compare=h('details',{open:ui.compare},h('summary',{},'Compare preset and extension with AI'),
-            hint('One optional request sends preset names, prompt excerpts and extension guidance to the saved connection. Suggestions change settings when you accept a match.'),
-            slot(['parityEvaluation'],'Edit comparison prompts'),
-            functionExecution('presetParity',{receipt:executionReceipt('presetParity')}),
-            button('Compare with 1 model call',()=>run(async()=>{ui.matches=await evaluateParity(rows);ui.compare=true;},'Comparison complete.')));
-        compare.ontoggle=()=>ui.compare=compare.open;
-        for(const item of ui.matches) {
-            const block=rows.find(row=>row.id===item.id); if(!block) continue;
-            const keys=blockCompanions(block,preset);
-            compare.append(h('div',{class:'ri-card ri-tight'},h('strong',{},plainName(block.name)+' → '+(FEATURES[item.module]?.label || MODULES[item.module])),hint((['close','partial','conflicting'].includes(item.coverage) ? item.coverage+' match · ' : '')+item.reason),
-                button(keys.includes(item.module) ? 'Already matched' : 'Use this match',()=>{savePair(preset,item.id,[...keys,item.module]);redraw();},{disabled:keys.includes(item.module)})));
-        }
-        if(ui.message==='Comparison complete.' && !ui.matches.length) compare.append(hint('No matching features were suggested.'));
         const file=h('input',{type:'file',accept:'.json,application/json','aria-label':'Original preset JSON',hidden:true});
         const originalFileName=presetRestoreFileName(preset);
         const restoreFile=h('details',{},h('summary',{},'Attach an original preset file'),
@@ -335,7 +314,7 @@ export function presetBlockEditor(preset,app,profile) {
                 button('Add to end of preset',()=>run(async()=>{
                     const id=crypto.randomUUID?.() || 'ri-'+Date.now().toString(36)+Math.random().toString(36).slice(2);
                     await editPresetBlock(preset,id,{type:'add',name:title.value,content:text.value});ui.current=id;ui.query=ui.newName=ui.newText='';
-                },'Added an enabled system block.'))),prefs() && enabledV10() ? orderEditor() : null,compare,label('Find a preset block',filter),list].filter(Boolean));
+                },'Added an enabled system block.'))),prefs() && enabledV10() ? orderEditor() : null,conflictSection({preset}),label('Find a preset block',filter),list].filter(Boolean));
         body.inert=!!ui.busy;
     }
     details.append(h('summary',{},`Preset blocks (${presetRows().filter(row=>row.listed && !isHeading(row)).length})`),status,body);

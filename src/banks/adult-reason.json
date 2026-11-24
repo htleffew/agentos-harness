@@ -1,0 +1,97 @@
+{
+ "id": "adult-reason",
+ "name": "Adult: rationalization",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-reason.pura.they-believe-they-are-owed-this",
+   "label": "They believe they are owed this",
+   "text": "They believe they are owed this.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-reason.pura.they-are-acting-on-hunger-they-have-been",
+   "label": "They are acting on hunger they have been suppressing",
+   "text": "They are acting on hunger they have been suppressing.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-reason.pura.they-see-the-other-person-as-an-object",
+   "label": "They see the other person as an object",
+   "text": "They see the other person as an object, not a person.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-reason.pura.they-are-punishing-perceived-betrayal-or",
+   "label": "They are punishing perceived betrayal or disrespect",
+   "text": "They are punishing perceived betrayal or disrespect.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-reason.pura.they-are-testing-boundaries-to-see-what-",
+   "label": "They are testing boundaries to see what they can take",
+   "text": "They are testing boundaries to see what they can take.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-reason.pura.they-are-claiming-what-they-think-belong",
+   "label": "They are claiming what they think belongs to them",
+   "text": "They are claiming what they think belongs to them.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-reason.pura.they-are-acting-on-impulse-and-will-just",
+   "label": "They are acting on impulse and will justify it later",
+   "text": "They are acting on impulse and will justify it later.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-reason.pura.they-do-not-care-about-justification-at-",
+   "label": "They do not care about justification at all",
+   "text": "They do not care about justification at all.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  }
+ ]
+}

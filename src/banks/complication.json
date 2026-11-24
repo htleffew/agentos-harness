@@ -1,0 +1,537 @@
+{
+ "id": "complication",
+ "name": "Complication",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "complication.pura.practical-obstacle",
+   "label": "Practical obstacle",
+   "text": "Practical obstacle: something breaks, runs out, or fails. A tool malfunctions, a resource depletes, access is blocked, or timing becomes tight.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.pura.social-friction",
+   "label": "Social friction",
+   "text": "Social friction: someone's mood, priority, or patience shifts. A character becomes less cooperative, more suspicious, distracted, or pressed by an outside obligation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.pura.information-asymmetry",
+   "label": "Information asymmetry",
+   "text": "Information asymmetry: someone knows something others do not, or misunderstands something critical. The gap creates tension, miscommunication, or a choice about correction.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.pura.minor-betrayal",
+   "label": "Minor betrayal",
+   "text": "Minor betrayal: someone breaks a small promise, prioritizes themselves, withholds help, or takes credit. Not catastrophic, but it stings and changes the dynamic.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.pura.interruption",
+   "label": "Interruption",
+   "text": "Interruption: someone or something intrudes. A phone call, a knock, a third party with their own agenda, or an environmental demand that cannot be ignored.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.pura.tightened-constraint",
+   "label": "Tightened constraint",
+   "text": "Tightened constraint: a deadline moves closer, a budget shrinks, a space becomes less private, or a window of opportunity narrows.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.pura.arriving-consequence",
+   "label": "Arriving consequence",
+   "text": "Arriving consequence: something done earlier comes back. A favor is called in, a lie is questioned, a mess demands attention, or a casual choice now matters.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.pura.surfacing-need",
+   "label": "Surfacing need",
+   "text": "Surfacing need: a character reveals or realizes they need something, and asking creates vulnerability or negotiation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Grounded Complication"
+   }
+  },
+  {
+   "id": "complication.wb.friction",
+   "label": "Friction",
+   "text": "Friction: active resistance. Denial, disagreement, hard social/physical boundary.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.raising-stakes",
+   "label": "Raising Stakes",
+   "text": "Raising Stakes: current emotion/action intensifies. Argument to shouting, gentle touch to desperate, casual to romantic, hurdle to crisis.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.limitation",
+   "label": "Limitation",
+   "text": "Limitation: options, space, or time abruptly reduced. Ultimatum, moved deadline, blocked exit, drained stamina.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.exposure",
+   "label": "Exposure",
+   "text": "Exposure: protagonist put on the spot. Hidden emotion/injury noticed, lie called out, uncomfortable answer demanded.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.power-shift",
+   "label": "Power Shift",
+   "text": "Power Shift: sudden hierarchy change. Upper hand seized; safe situation turns predatory.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.crossroads",
+   "label": "Crossroads",
+   "text": "Crossroads: two mutually exclusive, costly choices. Sacrifice one to gain another.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.new-variable",
+   "label": "New Variable",
+   "text": "New Variable: sudden context change.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.void",
+   "label": "Void",
+   "text": "Void: gap in logic or sudden unknown. Unreadable expression, cryptic statement, environmental detail that doesn't add up.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.discovery",
+   "label": "Discovery",
+   "text": "Discovery: passive hook. Lore fragment, strange item, off-hand comment inviting curiosity—no panic.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.grounding",
+   "label": "Grounding",
+   "text": "Grounding: shared humanity or reprieve. Quiet observation, sigh, action setting new emotional baseline.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.recontextualization",
+   "label": "Recontextualization",
+   "text": "Recontextualization: a detail unintentionally mirrors {{user}}'s hidden flaw or past mistake. Heavy unspoken tension.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.wb.sensory-snag",
+   "label": "Sensory Snag",
+   "text": "Sensory Snag: specific physical detail intrudes—scent, distant sound, unexpected texture, temperature shift—registered without immediate meaning.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Narrative Hooks"
+   }
+  },
+  {
+   "id": "complication.ours.the-tool-everyone-was-counting-on-breaks",
+   "label": "the tool everyone was counting on breaks",
+   "text": "the tool everyone was counting on breaks",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-one-person-with-the-answer-has-just-",
+   "label": "the one person with the answer has just left",
+   "text": "the one person with the answer has just left",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-helper-wants-something-in-return-first",
+   "label": "a helper wants something in return first",
+   "text": "a helper wants something in return first",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-way-forward-is-blocked-by-a-crowd-or",
+   "label": "the way forward is blocked by a crowd or a queue",
+   "text": "the way forward is blocked by a crowd or a queue",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.someone-important-is-in-a-bad-mood-today",
+   "label": "someone important is in a bad mood today",
+   "text": "someone important is in a bad mood today",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-plan-depends-on-a-person-who-is-runn",
+   "label": "the plan depends on a person who is running late",
+   "text": "the plan depends on a person who is running late",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-witness-sees-something-they-should-not",
+   "label": "a witness sees something they should not",
+   "text": "a witness sees something they should not",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-money-food-or-supplies-run-short",
+   "label": "the money, food or supplies run short",
+   "text": "the money, food or supplies run short",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.someone-takes-the-wrong-thing-by-mistake",
+   "label": "someone takes the wrong thing by mistake",
+   "text": "someone takes the wrong thing by mistake",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-misunderstanding-sends-someone-off-in-",
+   "label": "a misunderstanding sends someone off in the wrong direction",
+   "text": "a misunderstanding sends someone off in the wrong direction",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-second-problem-turns-up-while-the-firs",
+   "label": "a second problem turns up while the first is being solved",
+   "text": "a second problem turns up while the first is being solved",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.someone-who-was-on-side-starts-to-doubt",
+   "label": "someone who was on side starts to doubt",
+   "text": "someone who was on side starts to doubt",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-weather-turns-at-the-worst-moment",
+   "label": "the weather turns at the worst moment",
+   "text": "the weather turns at the worst moment",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-sign-rule-or-law-nobody-knew-about-app",
+   "label": "a sign, rule or law nobody knew about applies here",
+   "text": "a sign, rule or law nobody knew about applies here",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.someone-is-hurt-and-has-to-be-looked-aft",
+   "label": "someone is hurt and has to be looked after",
+   "text": "someone is hurt and has to be looked after",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-directions-given-were-wrong",
+   "label": "the directions given were wrong",
+   "text": "the directions given were wrong",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-rival-is-already-working-on-the-same-t",
+   "label": "a rival is already working on the same thing",
+   "text": "a rival is already working on the same thing",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-careless-word-gives-something-away",
+   "label": "a careless word gives something away",
+   "text": "a careless word gives something away",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.someone-insists-on-doing-it-their-own-wa",
+   "label": "someone insists on doing it their own way",
+   "text": "someone insists on doing it their own way",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-place-is-busier-than-anyone-expected",
+   "label": "the place is busier than anyone expected",
+   "text": "the place is busier than anyone expected",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-key-person-has-changed-their-mind",
+   "label": "a key person has changed their mind",
+   "text": "a key person has changed their mind",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.what-was-promised-turns-out-to-be-smalle",
+   "label": "what was promised turns out to be smaller than expected",
+   "text": "what was promised turns out to be smaller than expected",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.someone-has-to-be-persuaded-who-does-not",
+   "label": "someone has to be persuaded who does not want to listen",
+   "text": "someone has to be persuaded who does not want to listen",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-noise-draws-attention-when-nobody-want",
+   "label": "a noise draws attention when nobody wanted any",
+   "text": "a noise draws attention when nobody wanted any",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.a-needed-document-token-or-proof-is-miss",
+   "label": "a needed document, token or proof is missing",
+   "text": "a needed document, token or proof is missing",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.an-ally-brings-someone-along-who-was-not",
+   "label": "an ally brings someone along who was not invited",
+   "text": "an ally brings someone along who was not invited",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.two-people-who-dislike-each-other-have-t",
+   "label": "two people who dislike each other have to work together",
+   "text": "two people who dislike each other have to work together",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "complication.ours.the-time-available-turns-out-to-be-half-",
+   "label": "the time available turns out to be half what was planned",
+   "text": "the time available turns out to be half what was planned",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

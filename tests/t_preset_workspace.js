@@ -46,17 +46,16 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         const added=wb.locator('details[data-preset-block]').filter({has:page.getByText('Live addition',{exact:true})});
         await open(added);await click(added.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
         assert.equal(await added.count(),0);
-        const compare=wb.locator('details').filter({has:page.getByText('Compare preset and extension with AI',{exact:true})}).last();
-        // A match saved by an earlier run on the same host would show "Already matched"; start from automatic matches.
-        await page.evaluate(async({B,name})=>(await import(`${B}/src/preset-workbench.js`)).savePair(name,'review-relationships',null),{B:L.BASE,name:preset.name});
+        // B34: the conflict call runs only on her tap and lists what could cause a problem; an empty list reads as none found.
         await pageTab('presets');await open(wb);
-        await open(compare);
-        L.resetLog();L.mode({reply:JSON.stringify([{id:'review-relationships',module:'roast',coverage:'partial',reason:'Fixture example.'}])});
-        await click(compare.getByRole('button',{name:'Compare with 1 model call'}));await waitMessage('Comparison complete');
+        const conflicts=wb.locator('#ri-conflicts');
+        L.resetLog();L.mode({reply:'[]'});
+        await page.waitForTimeout(300);assert.equal(L.requests().length,0,'opening the page makes no model call');
+        await click(conflicts.getByRole('button',{name:/Check conflicts/}));
+        for(let i=0;i<60 && L.requests().length<1;i++)await page.waitForTimeout(150);
+        await conflicts.locator('.ri-conf-status').filter({hasText:/Check finished/}).waitFor({state:'attached',timeout:9000});
         assert.equal(L.requests().length,1);
-        await click(compare.getByRole('button',{name:'Use this match'}));await open(block);
-        const matches=block.locator('details').filter({has:page.getByText('Choose matching features by hand',{exact:true})}).last();
-        await open(matches);assert.equal(await matches.locator('input[value="roast"]').isChecked(),true,'the accepted match is saved');
+        await open(block);
         const placement=block.locator('details').filter({has:page.getByText('Placement and generation triggers',{exact:true})}).last();
         await open(placement);await pick(placement.getByLabel('Prompt placement'),'absolute');
         await input(placement.getByLabel('Messages from the end'),'2');await input(placement.getByLabel('Priority at this depth'),'42');
@@ -115,6 +114,6 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
                 console.log(path.basename(file)+': '+source.length+' ordered, '+ids.size+' supplied blocks accounted for.');
             }
         }
-        assert.deepEqual(errors,[]);console.log('PASS: native order, edited text on the wire, add, per-block restore, accepted match, placement and a customized commentator in a real request.');
+        assert.deepEqual(errors,[]);console.log('PASS: native order, edited text on the wire, add, per-block restore, the conflict call on tap, placement and a customized commentator in a real request.');
     }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

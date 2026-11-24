@@ -1,0 +1,75 @@
+{
+ "id": "figurative",
+ "name": "Figurative language",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "figurative.wb.none",
+   "label": "None",
+   "text": "Usage of figurative language (Similes, metaphors, hyperbole, idioms, etc.) should be None: No figurative language. Descriptions are literal and direct.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "None"
+   }
+  },
+  {
+   "id": "figurative.wb.sparse",
+   "label": "Sparse",
+   "text": "Figurative language (Similes, metaphors, hyperbole, idioms, etc.) should be Sparse: One figurative image only for this generation, reserved for moments that carry weight. Most description stays literal.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sparse (1 figurative image)"
+   }
+  },
+  {
+   "id": "figurative.wb.moderate",
+   "label": "Moderate",
+   "text": "Figurative language frequency (Similes, metaphors, hyperbole, idioms, etc.) should be Moderate: Roughly one per several paragraphs, reserved for moments that carry weight. Most descriptions stay direct.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Moderate (1 figurative image per several pargraphs)"
+   }
+  },
+  {
+   "id": "figurative.wb.rich",
+   "label": "Rich",
+   "text": "Figurative language (Similes, metaphors, hyperbole, idioms, etc.) should be Rich: Multiple per paragraph. Comparison is a primary descriptive tool",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Rich (multiple figurative images per paragaph )"
+   }
+  },
+  {
+   "id": "figurative.wb.saturated",
+   "label": "Saturated",
+   "text": "Figurative language (Similes, metaphors, hyperbole, idioms, etc.) should be Saturated: Figurative language governs. Images extend, compound, and sustain across sentences.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Saturated (fuckton of figurative images)"
+   }
+  },
+  {
+   "id": "figurative.wb.adaptive-frequency",
+   "label": "Adaptive Frequency",
+   "text": "Figurative language (Similes, metaphors, hyperbole, idioms, etc.) should Adaptive: Default to literal description. Figurative language is reserved for beats that carry weight: emotional turns, first sight of something significant, moments of physical or psychological extremity. Routine action, transitional movement, and functional description stay literal.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Frequency"
+   }
+  }
+ ]
+}

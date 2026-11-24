@@ -37,7 +37,13 @@ export function homeLink(app, keys, text, { anchor } = {}) {
     const where = pageLabel[target.page] || target.page;
     return h('div', { class:'ri-note ri-home-link', 'data-home-link':list.join(' ') },
         h('span', {}, text || `${target.label} is set in ${where}.`),
-        button(`Open ${where}`, async () => (app || (await import('./panel.js')).app).openPage(target.page, { anchor:anchor || homeSelector(key) }), { kind:'ghost' }));
+        button(`Open ${where}`, async () => {
+            const view = app || (await import('./panel.js')).app;
+            // A link row drawn outside the panel (the quick action sheet) has no open panel to land in, so the menu opens full screen.
+            const outside = !!view.root && !view.root.contains(document.activeElement);
+            const opened = await view.openPage(target.page, { anchor:anchor || homeSelector(key) });
+            if (outside && opened !== false) await view.setExpanded(true);
+        }, { kind:'ghost' }));
 }
 
 /**

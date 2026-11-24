@@ -1,0 +1,64 @@
+{
+ "id": "dialogue",
+ "name": "Dialogue amount",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "dialogue.wb.silent",
+   "label": "Silent",
+   "text": "Dialogue frequency should be Silent: Dialogue is rare. Scenes are carried by action, observation, and interiority; characters speak only when speech is the only option available. Aim for 0%-10% dialogue, 90%-100% narration.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Silent"
+   }
+  },
+  {
+   "id": "dialogue.wb.sparse",
+   "label": "Sparse",
+   "text": "Dialogue frequency should be Sparse: A few exchanged lines per conversation with narration doing the primary work between them. Aim for 20%-30% dialogue, 70% narration. \nScene can be silent if it makes sense.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Sparse"
+   }
+  },
+  {
+   "id": "dialogue.wb.balanced",
+   "label": "Balanced",
+   "text": "Dialogue frequency should be Balanced: Conversations run to natural length. 50% dialogue, 50% narration. \nScene can be silent if it makes sense.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Balanced"
+   }
+  },
+  {
+   "id": "dialogue.wb.often",
+   "label": "Often",
+   "text": "Dialogue frequency should be Often: Frequent dialogue, speech leads. Most scenes are built around conversation, with narration serving as connective tissue and staging between lines. 70% dialogue, 30% narration. \nScene can be silent if it makes sense.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Often"
+   }
+  },
+  {
+   "id": "dialogue.wb.talkative",
+   "label": "Talkative",
+   "text": "Dialogue frequency should be Talkative: Dialogue dominates. Exchanges run at length, characters speak in extended turns, and narration reduces to minimal staging. Aim for 80%-90% dialogue, 10%-20% narration.\nScene can be silent if it makes sense.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Talkative"
+   }
+  }
+ ]
+}

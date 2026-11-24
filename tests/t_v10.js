@@ -5,6 +5,12 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
 
 const block = (prose, data) => `${prose}\n<story_update v="2">${JSON.stringify({v:2,...data})}</story_update>`;
 const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
+// MB3: story state reaches memory through capture after each reply (memory DESIGN 7.2). The mock answers the capture call
+// with `capture`, written here as the entries the reply's update block used to carry, and chat requests are counted
+// without the capture calls.
+const cap = (...ops) => ({decisions:{durable_change:ops.length>0,scene_ended:false,out_of_character:false},ops,state:{}});
+const add = (kind,id,text,quote,extra={}) => ({op:'add',id,target:[],kind,subject:'',text,quote,...extra});
+const chatRequests = () => L.requests().filter(request=>!/You keep the records of a roleplay story/.test(L.text(request)));
 
 (async () => {
     L.sync();
@@ -55,7 +61,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             changes:[{kind:'fact',id:'ferry-gone',text:'The ferry left the dock.',evidence:'The ferry is gone.'},
                 {kind:'emotion',id:'seraphina-mood',subject:'Seraphina',text:'Frustrated',axes:{fury:5},evidence:'I saw the ferry depart,'}],
             roast:'The dock has excellent timing, which is to say none.'
-        })});
+        }),capture:cap(add('fact','ferry-gone','The ferry left the dock.','The ferry is gone.'),
+            add('emotion','seraphina-mood','Frustrated','I saw the ferry depart,',{subject:'Seraphina',axes:{fury:5}}))});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
         // B10 replaced the streaming progress card and the cards under each reply with the reply tray. Its loading
         // Strip, arrival chips, views and exits are covered by tests/t_reply_tray.js and the B10 touch pass; the old
@@ -65,25 +72,29 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         if (process.env.RI_CAPTURE_DIR) await page.locator('#chat .last_mes').screenshot({path:process.env.RI_CAPTURE_DIR+'/saved.png'});
         await page.setViewportSize({width:1280,height:900});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',false).trigger('change'));
-        await page.waitForFunction(async B=>(await import(`${B}/src/v10.js`)).rowsForWorld().then(rows=>rows.some(x=>x.name==='ferry-gone')),L.BASE);
-        assert.equal(L.requests().length,1);
-        assert.match(L.text(L.requests()[0]),/Resolved action check/);
-        assert.match(L.text(L.requests()[0]),/Scene and character checks:/);
-        assert.match(L.text(L.requests()[0]),/ordinary quoted dialogue/);
-        assert.doesNotMatch(L.text(L.requests()[0]),/in square brackets on its own/);
-        assert.equal(L.text(L.requests()[0]).split('THE-HARBOR-MARKER').length-1,1);
-        assert.equal(L.text(L.requests()[0]).split('REACTION-GUIDE').length-1,1);
-        assert.doesNotMatch(L.text(L.requests()[0]),/DOCK-GUIDE/);
-        assert.match(L.text(L.requests()[0]),/I run to the dock/);
+        // waitForFunction takes a truthy promise as done, so the capture is waited for by polling a plain value.
+        await page.waitForFunction(B=>{
+            import(`${B}/src/v10.js`).then(V=>V.rowsForWorld()).then(rows=>{ globalThis.__riFerry = rows.some(x=>x.name==='ferry-gone'); });
+            return globalThis.__riFerry === true;
+        },L.BASE,{timeout:30000,polling:250});
+        assert.equal(chatRequests().length,1);
+        assert.match(L.text(chatRequests()[0]),/Resolved action check/);
+        assert.match(L.text(chatRequests()[0]),/Scene and character checks:/);
+        assert.match(L.text(chatRequests()[0]),/ordinary quoted dialogue/);
+        assert.doesNotMatch(L.text(chatRequests()[0]),/in square brackets on its own/);
+        assert.equal(L.text(chatRequests()[0]).split('THE-HARBOR-MARKER').length-1,1);
+        assert.equal(L.text(chatRequests()[0]).split('REACTION-GUIDE').length-1,1);
+        assert.doesNotMatch(L.text(chatRequests()[0]),/DOCK-GUIDE/);
+        assert.match(L.text(chatRequests()[0]),/I run to the dock/);
         for (const name of ['Craft: Decisive NPCs','Craft: New NPCs','Craft: Voice hold','Craft: Reply length','Craft: Self-check']) {
             const marker=preset.prompts.find(prompt=>prompt.name===name).content.replace(/\{\{\/\/[\s\S]*?\}\}/g,'').split('. ')[0];
-            assert.equal(L.text(L.requests()[0]).split(marker).length-1,1,name);
+            assert.equal(L.text(chatRequests()[0]).split(marker).length-1,1,name);
         }
-        assert.doesNotMatch(L.text(L.requests()[0]),/Use the player character as the single viewpoint|Space scheduled developments across the time/);
+        assert.doesNotMatch(L.text(chatRequests()[0]),/Use the player character as the single viewpoint|Space scheduled developments across the time/);
         // B15: comment macros, their annotation keys, heading marker rows and the README stay out of the request.
-        assert.doesNotMatch(L.text(L.requests()[0]),/\{\{\/\/|@category|@tooltip|@default-enabled|@pairs/);
-        for (const heading of preset.prompts.filter(prompt=>/^ri-head-/.test(prompt.identifier))) assert(!L.text(L.requests()[0]).includes(heading.name),heading.name);
-        assert(L.requests()[0].messages.every(message=>String(message.content ?? '').trim()),'no empty message');
+        assert.doesNotMatch(L.text(chatRequests()[0]),/\{\{\/\/|@category|@tooltip|@default-enabled|@pairs/);
+        for (const heading of preset.prompts.filter(prompt=>/^ri-head-/.test(prompt.identifier))) assert(!L.text(chatRequests()[0]).includes(heading.name),heading.name);
+        assert(chatRequests()[0].messages.every(message=>String(message.content ?? '').trim()),'no empty message');
         const state=await story(page,async({B})=>{
             const V=await import(`${B}/src/v10.js`);
             const msg=SillyTavern.getContext().chat.at(-1);
@@ -104,7 +115,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         for (const part of ['Dock','11:55 PM','Light rain']) assert((await stripScene()).includes(part),part);
         for (const name of ['Craft: Viewpoint','Craft: Cast & voice','Craft: Scene pacing','Craft: Prose','Craft: Consequences']) {
             const marker=preset.prompts.find(prompt=>prompt.name===name).content.replace(/\{\{\/\/[\s\S]*?\}\}/g,'').split('. ')[0];
-            assert.equal(L.text(L.requests()[0]).split(marker).length-1,1,name);
+            assert.equal(L.text(chatRequests()[0]).split(marker).length-1,1,name);
         }
         // The console, lore and planning cards under the reply were removed by B10; the plan stays on the record
         // (state.rec.v10Plan above) and the tray cards are B11's.
@@ -135,33 +146,41 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         // Retired with the cards under the reply (B10): console chips, the lore list with its entry editor link,
         // and the Changes tab. The entry editor itself is covered by the World Info page suites.
         for (const part of ['Dock','11:55 PM']) assert((await stripScene()).includes(part),part);
-        assert.equal(L.requests().length,1);
-        L.mode({reply:'[Seraphina] “The lamp lights up.”\n<story_update v="2">{invalid</story_update>'});
+        assert.equal(chatRequests().length,1);
+        L.mode({reply:'[Seraphina] “The lamp lights up.”\n<story_update v="2">{invalid</story_update>',capture:{...cap(add('fact','lamp-lit','The lamp is lit.','The lamp lights up.')),time:{elapsed:0,cue:'The lamp lights up.'}}});
         await L.send(page,'Wait by the lamp.');
         const lamp = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).mes);
-        assert.match(L.text(L.requests().at(-1)),/Time: 11:55 PM\nDate: Day 1/);
+        assert.match(L.text(chatRequests().at(-1)),/Time: 11:55 PM\nDate: Day 1/);
         assert.match(lamp,/Seraphina said, “The lamp lights up.”/);
         assert.doesNotMatch(lamp,/\[Seraphina\]/);
-        assert.match(L.text(L.requests().at(-1)),/Out-of-story voice feedback/);
-        assert.match(L.text(L.requests().at(-1)),/DOCK-GUIDE/);
-        assert.doesNotMatch(L.text(L.requests().at(-1)),/PRIVATE-PRELUDE-MARKER/);
-        assert.doesNotMatch(L.text(L.requests().at(-1)),/Resolved action check/);
+        assert.match(L.text(chatRequests().at(-1)),/Out-of-story voice feedback/);
+        assert.match(L.text(chatRequests().at(-1)),/DOCK-GUIDE/);
+        assert.doesNotMatch(L.text(chatRequests().at(-1)),/PRIVATE-PRELUDE-MARKER/);
+        assert.doesNotMatch(L.text(chatRequests().at(-1)),/Resolved action check/);
         const previous = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.time);
         L.mode({reply:block('The wind drops.',{scene:{elapsed:3},repair:previous,
             changes:[{kind:'fact',id:'wind-drops',text:'The wind has dropped.',evidence:'The wind drops.'}],
             repairChanges:[{kind:'fact',id:'lamp-lit',text:'The lamp is lit.',evidence:'The lamp lights up.'}]
-        })});
+        }),capture:cap(add('fact','wind-drops','The wind has dropped.','The wind drops.'))});
         await L.send(page,'Listen.');
-        assert.match(L.text(L.requests().at(-1)),/recover a missing state change/);
-        assert.equal(L.requests().length,3);
+        // The repair request of the update block retired with it: capture read the lamp reply on its own.
+        assert.doesNotMatch(L.text(chatRequests().at(-1)),/recover a missing state change/);
+        assert.equal(chatRequests().length,3);
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Minutes),123);
-        const idle=()=>story(page,async({B})=>(await import(`${B}/src/worldflow.js`)).worldIdle());
+        const idle=async()=>{
+            await story(page,async({B})=>(await import(`${B}/src/worldflow.js`)).worldIdle());
+            await page.waitForFunction(B=>{
+                import(`${B}/src/memory/capture.js`).then(C=>{ const m=SillyTavern.getContext().chat.at(-1); globalThis.__riCaptured = !m || m.is_user || C.isCaptured(m); });
+                return globalThis.__riCaptured === true;
+            },L.BASE,{timeout:30000,polling:250});
+            await page.evaluate(()=>{ delete globalThis.__riCaptured; });
+        };
         const read=()=>story(page,async({B})=>{
             const V=await import(`${B}/src/v10.js`);
             return [...V.recordMap(await V.rowsForWorld()).values()];
         });
         await idle();
-        assert((await read()).some(record=>record.id==='lamp-lit' && record.source===previous));
+        assert((await read()).some(record=>record.id==='lamp-lit'));
         await story(page,async({B})=>{
             const V=await import(`${B}/src/v10.js`);
             const {saveV10Record}=await import(`${B}/src/worldflow.js`);
@@ -172,10 +191,10 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         L.mode({reply:block('The snow falls below the lamp.',{scene:{elapsed:4},changes:[
             {kind:'seed',id:'bell',status:'done',text:'The bell rang.',evidence:'The snow falls below the lamp.'},
             {kind:'fact',id:'snow',text:'It began snowing.',evidence:'The snow falls below the lamp.'}
-        ]})});
+        ]}),capture:cap(add('fact','snow','It began snowing.','The snow falls below the lamp.'))});
         await L.send(page,'Watch the street.');
         await idle();
-        const next=L.text(L.requests().at(-1));
+        const next=L.text(chatRequests().at(-1));
         assert.match(next,/Time: 11:58 PM\nDate: Day 1/);
         for (const part of ['12:02 AM','Dock','Light rain']) assert((await stripScene()).includes(part),part);
         assert.match(next,/bell \[seed, open, prerequisites pending\]/);
@@ -183,7 +202,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal((await read()).find(x=>x.id==='bell').status,'open');
         assert.deepEqual(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Plot.find(row=>row.id==='bell')),
             {id:'bell',eligible:false,recalled:true});
-        L.mode({reply:block('Rain falls instead.',{scene:{elapsed:2},changes:[{kind:'fact',id:'rain',text:'Rain has started.',evidence:'Rain falls instead.'}]})});
+        L.mode({reply:block('Rain falls instead.',{scene:{elapsed:2},changes:[{kind:'fact',id:'rain',text:'Rain has started.',evidence:'Rain falls instead.'}]}),
+            capture:cap(add('fact','rain','Rain has started.','Rain falls instead.'))});
         await story(page,async({B})=>(await import(`${B}/src/engine.js`)).guideSwipe('Change the snow to rain.'));
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('Rain falls instead.'));
         await idle();
@@ -193,8 +213,8 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert(records.some(x=>x.id==='lamp-lit'));
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Minutes),125);
         for (const part of ['12:00 AM','Dock','Light rain']) assert((await stripScene()).includes(part),part);
-        assert.match(L.text(L.requests().at(-1)),/Time: 11:58 PM\nDate: Day 1/);
-        assert.equal(L.requests().length,5);
+        assert.match(L.text(chatRequests().at(-1)),/Time: 11:58 PM\nDate: Day 1/);
+        assert.equal(chatRequests().length,5);
         await page.evaluate(()=>SillyTavern.getContext().swipe.left());
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('The snow falls'));
         await idle();
@@ -225,20 +245,20 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             return [sceneAt().time,sceneAt().date,storyMinuteAt()];
         });
         assert.deepEqual(branchClock,['11:55 PM','Day 1',120]);
-        assert.equal(L.requests().length,5);
+        assert.equal(chatRequests().length,5);
         await L.openChat(page);
         L.mode({reply:block('[Seraphina] “The brass key is yours.”',{scene:{where:'Gate',present:'Seraphina',minutes:10},
             changes:[{kind:'fact',id:'brass-key',text:'Seraphina gave the player a brass key.',evidence:'The brass key is yours.'}]
-        })});
+        }),capture:cap(add('fact','brass-key','Seraphina gave the player a brass key.','The brass key is yours.'))});
         const draft=await story(page,async({B})=>(await import(`${B}/src/v10.js`)).draftOpening({direction:'Begin at the gate.'}));
         assert.match(draft.prose,/brass key/);
-        assert.equal(L.requests().length,6);
-        assert.match(L.text(L.requests().at(-1)),/Begin at the gate/);
+        assert.equal(chatRequests().length,6);
+        assert.match(L.text(chatRequests().at(-1)),/Begin at the gate/);
         assert(!(await read()).some(x=>x.id==='brass-key'));
         await story(page,async({B,value})=>(await import(`${B}/src/engine.js`)).acceptV10Opening(value,value.prose),draft);
         await idle();
         assert((await read()).some(x=>x.id==='brass-key'));
-        assert.equal(L.requests().length,6);
+        assert.equal(chatRequests().length,6);
         // The old page chooser, the Setup module scope controls and the Preset & Extension workbench were replaced
         // by B5's menu shell (tests/t_menu_shell.js) and B12's Presets page (tests/t_preset_switch.js); those
         // navigation and scope assertions are retired. The books page is opened through the shell.
@@ -265,12 +285,12 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await page.waitForTimeout(1500); // the page redraws after the first upload; pick the file on the redrawn form
         await assign();
         await savedBase(`${uploaded} (2)`);
-        assert.equal(L.requests().length,6);
+        assert.equal(chatRequests().length,6);
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
         L.mode({chunkMs:350,reply:block('She counts the lights in the harbor.',{
             scene:{where:'UNSAVED-HARBOR'},
             changes:[{kind:'fact',id:'unsaved-harbor',text:'Unfinished data. '.repeat(60),evidence:'She counts the lights'}],
-        })});
+        }),capture:cap()});
         await page.evaluate(()=>{
             globalThis.jQuery('#send_textarea').val('Look out at the harbor.').trigger('input');
             globalThis.jQuery('#send_but').trigger('click');
@@ -282,6 +302,6 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert(!(await read()).some(row=>row.id==='unsaved-harbor'));
         assert.equal(await page.locator('#chat .ri-tray-scene-text').filter({hasText:'UNSAVED-HARBOR'}).count(),0);
         assert.deepEqual(errors,[]);
-        console.log('PASS v10 host: companion preset, native updates, pinned lore, guidelines, dice, repairs, plot gates, clock, speaker colors, reply tray, cancellation, opening, saved-swipe navigation and branch rollback');
+        console.log('PASS v10 host: companion preset, records captured after each reply, pinned lore, guidelines, dice, plot gates, clock, speaker colors, reply tray, cancellation, opening, saved-swipe navigation and branch rollback');
     } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1});

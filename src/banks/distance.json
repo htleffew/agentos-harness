@@ -1,0 +1,152 @@
+{
+ "id": "distance",
+ "name": "Narrative distance",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "distance.wb.remote",
+   "label": "Remote",
+   "text": "The narration distance is Remote: Observes from outside all characters. Interiority is unavailable. Do not show thoughts.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Remote"
+   }
+  },
+  {
+   "id": "distance.wb.objective",
+   "label": "Objective",
+   "text": "The narration distance is Objective: Close to the characters physically. Their actions and sensations are reported; Do not show internal thoughts and feelings of anyone",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Objective"
+   }
+  },
+  {
+   "id": "distance.wb.standard",
+   "label": "Standard",
+   "text": "The narration distance is Standard: The POV character's thoughts and feelings are reported, but the narration keeps its own voice separate from theirs. Use italics to show their thoughts.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Standard"
+   }
+  },
+  {
+   "id": "distance.wb.close",
+   "label": "Close",
+   "text": "The narration distance is Close: Narration takes on the POV character's perceptions and biases. What gets noticed, and how it's characterized, reflects their state of mind. Use italics to show their thoughts.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Close"
+   }
+  },
+  {
+   "id": "distance.wb.free-indirect-discourse",
+   "label": "Free Indirect Discourse",
+   "text": "The narration distance is Free Indirect Discourse: The narrative voice and the POV character's voice merge; their diction, judgments, and distortions appear in the narration itself without attribution, quotation marks or italics.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Free Indirect Discourse"
+   }
+  },
+  {
+   "id": "distance.hw.standard",
+   "label": "Standard",
+   "text": "Reliable limited POV. The narrator follows one character's perspective at a time. No access to thoughts of characters outside the current POV. What the POV character doesn't notice, the prose doesn't report. The narrator is trustworthy — what it states is accurate. Unobserved events happen offscreen.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Standard"
+   }
+  },
+  {
+   "id": "distance.hw.omniscient",
+   "label": "Omniscient",
+   "text": "God-mode access. The narrator can dip into any character's thoughts, feelings, and secrets at any moment. The narrator voice is neutral — no personality, no opinions. Use omniscient access deliberately; don't dump every character's internal state simultaneously.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Omniscient"
+   }
+  },
+  {
+   "id": "distance.hw.authored-narrator",
+   "label": "Authored Narrator",
+   "text": "The narrator knows everything and has a personality. They comment on events, offer opinions, hint at the future, withhold information for dramatic effect. The narrator is reliable but opinionated — a voice with character who never participates in events. Think Lemony Snicket, Terry Pratchett, Douglas Adams.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Authored Narrator"
+   }
+  },
+  {
+   "id": "distance.hw.objective",
+   "label": "Objective",
+   "text": "Camera-only narration. Actions, dialogue, physical descriptions — nothing else. No internal thoughts, no emotional states, no interpretation. If a character clenches their fist, the prose reports the clench. Whether they're angry or stretching is for {{user}} to determine. Hemingway mode.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Objective"
+   }
+  },
+  {
+   "id": "distance.hw.deep-pov",
+   "label": "Deep POV",
+   "text": "The narrator dissolves into the POV character's consciousness. No 'he thought' or 'she felt' — the character's perceptions ARE the prose. 'The room was too bright and too loud and why was everyone looking at him' reads as narration but IS internal experience. Maximum intimacy. Locked to one head at a time.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Deep POV"
+   }
+  },
+  {
+   "id": "distance.hw.unreliable",
+   "label": "Unreliable",
+   "text": "The narrator lies, rationalizes, or perceives through heavy bias. Their version of events can't be trusted. Might describe someone as threatening when they're just standing there. Might skip uncomfortable truths. Might reframe cowardice as strategy. Contradictions are features. The gap between what the narrator says and what happened IS the story. {{user}} reads between the lines.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Unreliable"
+   }
+  },
+  {
+   "id": "distance.hw.character-narrator",
+   "label": "Character Narrator",
+   "text": "A character in the story narrates as 'I.' The prose is filtered through their voice, vocabulary, biases, and personality. They cannot know what others think. They can be wrong about what they observe. Their narration style reflects their education, emotional state, and personality. This is an NPC serving as narrator — not {{user}}'s character.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Character Narrator"
+   }
+  },
+  {
+   "id": "distance.hw.shifting-reliability",
+   "label": "Shifting Reliability",
+   "text": "The narrator's reliability fluctuates with emotional intensity. Calm moments get straight, trustworthy narration. As tension rises, perception warps — descriptions become subjective, details get exaggerated or omitted, time distorts. At emotional peaks, the narrator might contradict earlier statements. {{user}} gauges emotional temperature by how much they trust the prose.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Shifting Reliability"
+   }
+  }
+ ]
+}

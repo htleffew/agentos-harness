@@ -1,0 +1,559 @@
+{
+ "id": "genre",
+ "name": "Genre lens",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "genre.pura.noir",
+   "label": "Noir",
+   "text": "Noir: shadows, moral ambiguity, loaded double-meaning dialogue.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.comedy-of-errors",
+   "label": "Comedy of errors",
+   "text": "Comedy of errors: miscommunication, bad timing, snowballing consequences.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.thriller",
+   "label": "Thriller",
+   "text": "Thriller: urgency, immediate stakes, incomplete information, shrinking time.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.slice-of-life",
+   "label": "Slice of life",
+   "text": "Slice of life: small moments carry weight, comfort in routine, beauty of the mundane.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.horror",
+   "label": "Horror",
+   "text": "Horror: wrongness at the edges, something off, unease from ordinary details.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.romance",
+   "label": "Romance",
+   "text": "Romance: tension in proximity, unspoken want, gestures over words, timing matters.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.heist",
+   "label": "Heist",
+   "text": "Heist: planning, contingencies, moving parts, closing windows.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.tragedy",
+   "label": "Tragedy",
+   "text": "Tragedy: inevitability, costly choices, dramatic irony the reader feels but characters do not.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.satire",
+   "label": "Satire",
+   "text": "Satire: absurdity played straight, institutions exposed through their own logic.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.western",
+   "label": "Western",
+   "text": "Western: standoffs, earned respect, clashing moral codes, landscape as character.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.mystery",
+   "label": "Mystery",
+   "text": "Mystery: clues surface naturally, something does not add up, curiosity pulls forward.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.political-drama",
+   "label": "Political drama",
+   "text": "Political drama: competing agendas, alliances of convenience, calculated speech, trust as currency.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.survival",
+   "label": "Survival",
+   "text": "Survival: limited resources, hostile environment, triage decisions.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.coming-of-age",
+   "label": "Coming of age",
+   "text": "Coming of age: first confrontation, tested identity, cracking certainty.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.farce",
+   "label": "Farce",
+   "text": "Farce: escalating absurdity, stubborn dignity while everything collapses.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.gothic",
+   "label": "Gothic",
+   "text": "Gothic: decay, obsession, rotting beauty, the past refusing burial, choking atmosphere.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.domestic-drama",
+   "label": "Domestic drama",
+   "text": "Domestic drama: family tension, weaponized history, love and resentment coexisting.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.picaresque",
+   "label": "Picaresque",
+   "text": "Picaresque: cunning over virtue, transactional encounters, charm as survival.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.courtroom-drama",
+   "label": "Courtroom drama",
+   "text": "Courtroom drama: accusation, defense, evidence, judgment; the verdict matters.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.magical-realism",
+   "label": "Magical realism",
+   "text": "Magical realism: one impossible thing in an ordinary world, treated as normal.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.body-horror",
+   "label": "Body horror",
+   "text": "Body horror: the physical self becomes alien or wrong; visceral, specific discomfort.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.espionage",
+   "label": "Espionage",
+   "text": "Espionage: layered deception, double meanings, tested loyalties, need-to-know truth.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.buddy-comedy",
+   "label": "Buddy comedy",
+   "text": "Buddy comedy: mismatched friction becoming fondness, banter carrying the scene.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.war-story",
+   "label": "War story",
+   "text": "War story: exhaustion, camaraderie under pressure, gallows humor, gap between orders and reality.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.folklore",
+   "label": "Folklore",
+   "text": "Folklore: archetypes in modern behavior, repeating patterns, old stories with new faces.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.workplace-drama",
+   "label": "Workplace drama",
+   "text": "Workplace drama: hierarchy, office politics, competence vs. connections, petty power with real stakes.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.road-story",
+   "label": "Road story",
+   "text": "Road story: movement as point, landscape shifts mood, brief strangers leave marks.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.psychological-thriller",
+   "label": "Psychological thriller",
+   "text": "Psychological thriller: paranoia, unreliable perception, questioned or manipulated reality.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.slapstick",
+   "label": "Slapstick",
+   "text": "Slapstick: physical comedy, momentum, hostile universe played for laughs.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.melodrama",
+   "label": "Melodrama",
+   "text": "Melodrama: emotions at maximum, every revelation lands like a bomb, unironic sincerity.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.existential",
+   "label": "Existential",
+   "text": "Existential: confronting meaninglessness, small choices enormous against vast indifference.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.revenge",
+   "label": "Revenge",
+   "text": "Revenge: someone is owed; the debt shapes every interaction, patience weaponized, satisfaction never clean.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.epistolary",
+   "label": "Epistolary",
+   "text": "Epistolary: filtered through letters, messages, notes, calls, or records rather than direct action.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.dark-comedy",
+   "label": "Dark comedy",
+   "text": "Dark comedy: terrible things happen and they are funny; humor and horror coexist without defusing each other.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.fairy-tale",
+   "label": "Fairy tale",
+   "text": "Fairy tale: clear moral stakes, character tests, poetic reward-and-punishment logic.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.cyberpunk",
+   "label": "Cyberpunk",
+   "text": "Cyberpunk: intimate invasive technology, corporate weather, mutable identity, style as resistance.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.wuxia",
+   "label": "Wuxia",
+   "text": "Wuxia: honor, martial discipline, skill hierarchy, loyalty tested by principle, combat as philosophy.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.cosmic-horror",
+   "label": "Cosmic horror",
+   "text": "Cosmic horror: vast incomprehensible something brushes the scene; human concerns feel small; knowledge is dangerous.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.found-family",
+   "label": "Found family",
+   "text": "Found family: strangers becoming essential, chosen loyalty, vulnerability as the price of belonging.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.pura.bottle-episode",
+   "label": "Bottle episode",
+   "text": "Bottle episode: one location, no escape; proximity forces confrontation distance would have prevented.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Genre Randomiser"
+   }
+  },
+  {
+   "id": "genre.hw.comedy",
+   "label": "Comedy",
+   "text": "Comedy: Office of Structural Absurdity. Knows exactly when to drop the punchline. And when to hold it.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MOTLEY Comedy"
+   }
+  },
+  {
+   "id": "genre.hw.drama",
+   "label": "Drama",
+   "text": "Drama: Directorate of Excavated Truth. Cracks people open. Finds what they buried and puts it on the table.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "SEDIMENT Drama"
+   }
+  },
+  {
+   "id": "genre.hw.fantasy",
+   "label": "Fantasy",
+   "text": "Fantasy: Institute for Structural Wonder. Builds worlds that feel lived-in. Magic has weight, cost, and texture.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MERIDIAN Fantasy"
+   }
+  },
+  {
+   "id": "genre.hw.sci-fi",
+   "label": "Sci-Fi",
+   "text": "Sci-Fi: Cold Wonder Observatory. Systems that hum. Follows what the tech does to the people.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "QUASAR Sci-Fi"
+   }
+  },
+  {
+   "id": "genre.hw.action",
+   "label": "Action",
+   "text": "Action: Spatial Violence Task Force. You know where every fist lands and why it hurts.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "FRACTURE Action"
+   }
+  },
+  {
+   "id": "genre.hw.supernatural",
+   "label": "Supernatural",
+   "text": "Supernatural: Office of Residual Presence. The door wasn't there yesterday. Doesn't explain. Moves on.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "RESIDUE Supernatural"
+   }
+  },
+  {
+   "id": "genre.hw.surreal-absurdist",
+   "label": "Surreal/Absurdist",
+   "text": "Surreal/Absurdist: Institute for Threshold Architecture. The rules changed. Nobody sent a memo.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "LIMINAL Surreal/Absurdist"
+   }
+  },
+  {
+   "id": "genre.hw.martial-epic",
+   "label": "Martial Epic",
+   "text": "Martial Epic: Order of the Falling Blossom. One strike, ten years of training. The tea gets cold while they talk.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "KIRIN Martial Epic"
+   }
+  },
+  {
+   "id": "genre.hw.superhero",
+   "label": "Superhero",
+   "text": "Superhero: Bureau of Inherited Burden. The powers are the easy part. The person underneath is the problem.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "MANTLE Superhero"
+   }
+  },
+  {
+   "id": "genre.hw.adventure",
+   "label": "Adventure",
+   "text": "Adventure: Unmapped Territory Directorate. Wet boots, wrong turns, and the map was outdated three towns ago.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "VENTURE Adventure"
+   }
+  }
+ ]
+}

@@ -3,7 +3,8 @@ import { promptText } from './prompts.js';
 // they survive swiping or deleting the reply that happened to be newest when edited.
 import { ctx, KEY, isReply } from './st.js';
 import { separateReply } from './reply-format.js';
-import { fantasyCalendarGuidance, parseFantasyDate, recoverSceneDate, weekdayAtOffset } from './story-clock.js';
+import { fantasyCalendarGuidance, parseFantasyDate, recoverSceneDate, sameStoryDay, weekdayAtOffset } from './story-clock.js';
+import { parseSceneHeader } from './scene-header.js';
 
 export const STATE_FIELDS = [['mind', 'Mind'], ['heart', 'Heart'], ['body', 'Body'], ['psyche', 'Psyche']];
 export const SCENE_FIELDS = [['present', 'Present'], ['where', 'Where'], ['when', 'When'], ['time', 'Time'], ['date', 'Date'], ['weather', 'Weather'], ['environment', 'Environment']];
@@ -180,7 +181,10 @@ export function sceneFromReplyHeader(prose) {
     if (chronology) for (const [,key,value] of chronology.matchAll(/^\s*(calendar|time)\s*:\s*([^\r\n]+)$/gim)) {
         legacy[map[key.toLowerCase()]] ??= headerValue(value);
     }
-    return {...sceneUpdate(legacy),...sceneUpdate(header)};
+    // The scene header line of DESIGN.md 6.8, read in code into the scene (memory DESIGN 7.1, level 0).
+    const line = parseSceneHeader(separateReply(source).text);
+    const own = line ? Object.fromEntries([['where',line.place],['when',line.time],['weather',line.weather],['present',line.present.join(', ')]].filter(([,value])=>value)) : {};
+    return {...sceneUpdate(legacy),...sceneUpdate(own),...sceneUpdate(header)};
 }
 
 export function stripSceneTracker(prose,{streaming = false} = {}) {
@@ -195,6 +199,31 @@ function historicalHeader(message) {
     const scene=sceneFromReplyHeader(message.mes);
     parsedHeaders.set(message,{input:message.mes,scene});
     return {...scene};
+}
+
+const trackedValue = value => value && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value,'v') ? null : value;
+/** The scene capture saved with a reply (memory DESIGN 7.2), in the scene's own field names. Carried values are left to older replies. */
+function trackedScene(saved) {
+    if (!saved || typeof saved !== 'object') return {};
+    const out = {};
+    const place = trackedValue(saved.place), time = trackedValue(saved.time), weather = trackedValue(saved.weather), present = trackedValue(saved.present), environment = trackedValue(saved.environment);
+    if (place) out.where = text(place);
+    if (time) out.when = text(time);
+    if (weather) out.weather = text(weather);
+    if (present) out.present = text(Array.isArray(present) ? present.join(', ') : present);
+    if (environment) out.environment = text(environment);
+    return sceneUpdate(out);
+}
+
+/** The story date in force at chat index i: the newest date a reply at or before it established. */
+function dateBefore(chat, i) {
+    for (let j = i; j >= 0; j--) {
+        const message = chat[j], record = message?.extra?.[KEY];
+        if (!isReply(message) || record?.stateStale) continue;
+        const date = {...historicalHeader(message),...sceneUpdate(record?.scene),...trackedScene(record?.tracker?.scene)}.date;
+        if (date) return date;
+    }
+    return undefined;
 }
 
 export function sceneAt(before = Infinity, { overrides = before === Infinity } = {}) {
@@ -215,9 +244,13 @@ export function sceneAt(before = Infinity, { overrides = before === Infinity } =
         if (!isReply(message) || record?.stateStale) continue;
         const saved = sceneUpdate(record?.scene);
         const inline = historicalHeader(message);
+        const tracked = trackedScene(record?.tracker?.scene);
         if (saved.lastKnownDate && !saved.date) delete inline.date;
-        collect({...inline,...saved},savedSnapshot);
-        savedSnapshot ||= !!record?.scene;
+        const values = {...inline,...saved,...tracked};
+        // Weather from an earlier story day is not current any more (memory DESIGN 7.1, M1a W11, M1g B4).
+        if (Object.hasOwn(scene,'date') && values.weather && !Object.hasOwn(scene,'weather') && sameStoryDay(scene.date,values.date ?? dateBefore(chat,i)) === false) delete values.weather;
+        collect(values,savedSnapshot);
+        savedSnapshot ||= !!record?.scene || !!record?.tracker?.scene;
         if (savedSnapshot && (scene.date || scene.lastKnownDate) && scene.weather && scene.where) break;
     }
     collect(sceneUpdate(root?.sceneSeed),savedSnapshot);

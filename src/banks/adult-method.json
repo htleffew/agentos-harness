@@ -1,0 +1,97 @@
+{
+ "id": "adult-method",
+ "name": "Adult: escalation method",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-method.pura.physical-dominance",
+   "label": "Physical dominance",
+   "text": "Physical dominance: crowding, restraint, forced proximity, invasive touch, pain as leverage.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-method.pura.social-predation",
+   "label": "Social predation",
+   "text": "Social predation: humiliation, exposure, weaponized witnesses, reputation destruction, isolation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-method.pura.coercive-bargaining",
+   "label": "Coercive bargaining",
+   "text": "Coercive bargaining: impossible choices, withheld necessities, conditional mercy, exploiting desperation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-method.pura.psychological-warfare",
+   "label": "Psychological warfare",
+   "text": "Psychological warfare: gaslighting, boundary erosion, manufactured dependency, emotional hostage-taking.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-method.pura.opportunistic-violation",
+   "label": "Opportunistic violation",
+   "text": "Opportunistic violation: exploiting compromised states, capitalizing on trust, breaching consent through force or coercion.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-method.pura.environmental-control",
+   "label": "Environmental control",
+   "text": "Environmental control: trapping, removing exits, destroying safety, contaminating comfort, sabotaging resources.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-method.pura.institutional-abuse",
+   "label": "Institutional abuse",
+   "text": "Institutional abuse: weaponizing authority, legal systems, hierarchies, or social structures.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  },
+  {
+   "id": "adult-method.pura.obsessive-claiming",
+   "label": "Obsessive claiming",
+   "text": "Obsessive claiming: possessive marking, surveillance, territorial invasion, forced intimacy, ownership behavior.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Dead Dove Escalation"
+   }
+  }
+ ]
+}

@@ -1,4 +1,4 @@
-// Moving today's chats over (memory DESIGN 8.5), and following today's writer until capture replaces it (MB3).
+// Moving today's chats over (memory DESIGN 8.5), and filing the book edits that still reach the Story World book.
 //
 // On the first open after the update, after one settings backup, a chat's Story World book imports into chat data:
 // every entry becomes an `import` entry anchored to the reply it came from (chapters to the last reply they cover, with
@@ -6,11 +6,11 @@
 // entries of the swipe they belong to, and saved stat sheets become this chat's starting sheets. The book itself is
 // left as it is.
 //
-// Until MB3 moves capture to its own call, today's update block keeps writing the book. follow() turns each of its
-// writes into entries: a reply's staged changes go into that reply's swipe as per-reply entries, and every other change
-// (a chapter, a correction, a filed thread step) goes into the chat log. A difference that comes from the store's own
-// side (a revert, a lock, a swipe or a delete the fold already handles) is left alone, so the fold, not the book,
-// decides what the Story World page and the request read.
+// Capture (src/memory/capture.js) writes each reply's entries straight into chat data, so no reply writes the book any
+// more. Edits typed on a record screen and today's chapter writer still save the book; fileBookEdits() turns each of
+// those changes into a chat log entry (yours are locked). A difference that comes from the store's own side (a revert, a
+// lock, a swipe or a delete the fold already handles) is left alone, so the fold, not the book, decides what the Story
+// World page and the request read.
 import { ctx, KEY, LOG, on, isReply, names, characterKey } from '../st.js';
 import { settings } from '../store.js';
 import { setInfo } from '../books.js';
@@ -58,11 +58,25 @@ export function recordFromView(view) {
     };
 }
 
+// A record capture files (DESIGN 3.3) as the structured kind the request and the record screens read today.
+const THREAD_VIEW = { Plotline: 'arc', Open: 'arc', Track: 'arc', Plan: 'agenda', Elsewhere: 'agenda', Pending: 'event', Seed: 'seed', Detail: 'seed' };
+const VIEW_KIND = { person: 'profile', secret: 'knowledge', relationship: 'relationship', emotion: 'emotion' };
+/** The structured kind of a design record: profile, knowledge, relationship, emotion, a plot kind, or fact. */
+export const viewKindOf = record => record.kind === 'thread' ? THREAD_VIEW[record.threadType] || 'arc' : VIEW_KIND[record.kind] || 'fact';
+
 /** The panel's view a record is shown as: its stored view, or one made for a record that never had a book entry. */
 export function viewOfRecord(record, uid) {
     if (record.view) return { ...structuredClone(record.view), uid: Number.isFinite(record.view.uid) ? record.view.uid : uid };
-    const data = { id: record.id, kind: 'fact', text: record.text || '', subject: record.subject || '', aliases: record.aliases || [], ...(record.quote ? { quote: record.quote } : {}) };
-    return { uid, kind: 'fact', name: record.id, on: true, aliases: [], fields: { data: JSON.stringify(data) }, status: '', show: 'shadow', auto: true, locked: !!record.locked, at: null, span: null, rollup: false };
+    const kind = viewKindOf(record);
+    const data = {
+        id: record.id, kind, text: record.text || '', subject: record.subject || '', aliases: record.aliases || [], ...(record.quote ? { quote: record.quote } : {}),
+        ...(record.attribute ? { attribute: record.attribute } : {}), ...(record.holders ? { holders: record.holders } : {}), ...(record.outcome ? { outcome: record.outcome } : {}),
+        ...(record.other ? { other: record.other } : {}), ...(record.axes ? { axes: record.axes } : {}), ...(record.source?.speaker ? { basis: 'reported', reportedBy: record.source.speaker } : {}),
+        ...(kind === 'knowledge' ? { private: true, basis: record.source?.speaker ? 'reported' : 'observed' } : {}),
+        ...(['arc', 'agenda', 'event', 'seed'].includes(kind) ? { status: ['done', 'failed'].includes(record.status) ? 'done' : 'open' } : {}),
+    };
+    const bookKind = kind === 'seed' ? 'payoff' : kind;
+    return { uid, kind: bookKind, name: record.id, on: true, aliases: [], fields: { data: JSON.stringify(data) }, status: '', show: 'shadow', auto: true, locked: !!record.locked, at: null, span: null, rollup: false };
 }
 
 /** The views of the records in force, keyed by uid, with locks shown on the view as today's book showed them. */
@@ -71,7 +85,8 @@ export function viewsFromFold(result) {
     let next = 0;
     for (const record of result.records) if (Number.isFinite(record.view?.uid)) next = Math.max(next, record.view.uid + 1);
     for (const record of result.records) {
-        if (OUT_OF_FORCE.includes(record.status)) continue;
+        // A suspect is held out of recall until the next capture rules on it (DESIGN 7.2, check 5).
+        if (OUT_OF_FORCE.includes(record.status) || record.status === 'suspect') continue;
         const view = viewOfRecord(record, Number.isFinite(record.view?.uid) ? record.view.uid : next++);
         if (record.locked) view.locked = true;
         views.set(view.uid, view);
@@ -151,11 +166,11 @@ export function foldWorldData(id = chatWorld(), { before = Infinity } = {}) {
 }
 
 /**
- * The chat's Story World as a reader sees it now: today's writer's newest changes are filed first, then the fold is read.
- * The request and the record screens read through this, so a change the writer saved a moment ago is in both.
+ * The chat's Story World as a reader sees it now: book edits saved a moment ago are filed first, then the fold is read.
+ * The request and the record screens read through this, so an edit is in both.
  */
 export async function currentWorldData(id = chatWorld(), options = {}) {
-    await follow();
+    await fileBookEdits();
     return foldWorldData(id, options);
 }
 
@@ -312,23 +327,23 @@ export async function importOpenChat({ store = memoryStore(), backup = backupSet
     return { imported: true, counts };
 }
 
-let following = null, again = false;
+let filing = null, again = false;
 
 /**
- * Turn today's writer's changes into entries (see the head of this file). origin 'you' marks changes the person just
- * made on a record screen; they are filed as your edits and locked, as the design's record screens do.
+ * File the changes saved into the Story World book since the last look: edits on a record screen (origin 'you', filed as
+ * your edits and locked, as the design's record screens do) and today's chapter writer. Replies no longer write the book.
  */
-export function follow({ origin = '' } = {}) {
-    if (following) { again = true; return following; }
-    following = (async () => {
+export function fileBookEdits({ origin = '' } = {}) {
+    if (filing) { again = true; return filing; }
+    filing = (async () => {
         try {
-            do { again = false; await followOnce({ origin }); } while (again);
-        } finally { following = null; }
+            do { again = false; await fileOnce({ origin }); } while (again);
+        } finally { filing = null; }
     })();
-    return following;
+    return filing;
 }
 
-async function followOnce({ origin }) {
+async function fileOnce({ origin }) {
     if (!memoryActive()) return;
     const c = host();
     const chat = c.chat || [];
@@ -339,40 +354,13 @@ async function followOnce({ origin }) {
     if (!world) return;
     if (mem.follow?.world !== world) mem.follow = { world, hashes: {} };
     store.marks();
-    let wrote = false;
-
-    // 1. Staged changes of replies whose shown swipe has none of its entries yet: per-reply entries on that swipe.
-    for (const index of stagedReplies(chat, world)) {
-        const message = chat[index];
-        const rev = revisionOf(message);
-        if (swipeEntries(message).some(e => e.anchor?.hash === rev.hash)) continue;
-        const before = viewsOf(await loadEffectiveWorld(world, { before: index }), world);
-        const after = viewsOf(await loadEffectiveWorld(world, { before: index + 1 }), world);
-        const changes = changedViews(before, after);
-        if (!changes.length) continue;
-        if (c.chat !== chat) return;
-        await store.recordOnReply(index, changes.map(change => inputFor(change, { origin: 'capture', route: 'update block', chat })), { save: false });
-        wrote = true;
-    }
-
-    // 2. A reply edited after its entries were filed is captured again: its records as the book now holds them.
     const now = viewsOf(await loadEffectiveWorld(world), world);
     if (c.chat !== chat) return;
-    for (const [index, message] of chat.entries()) {
-        const entries = swipeEntries(message).filter(e => e.anchor?.swipe === swipeOf(message));
-        const rev = revisionOf(message);
-        if (!entries.length || entries.some(e => e.anchor.hash === rev.hash)) continue;
-        const ids = [...new Set(entries.flatMap(e => [...(e.target || []), e.record?.id]).filter(Boolean))];
-        const inputs = ids.map(id => Number(id.slice(1))).map(uid => ({ uid, view: now.get(uid) || null })).filter(change => change.view).map(change => inputFor(change, { origin: 'capture', route: 'update block, captured again', chat }));
-        if (inputs.length) { await store.recordOnReply(index, inputs.map(input => ({ ...input, op: 'add', target: undefined })), { save: false }); wrote = true; }
-    }
-
-    // 3. Everything else the writer changed since the last look, where the fold does not already show it.
     const result = fold(chat, meta);
     const shown = viewsFromFold(result);
     const last = mem.follow.hashes || {};
     const inputs = [];
-    for (const uid of new Set([...now.keys(), ...shown.keys(), ...Object.keys(last).map(Number)])) {
+    for (const uid of new Set([...now.keys(), ...Object.keys(last).map(Number)])) {
         const legacy = now.get(uid) || null;
         const lh = viewHash(legacy);
         if (lh === viewHash(shown.get(uid))) continue;
@@ -387,9 +375,9 @@ async function followOnce({ origin }) {
         inputs.push(input);
         if (by === 'you') inputs.push({ op: 'lock', target: [`u${uid}`], origin: { type: 'you' }, reason: 'Your edit is kept as you wrote it.', anchor: input.anchor });
     }
-    if (inputs.length) { await store.record(inputs, { save: false }); wrote = true; }
+    if (inputs.length) await store.record(inputs, { save: false });
     mem.follow.hashes = Object.fromEntries([...now.entries()].map(([uid, view]) => [uid, viewHash(view)]));
-    if (wrote) { forgetFold(meta); await c.saveChat?.(); }
+    if (inputs.length) { forgetFold(meta); await c.saveChat?.(); }
     else { try { (c.saveMetadataDebounced || c.saveMetadata)?.(); } catch { /* saved with the next change */ } }
 }
 
@@ -412,7 +400,7 @@ export function chapterJobs(chat = host().chat || [], chatId = String(host().get
 
 let started = false;
 /**
- * Wire the store to the host once: import on the first open of each chat, follow today's writer after every reply,
+ * Wire the store to the host once: import on the first open of each chat, file book edits after every reply,
  * swipe, edit and delete, queue the rebuild of stale chapters, and rebuild the device indexes from chat data.
  */
 export function startMemory() {
@@ -421,7 +409,7 @@ export function startMemory() {
     const settle = async () => {
         try {
             await worldIdle();
-            await follow();
+            await fileBookEdits();
             for (const job of chapterJobs()) await desktopQueue().enqueue(job);
             await ensureIndexes(fold(host().chat || [], metaOf()).current, deviceDb());
         } catch (error) { console.warn(LOG, 'chat memory', error); }

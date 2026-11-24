@@ -19,8 +19,9 @@ const OUT = process.env.RI_EVIDENCE || path.join(__dirname, '../docs/ux-overhaul
 const CHROME = process.env.RI_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const BASE = '/scripts/extensions/third-party/roleplay-instructions';
 const results = { host: HOST, runs: [] };
-const requestCount = () => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).length : 0);
-const requestsSince = start => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).slice(start).map(line => JSON.parse(line)) : []);
+const requestCount = () => requestsSince(0).length;
+// Background memory calls (capture, chapter, condensed) follow each reply and are not counted; tests/mock.js tags every row with a kind.
+const requestsSince = start => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(row => !['capture', 'chapter', 'condensed'].includes(row.kind)).slice(start) : []);
 
 async function boot(browser, viewport) {
     const page = await browser.newPage({ viewport, deviceScaleFactor: 2.0625, hasTouch: true, isMobile: viewport.width < 1000, colorScheme: 'dark' });
@@ -198,7 +199,7 @@ async function run(browser, label, viewport) {
     // Taps open the sheet with no request; Close makes none.
     const zero = {};
     run.checks.tapThenClose = zero;
-    for (const [kind, title] of [['options'], ['swipe', 'Swipe'], ['continue'], ['impersonate']]) {
+    for (const [kind, title] of [['options'], ['swipe', 'Swipe'], ['continue']]) {
         const before = requestCount();
         await tapPin(page, kind, title);
         const state = await sheetState(page);

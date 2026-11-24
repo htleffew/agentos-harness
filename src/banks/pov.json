@@ -1,0 +1,97 @@
+{
+ "id": "pov",
+ "name": "Point of view and tense",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "pov.wb.1st-person",
+   "label": "1st Person",
+   "text": "First person of the POV character. Use \"I\", \"Me\" etc.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "1st Person"
+   }
+  },
+  {
+   "id": "pov.wb.2nd-person",
+   "label": "2nd Person",
+   "text": "Second Person of the POV character. Use \"You\"",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "2nd Person"
+   }
+  },
+  {
+   "id": "pov.wb.3rd-person",
+   "label": "3rd Person",
+   "text": "Third Person of the POV character",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "3rd Person"
+   }
+  },
+  {
+   "id": "pov.wb.shifting-3rd-pov",
+   "label": "Shifting 3rd POV",
+   "text": "Point of View: Shifting Third Person. The usual POV is the POV character in third person but you are allowed to change the POV to other characters for story impact. Break paragraph and use \"***\" to indicate change of character.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Shifting 3rd POV"
+   }
+  },
+  {
+   "id": "pov.ours.third-person-past-tense",
+   "label": "third person, past tense",
+   "text": "third person, past tense",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pov.ours.third-person-present-tense",
+   "label": "third person, present tense",
+   "text": "third person, present tense",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pov.ours.first-person-past-tense",
+   "label": "first person, past tense",
+   "text": "first person, past tense",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "pov.ours.first-person-present-tense",
+   "label": "first person, present tense",
+   "text": "first person, present tense",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

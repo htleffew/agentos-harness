@@ -20,7 +20,8 @@ const OUT = process.env.RI_EVIDENCE || path.join(__dirname, '../docs/ux-overhaul
 const CHROME = process.env.RI_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const BASE = '/scripts/extensions/third-party/roleplay-instructions';
 const FIXTURE = 'Integration plain fixture';
-const rows = () => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : []);
+// Background memory calls (capture, chapter, condensed) follow each reply and are not counted; tests/mock.js tags every row with a kind.
+const rows = () => (LOG && fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(row => !['capture', 'chapter', 'condensed'].includes(row.kind)) : []);
 const results = { host: HOST, runs: [] };
 
 async function ready(page) {
@@ -114,6 +115,10 @@ async function run(browser, tag, viewport) {
     await tap(page, '#send_but');
     await page.waitForFunction(() => { const chat = SillyTavern.getContext().chat; return chat.length >= 3 && !chat.at(-1).is_user && document.body.dataset.generating !== 'true'; }, null, { timeout: 60000 });
     await page.waitForSelector('#chat .last_mes .ri-tray', { timeout: 30000 });
+    // MB3: the Strip says Capturing until capture after the reply has filed the tray.
+    const capturedIn = Date.now();
+    await page.waitForFunction(() => !document.querySelector('#chat .ri-tray-loading'), null, { timeout: 30000 });
+    out.checks.captureMs = Date.now() - capturedIn;
     await page.waitForTimeout(800);
     out.checks.reply = { requests: rows().length - start, tray: await page.locator('#chat .last_mes .ri-tray').count(),
         trayLoadingLeft: await page.locator('#chat .ri-tray-loading').count(), playerSent: await page.evaluate(() => SillyTavern.getContext().chat.at(-2).mes.slice(0, 60)) };

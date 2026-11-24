@@ -1,0 +1,339 @@
+{
+ "id": "stake",
+ "name": "What it puts at stake",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "stake.ours.is-in-immediate-mortal-danger",
+   "label": "{{user}} is in immediate mortal danger",
+   "text": "{{user}} is in immediate mortal danger",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.something-believes-about-themself-is-cha",
+   "label": "something {{char}} believes about themself is challenged",
+   "text": "something {{char}} believes about themself is challenged",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-secret-is-close-to-coming-out",
+   "label": "a secret is close to coming out",
+   "text": "a secret is close to coming out",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.someone-cares-about-needs-help-now",
+   "label": "someone {{char}} cares about needs help now",
+   "text": "someone {{char}} cares about needs help now",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.an-offer-arrives-that-is-hard-to-refuse",
+   "label": "an offer arrives that is hard to refuse",
+   "text": "an offer arrives that is hard to refuse",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-choice-has-to-be-made-right-away",
+   "label": "a choice has to be made right away",
+   "text": "a choice has to be made right away",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.s-plan-is-suddenly-in-doubt",
+   "label": "{{char}}'s plan is suddenly in doubt",
+   "text": "{{char}}'s plan is suddenly in doubt",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.someone-s-trust-is-put-to-the-test",
+   "label": "someone's trust is put to the test",
+   "text": "someone's trust is put to the test",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.something-wants-comes-within-reach",
+   "label": "something {{char}} wants comes within reach",
+   "text": "something {{char}} wants comes within reach",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-promise-is-put-to-the-test",
+   "label": "a promise is put to the test",
+   "text": "a promise is put to the test",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-reputation-in-front-of-witnesses",
+   "label": "a reputation in front of witnesses",
+   "text": "a reputation in front of witnesses",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-last-of-something-that-cannot-be-rep",
+   "label": "the last of something that cannot be replaced",
+   "text": "the last of something that cannot be replaced",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-place-to-sleep-tonight",
+   "label": "a place to sleep tonight",
+   "text": "a place to sleep tonight",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-friendship-that-has-lasted-years",
+   "label": "a friendship that has lasted years",
+   "text": "a friendship that has lasted years",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-trust-of-someone-in-charge",
+   "label": "the trust of someone in charge",
+   "text": "the trust of someone in charge",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-chance-that-will-not-come-again",
+   "label": "a chance that will not come again",
+   "text": "a chance that will not come again",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.someone-s-good-name-after-they-are-gone",
+   "label": "someone's good name after they are gone",
+   "text": "someone's good name after they are gone",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-safety-of-someone-who-cannot-protect",
+   "label": "the safety of someone who cannot protect themself",
+   "text": "the safety of someone who cannot protect themself",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-home-or-a-place-that-feels-like-one",
+   "label": "a home or a place that feels like one",
+   "text": "a home or a place that feels like one",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-job-a-post-or-a-way-of-making-a-living",
+   "label": "a job, a post or a way of making a living",
+   "text": "a job, a post or a way of making a living",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-respect-of-someone-admires",
+   "label": "the respect of someone {{char}} admires",
+   "text": "the respect of someone {{char}} admires",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-secret-that-protects-someone-else",
+   "label": "a secret that protects someone else",
+   "text": "a secret that protects someone else",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-peace-between-two-groups",
+   "label": "the peace between two groups",
+   "text": "the peace between two groups",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-promise-made-to-someone-who-has-died",
+   "label": "a promise made to someone who has died",
+   "text": "a promise made to someone who has died",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-only-copy-of-something-important",
+   "label": "the only copy of something important",
+   "text": "the only copy of something important",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.someone-s-freedom-to-leave",
+   "label": "someone's freedom to leave",
+   "text": "someone's freedom to leave",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-family-s-standing",
+   "label": "a family's standing",
+   "text": "a family's standing",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-chance-to-say-goodbye",
+   "label": "the chance to say goodbye",
+   "text": "the chance to say goodbye",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.a-long-held-plan",
+   "label": "a long-held plan",
+   "text": "a long-held plan",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "stake.ours.the-truth-coming-out-on-its-own-terms",
+   "label": "the truth coming out on its own terms",
+   "text": "the truth coming out on its own terms",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

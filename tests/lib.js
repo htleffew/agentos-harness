@@ -9,12 +9,22 @@ const sync = () => {
         const target = path.join(process.env.RI_ST_DATA || path.join(process.env.RI_ST_DIR, 'data'), 'default-user/extensions/roleplay-instructions');
         fs.rmSync(target, { recursive: true, force: true });
         fs.mkdirSync(target, { recursive: true });
-        for (const name of ['index.js', 'manifest.json', 'style.css', 'src', 'assets', 'presets'].filter(name => fs.existsSync(path.join(process.env.RI_EXTENSION_SOURCE, name)))) fs.cpSync(path.join(process.env.RI_EXTENSION_SOURCE, name), path.join(target, name), { recursive: true });
+        for (const name of ['index.js', 'manifest.json', 'style.css', 'src', 'assets', 'presets', 'vendor'].filter(name => fs.existsSync(path.join(process.env.RI_EXTENSION_SOURCE, name)))) fs.cpSync(path.join(process.env.RI_EXTENSION_SOURCE, name), path.join(target, name), { recursive: true });
     } else require('child_process').execSync('rm -rf /tmp/src/st/data/default-user/extensions/roleplay-instructions && mkdir -p /tmp/src/st/data/default-user/extensions/roleplay-instructions && cp -r /home/claude/ri/v5/. /tmp/src/st/data/default-user/extensions/roleplay-instructions/');
 };
 const mode = (m) => fs.writeFileSync(MOCK_MODE, JSON.stringify(m || {}));
 const resetLog = () => { try { fs.unlinkSync(MOCK_LOG); } catch { } };
-const requests = () => { try { return fs.readFileSync(MOCK_LOG, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; } };
+// Rows carry the kind tagged by tests/mock.js (reply, capture, chapter, condensed, options, draft, check, writer).
+// With no argument a suite counts the requests it made itself: every kind except the background memory calls that
+// follow each reply (capture, chapter, condensed). Pass a kind or a list of kinds to count those, or 'all' for every row.
+const BACKGROUND_KINDS = ['capture', 'chapter', 'condensed'];
+const requests = (kinds) => {
+    let rows;
+    try { rows = fs.readFileSync(MOCK_LOG, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; }
+    if (kinds === 'all') return rows;
+    if (kinds) return rows.filter(row => [].concat(kinds).includes(row.kind));
+    return rows.filter(row => !BACKGROUND_KINDS.includes(row.kind));
+};
 const text = r => (r.messages || []).map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join('\n');
 const chatRequests = () => requests().filter(r => /^Reply \d+\./.test(r.answer));
 const marks = r => [...text(r).matchAll(/thing ([A-Z]\d)/g)].map(m => m[1]);
@@ -43,13 +53,14 @@ const records = (page) => page.evaluate(() => globalThis.SillyTavern.getContext(
 const waitChecks = async (page) => { await page.waitForFunction(() => !globalThis.SillyTavern.getContext().chat.some(m => m.extra?.roleplay_instructions?.checking), null, { timeout: 30000 }); await page.waitForTimeout(300); };
 const usePreset = (page, name) => page.evaluate(async (name) => { const $ = globalThis.jQuery; const sel = document.querySelector('#settings_preset_openai'); const opt = [...sel.options].find(o => o.textContent.trim() === name); if (!opt || sel.value === opt.value) return; $(sel).val(opt.value).trigger('change'); await new Promise(r => setTimeout(r, 1500)); }, name);
 async function openQuickActions(page) {
-    const toolbar=page.getByRole('group',{name:'Quick actions toolbar'});
-    const toggle=page.getByRole('button',{name:'Quick actions',exact:true});
-    if (await toggle.getAttribute('aria-expanded')==='false') await toggle.tap();
-    await toolbar.getByRole('button',{name:'More actions',exact:true}).tap();
+    // B28: the launcher toolbar is gone. The bar's More menu opens the sheet with every quick action, as the launcher did.
+    const folded=page.getByRole('button',{name:'Open quick actions',exact:true});
+    if (await folded.isVisible().catch(()=>false)) await folded.tap();
+    await page.getByRole('toolbar',{name:'Quick actions'}).getByRole('button',{name:'More quick actions',exact:true}).tap();
+    await page.getByRole('button',{name:'All quick actions',exact:true}).tap();
 }
 // Tests run under SillyTavern's Default preset unless they pick another one, so one test cannot change the next.
-const setupApi = async (page, { preset = 'Default', legacyAutomation = true } = {}) => { if (preset) { await usePreset(page, preset); for (let i = 0; i < 3; i++) { const ok = await page.$('dialog[open] .popup-button-ok'); if (!ok) break; await ok.click(); await page.waitForTimeout(400); } } await h.setupApi(page); await setSettings(page, { enabled: true, perReply: 0, home: '', summary: { on: false, historyUnit: 'messages', everyTokens: 0 }, pace: { quiet: 0, silent: 0, phasesOn: false }, dice: { on: false }, writer: { eventScene: false }, scene: { track: false, card: 'auto' }, cards: { on: false, most: 2, roast: true }, showUnder: 'off', check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' } });
+const setupApi = async (page, { preset = 'Default', legacyAutomation = true } = {}) => { if (preset) { await usePreset(page, preset); for (let i = 0; i < 3; i++) { const ok = await page.$('dialog[open] .popup-button-ok'); if (!ok) break; await ok.click(); await page.waitForTimeout(400); } } await h.setupApi(page); await page.evaluate(async BASE => { const S = await import(`${BASE}/src/store.js`); const st = S.settings(); delete st.prompts; delete st.promptVariations; delete st.roastVoiceId; S.saveSettings(); }, BASE); await setSettings(page, { enabled: true, perReply: 0, home: '', summary: { on: false, historyUnit: 'messages', everyTokens: 0 }, pace: { quiet: 0, silent: 0, phasesOn: false }, dice: { on: false }, writer: { eventScene: false }, scene: { track: false, card: 'auto' }, cards: { on: false, most: 2, roast: true }, showUnder: 'off', check: { mode: 'full', maxResend: 2, holdNew: true, regenOnMiss: false, agency: 'flag' } });
     const functions = Object.fromEntries(['chapterSummary','chapterCombine','instructionCheck','automaticSwipe']
         .map(operation=>[operation,{profileId:'',automatic:legacyAutomation}]));
     await setSettings(page,{world:{editableReplies:legacyAutomation ? -1 : 5},execution:{functions}});
@@ -93,3 +104,43 @@ async function openMenuEntry(page, entry, index) {
     return page.locator('#ri_root');
 }
 Object.assign(module.exports, { openReplyAction, openMenuEntry });
+
+// B28: the old "Expand" button is gone. The menu opens full screen through the app object; a page id lands on that page.
+async function openPanel(page, id, options = {}) {
+    await page.evaluate(async ({ BASE, id, options }) => {
+        const { app } = await import(BASE + '/src/ui/panel.js');
+        // Leaving a page with an unsent draft asks first, and the answer comes from the test, so the wait is bounded.
+        if (id) await Promise.race([app.openPage(id, { focusPage: true, ...options }), new Promise(resolve => setTimeout(resolve, 1500))]);
+        await app.setExpanded(true);
+    }, { BASE, id, options });
+    await page.waitForTimeout(300);
+}
+// Host isolation for the suites that read the next request: SillyTavern's Summarize extension must put nothing into the prompt.
+// The host may keep its Quick Replies on, since the quick action bar sits beside them and they add nothing to a prompt.
+async function assertQuietHost(page) {
+    const state = await page.evaluate(() => {
+        const host = SillyTavern.getContext();
+        return { disabled: host.extensionSettings.disabledExtensions || [], summary: String(host.extensionPrompts?.['1_memory']?.value || '') };
+    });
+    if (!state.disabled.includes('memory') && state.summary) throw new Error('The host Summarize extension adds text to the prompt: ' + state.summary.slice(0, 80));
+    return state.disabled;
+}
+// Two taps through the shell: the top tab, then the nested tab (ids from src/ui/destinations.js).
+async function goTab(page, top, nested) {
+    await openPanel(page);
+    await page.evaluate(({ top, nested }) => {
+        document.querySelector(`#ri_root [data-ri-tab="${top}"]`).click();
+        if (nested) document.querySelector(`#ri_root [data-ri-nested="${nested}"]`).click();
+    }, { top, nested });
+    await page.waitForTimeout(300);
+}
+// B27: one list of sets with one Add set button. Kinds: instructions, events, style. The new set opens in its editor.
+async function addSet(page, kind, name) {
+    await openPanel(page, 'sets');
+    await page.locator('#ri_root').getByRole('button', { name: 'Add set', exact: true }).click();
+    await page.locator('#ri_root select[aria-label="Kind of set"]').selectOption(kind);
+    await page.locator('#ri_root input[aria-label="Name for the new set"]').fill(name);
+    await page.locator('#ri_root').getByRole('button', { name: 'Create', exact: true }).click();
+    await page.waitForTimeout(1200);
+}
+Object.assign(module.exports, { openPanel, assertQuietHost, goTab, addSet });

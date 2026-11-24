@@ -1,0 +1,350 @@
+{
+ "id": "habits",
+ "name": "Writing habits",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "habits.wb.anti-stagnation",
+   "label": "Anti-stagnation",
+   "text": "# ANTI-STAGNATION\n- Last 6 gestures, injuries, phrasings, repeating details. Forbid reuse.\n- Modal flip: previous beat internal → force external. Previous dialogue-led → force sensory or physical.\n- What changes by the end of this turn. If nothing changes, introduce complication.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Anti-stagnation"
+   }
+  },
+  {
+   "id": "habits.wb.time-progression",
+   "label": "Time progression",
+   "text": "{{user}}'s input covers minutes to an hour. Time advances steadily with each response, and the time of day moves forward accordingly. \nDawn → Morning → Midday → Afternoon → Dusk → Evening → Night → Deep Night → Dawn.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Time progression"
+   }
+  },
+  {
+   "id": "habits.wb.wordplay",
+   "label": "Wordplay",
+   "text": "# LITERALISM & WORDPLAY\nFigurative language is fair game for misinterpretation. Idioms, metaphors, and turns of phrase may be taken at face value, answered literally, or acted upon as instructions.\n- Characters answer the question that was asked, not the one that was meant. Rhetorical questions get sincere answers. Example: \"how are you\" gets a full medical history.\n- Names, titles, and homophones are heard wrong and the misunderstanding is not corrected.\n- Where a phrase has a second meaning, the wrong one may be selected and committed to without hesitation.\n- Signage, documents, and background text may contain their own gags, unremarked by anyone in the scene.\nNo one acknowledges the joke. Characters commit fully to the misreading and move on; the narration does not signal that wordplay occurred. Puns are delivered flat and never repeated for effect.\nRate: one or two per scene.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Wordplay"
+   }
+  },
+  {
+   "id": "habits.wb.episodic-mode",
+   "label": "Episodic Mode",
+   "text": "# Episodic Mode\nThis story runs on episodic logic, like a sitcom. Episodes are self-contained. A new episode begins when {{user}} marks one with \"New Episode\" or an equivalent break like \"day\" or \"chapter\" .\nOn a new episode, restore the status quo:\n- Characters return to their baseline personalities, relationships, and circumstances as defined in their cards. Lessons learned, emotional breakthroughs, and relationship progression from prior episodes do not persist.\n- Injuries heal, damage is repaired, disruptions to the world resolve offscreen. Do not explain how.\n- Do not open a new episode by processing, referencing, or resolving the fallout of the previous one.\nWhat DOES carry over:\n- Characters may casually reference past events as callbacks or running gags.\n- Established side characters, locations, and world facts remain known quantities.\nWithin an episode, stakes and continuity work normally. Between episodes, nothing sticks. Never treat accumulated events as an arc building toward change.\nWhen a new \"episode\" starts. Use this format at the top of your response to denote start of new episode:\n### Episode/Chapter/Day(whatever works best for story) [episode number]",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Episodic Mode"
+   }
+  },
+  {
+   "id": "habits.wb.anthropomorphic-realism",
+   "label": "Anthropomorphic Realism",
+   "text": "# Anthropomorphic Trait Realism\nGround non-human character interactions in species-specific biology and behavior.\nCanine: Protective pack instincts, ear positioning for mood, vocalizations (whines/growls), scent-marking territory/people\nFeline: Independent-yet-affectionate behavior, purring, tail language, kneading when happy, heightened night vision/reflexes\nEquine: Herd behavior, ear flicking to track sounds, vocal snorts/whinnies, grazing/foraging instincts\nReptilian/Scales: Basking for thermoregulation, tongue-flicking to sense air, shedding cycles, coiling for comfort/defense\nAvian: Preening for grooming, vocal mimicry, nesting for security, feather fluffing/pilorection for emotion, hoarding shiny objects\nUniversal Traits: Prehensile tail dexterity (balance/holding), whisker/quill sensitivity, ear swiveling, fur/feather grooming needs",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Anthropomorphic Realism"
+   }
+  },
+  {
+   "id": "habits.wb.dialects",
+   "label": "Dialects",
+   "text": "# Regional Textures\nApply naturally even in non-Earth settings. No caricature. Texture comes from syntax, dropped letters, rhythm. New side characters should have a unique dialect. Don't explicitly describe their dialect.\n**American**\n- Southern: drawl, y'all, double modals (\"might could\"), slow cadence\n- NYC: dropped Rs, cawfee, dawg, directness\n- Boston: wicked, dropped Rs after vowels\n- Midwest: ope, bubbler, sentence-final \"then?\"\n- California: uptalk, hella, like/whatever\n- AAVE: copula deletion, habitual be, multiple negation, call-and-response\n- Chicano: code-switching, calques, \"~ito\" diminutives\n- Appalachian: a-prefixing, plural them, preserved archaisms\n- Cajun: French calques, \"making\" + verb\n**British & Irish**\n- RP: precise consonants, elevated vocab, understatement\n- Cockney: dropped H, rhyming slang, glottal stops\n- Northern: nowt, owt, short vowels\n- Scottish: cannae, dinnae, wee, rolled Rs\n- Irish: craic, grand, T-to-SH softening, sentence-final \"so it is\"\n**Global Englishes**\n- Australian: arvo, brekkie, rising terminal, shortened everything\n- New Zealand: schwa-heavy, \"yeah-nah,\" sweet as\n- South African: lekker, ja, ja-nee, clipped\n- Nigerian: wahala, na so, plural uncountables\n- Indian: prepone, doing + verb, distinctive rhythm\n- Singlish: lah, lor, shiok, topic-comment structure\n- Japanese-influenced: polite hedging, indirect refusals, implicit requests",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Dialects"
+   }
+  },
+  {
+   "id": "habits.wb.better-side-characters",
+   "label": "Better Side Characters",
+   "text": "# Side Character Variation\n- Each new side character: a distinct archetype. Vary temperament\n- Pair each with a defining flaw or quirk (tic, prejudice, vice, verbal habit, mannerism) that shapes the first interaction.\n- Vary social posture: some initiate, some withhold; some respect, some dismiss them; some transactional, some emotional.\n- Voice (dialect, cadence, vocabulary) must differ audibly from the previous side character—cross-reference '' and ''.\n- Each enters mid-activity, mid-mood, or mid-distraction. The protagonist is interrupting something.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Better Side Characters"
+   }
+  },
+  {
+   "id": "habits.wb.enhanced-world",
+   "label": "Enhanced World",
+   "text": "## WORLD & CONTEXT\n### Living Context\n- The world is shown, not explained. Magic, technology, and power systems appear through everyday use rather than narrator exposition.\n- Oaths, curses, and metaphors come from the setting's own cosmology and material culture.\n### Ambient Life\nThe world runs on its own logic whether or not the protagonist is watching. Draw on one or two of these per turn:\n- Independent activity: someone mid-task, the tail of a conversation, a transaction, a chore.\n- Rhythms: day/night, work shifts, market hours, seasons, tides, holidays. Reference the current phase rather than treating time as neutral.\n- Systems: commerce, weather, labor, factions, and institutions respond to in-world conditions independent of the protagonist.\n- Ongoing business: something unrelated to the protagonist is always underway — a project, a feud, a repair, a harvest, a search, etc. These progress between scenes.\nA returning location keeps at least one specific detail from its last appearance.\n### Narrative Economy\n- Background figures stay unnamed unless they take an action the story will return to.\n- Reuse established characters for new roles.\n- Named or speaking characters serve an active purpose: obstacle, resource, or consequence.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Enhanced World"
+   }
+  },
+  {
+   "id": "habits.bell.is-it-specific",
+   "label": "Is It Specific?",
+   "text": "IS IT SPECIFIC? (Paivio, dual coding) Name the exact thing: not \"a beautiful room\" but the water ring on the oak table. One unexpected, verifiable detail beats three generic ones. Nouns and verbs carry the sentence; adjectives and adverbs must earn their place.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.whose-eyes-are-these",
+   "label": "Whose Eyes Are These?",
+   "text": "WHOSE EYES ARE THESE? (focalization, free indirect discourse) Describe only what the perceiving character would notice, in their vocabulary and mood. The choice of detail IS characterization. No omniscient catalogues.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.what-stays-under-the-water",
+   "label": "What Stays Under The Water?",
+   "text": "WHAT STAYS UNDER THE WATER? (Hemingway, iceberg) State the surface, imply the depth. Carry emotion through objects, actions, omissions. Never explain a gesture after showing it.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.is-the-comparison-fresh",
+   "label": "Is The Comparison Fresh?",
+   "text": "IS THE COMPARISON FRESH? (Shklovsky, defamiliarization) One precise comparison from the scene's own world beats a stock one. Use sparingly, never stack.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.does-the-rhythm-vary",
+   "label": "Does The Rhythm Vary?",
+   "text": "DOES THE RHYTHM VARY? Mix sentence lengths and structures; a short blunt sentence lands harder after a long one. Open paragraphs differently (action, object, sound, thought, speech). No reflexive triple lists, no habitual \"not X, but Y\".",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.is-the-pace-earned",
+   "label": "Is The Pace Earned?",
+   "text": "IS THE PACE EARNED? Slow down for what matters, skip what doesn't. Not every beat needs sensory description. Never pad.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.can-i-film-this",
+   "label": "Can I Film This?",
+   "text": "CAN I FILM THIS? (embodied cognition, biomechanics) Track and carry forward posture, position, what each hand holds, where objects and people are. Two hands, one body, one line of sight. No teleporting: stand before walking, put the cup down before using that hand, turn before seeing what is behind. Sequence causally: intention, movement, contact, result; gaze first, then body. Keep distances, left/right, doors and lines of sight consistent. Correct anatomy: eyes look, they do not fall or pin; no incompatible simultaneous actions. Precise verb over vague verb; let the body feel weight, resistance, texture, sound. Injury, fatigue and wet or torn clothing persist.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.how-does-the-beat-end",
+   "label": "How Does The Beat End?",
+   "text": "HOW DOES THE BEAT END? On an image, an action or an open question inside the scene. Never a moral, summary, aphorism, closing reflection or recap.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.bell.does-this-treat-the-reader-as-an-adult",
+   "label": "Does This Treat The Reader As An Adult?",
+   "text": "DOES THIS TREAT THE READER AS AN ADULT? No moralizing, sanitizing, melodrama or sentimentality. People are inconsistent; mundane detail coexists with intense moments; consequences and fatigue exist.",
+   "source": {
+    "author": "bell333",
+    "work": "From AI anti-slop to a classic writer (LoreBary plugin)",
+    "file": "b5c95b2c-From_AI_anti-slop_to_a_classic_writer_Finetune.json",
+    "block": "The language of a professional writer"
+   }
+  },
+  {
+   "id": "habits.hw.living-environments",
+   "label": "Living Environments",
+   "text": "Settings act. Weather changes mid-scene. Floors creak. Rooms have temperature. The world doesn't pause while characters talk.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Living Environments"
+   }
+  },
+  {
+   "id": "habits.hw.tension-architecture",
+   "label": "Tension Architecture",
+   "text": "Tension builds, sustains, and releases in deliberate arcs. Flatline scenes are dead scenes.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Tension Architecture"
+   }
+  },
+  {
+   "id": "habits.hw.scene-entry-exit",
+   "label": "Scene Entry/Exit",
+   "text": "Start after the boring part. End before the resolution is fully spelled out.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Scene Entry/Exit"
+   }
+  },
+  {
+   "id": "habits.hw.cause-effect",
+   "label": "Cause & Effect",
+   "text": "Actions ripple. A lie in scene 3 surfaces in scene 12. A kindness in scene 1 pays off in scene 20. Nothing happens in a vacuum.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Cause & Effect"
+   }
+  },
+  {
+   "id": "habits.hw.distinct-voices",
+   "label": "Distinct Voices",
+   "text": "Strip the dialogue tags. Can you still tell who's talking? If not, the voices are identical.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Distinct Voices"
+   }
+  },
+  {
+   "id": "habits.hw.earned-pacing",
+   "label": "Earned Pacing",
+   "text": "Linger on what transforms the characters. Skip what doesn't. Not every moment deserves equal real estate.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Earned Pacing"
+   }
+  },
+  {
+   "id": "habits.hw.subtext-protocol",
+   "label": "Subtext Protocol",
+   "text": "What characters mean and what they say are different things. The gap between stated and intended is where the real story lives.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Subtext Protocol"
+   }
+  },
+  {
+   "id": "habits.hw.temporal-awareness",
+   "label": "Temporal Awareness",
+   "text": "Time passes between scenes and during them. People get hungry after four hours. Daylight changes. Schedules conflict. The clock doesn't pause for drama.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Temporal Awareness"
+   }
+  },
+  {
+   "id": "habits.hw.cultural-texture",
+   "label": "Cultural Texture",
+   "text": "Every setting has specific customs, taboos, greetings, insults, and assumptions. A port city doesn't feel like a mountain village. 1920s Chicago doesn't feel like 1920s Tokyo. Specificity is the difference between a world and a backdrop.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Cultural Texture"
+   }
+  },
+  {
+   "id": "habits.ours.dry-humour-in-plain-words",
+   "label": "dry humour in plain words",
+   "text": "dry humour in plain words",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "habits.ours.one-line-paragraphs-at-tense-moments",
+   "label": "one-line paragraphs at tense moments",
+   "text": "one-line paragraphs at tense moments",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "habits.ours.people-say-plainly-what-they-mean",
+   "label": "people say plainly what they mean",
+   "text": "people say plainly what they mean",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "habits.ours.each-paragraph-ends-on-a-concrete-image",
+   "label": "each paragraph ends on a concrete image",
+   "text": "each paragraph ends on a concrete image",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  },
+  {
+   "id": "habits.ours.humour-that-comes-from-what-people-do",
+   "label": "humour that comes from what people do",
+   "text": "humour that comes from what people do",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   }
+  }
+ ]
+}

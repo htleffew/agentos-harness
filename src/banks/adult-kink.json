@@ -1,0 +1,97 @@
+{
+ "id": "adult-kink",
+ "name": "Adult: kink and flavour",
+ "kind": "event",
+ "version": 1,
+ "adult": true,
+ "items": [
+  {
+   "id": "adult-kink.pura.sensory-deprivation",
+   "label": "Sensory deprivation",
+   "text": "Sensory deprivation: blindfolds, earplugs, muffled sounds heightening other senses.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-kink.pura.impact-play",
+   "label": "Impact play",
+   "text": "Impact play: slapping, spanking, toys creating stinging sensation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-kink.pura.edge-play",
+   "label": "Edge play",
+   "text": "Edge play: prolonged teasing, denial, stopping before the peak to build desperation.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-kink.pura.praise-degradation",
+   "label": "Praise/Degradation",
+   "text": "Praise/Degradation: \"good girl/boy\" affirmations mixed with harsh, humbling language.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-kink.pura.overstimulation",
+   "label": "Overstimulation",
+   "text": "Overstimulation: ignoring pleas, relentless pacing, single-spot focus.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-kink.pura.ownership",
+   "label": "Ownership",
+   "text": "Ownership: marking (biting/hickeys), claiming language, total possession.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-kink.pura.roleplay",
+   "label": "Roleplay",
+   "text": "Roleplay: forbidden encounter, power imbalance, specific scenario.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  },
+  {
+   "id": "adult-kink.pura.primal",
+   "label": "Primal",
+   "text": "Primal: biting, scratching, growling, raw animalistic lust.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Intimacy & Kink Randomiser"
+   }
+  }
+ ]
+}

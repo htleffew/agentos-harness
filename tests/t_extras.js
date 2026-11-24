@@ -77,8 +77,8 @@ const run = (page, fn, arg) => page.evaluate(async ({ BASE, fn, arg }) => { cons
         assert(L.requests().filter(r => /"done"/.test(L.text(r))).length === 0, 'C: no AI request is used for rule checks');
 
         // ---- D: the panel shows it ----
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Expand').click());
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-tab')].find(t => t.textContent === 'What Was Sent').click());
+        await L.openPanel(page);
+        await L.openPanel(page, 'sent');
         await page.waitForTimeout(600);
         const txt = await page.evaluate(() => document.querySelector('#ri_root .ri-body').innerText);
         assert(/RULES CHECKED/i.test(txt) && /Followed: nothing spoken aloud/.test(txt) && /Lock for this chat/.test(txt) && /Keep until I turn it off/.test(txt) && /Pick again/.test(txt), 'D: What Was Sent shows rule results and the three buttons on each picked item');
@@ -87,7 +87,7 @@ const run = (page, fn, arg) => page.evaluate(async ({ BASE, fn, arg }) => { cons
         await page.waitForTimeout(1500);
         const mode = await run(page, async (m, sname) => { const d = await m.B.loadSet(sname); const c = Object.values(d.entries)[0].extensions.ri.categories[0]; return c.mode + ':' + !!c.fixed; }, sname);
         assert(mode === 'keepFixed:true', 'D: "Keep until I turn it off" changes the set itself');
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-tab')].find(t => t.textContent === 'Random Story Events').click());
+        await L.openPanel(page, 'events');
         await page.waitForTimeout(400);
         await page.evaluate((n) => [...document.querySelectorAll('#ri_root .ri-setcard .ri-card-name')].find(b => b.textContent === n).click(), name);
         await page.waitForTimeout(800);

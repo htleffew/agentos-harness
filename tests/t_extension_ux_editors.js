@@ -7,27 +7,26 @@ const L = require('./lib.js');
     const {browser,page,errors}=await L.open({width:320,height:475,hasTouch:true,isMobile:true});
     const panel=page.locator('#ri_root');
     const body=panel.locator('#ri_panel_page');
-    const click=(name,root=panel)=>L.panelClick(root,name);
-    const scope=(name)=>panel.getByRole('navigation',{name:'Roleplay sections'}).getByRole('button',{name,exact:true}).tap();
-    const openDrawer=async()=>{
-        if (!await page.locator('#ri_drawer').isVisible()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
-        if (!await panel.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').tap();
-    };
+    // B28: pages open through the app object; the section names the old suite tapped map to page ids.
+    const PAGE={'Opening':'opening','Character goals':'goals','Chat facts':'facts','Dialogue colors':'speakers','Emotions & relationships':'emotion','Request log':'log'};
+    const click=(name,root=panel)=>PAGE[name] ? L.openPanel(page,PAGE[name]) : root.getByRole('button',{name,exact:true}).tap();
+    const scope=async()=>{};
+    const openDrawer=()=>L.openPanel(page);
     const evidence=[];
     try {
         await L.setupApi(page,{legacyAutomation:false});
         await page.evaluate(()=>SillyTavern.getContext().executeSlashCommandsWithOptions('/closechat'));
         await page.waitForFunction(()=>!SillyTavern.getContext().getCurrentChatId());
         await openDrawer();
-        assert.equal(await panel.locator('[data-ri-heading]').innerText(),'Preset & Extension');
-        assert.equal(await page.getByRole('button',{name:'Quick actions',exact:true}).count(),0);
-        await page.locator('#extensions-settings-button > .drawer-toggle').tap();
+        assert.equal((await panel.locator('[data-ri-heading]').innerText()).toLowerCase(),'features');
+        assert.equal(await page.getByRole('toolbar',{name:'Quick actions'}).count(),0);
+        await page.evaluate(async B=>(await (await import(`${B}/src/ui/panel.js`)).app.setExpanded(false)),L.BASE);
 
         await L.usePreset(page,'Roleplay Instructions V10');
         await L.openChat(page);
         await openDrawer();
-        await click('Expand');
-        assert.equal(await panel.locator('[data-ri-heading]').innerText(),'Current scene');
+        await L.openPanel(page);
+        assert.equal((await panel.locator('[data-ri-heading]').innerText()).toLowerCase(),'scene');
         L.resetLog();
         evidence.push({case:'first open with and without a chat',destinations:['Preset & Extension','Current scene']});
 
@@ -126,14 +125,6 @@ const L = require('./lib.js');
         const cdp=await page.context().newCDPSession(page);
         await cdp.send('Emulation.setEmulatedVisionDeficiency',{type:'achromatopsia'});
         await page.emulateMedia({reducedMotion:'reduce'});
-        const openFinder=body.locator('.ri-tool-finder summary');
-        if (await openFinder.evaluate(node=>node.parentElement.open)) await openFinder.tap();
-        await openFinder.focus();
-        await page.keyboard.press('Enter');
-        assert.equal(await openFinder.evaluate(node=>node.parentElement.open),true);
-        await body.getByRole('searchbox',{name:'Find a tool'}).waitFor();
-        await page.keyboard.press('Space');
-        assert.equal(await openFinder.evaluate(node=>node.parentElement.open),false);
         await page.evaluate(async base=>{
             const {addLog,clearLog}=await import(base+'/src/log.js');
             clearLog();
@@ -151,7 +142,8 @@ const L = require('./lib.js');
         await page.context().grantPermissions(['clipboard-read','clipboard-write']);
         await click('Copy the log',body);
         await body.getByText('Copied the complete request log.').waitFor();
-        assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),exported);
+        // The Windows clipboard returns CRLF line ends, so both sides are read with LF only.
+        assert.equal((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n'),exported.replace(/\r\n/g,'\n'));
         await click('Clear the log',body);
         const confirmation=body.getByRole('group',{name:'Confirm clear request log'});
         await confirmation.getByText('Clear all 2 saved request log entries from this device?').waitFor();

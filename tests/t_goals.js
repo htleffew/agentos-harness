@@ -19,7 +19,7 @@ const progress = (page) => page.evaluate(async (BASE) => { const G = await impor
         console.log('A:', seq.join(' '), '| done at reply', doneAt + 1);
         const sample = L.text(reqs[0]).match(/\[System note: In this reply,[^\]]*\]/)[0];
         console.log(sample);
-        assert(/Seraphina must do thing \w\d to User\. How it happens is up to you; it must happen\. This serves Seraphina's goal: Seraphina wants User to trust her\./.test(sample), 'A: the order names the task and the goal, with names and pronouns filled in');
+        assert(/Seraphina must do thing \w\d to User\. How it happens is up to you; it must happen\. This serves Seraphina's goal: Seraphina wants User to trust (her|them)./.test(sample), 'A: the order names the task and the goal, with names and pronouns filled in');
         const steps = seq.filter(x => /^S/.test(x));
         assert(steps.length === 3 && new Set(steps).size === 3, 'A: each one-time step is sent once and ticked off');
         const aIdx = seq.map((x, i) => x === 'A1' ? i : -1).filter(i => i >= 0);
@@ -61,8 +61,8 @@ const progress = (page) => page.evaluate(async (BASE) => { const G = await impor
 
         // ---- E: the panel ----
         await L.openChat(page);
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Expand').click());
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-tab')].find(t => t.textContent === 'Character Goals').click());
+        await L.openPanel(page);
+        await L.openPanel(page, 'goals');
         await page.waitForTimeout(400);
         await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Write a goal with AI').click());
         await page.waitForTimeout(300);
@@ -70,7 +70,7 @@ const progress = (page) => page.evaluate(async (BASE) => { const G = await impor
         await page.waitForFunction(() => [...document.querySelectorAll('#ri_root button')].some(b => b.textContent === 'Use this goal'), null, { timeout: 20000 });
         await page.screenshot({ path: '/tmp/g1.png' });
         const shown = await page.evaluate(() => document.querySelector('#ri_root .ri-sheet-box').innerText);
-        assert(/Seraphina wants User to trust her/.test(shown) && /Shorten it to 8 or fewer/.test(shown) && /ties this to a place, time or object/.test(shown), 'E: the AI goal is shown for review, and a long, specific step is flagged');
+        assert(/Seraphina wants User to trust (her|them)/.test(shown) && /Shorten it to 8 or fewer/.test(shown) && /ties this to a place, time or object/.test(shown), 'E: the AI goal is shown for review, and a long, specific step is flagged');
         await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Use this goal').click());
         await page.waitForTimeout(500);
         const state = await page.evaluate(async (BASE) => { const G = await import(`${BASE}/src/goals.js`); const g = G.goals(); return { on: g.on, goal: g.goal, steps: g.steps.length, actions: g.actions.length }; }, L.BASE);

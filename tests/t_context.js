@@ -38,7 +38,7 @@ const assert = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c)
         assert(opts.every(labels => labels.filter(label => /already in the story or new/.test(label)).length === 3), 'both pickers offer any, female and male "already in the story or new"');
         assert(opts[0].includes('The model (writing the reply)') && opts.every(labels => labels.includes('Unspecified')), 'the actor can be the model, and both actor and target can be unspecified');
         // the panel
-        await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Expand').click());
+        await L.openPanel(page);
         await page.evaluate(async (B) => { const M = await import(`${B}/src/books.js`); const n = 'Ctx ' + Date.now(); await M.createSet(n); const P = await import(`${B}/src/ui/panel.js`); P.app.cache = {}; P.app.tab = 'instructions'; P.app.go({ view: 'set', name: n }); }, L.BASE);
         await page.waitForTimeout(500);
         await page.evaluate(() => [...document.querySelectorAll('#ri_root button')].find(b => b.textContent === 'Add instruction').click());

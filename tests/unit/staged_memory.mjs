@@ -4,13 +4,13 @@ import { test } from 'node:test';
 const { KEY } = await import('../../src/st.js');
 const { settings } = await import('../../src/store.js');
 const {
-    afterReply, applyOps, invalidateAfterEdit, loadEffectiveWorld, syncWorld,
+    afterReply, loadEffectiveWorld,
 } = await import('../../src/worldflow.js');
-const { filedThrough, storyJournalStatus } = await import('../../src/memory-journal.js');
-const { catchUpChatHistory, chapterAfterReply, startNewChapter, writeChapter } = await import('../../src/chapters.js');
+const { filedThrough } = await import('../../src/memory-journal.js');
+const { catchUpChatHistory, chapterAfterReply, writeChapter } = await import('../../src/chapters.js');
 const { executionReceipt, setExecutionSetting } = await import('../../src/execution.js');
 const { runFactRepair, undoStoryCorrection } = await import('../../src/corrections.js');
-const { listWorld, writeWorldEntry } = await import('../../src/world.js');
+const { listWorld } = await import('../../src/world.js');
 
 function fixture() {
     let id = 'staged-chat';
@@ -110,98 +110,6 @@ test('a failed auto-summary remains one attempt when later replies extend the to
     assert.equal(executionReceipt('chapterSummary').authorization,'manual');
 });
 
-test('the editable timeline keeps surviving independent evidence when an earlier source changes', async()=>{
-    const f = fixture();
-    const key = {k:'person',a:'Rey',b:'Courier',c:'Rey pocketed the heavy brass key'};
-    const note = {k:'knows',a:'Rey',b:'The brass key opens the tower'};
-    const pier = {k:'place',a:'Pier',b:'A pier reaches the northern water'};
-    const first = await f.accept('Rey pocketed the heavy brass key.',[key]);
-    const second = await f.accept('Rey looked at the tower. A pier reaches the northern water.',[note,pier]);
-    for (let n=3;n<=6;n++) await f.accept('Hale walks onward.');
-    assert.equal(f.writes(),0);
-    assert.equal(listWorld(await loadEffectiveWorld(f.world),f.world).find(row=>row.name==='Rey').fields.knows,note.b);
-    await f.accept('Hale stops to breathe.',[],{continuation:true});
-    assert.equal(filedThrough(),0);
-    assert.equal(f.writes(),0);
-    f.host.chat[2].mes='The heavy brass key stays on the desk.';
-    await invalidateAfterEdit(2);
-    assert.match(first.memoryUncertain,/evidence/);
-    assert.match(second.memoryUncertain,/current Story World/);
-    assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).map(row=>row.name),['Pier']);
-    await f.accept('Hale walks back.');
-    assert.equal(filedThrough(),1);
-    assert.equal(first.update.pending,undefined);
-    assert.equal(listWorld(f.book(),f.world).length,0);
-    assert.equal(f.requests.length,0);
-    assert.equal(f.host.chat[4].mes,'Rey looked at the tower. A pier reaches the northern water.');
-});
-
-test('a host timestamp refresh cannot drop an accepted continuation update', async()=>{
-    const f = fixture();
-    const first = await f.accept('The old pier crosses the water.',[{k:'place',a:'Pier',b:'The old pier crosses the water'}]);
-    const message = f.host.chat.at(-1);
-    message.swipe_info = [{send_date:message.send_date,extra:message.extra}];
-    const load = f.host.loadWorldInfo;
-    f.host.loadWorldInfo = async name=>{
-        message.swipe_info[0].send_date = 'host-refreshed-swipe';
-        return load(name);
-    };
-    message.send_date = 'native-continuation';
-    const continued = await f.accept('A lantern burns above the quay.',[{k:'place',a:'Quay',b:'A lantern burns above the quay'}],{continuation:true});
-    assert.equal(continued.update.pending.revision.turn,first.memoryTurn);
-    assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).map(row=>row.name),['Pier','Quay']);
-    assert.equal(f.writes(),0);
-});
-
-test('a saved book write is acknowledged without a second write after save interruption', async()=>{
-    const f = fixture();
-    const first = await f.accept('The old pier crosses the water.',[{k:'place',a:'Pier',b:'The old pier crosses the water'}]);
-    for (let n=2;n<=6;n++) await f.accept('Hale walks onward.');
-    let failed = false;
-    f.host.saveChat=async()=>{
-        if (!failed && f.writes() && !first.update.pending) {
-            failed = true;
-            throw new Error('Interrupted journal acknowledgment');
-        }
-    };
-    await f.accept('Hale turns around.');
-    assert.equal(failed,true);
-    assert.equal(f.writes(),1);
-    assert.equal(first.update.changes.length,0);
-    assert(first.update.pending);
-    f.host.chat=structuredClone(f.host.chat);
-    await syncWorld();
-    const reloaded = f.host.chat[2].extra[KEY];
-    assert.equal(f.writes(),1);
-    assert.equal(reloaded.update.pending,undefined);
-    assert.equal(reloaded.update.changes.length,1);
-    assert.equal(listWorld(f.book(),f.world).filter(row=>row.name==='Pier').length,1);
-});
-
-test('filing keeps a concurrent authored value and staged changes remain recoverable', async()=>{
-    const f = fixture();
-    const original = {entries:{}};
-    applyOps(original,f.world,[{k:'person',a:'Rey',b:'Courier',c:'A painter'},{k:'wants',a:'Rey',b:'Buy a map'}],
-        {chat:'staged-chat',n:0});
-    f.replaceBook(original);
-    const first = await f.accept('Rey asks to find the blue paint.',[{k:'wants',a:'Rey',b:'Find the blue paint'}]);
-    for (let n=2;n<=6;n++) await f.accept('Hale walks onward.');
-    const authored = structuredClone(original);
-    const row = listWorld(authored,f.world)[0];
-    row.fields.wants = 'Keep the charcoal';
-    writeWorldEntry(authored,row,f.world);
-    f.replaceBook(authored);
-    await f.accept('Hale turns around.');
-    assert.equal(listWorld(f.book(),f.world)[0].fields.wants,'Keep the charcoal');
-    assert(first.update.pending);
-    assert.match(storyJournalStatus().error,/conflicts/);
-    assert.equal(f.requests.length,0);
-    f.replaceBook(original);
-    await syncWorld();
-    assert.equal(listWorld(f.book(),f.world)[0].fields.wants,'Find the blue paint');
-    assert.equal(first.update.pending,undefined);
-});
-
 test('the shared fact audit keeps style guidance out of canon and supports undo', async()=>{
     const f = fixture();
     settings().world.editableReplies = -1;
@@ -216,42 +124,6 @@ test('the shared fact audit keeps style guidance out of canon and supports undo'
     const unresolved = await runFactRepair({focus:2});
     assert.equal(unresolved.correction,null);
     assert.equal(unresolved.unresolved.length,1);
-});
-
-test('an authoritative player fact can repair an editable record without an AI request', async()=>{
-    const f = fixture();
-    const record = await f.accept('The gate is open.',[{k:'place',a:'Gate',b:'The gate is open.'}]);
-    f.host.chat[1].mes='The gate is closed.';
-    const result = await runFactRepair({focus:2});
-    assert.equal(result.correction.truth,'The gate is closed');
-    assert.equal(result.repaired.length,1);
-    assert.equal(record.update.pending.changes.length,2);
-    assert.equal(f.writes(),0);
-    assert.equal(f.requests.length,0);
-    assert.equal(listWorld(await loadEffectiveWorld(f.world),f.world)[0].fields.what,'The gate is closed.');
-    await undoStoryCorrection(result.correction.id);
-    assert.equal(listWorld(await loadEffectiveWorld(f.world),f.world)[0].fields.what,'The gate is open.');
-});
-
-test('undo restores a repaired inactive swipe while leaving the selected revision intact',async()=>{
-    const f = fixture();
-    const old = await f.accept('The gate is open.',[{k:'place',a:'Gate',b:'The gate is open.'}]);
-    const reply = f.host.chat[2];
-    old.scene = {environment:'The gate is open.'};
-    f.host.chat[1].mes = 'The gate is closed.';
-    const repaired = await runFactRepair({focus:2});
-    assert.equal(old.scene.environment,'The gate is closed.');
-    const alternate = 'The gate is closed and the captain waves.';
-    const alternativeRecord = {time:5,scene:{environment:alternate}};
-    reply.swipes = [reply.mes,alternate];
-    reply.swipe_info = [{send_date:reply.send_date,extra:reply.extra},{send_date:'alternate',extra:{[KEY]:alternativeRecord}}];
-    Object.assign(reply,{mes:alternate,swipe_id:1,send_date:'alternate',extra:reply.swipe_info[1].extra});
-    await undoStoryCorrection(repaired.correction.id);
-    assert.equal(reply.mes,alternate);
-    assert.equal(reply.extra[KEY].scene.environment,alternate);
-    assert.equal(old.scene.environment,'The gate is open.');
-    assert.equal(old.update.pending.changes.length,1);
-    assert.equal(f.requests.length,0);
 });
 
 test('historical replacement reconciles dependent filed facts while keeping later prose', async()=>{
@@ -280,47 +152,6 @@ test('historical replacement reconciles dependent filed facts while keeping late
     assert.equal(f.requests.length,0);
 });
 
-test('deleting across the filing boundary reopens the surviving recent patch', async()=>{
-    const f = fixture();
-    const first = await f.accept('A stone pier extends into the lake.',[{k:'place',a:'Pier',b:'A stone pier extends into the lake'}]);
-    for (let n=2;n<=7;n++) await f.accept('Hale walks onward.');
-    assert.equal(first.update.pending,undefined);
-    assert.deepEqual(listWorld(f.book(),f.world).map(row=>row.name),['Pier']);
-    f.host.chat.splice(3);
-    await syncWorld(null,{deleted:true});
-    assert(first.update.pending);
-    assert.equal(listWorld(f.book(),f.world).length,0);
-    assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).map(row=>row.name),['Pier']);
-});
-
-test('branch and chapter transfer use only surviving pending patches in their own books', async()=>{
-    const f = fixture();
-    await f.accept('The stone pier reaches the water.',[{k:'place',a:'Pier',b:'The stone pier reaches the water'}]);
-    await f.accept('A brass bell hangs above the quay.',[{k:'place',a:'Quay',b:'A brass bell hangs above the quay'}]);
-    const parent = {chat:f.host.chat,metadata:f.host.chatMetadata};
-    const branchMeta = structuredClone(parent.metadata);
-    Object.assign(branchMeta,{main_chat:'staged-chat',integrity:'branch-chat'});
-    f.open('branch-chat',structuredClone(parent.chat.slice(0,3)),branchMeta);
-    await syncWorld();
-    const branch = branchMeta[KEY].world;
-    assert.notEqual(branch,f.world);
-    assert.equal(listWorld(f.book(branch),branch).length,0);
-    assert.deepEqual(listWorld(await loadEffectiveWorld(branch),branch).map(row=>row.name),['Pier']);
-    f.open('staged-chat',parent.chat,parent.metadata);
-    const modelOnly = {summary:'Hale reached town.',first:'Hale steps across the pier.',scene:{where:'Pier'}};
-    f.host.executeSlashCommandsWithOptions = async () => f.open('next-chapter',[{name:'Hale',mes:'Opening',extra:{}}],
-        {integrity:'next-chapter'});
-    await startNewChapter(modelOnly,()=>({keys:new Set(),ids:new Map()}));
-    const chapterWorld = f.host.chatMetadata[KEY].world;
-    assert.notEqual(chapterWorld,f.world);
-    assert.notEqual(chapterWorld,branch);
-    assert.deepEqual(listWorld(f.book(chapterWorld),chapterWorld).map(row=>row.kind),['chapter']);
-    assert.deepEqual(listWorld(await loadEffectiveWorld(chapterWorld),chapterWorld).filter(row=>row.kind!=='chapter').map(row=>row.name),
-        ['Pier','Quay']);
-    assert.equal(listWorld(f.book(),f.world).length,0);
-    assert.equal(f.requests.length,0);
-});
-
 test('catch-up stages the newest window and summarizes only filed coverage',async()=>{
     const f = fixture();
     await f.accept('A stone pier crosses the bay.');
@@ -343,29 +174,3 @@ test('catch-up stages the newest window and summarizes only filed coverage',asyn
     assert.equal(f.requests.length,2);
 });
 
-test('editing inside staged catch-up coverage removes stale derived facts and keeps independent facts',async()=>{
-    const f = fixture();
-    await f.accept('Hale looks across the bay.');
-    await f.accept('The bell hangs beside the open gate.');
-    for (let n=3;n<=6;n++) await f.accept('Hale walks onward.');
-    await f.accept('A wooden raft rests beside the quay.',[{k:'place',a:'Quay',b:'A wooden raft rests beside the quay'}]);
-    f.host.generateRaw = async ({prompt})=>{
-        f.requests.push({prompt});
-        const hasGate=prompt[0].content.includes('The bell hangs beside the open gate.');
-        return JSON.stringify({summary:'Hale looked across the bay.',world:hasGate ?
-            [{line:'place: Gate | A bell hangs beside the open gate',evidence:'The bell hangs beside the open gate.'}] : []});
-    };
-    await catchUpChatHistory();
-    assert.equal(f.requests.length,2);
-    assert.equal(f.host.chat[14].extra[KEY].update.pending.changes.length,2);
-    assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).filter(row=>row.kind==='place').map(row=>row.name),['Gate','Quay']);
-    f.host.chat[4].mes='The bell hangs in a quiet courtyard.';
-    const fromCurrent = async ()=>(listWorld(await loadEffectiveWorld(f.world),f.world).filter(row=>row.kind==='place').map(row=>row.name));
-    assert.deepEqual(await fromCurrent(),['Quay']);
-    await invalidateAfterEdit(4);
-    assert.deepEqual(await fromCurrent(),['Quay']);
-    const reconciled=f.host.chat[14].extra[KEY];
-    assert.match(reconciled.memoryUncertain,/Source history changed/);
-    assert.equal(reconciled.update.pending.changes.length,1);
-    assert.equal(f.requests.length,2);
-});

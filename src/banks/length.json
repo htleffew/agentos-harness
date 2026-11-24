@@ -1,0 +1,174 @@
+{
+ "id": "length",
+ "name": "Length",
+ "kind": "style",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "length.pura.short",
+   "label": "Short",
+   "text": "End immediately after 3-5 short paragraphs.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Short"
+   }
+  },
+  {
+   "id": "length.pura.medium",
+   "label": "Medium",
+   "text": "End immediately after 8-13 paragraphs of varying length, not including any trackers or external HTML elements.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Medium"
+   }
+  },
+  {
+   "id": "length.pura.long",
+   "label": "Long",
+   "text": "Write at least 13 paragraphs with varying verbosity. Chapter-length.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Long"
+   }
+  },
+  {
+   "id": "length.pura.flexible",
+   "label": "Flexible",
+   "text": "Flexible length with varying paragraphs and verbosity. Keep outputs concise during regular, character-driven scenes, and slow down to be descriptive when the situation calls for deep interiority between the environment and the characters. End immediately for director’s turn. Increase, decrease, or stagnate the pace as needed. Use the previous turns to inform how long the scene will be.",
+   "source": {
+    "author": "Pura (platberlitz)",
+    "work": "Pura's Director Preset 16.0",
+    "file": "35fb60c2-Puras_Director_Preset_16.0_SillyTavern.json",
+    "block": "Flexible"
+   }
+  },
+  {
+   "id": "length.wb.short",
+   "label": "Short",
+   "text": "Your response should be under 4 paragraphs. Paragraphs containing dialogues don't count towards paragraph limit.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Short (under 4 paragraphs)"
+   }
+  },
+  {
+   "id": "length.wb.adaptive-short",
+   "label": "Adaptive Short",
+   "text": "Your response length is Adaptive Short. The length is based on type of scene beat. Paragraphs containing dialogues don't count towards paragraph limit.\nDevelopmental: Under four \nTransitional: Under three\nReactive: under two\nClimax: under six.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Short"
+   }
+  },
+  {
+   "id": "length.wb.medium",
+   "label": "Medium",
+   "text": "Your response should be under 8 paragraphs. Paragraphs containing dialogues don't count towards paragraph limit.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Medium (under 8 paragraphs)"
+   }
+  },
+  {
+   "id": "length.wb.adaptive-medium",
+   "label": "Adaptive Medium",
+   "text": "Your response length is Adaptive Medium. The length is based on type of scene beat. Paragraphs containing dialogues don't count towards paragraph limit.\nDevelopmental: Under eight\nTransitional: Under four\nReactive: Under three\nClimax: Under ten",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Medium"
+   }
+  },
+  {
+   "id": "length.wb.long",
+   "label": "Long",
+   "text": "Your response should can be 12+ paragraphs, minimum 4 paragraphs needed. Paragraphs containing dialogues don't count towards paragraph limit.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Long (4 minimum paragraphs, allowed to be 12+)"
+   }
+  },
+  {
+   "id": "length.wb.adaptive-long",
+   "label": "Adaptive Long",
+   "text": "Your response length is Adaptive Long. The length is based on type of scene beat. Paragraphs containing dialogues don't count towards paragraph limit.\nDevelopmental: Under nine\nTransitional: Under five\nReactive: Under four\nClimax: 12+, use many paragraphs as needed.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "Adaptive Long"
+   }
+  },
+  {
+   "id": "length.wb.no-set-limit",
+   "label": "No set limit",
+   "text": "Determine paragraphs needed for scene. Use as much it the scene demands.",
+   "source": {
+    "author": "Writer's Block Unlimited author",
+    "work": "Writer's Block Unlimited 2.1",
+    "file": "d0e016f1-Writers_Block_Unlimited_Version_2_1.json",
+    "block": "No set limit"
+   }
+  },
+  {
+   "id": "length.hw.short",
+   "label": "Short",
+   "text": "Tight. Every sentence carries its weight or gets cut. Dialogue-heavy scenes, quick exchanges, rapid back-and-forth. Don't pad. Don't describe the room if the room doesn't matter. Get in, deliver the beat, get out. Match {{user}}'s energy: if they wrote two lines, don't come back with a novel.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Short (1-3 paragraphs)"
+   }
+  },
+  {
+   "id": "length.hw.medium",
+   "label": "Medium",
+   "text": "The sweet spot. Enough room for action, dialogue, description, and one internal beat without overstaying. Most scenes live here. You can set a mood, advance the plot, and give the character a moment to breathe. Don't stretch scenes that should be quick and don't compress scenes that need room.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Medium (3-5 paragraphs)"
+   }
+  },
+  {
+   "id": "length.hw.long",
+   "label": "Long",
+   "text": "Big scenes. Emotional confrontations, action sequences, first meetings, revelations. You've got room for environmental detail, multiple character reactions, shifts in tension. Don't waste it on mundane transitions. Long responses earn their length through density, not padding. Every paragraph should justify its existence.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Long (5-8 paragraphs)"
+   }
+  },
+  {
+   "id": "length.hw.adaptive",
+   "label": "Adaptive",
+   "text": "Let the scene decide. Quick dialogue exchange? Two paragraphs. Climactic confrontation? Eight. Quiet moment of reflection? Three. The response is exactly as long as the scene needs and not one sentence longer. Read {{user}}'s input length as a signal but not a mandate, sometimes they write short because the scene is fast, sometimes because they're tired. Match the SCENE's energy, not just theirs.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Adaptive (match the scene)"
+   }
+  }
+ ]
+}

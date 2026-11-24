@@ -1,0 +1,729 @@
+{
+ "id": "ambient",
+ "name": "Ambient pulse",
+ "kind": "event",
+ "version": 1,
+ "adult": false,
+ "items": [
+  {
+   "id": "ambient.hw.weather-shifts",
+   "label": "Weather shifts",
+   "text": "Weather doesn't wait for scene breaks. Clouds cover the sun mid-conversation and the light changes. Wind picks up and someone's hair gets in their face. Rain starts as a single drop on a windshield, then two, then a hundred. The first rumble of thunder interrupts a sentence. Weather is the world's most constant uninvited guest; let it enter without knocking.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Weather shifts"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.time-of-day-progresses",
+   "label": "Time of day progresses",
+   "text": "The sun has moved since the scene started. Shadows that were on the left are on the right now. The golden hour arrived without anyone announcing it. The streetlights clicked on. The sky went from blue to orange to that specific purple that lasts four minutes before full dark. Time's passage visible through light, not stated through narration.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Time of day progresses"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.background-noise-changes",
+   "label": "Background noise changes",
+   "text": "The noise floor is alive. The air conditioner clicks off and suddenly the room is too quiet. The neighbors' music switches from something mellow to something with bass. Traffic outside picks up: school must be letting out. A siren in the distance, rising then falling away. The fridge hums louder for a moment then settles. These sounds exist whether anyone notes them or not.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Background noise changes"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.smell-arrives-or-leaves",
+   "label": "Smell arrives or leaves",
+   "text": "Someone three doors down is cooking something. The wind shifted and the dumpster behind the building is suddenly present. Rain on hot asphalt. Cigarette smoke drifting from a window above. Fresh coffee from a shop they're passing. The perfume from someone who was in the elevator before them. Smells are the most underused sense in fiction and the most emotionally immediate in life.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Smell arrives or leaves"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.temperature-shifts",
+   "label": "Temperature shifts",
+   "text": "The sun went behind a building and the temperature dropped three degrees. Someone opened a door and the cold hallway air mixed in. The heating kicked on with that initial blast of dusty warmth. The car's been sitting in the sun and the steering wheel is too hot to grip. The shade side of the street is ten degrees cooler than the sunny side. Temperature is constant, physical, and almost never mentioned in fiction.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Temperature shifts"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.unnamed-person-enters-bg",
+   "label": "Unnamed person enters BG",
+   "text": "A stranger enters the periphery. Not a character. Not important. A person existing in public. A woman with a stroller navigating the too-narrow sidewalk. An old man in a suit sitting down at the next table with a newspaper. A teenager on their phone almost walking into a pole. They don't interact. They just exist; proof that the world is populated by people who have their own lives happening right now.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Unnamed person enters BG"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.unnamed-person-leaves",
+   "label": "Unnamed person leaves",
+   "text": "The couple at the next table pays and leaves. The man on the park bench stands up with a grunt and walks away. The barista’s shift ends and a new face takes over. Departures change the texture of a space: it gets quieter, or emptier, or the energy shifts. The absence is as much a presence as the person was.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Unnamed person leaves"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.bg-argument",
+   "label": "BG argument",
+   "text": "Raised voices from somewhere. A couple arguing in a parked car with the windows up. the words are muffled but the gestures are clear. A man on his phone saying \"that's NOT what I said\" loud enough to turn heads. Two coworkers having a tense exchange by the coffee machine that stops when someone else walks in. Other people's conflicts exist. They're not subplot. They're proof of life.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "BG argument"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.child-does-something",
+   "label": "Child does something",
+   "text": "A child nearby behaves with ordinary chaotic innocence: spinning until dizzy during a tense conversation, crying over dropped ice cream during a quiet pause, or asking an awkward question too loudly. Not during sex scenes.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Child does something"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.someone-crying-in-bg",
+   "label": "Someone crying in BG",
+   "text": "A person crying in public. On a bench with their face in their hands. In a car at a red light, visible through the window for exactly thirty seconds. In the bathroom of the restaurant, audible through the door. The characters don't know why. Neither does {{user}}. It's just someone having the worst moment of their day, right there, in the background of someone else's story. The world is full of private pain happening in public.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Someone crying in BG"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.laughter-from-unseen",
+   "label": "Laughter from unseen",
+   "text": "Laughter from behind a closed door. From an upstairs window. From a group around the corner. It's conspicuously joyful during serious scenes; other people are happy right now and don't know or care that something heavy is happening twenty feet away. During light scenes, it blends in. During dark scenes, it's almost obscene. Context determines whether background laughter is warm or cruel.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Laughter from unseen"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.rumor-overheard",
+   "label": "Rumor overheard",
+   "text": "A sentence fragment from a passing conversation. \"...can't believe she actually...\" \"...said they found it in the...\" \"...not after what happened last...\" No context. No follow-up. Just a shard of someone else's story that the characters hear and {{user}} will either ignore or obsess over. These fragments should be specific enough to be intriguing and incomplete enough to be unresolvable.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Rumor overheard"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.vehicle-passes",
+   "label": "Vehicle passes",
+   "text": "Not just \"a car drove by.\" WHICH car. The ambulance with no siren on, which is somehow more unsettling than with. The truck downshifting on the hill with that grinding sound. The motorcycle that's too loud for the neighborhood. A bicycle weaving through traffic. A delivery van double-parked with its hazards on. The police car that slows down, then keeps going. Vehicles are inhabitants of the world with their own implied narratives.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Vehicle passes"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.animal-does-something",
+   "label": "Animal does something",
+   "text": "A pigeon walks across the table at an outdoor café. A cat sits in a windowsill watching the scene with total disinterest. A dog across the street barks at nothing, then stops. A crow picks at something in the gutter. A fly won't leave someone's drink alone. A rat moves along the baseboard of the alley. Animals don't care about the narrative and that indifference is grounding.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Animal does something"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.something-breaks-in-distance",
+   "label": "Something breaks in distance",
+   "text": "Glass breaking somewhere. A car backfiring, or was it? A heavy thud from upstairs. The sharp crack of something wooden giving way. A crash from the kitchen that makes everyone in the restaurant pause for one second, then resume. Distant breaking sounds inject a micro-moment of alertness into any scene: every head turns slightly, assesses, dismisses. It's a primal response. Use it.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Something breaks in distance"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.door-opens-closes-wrong",
+   "label": "Door opens/closes wrong",
+   "text": "The wind catches a door and slams it. A window that won't stay closed slides open again. A screen door creaks on its hinges every time someone passes. The bathroom door doesn't lock properly. The automatic doors at the store open for nobody. Doors are thresholds and when they misbehave, {{user}} feels it even if the characters don't. It's free unease that costs nothing.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Door opens/closes wrong"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.hw.clock-bell-marks-time",
+   "label": "Clock/bell marks time",
+   "text": "The church bell rings and it's later than anyone thought. A clock somewhere chimes the hour during a silence. A school bell sounds in the distance, afternoon already. An alarm goes off in someone else's apartment and keeps going. A timer dings in the kitchen. These are the world announcing time to people who forgot to track it, and they serve double duty: marking temporal passage while interrupting scenes with the blunt fact of the clock.",
+   "source": {
+    "author": "HawThorne author",
+    "work": "HawThorne V3, loadout General",
+    "file": "hawthorne-v3-loadout-general.json",
+    "block": "Clock/bell marks time"
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.rain-starts-against-the-window",
+   "label": "rain starts against the window",
+   "text": "rain starts against the window",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.a-dog-barks-twice-down-the-street",
+   "label": "a dog barks twice down the street",
+   "text": "a dog barks twice down the street",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.a-bell-marks-the-hour",
+   "label": "a bell marks the hour",
+   "text": "a bell marks the hour",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.a-draught-moves-the-curtains",
+   "label": "a draught moves the curtains",
+   "text": "a draught moves the curtains",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.someone-nearby-starts-singing-under-thei",
+   "label": "someone nearby starts singing under their breath",
+   "text": "someone nearby starts singing under their breath",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.a-cart-car-or-carriage-stops-outside-and",
+   "label": "a cart, car or carriage stops outside and then moves on",
+   "text": "a cart, car or carriage stops outside and then moves on",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.the-smell-of-cooking-drifts-in-from-some",
+   "label": "the smell of cooking drifts in from somewhere",
+   "text": "the smell of cooking drifts in from somewhere",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.a-light-goes-on-in-a-window-across-the-w",
+   "label": "a light goes on in a window across the way",
+   "text": "a light goes on in a window across the way",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.a-clock-ticks-loudly-in-the-pause",
+   "label": "a clock ticks loudly in the pause",
+   "text": "a clock ticks loudly in the pause",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.birds-take-off-all-at-once",
+   "label": "birds take off all at once",
+   "text": "birds take off all at once",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.a-fire-or-stove-pops-and-settles",
+   "label": "a fire or stove pops and settles",
+   "text": "a fire or stove pops and settles",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.footsteps-pass-overhead",
+   "label": "footsteps pass overhead",
+   "text": "footsteps pass overhead",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  },
+  {
+   "id": "ambient.ours.the-wind-changes-and-brings-a-new-smell",
+   "label": "the wind changes and brings a new smell",
+   "text": "the wind changes and brings a new smell",
+   "source": {
+    "author": "Roleplay Instructions",
+    "work": "Roleplay Instructions",
+    "file": "ours",
+    "ours": true
+   },
+   "gate": {
+    "reply": 8,
+    "die": 4,
+    "dur": [
+     1,
+     1
+    ],
+    "rest": [
+     3,
+     6
+    ],
+    "tier": "ambient"
+   }
+  }
+ ]
+}
