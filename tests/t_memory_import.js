@@ -249,5 +249,5 @@ test('a second open does not import again', async () => {
     const again = await I.importOpenChat({ backup: async () => ({}) });
     assert.equal(again.reason, 'already imported');
     fs.mkdirSync(EVIDENCE, { recursive: true });
-    fs.writeFileSync(path.join(EVIDENCE, 'import-results.json'), JSON.stringify(out, null, 2));
+    if (process.env.RI_WRITE_EVIDENCE) fs.writeFileSync(path.join(EVIDENCE, 'import-results.json'), JSON.stringify(out, null, 2));
 });

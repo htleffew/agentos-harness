@@ -316,7 +316,7 @@ test('Export as World Info book writes a standalone copy with entries enabled an
     record('Export to a book saves an ordinary book that the extension does not own, under a free name', !bookMarkerOf(state.books.get(saved.name)) && saved.name !== again.name && state.books.has(again.name));
     record('exporting writes the generated book first, so the copy matches the fold', matches(p, state.books.get(storyWorldName('Hale, chat 1'))).match);
     fs.mkdirSync(EVIDENCE, { recursive: true });
-    fs.writeFileSync(path.join(EVIDENCE, 'export-sample.json'), copy.file);
+    if (process.env.RI_WRITE_EVIDENCE) fs.writeFileSync(path.join(EVIDENCE, 'export-sample.json'), copy.file);
 });
 
 // ---------------------------------------------------------------- the shared writer: Tracker and carry-over books
@@ -411,5 +411,5 @@ test('no memory job reads a generated book back as a source of records', async (
 
 test.after(() => {
     fs.mkdirSync(EVIDENCE, { recursive: true });
-    fs.writeFileSync(path.join(EVIDENCE, 'book-results.json'), JSON.stringify({ suite: 'tests/t_generated_books.js', run: new Date().toISOString().slice(0, 10), story: story.turns.length, results }, null, 2));
+    if (process.env.RI_WRITE_EVIDENCE) fs.writeFileSync(path.join(EVIDENCE, 'book-results.json'), JSON.stringify({ suite: 'tests/t_generated_books.js', run: new Date().toISOString().slice(0, 10), story: story.turns.length, results }, null, 2));
 });

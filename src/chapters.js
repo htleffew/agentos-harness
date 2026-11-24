@@ -6,7 +6,7 @@ import { stateAt, sceneAt, storyMinuteAt, sceneUpdate, sceneFromReplyHeader, SCE
 import { advanceStoryClock, validElapsed } from './story-clock.js';
 import { historySourceMark, historySourceMatches, storyRevision } from './history-source.js';
 import { carryStoryJournal, editableReplySlots, filedThrough, projectStoryJournal, reserveStoryUids } from './memory-journal.js';
-import { automaticAllowed, executionScope } from './execution.js';
+import { automaticAllowed, executionScope, runOperationChain } from './execution.js';
 import { stripStoredQuickText } from './quick-action-chat.js';
 import { storyCorrectionPrompt } from './correction-rules.js';
 import { estimateTokens } from './context-budget.js';
@@ -17,7 +17,7 @@ import { ensureWorld, enabledV10, effectiveModules, extractUpdate, readRecord, r
 //    replies, or by hand.
 //  - New chapter: a detailed summary and a new first message, then a brand new chat that carries everything over.
 //  - Starter world: one AI request reads the character card, its lorebook and the greeting, and proposes entries.
-import { ctx, KEY, LOG, names, parseJson, isReply, isStory, isGenerating, worldNames, loadBook } from './st.js';
+import { ctx, KEY, LOG, names, on, parseJson, isReply, isStory, isGenerating, worldNames, loadBook } from './st.js';
 import { request } from './ai.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
@@ -26,7 +26,13 @@ import { enqueue, worldIdle, syncWorld, loadDurableWorld, loadEffectiveWorld, sa
 import { createSet, entriesOf, freeUid, setName, cleanSetName } from './books.js';
 import { goals, goalProgress, stepDone } from './goals.js';
 import { writerRules } from './pacing.js';
-import { hideCovered, restoreChapterHistory } from './hide.js';
+import { hideCovered, restoreChapterHistory, installAssemblyHiding, hidingMode, syncStoredHiding, clearStoredHiding } from './hide.js';
+import { memoryActive } from './memory/import.js';
+import { memoryStore as chatMemoryStore } from './memory/store.js';
+import { MEMORY, fold, forgetFold, revisionOf, storedMark } from './memory/fold.js';
+import * as SF from './memory/story-so-far.js';
+import { desktopQueue } from './memory/queue.js';
+import { storyWorld } from './memory/story-world-book.js';
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
 const chatId = () => String(ctx().getCurrentChatId?.() || '');
@@ -92,6 +98,7 @@ async function hideChapterRanges(ranges,wid) {
 
 export async function applyHistoryWindow() {
     const id=chatId(), wid=chatWorld();
+    if (memoryActive()) throw new Error('This chat leaves the messages its chapters cover out of each request as it is sent, so there is no history window to apply.');
     if (!wid || !memoryComponents().hide) throw new Error('Assign a Story World and turn on hiding before applying the history window.');
     return enqueue(async()=>{
         const data=await loadWorld(wid);
@@ -245,6 +252,9 @@ export async function writeChapter(from, to, why, {automatic=false} = {}) {
 
 /** After a reply: is a chapter due? Runs by itself in the background. replyNo: the number of the reply just written. */
 export function chapterAfterReply(time, replyNo, onDone) {
+    // A chat whose memory lives in chat data closes its chapters there (MB6); the Story World chapter path below is for
+    // a chat that has not moved over yet.
+    if (memoryActive()) return queueChapterWork({ onDone });
     const o = settings().summary;
     const expectedChat = chatId(), expectedWorld = chatWorld();
     if (!memoryComponents().chapters || !automaticAllowed('chapterSummary') || busy) return;
@@ -277,6 +287,7 @@ export function chapterAfterReply(time, replyNo, onDone) {
 /** "Write a chapter now": everything since the last chapter. */
 export async function writeChapterNow() {
     if (chatState()?.components?.chapters===false) throw new Error('Turn on Chapter summaries for this chat first.');
+    if (memoryActive()) return closeChapterHere();
     const wid = chatWorld();
     if (!wid) throw new Error('This chat has no story world to keep chapters in.');
     const data = await loadWorld(wid);
@@ -1062,4 +1073,481 @@ export function addStarterWorld(ops) {
         addLog({ what: 'Story world update', ok: true, result: `${out.length} ${out.length === 1 ? 'change was' : 'changes were'} made from the character card.`, details: out, got: '' });
         return out;
     },{propagate:true});
+}
+
+// ---------- chapters in chat data (memory DESIGN 6, MB6) ----------
+// A chat whose memory lives in chat data keeps its chapters as range records in the chat log (src/memory/store.js).
+// After each reply code decides whether the open chapter closes (6.1) and queues a chapter job; the job runs on the
+// Writer chain (routing.js, desktop first), quotes its evidence first, is checked by code with one repair retry, and on
+// a second failure leaves the chapter open with a receipt that offers Repair (6.2). From the third close on the same job
+// rebuilds the condensed account from the stored chapter records, so the chapter, the condensed account and the
+// messages they replace reach the request at the same close (6.4, 6.5). Messages leave a request only at assembly, in
+// the generate interceptor, while a valid chapter covers them (6.3). A stale chapter (an edit, a swipe or a delete inside
+// it) sends its messages raw and is rebuilt when the Writer route is free: MB2 queues its job, and this file runs it.
+
+// The generated Story World book (MB13) rewrites after each chapter close. Tests hand in their own book.
+let storyWorldBook = storyWorld;
+export const useStoryWorldBook = fn => { storyWorldBook = typeof fn === 'function' ? fn : storyWorld; };
+
+const WRITER_INPUT_TOKENS = 12000;   // a 16K desktop context less the answer and the instructions (DESIGN 10, context size)
+const FAILURES_KEPT = 5;
+
+/** Is a chapter job of this chat allowed to run without a tap? On by default (MB6 scope); off when you turned it off. */
+function autoChapters() {
+    const saved = settings().execution?.functions?.chapterSummary;
+    return saved && Object.hasOwn(saved, 'automatic') ? saved.automatic !== false : true;
+}
+
+/** The close rules: the defaults of memory DESIGN 6.1 as MB11 measured them, or your own values in Setup. */
+function closeRules() {
+    const o = settings().summary || {};
+    const num = (value, fallback) => (Number.isFinite(Number(value)) && Number(value) > 0 ? Math.round(Number(value)) : fallback);
+    return { minExchanges: num(o.minExchanges, SF.CLOSE_DEFAULTS.minExchanges), maxExchanges: num(o.maxExchanges, SF.CLOSE_DEFAULTS.maxExchanges),
+        ceilingShare: Number(o.ceilingShare) > 0 && Number(o.ceilingShare) < 1 ? Number(o.ceilingShare) : SF.CLOSE_DEFAULTS.ceilingShare };
+}
+
+/** The chat model's size class (5.3): your choice in Setup, Memory, or the context length SillyTavern is set to. */
+export function chapterSize() {
+    const manual = settings().summary?.size;
+    let context = 0;
+    try { context = Number(ctx().maxContext) || 0; } catch { /* no host */ }
+    const key = SF.SIZE_CLASSES[manual] ? manual : SF.sizeClass(context);
+    return { key, ...SF.SIZE_CLASSES[key], context };
+}
+
+/** The prose of a message as the chapter call reads it: without stored quick text, HUD blocks or update blocks. */
+function chapterText(m) {
+    const original = m.is_user ? stripStoredQuickText(String(m.mes ?? '')) : String(m.mes ?? '');
+    const extracted = memoryOnly() && !m.is_user ? separateReply(original).text : original;
+    return tidy(extracted || original);
+}
+
+const metaMemory = () => ctx().chatMetadata?.[MEMORY] || null;
+
+/** The cast and alias table: the two names of the chat and every person record with its other names. */
+function castOf(result) {
+    const n = names();
+    const out = [{ name: n.char, aliases: [] }, { name: n.user, aliases: [] }];
+    for (const rec of result.current) {
+        if (!['person', 'character', 'profile'].includes(rec.kind)) continue;
+        const name = clean(rec.subject || rec.name || rec.view?.name);
+        if (name && !out.some(p => p.name === name)) out.push({ name, aliases: [...(rec.aliases || [])] });
+    }
+    return out.filter(p => p.name);
+}
+
+/** Places memory knows: the scene of each reply and every place record. */
+function placesOf(result, chat) {
+    const out = new Set();
+    for (const m of chat) { const where = SF.sceneOf(m, KEY).where; if (where) out.add(where); }
+    for (const rec of result.current) if (rec.kind === 'place') out.add(clean(rec.subject || rec.view?.name));
+    return [...out].filter(Boolean);
+}
+
+/**
+ * The chapters of the open chat now: the fold, the chapters with their coverage, and the chapter view.
+ * forRequest: the generation type; a swipe or regenerate leaves out a chapter that covers the reply being replaced.
+ */
+export function chapterState({ forRequest = '' } = {}) {
+    const c = ctx();
+    const chat = c.chat || [];
+    const meta = c.chatMetadata || {};
+    const result = fold(chat, meta);
+    let chapters = SF.chaptersOf(chat, result);
+    if (/^(swipe|regenerate)$/.test(forRequest)) chapters = chapters.map(ch => (ch.last >= chat.length - 1 ? { ...ch, valid: false } : ch));
+    const size = chapterSize();
+    const condensed = result.byId.get('condensed') || null;
+    const view = SF.chapterView(chapters, { condensed: condensed && !['retired', 'replaced', 'merged'].includes(condensed.status) ? condensed : null, cap: size.view });
+    return { chat, result, chapters, covered: SF.coverage(chapters), view, size, condensed, failures: [...(metaMemory()?.chapterFailures || [])] };
+}
+
+/** The generate interceptor's view of this chat, or null when chapters do not apply. */
+function assemblyFor({ type }) {
+    if (!memoryActive() || !memoryComponents().chapters) return null;
+    const state = chapterState({ forRequest: String(type || '') });
+    if (!state.view.text && !state.covered.size) return null;
+    return { covered: state.covered, view: state.view.text, chapters: state.view.ids, hide: memoryComponents().hide, apply: SF.leaveOut };
+}
+
+/** The revisions a job reads: every story message of its span, keyed by mark. */
+function spanSources(chat, from, to) {
+    const out = {};
+    for (let i = from; i <= to; i++) if (SF.storyMessage(chat[i])) { const rev = revisionOf(chat[i]); if (rev.mark) out[rev.mark] = `${rev.swipe}:${rev.hash}`; }
+    return out;
+}
+
+function closeJob(chat, from, to, why, payload = {}) {
+    return { chatId: chatId(), kind: 'chapter', subject: payload.rebuild ? payload.rebuild : `close:${storedMark(chat[from])}`, order: from,
+        sources: spanSources(chat, from, to), payload: { from: storedMark(chat[from]), to: storedMark(chat[to]), why, ...payload } };
+}
+
+/**
+ * After a reply, a swipe, an edit or a delete: queue what the chapters of this chat need. A close when a rule says so,
+ * a chapter for each span a removed chapter left uncovered, and the condensed account when it no longer matches the
+ * chapters it stands for. Stale chapters are queued by the memory store (MB2) and run here.
+ */
+export async function queueChapterWork({ onDone } = {}) {
+    try {
+        if (!memoryActive() || !memoryComponents().chapters) return null;
+        const store = chatMemoryStore();
+        if (store.marks()) { try { await ctx().saveChat?.(); } catch { /* saved with the next change */ } }
+        const state = chapterState();
+        const jobs = [];
+        if (autoChapters()) {
+            for (const gap of SF.gaps(state.chat, state.chapters)) jobs.push(closeJob(state.chat, gap.from, gap.to, 'a chapter that covered these messages was removed'));
+            const d = SF.closeDecision(state.chat, state.chapters, { ceiling: Math.min(state.size.ceiling, state.size.context || Infinity), rules: closeRules(), textOf: chapterText, sceneKey: KEY });
+            if (d.close) jobs.push(closeJob(state.chat, d.from, d.to, d.why));
+            const valid = state.chapters.filter(ch => ch.valid);
+            const older = valid.slice(0, -2);
+            if (older.length && !jobs.length && !SF.condensedCurrent(state.condensed, older)) {
+                jobs.push({ chatId: chatId(), kind: 'storySoFar', subject: 'condensed', order: 0, sources: { chapters: older.map(ch => `${ch.id}@${ch.record.entries?.at(-1) || ''}`).join(',') }, payload: {} });
+            }
+        }
+        const queue = desktopQueue();
+        for (const job of jobs) await queue.enqueue(job);
+        renderChapterDivider();
+        if (jobs.length) queue.pump().then(() => { renderChapterDivider(); onDone?.(); }).catch(() => {});
+        return jobs;
+    } catch (error) { console.warn(LOG, 'chapter work', error); return null; }
+}
+
+/** The span a job covers now: chat indexes from its first to its last mark, or the stale chapter's present marks. */
+function jobSpan(job, chat) {
+    const at = mark => chat.findIndex(m => storedMark(m) === mark);
+    if (job.payload?.rebuild) {
+        const rec = fold(chat, ctx().chatMetadata || {}).byId.get(job.payload.rebuild);
+        const present = (rec?.covers || []).map(src => at(src.mark)).filter(i => i >= 0);
+        if (!present.length) return null;
+        return { from: Math.min(...present), to: Math.max(...present), rebuild: rec.id, record: rec };
+    }
+    const from = at(job.payload?.from), to = at(job.payload?.to);
+    return from > 0 && to >= from ? { from, to } : null;
+}
+
+// The settings function each Writer job belongs to, so a connection she fixed for it is the route the queue uses.
+const WRITER_OPERATIONS = { chapter:'chapterSummary', storySoFar:'chapterCombine' };
+const asked = (label, extra = {}) => ({ label, tokens: 1800, ...extra });
+
+/** One Writer call with its one repair retry (6.2). check returns { problems, mood }. Returns { ok, answer, problems, route, attempts }. */
+async function writerCall(jobId, { system, schema, prompt, check, label, signal, background }) {
+    const first = await runOperationChain(WRITER_OPERATIONS[jobId], { system, user: prompt(), schema, signal, background, ...asked(label) });
+    if (!first.ok) return { ok: false, waiting: first.waiting, reason: first.reason };
+    let answer = first.value;
+    let verdict = check(answer);
+    if (!verdict.problems.length && !verdict.mood.length) return { ok: true, answer, problems: [], route: first.route, model: first.model };
+    const error = [...verdict.problems, ...(verdict.mood.length ? [`These words describe feelings or mood outside a stated line: ${verdict.mood.join(', ')}. ${SF.REGISTER_RULE}`] : [])].join(' ');
+    const again = await runOperationChain(WRITER_OPERATIONS[jobId], { system, user: prompt({ error, previous: JSON.stringify(answer) }), schema, signal, background, ...asked(`${label}, repair`) });
+    if (!again.ok) return { ok: false, waiting: again.waiting, reason: again.reason, answer, problems: verdict.problems };
+    answer = again.value;
+    verdict = check(answer);
+    // A register word left after the repair is noted on the receipt; quotes, names and length decide (6.2).
+    return { ok: true, answer, problems: verdict.problems, mood: verdict.mood, route: again.route, model: again.model, repaired: true };
+}
+
+/**
+ * The condensed account for a set of chapters, built from their stored records alone (6.4). Writes the arc records a
+ * long story needs first. Returns the entry inputs to file (arc records and the condensed account), or [] when no call
+ * is needed or the call failed (the view then uses the account code makes from the same records).
+ */
+async function condensedInputsFor(valid, { result, size, signal, background, anchor }) {
+    const older = valid.slice(0, -2);
+    if (!older.length) return [];
+    const fullTokens = valid.slice(-2).reduce((sum, ch) => sum + SF.tokensOf(ch.record.text) + 40, 0);
+    const budgetTokens = Math.max(60, size.view - fullTokens - 40);
+    const arcs = result.current.filter(rec => rec.kind === 'arc');
+    const out = [];
+    let plan = SF.condensedInputs(older, { budgetTokens, inputTokens: WRITER_INPUT_TOKENS, arcs });
+    for (const group of plan.needArcs) {
+        const sourceOf = ch => ch.marks.map(mark => (ctx().chat || []).find(m => storedMark(m) === mark)).filter(Boolean).map(chapterText).join(' ');
+        const call = await writerCall('storySoFar', { system: SF.CONDENSED_SYSTEM, schema: SF.ARC_SCHEMA, prompt: o => SF.arcPrompt(group, o), check: a => SF.checkArc(a, group, sourceOf), label: 'Arc record', signal, background });
+        if (!call.ok || call.problems.length) return out;
+        const record = SF.arcRecord(call.answer, group);
+        arcs.push(record);
+        out.push({ op: result.byId.has(record.id) ? 'revise' : 'add', target: result.byId.has(record.id) ? [record.id] : [], record, origin: { type: 'chapter', route: call.route, model: call.model }, anchor, evidence: (call.answer.evidence || []).slice(0, 3).map(e => ({ quote: e.quote })), reason: 'Arc record for the condensed account.' });
+    }
+    if (plan.needArcs.length) plan = SF.condensedInputs(older, { budgetTokens, inputTokens: WRITER_INPUT_TOKENS, arcs });
+    const inputs = plan.inputs;
+    const call = await writerCall('storySoFar', { system: SF.CONDENSED_SYSTEM, schema: SF.CONDENSED_SCHEMA, prompt: o => SF.condensedPrompt(inputs, o), check: a => SF.checkCondensed(a, inputs), label: 'Story so far', signal, background });
+    if (!call.ok || call.problems.length) return out;
+    const record = SF.condensedRecord(call.answer, inputs);
+    out.push({ op: result.byId.has('condensed') ? 'revise' : 'add', target: result.byId.has('condensed') ? ['condensed'] : [], record, origin: { type: 'chapter', route: call.route, model: call.model }, anchor, reason: `Rebuilt from ${inputs.length} stored records.` });
+    return out;
+}
+
+/**
+ * Write one chapter record for chat[from..to] (6.2), and the condensed account when this close needs one. Returns
+ * { ok, value: { inputs, sources } } with the entries to file, { ok, value: { failed } } after a second bad answer, or
+ * { ok: false } when no route answered (the job then waits and runs again).
+ */
+async function writeChapterJob(span, { why = '', manual = false, signal } = {}) {
+    const chat = ctx().chat || [];
+    const result = fold(chat, ctx().chatMetadata || {});
+    const chapters = SF.chaptersOf(chat, result);
+    const cast = castOf(result), places = placesOf(result, chat);
+    const titles = chapters.filter(ch => ch.last < span.from).slice(-3).map(ch => ch.record.title || ch.record.subject);
+    const sources = spanSources(chat, span.from, span.to);
+    const base = { chat, from: span.from, to: span.to, cast, textOf: chapterText };
+    const call = await writerCall('chapter', { system: SF.CHAPTER_SYSTEM, schema: SF.CHAPTER_SCHEMA, prompt: o => SF.chapterPrompt({ ...base, titles, ...o }),
+        check: a => SF.checkChapter(a, { ...base, places }), label: `Chapter close, messages ${span.from} to ${span.to}`, signal, background: !manual });
+    if (!call.ok) return { ok: false, waiting: call.waiting, reason: call.reason };
+    if (call.problems.length) return { ok: true, value: { failed: { problems: call.problems, answer: call.answer, from: storedMark(chat[span.from]), to: storedMark(chat[span.to]), why } } };
+    const record = SF.chapterRecord(call.answer, { chat, from: span.from, to: span.to, id: span.rebuild });
+    const anchor = { mark: record.to };
+    const inputs = [{ op: span.rebuild ? 'revise' : 'add', target: span.rebuild ? [span.rebuild] : [], record, origin: { type: 'chapter', route: call.route, model: call.model },
+        anchor, evidence: SF.evidenceOf(call.answer), reason: span.rebuild ? 'Rebuilt from its messages after they changed.' : `Closed: ${why || 'by hand'}.` }];
+    // The chapters as they will stand once this one is filed, for the condensed account of this close.
+    const entry = { id: record.id, record, marks: record.covers.map(src => src.mark), first: span.from, last: span.to, valid: true };
+    const after = [...chapters.filter(ch => ch.valid && ch.id !== record.id), entry].sort((a, b) => a.last - b.last);
+    after.forEach((ch, i) => { ch.n = i + 1; });
+    if (after.length >= 3) inputs.push(...await condensedInputsFor(after, { result, size: chapterSize(), signal, background: !manual, anchor }));
+    return { ok: true, route: call.route, value: { inputs, sources, mood: call.mood || [] } };
+}
+
+/** True while every message a result read still shows the revision it read. */
+function sourcesShow(sources) {
+    const chat = ctx().chat || [];
+    return Object.entries(sources || {}).every(([mark, rev]) => {
+        const m = chat.find(x => storedMark(x) === mark);
+        if (!m) return false;
+        const now = revisionOf(m);
+        return `${now.swipe}:${now.hash}` === rev;
+    });
+}
+
+/** File a chapter result, or note its failure. Shared by the queue and by a close you asked for. */
+async function fileChapterResult(job, value) {
+    if (value?.failed) return noteFailure(value.failed, job);
+    if (!value?.inputs?.length) return null;
+    if (job.chatId && job.chatId !== chatId()) return null;
+    if (!sourcesShow(value.sources)) {
+        addLog({ what: 'Chapter close', ok: false, result: 'The messages changed while the chapter was being written, so it was not filed. It is written again from the messages as they are now.' });
+        return null;
+    }
+    const saved = await chatMemoryStore().record(value.inputs);
+    const meta = metaMemory();
+    if (meta?.chapterFailures?.length) {
+        const first = value.inputs[0].record;
+        meta.chapterFailures = meta.chapterFailures.filter(f => f.from !== first.from);
+    }
+    forgetFold(ctx().chatMetadata);
+    try { storyWorldBook().schedule(); } catch (error) { console.warn(LOG, 'story world book', error); }
+    afterChapterChange();
+    const rec = value.inputs[0].record;
+    addLog({ what: 'Chapter close', ok: true, result: `Chapter "${rec.title}" covers ${rec.count} messages.${value.inputs.some(i => i.record.kind === 'condensed') ? ' The condensed account was rebuilt from the stored chapter records.' : ''}${value.mood?.length ? ` Words to check against the report register: ${value.mood.join(', ')}.` : ''}`, details: value.inputs.map(i => `${i.op} ${i.record.kind} ${i.record.id}`) });
+    return saved;
+}
+
+/** A second bad answer: the chapter stays open and its messages stay in the request; the receipt offers Repair (6.2). */
+async function noteFailure(failed, job) {
+    const meta = metaMemory();
+    if (!meta) return null;
+    const item = { id: `fail-${Date.now().toString(36)}`, at: Date.now(), from: failed.from, to: failed.to, why: failed.why || '', problems: failed.problems.slice(0, 8), answer: JSON.stringify(failed.answer ?? null, null, 2).slice(0, 12000), job: job?.key || '' };
+    meta.chapterFailures = [...(meta.chapterFailures || []).filter(f => f.from !== item.from), item].slice(-FAILURES_KEPT);
+    try { await ctx().saveChat?.(); } catch { /* saved with the next change */ }
+    addLog({ what: 'Chapter close', ok: false, status: 'Repair', result: 'The chapter could not be filed after one repair retry. It stays open and its messages stay in the request. Repair, on the divider in the chat, opens the answer as JSON to fix by hand.', details: item.problems, got: item.answer });
+    renderChapterDivider();
+    return item;
+}
+
+/** The open chapter failures of this chat: what Repair offers. */
+export const chapterFailures = () => [...(metaMemory()?.chapterFailures || [])];
+
+/**
+ * Repair: file a chapter from an answer you fixed by hand. The same checks as a Writer answer; throws with the problems
+ * when it still does not pass. The condensed account follows on the next pass of the queue.
+ */
+export async function repairChapter(failureId, json) {
+    const item = chapterFailures().find(f => f.id === failureId);
+    if (!item) throw new Error('That repair is no longer open.');
+    const answer = typeof json === 'string' ? parseJson(json, { object: true }) : json;
+    if (!answer) throw new Error('The text is not a JSON object.');
+    const chat = ctx().chat || [];
+    const span = jobSpan({ payload: { from: item.from, to: item.to } }, chat);
+    if (!span) throw new Error('The messages of that chapter are no longer in this chat.');
+    const result = fold(chat, ctx().chatMetadata || {});
+    const verdict = SF.checkChapter(answer, { chat, from: span.from, to: span.to, cast: castOf(result), places: placesOf(result, chat), textOf: chapterText });
+    if (verdict.problems.length) throw new Error(verdict.problems.join(' '));
+    const record = SF.chapterRecord(answer, { chat, from: span.from, to: span.to });
+    const value = { inputs: [{ op: 'add', record, origin: { type: 'you', route: 'repair' }, anchor: { mark: record.to }, evidence: SF.evidenceOf(answer), reason: 'Repaired by you.' }], sources: spanSources(chat, span.from, span.to) };
+    const meta = metaMemory();
+    meta.chapterFailures = (meta.chapterFailures || []).filter(f => f.id !== failureId);
+    await fileChapterResult({ chatId: chatId() }, value);
+    queueChapterWork();
+    return record;
+}
+
+/** "Close the chapter here": the open chapter closes through the reply at chat index `index` (the newest by default). */
+export async function closeChapterHere(index = -1) {
+    if (!memoryActive()) throw new Error('This chat has not moved its memory into chat data yet.');
+    if (busy) throw new Error('A chapter is already being written.');
+    const store = chatMemoryStore();
+    store.marks();
+    const state = chapterState();
+    const span = SF.manualSpan(state.chat, state.chapters, index);
+    if (!span) throw new Error('No reply is open after the last chapter.');
+    busy = true;
+    try {
+        const res = await writeChapterJob(span, { why: 'you asked for it', manual: true });
+        if (!res.ok) throw new Error(res.reason || 'No route in the Writer chain answered.');
+        const filed = await fileChapterResult({ chatId: chatId() }, res.value);
+        if (res.value.failed) throw new Error(`The chapter stays open: ${res.value.failed.problems.join(' ')}`);
+        return filed ? res.value.inputs[0].record.title : '';
+    } finally { busy = false; }
+}
+
+/** After chapters change: stored hiding follows the coverage when it is the fallback, and the divider moves. */
+function afterChapterChange() {
+    if (hidingMode() === 'stored' && memoryComponents().hide) {
+        const state = chapterState();
+        if (syncStoredHiding(state.covered, storedMark)) Promise.resolve(ctx().saveChat?.()).catch(() => {});
+    }
+    renderChapterDivider();
+}
+
+const chapterHandler = {
+    async run(job, { signal } = {}) {
+        if (job.chatId !== chatId()) return { ok: false, waiting: true, reason: 'Its chat is not open.' };
+        if (!memoryActive() || !memoryComponents().chapters) return { ok: true, value: {} };
+        const chat = ctx().chat || [];
+        const span = jobSpan(job, chat);
+        if (!span) return { ok: true, value: {} };
+        if (!span.rebuild && !sourcesShow(job.sources)) return { ok: true, value: {} };
+        return writeChapterJob(span, { why: job.payload?.why, signal });
+    },
+    commit: (job, result) => fileChapterResult(job, result.value),
+    saved(job, result) {
+        const first = result.value?.inputs?.[0]?.record;
+        if (!first || first.kind !== 'chapter') return false;
+        const state = chapterState();
+        return state.chapters.some(ch => ch.valid && ch.marks.join('|') === first.covers.map(src => src.mark).join('|') && ch.record.text === first.text);
+    },
+};
+
+const storySoFarHandler = {
+    async run(job, { signal } = {}) {
+        if (job.chatId !== chatId()) return { ok: false, waiting: true, reason: 'Its chat is not open.' };
+        if (!memoryActive()) return { ok: true, value: {} };
+        const state = chapterState();
+        const valid = state.chapters.filter(ch => ch.valid);
+        if (SF.condensedCurrent(state.condensed, valid.slice(0, -2))) return { ok: true, value: {} };
+        const anchor = { mark: valid.at(-1)?.record.to };
+        const inputs = await condensedInputsFor(valid, { result: state.result, size: state.size, signal, background: true, anchor });
+        return inputs.length ? { ok: true, value: { inputs, sources: {} } } : { ok: false, reason: 'The condensed account could not be written.' };
+    },
+    async commit(job, result) {
+        if (!result.value?.inputs?.length || job.chatId !== chatId()) return;
+        await chatMemoryStore().record(result.value.inputs);
+        afterChapterChange();
+    },
+};
+
+// ---------- the divider in the chat (6.3) ----------
+
+const DIVIDER = 'ri-chapter-divider';
+const DIVIDER_STYLE = 'display:flex;align-items:center;gap:var(--ri-gap,4px);margin:6px 0;padding:2px var(--ri-pad,8px);border-top:1px solid var(--ri-story-line);'
+    + 'color:var(--ri-story);font:var(--ri-label-base,12px) var(--ri-font);letter-spacing:var(--ri-track-label);cursor:pointer;background:transparent;';
+const REPAIR_STYLE = 'margin-left:auto;color:var(--ri-problem);border:1px solid var(--ri-problem-line);background:var(--ri-problem-tint);padding:0 6px;cursor:pointer;font:inherit;';
+
+function popup(content, type, value = '') {
+    const c = ctx();
+    return c.callGenericPopup?.(content, c.POPUP_TYPE?.[type] ?? (type === 'INPUT' ? 3 : 1), value, { wide: true, rows: 18 });
+}
+
+function summaryElement(chapter) {
+    const doc = globalThis.document;
+    const rec = chapter.record;
+    const box = doc.createElement('div');
+    const head = doc.createElement('h3');
+    head.textContent = `Chapter ${chapter.n} · ${rec.title || rec.subject || ''}`;
+    const when = doc.createElement('p');
+    when.textContent = [rec.when?.start, rec.when?.end].filter(Boolean).join(' to ');
+    const text = doc.createElement('p');
+    text.textContent = rec.text || '';
+    box.append(head, ...(when.textContent ? [when] : []), text);
+    if (!chapter.valid) {
+        const note = doc.createElement('p');
+        note.textContent = 'Its messages changed, so they go to the model in full until this chapter is written again.';
+        box.append(note);
+    }
+    return box;
+}
+
+async function openRepair(item) {
+    const text = await popup(`The chapter could not be filed: ${item.problems.join(' ')} Fix the JSON and save to file it.`, 'INPUT', item.answer);
+    if (typeof text !== 'string' || !text.trim()) return;
+    try { await repairChapter(item.id, text); toastNote('The chapter was filed.'); }
+    catch (error) { toastNote(error.message, true); }
+}
+
+function toastNote(text, bad = false) {
+    try { globalThis.toastr?.[bad ? 'warning' : 'success']?.(text, 'Roleplay Instructions'); } catch { /* no toasts on this host */ }
+}
+
+/** Draw the divider where the open chapter begins: "Chapter 6 · The ford at Valen · 24 messages". Tap opens the summary. */
+export function renderChapterDivider() {
+    const doc = globalThis.document;
+    if (!doc?.querySelector) return;
+    for (const node of doc.querySelectorAll(`.${DIVIDER}`)) node.remove();
+    if (!memoryActive() || !memoryComponents().chapters) return;
+    const state = chapterState();
+    const newest = state.chapters.at(-1);
+    const failure = state.failures.at(-1);
+    if (!newest && !failure) return;
+    const at = newest ? newest.last + 1 : Math.max(1, state.chat.findIndex(m => storedMark(m) === failure.from));
+    const row = doc.createElement('div');
+    row.className = DIVIDER;
+    row.setAttribute('style', DIVIDER_STYLE);
+    if (newest) {
+        const label = doc.createElement('span');
+        label.setAttribute('role', 'button');
+        label.tabIndex = 0;
+        label.textContent = `Chapter ${newest.n} · ${newest.record.title || newest.record.subject || ''} · ${newest.marks.length} messages${newest.valid ? '' : ' · being written again'}`;
+        const open = () => popup(summaryElement(newest), 'TEXT');
+        label.addEventListener('click', open);
+        label.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+        row.append(label);
+    }
+    if (failure) {
+        const fix = doc.createElement('button');
+        fix.type = 'button';
+        fix.setAttribute('style', REPAIR_STYLE);
+        fix.textContent = 'Chapter not filed · Repair';
+        fix.addEventListener('click', e => { e.stopPropagation(); openRepair(failure); });
+        row.append(fix);
+    }
+    const target = doc.querySelector(`#chat .mes[mesid="${at}"]`);
+    if (target) target.before(row);
+    else doc.querySelector('#chat')?.append(row);
+}
+
+let chaptersStarted = false;
+let dividerTimer = null;
+const soon = () => { clearTimeout(dividerTimer); dividerTimer = setTimeout(() => renderChapterDivider(), 120); };
+
+/** Wire chapters to the host once: the generate interceptor, the queue's chapter jobs and the divider. */
+export function startChapters() {
+    if (chaptersStarted) return;
+    chaptersStarted = true;
+    installAssemblyHiding(assemblyFor);
+    const queue = desktopQueue();
+    queue.handle('chapter', chapterHandler);
+    queue.handle('storySoFar', storySoFarHandler);
+    const opened = async () => {
+        if (!memoryActive()) { soon(); return; }
+        const meta = metaMemory();
+        // The first open with assembly hiding shows again what stored hiding hid before; the generation hook leaves
+        // covered messages out from now on.
+        if (meta && hidingMode() === 'assembly' && meta.hiding !== 'assembly') {
+            const shown = restoreChapterHistory({ persist: false }) + clearStoredHiding();
+            meta.hiding = 'assembly';
+            try { await ctx().saveChat?.(); } catch { /* saved with the next change */ }
+            if (shown) console.log(LOG, `chapters: ${shown} messages hidden by stored hiding are shown again; the request leaves covered messages out`);
+        } else if (meta && hidingMode() === 'stored') meta.hiding = 'stored';
+        afterChapterChange();
+        queueChapterWork();
+    };
+    on('CHAT_CHANGED', () => setTimeout(opened, 50));
+    for (const name of ['MESSAGE_SWIPED', 'MESSAGE_EDITED', 'MESSAGE_DELETED']) on(name, () => setTimeout(() => { afterChapterChange(); queueChapterWork(); }, 50));
+    for (const name of ['CHARACTER_MESSAGE_RENDERED', 'USER_MESSAGE_RENDERED', 'MORE_MESSAGES_LOADED']) on(name, soon);
+    if (ctx().getCurrentChatId?.()) setTimeout(opened, 50);
 }

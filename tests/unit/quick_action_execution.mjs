@@ -21,8 +21,9 @@ test('an additional action dispatches once through the selected route and blocks
     };
     globalThis.SillyTavern={getContext:()=>model};
     assert.equal(executionPreview('playerDraft').connection,'Main API (openai · custom · main-model)');
-    assert.equal(automaticAllowed('chapterSummary'),false);
-    await assert.rejects(runAdditional('chapterSummary',{authorization:'automatic'},()=>{throw new Error('called');}),
+    assert.equal(automaticAllowed('chapterSummary'),true,'summaries default on');
+    assert.equal(automaticAllowed('automaticSwipe'),false);
+    await assert.rejects(runAdditional('automaticSwipe',{authorization:'automatic'},()=>{throw new Error('called');}),
         error=>error.receipt.attempts===0 && error.receipt.outcome==='blocked');
     assert.equal(requests.length,0);
     const work={operation:'playerDraft',authorization:'manual',what:'Draft my reply',system:'Standing instruction',user:'Current direction'};

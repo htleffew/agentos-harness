@@ -267,7 +267,7 @@ test('memory data averages 1.5 KB a reply or less on the 54-turn story; a 1,000-
     fs.rmSync(tmp, { recursive: true, force: true });
     const node = { ...sizes, chatSaveMs: +saveMs.toFixed(1), foldMs: +foldMs.toFixed(1), memoryDataSaveMs: +memMs.toFixed(1), todaySaveMs: +todayMs.toFixed(1), perReplyBytes54: Math.round(perReply), note: 'Node on the desktop. The browser figure with a phone CPU throttle is in save-time.json; the phone run is still to come.' };
     fs.mkdirSync(EVIDENCE, { recursive: true });
-    fs.writeFileSync(path.join(EVIDENCE, 'store-node.json'), JSON.stringify(node, null, 2));
+    if (process.env.RI_WRITE_EVIDENCE) fs.writeFileSync(path.join(EVIDENCE, 'store-node.json'), JSON.stringify(node, null, 2));
     record('a 1,000-message chat: the save time is recorded against today\'s (Node, desktop)', big.chat.length >= 1000 && memMs > 0 && todayMs > 0, `memory data ${sizes.memoryDataBytes} bytes in ${memMs.toFixed(1)} ms; today's ${sizes.todayMemoryBytes} bytes in ${todayMs.toFixed(1)} ms; fold ${foldMs.toFixed(1)} ms`);
 });
 
@@ -295,6 +295,6 @@ test('clearing the device database loses nothing: the indexes rebuild on the nex
 
 test('write the results', () => {
     fs.mkdirSync(EVIDENCE, { recursive: true });
-    fs.writeFileSync(path.join(EVIDENCE, 'store-results.json'), JSON.stringify({ suite: 'tests/t_memory_store.js', run: new Date().toISOString(), results }, null, 2));
+    if (process.env.RI_WRITE_EVIDENCE) fs.writeFileSync(path.join(EVIDENCE, 'store-results.json'), JSON.stringify({ suite: 'tests/t_memory_store.js', run: new Date().toISOString(), results }, null, 2));
     assert.ok(results.every(r => r.pass));
 });

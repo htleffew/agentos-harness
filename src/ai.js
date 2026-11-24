@@ -2,7 +2,7 @@ import { promptText } from './prompts.js';
 import { askFull } from './st.js';
 import { settings } from './store.js';
 import { addLog, updateLog } from './log.js';
-import { amendExecutionReceipt, executionScope, EXECUTION_OPERATIONS, runAdditional } from './execution.js';
+import { amendExecutionReceipt, executionScope, EXECUTION_OPERATIONS, runAdditional, runOperationChain } from './execution.js';
 
 // Exclude helper prompts from the ordinary reply recorder, including overlapping requests.
 const inFlight = new Map();
@@ -34,7 +34,13 @@ export async function request({ operation, what, system = '', user = '', tokens 
             const mark = String(user).trim().slice(-180);
             if (mark) inFlight.set(receipt.id,mark);
             let res;
-            try { res = await askFull({system,user,tokens:room,profileId,useProfilePreset,signal}); }
+            try {
+                if (receipt.viaChain) {
+                    const run = await runOperationChain(operation,{receipt,system,user,tokens:room,signal,label:what});
+                    if (!run.ok) throw new Error(`${run.reason} ${run.attempts.map(item=>item.receipt).join(' ')}`.trim());
+                    res = { text:run.text, raw:run.text, thinking:0 };
+                } else res = await askFull({system,user,tokens:room,profileId,useProfilePreset,signal});
+            }
             finally { inFlight.delete(receipt.id); }
             if (signal?.aborted) {
                 throw Object.assign(new Error(signal.reason?.message || 'The request was cancelled.'),{name:'AbortError',partialText:res.text});

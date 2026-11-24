@@ -1,6 +1,6 @@
 import { h, field, select } from './dom.js';
 import { listProfiles } from '../st.js';
-import { EXECUTION_OPERATIONS, EXECUTION_STAGES, executionPreview, executionSetting, setExecutionSetting } from '../execution.js';
+import { EXECUTION_OPERATIONS, EXECUTION_STAGES, chainSummary, executionPreview, executionSetting, firstStep, resolveChain, setExecutionSetting } from '../execution.js';
 
 const detailsRow = (label,value) => value === undefined || value === '' ? null : [h('dt',{},label),h('dd',{},String(value))];
 
@@ -61,7 +61,7 @@ export function executionSettings({ operation, receipt, onChange = () => {}, can
     const operations = operation ? [[operation,EXECUTION_OPERATIONS[operation]]] : Object.entries(EXECUTION_OPERATIONS);
     const profiles = listProfiles();
     return h('div',{class:'ri-execution-settings'},
-        !operation && h('p',{class:'ri-help'},'Choose a connection for each function. Main API follows the host connection. Automatic model work starts off.'),
+        !operation && h('p',{class:'ri-help'},'Background work goes to your desktop over Tailscale first and falls back on its own; tapped actions use Main API. Choose Fixed to pick one connection that the extension never replaces.'),
         ...operations.filter(([,def])=>def).map(([id,def])=>{
             const setting = executionSetting(id);
             const options = [{value:'',label:'Main API'},...profiles.map(profile=>({value:profile.id,label:profile.name}))];
@@ -69,14 +69,27 @@ export function executionSettings({ operation, receipt, onChange = () => {}, can
                 options.push({value:setting.profileId,label:`Unavailable profile (${setting.profileId})`});
             }
             const disclosure = h('div');
+            const route = h('p',{class:'ri-help','data-ri-route':id});
+            const fixed = h('div',{class:'ri-execution-fixed','data-ri-fixed':id});
             const refresh = prior => {
+                const now = executionSetting(id), chain = resolveChain(id);
+                route.textContent = now.mode==='auto' ? `Automatic: ${chainSummary(chain)}. Runs first today: ${firstStep(chain)}.` : '';
+                route.hidden = !route.textContent;
+                fixed.hidden = now.mode!=='fixed';
                 const stage = prior?.operation===id ? prior : executionPreview(id,{trigger:def.automatic});
                 const detail=executionDetails(stage,{allowSettings:false});
                 disclosure.replaceChildren(...detail.querySelectorAll(':scope > .ri-execution-stage'));
             };
             const onSetting = change => { setExecutionSetting(id,change); refresh(); onChange(id); };
-            const connection = !def.mainOnly && field('Connection',setting.migrated ? 'Uses the previous shared connection until you choose a value here.' : '',
-                select(options,setting.profileId,value=>onSetting({profileId:value}),{'aria-label':`${def.label} connection`,style:{minHeight:'44px'}}));
+            const fallback = h('input',{type:'checkbox','aria-label':`${def.label}: fall back if this fails`,checked:setting.fallback,
+                style:{width:'24px',height:'24px'},onchange:event=>onSetting({fallback:event.currentTarget.checked})});
+            fixed.append(field('Connection','',select(options,setting.profileId,value=>onSetting({profileId:value}),
+                    {'aria-label':`${def.label} connection`,style:{minHeight:'44px'}})),
+                h('label',{class:'ri-help',style:{display:'flex',alignItems:'center',gap:'.5em',minHeight:'44px'}},fallback,'Fall back if this fails'),
+                h('p',{class:'ri-help'},'Off: a failed call fails with the reason. On: the call continues down the Automatic chain after this connection.'));
+            const connection = !def.mainOnly && h('div',{},field('Mode','',
+                select([{value:'auto',label:'Automatic'},{value:'fixed',label:'Fixed'}],setting.mode,value=>onSetting({mode:value}),
+                    {'aria-label':`${def.label} mode`,style:{minHeight:'44px'}})),route,fixed);
             const automatic = def.automatic && field('Automatic requests',`${def.automatic} Budget is one request per trigger.`,
                 select([{value:'off',label:'Off'},{value:'on',label:'On'}],setting.automatic ? 'on' : 'off',value=>onSetting({automatic:value==='on'}),
                     {'aria-label':`${def.label} automatic requests`,style:{minHeight:'44px'}}));

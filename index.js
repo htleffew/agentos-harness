@@ -8,6 +8,7 @@ import { applyPronouns, settings } from './src/store.js';
 import { isChatOpen, on, LOG } from './src/st.js';
 import { startDesktopQueue } from './src/memory/queue.js';
 import { startMemory } from './src/memory/import.js';
+import { startChapters } from './src/chapters.js';
 import { installGeneratedBookGuard } from './src/memory/story-world-book.js';
 import './src/ui/connections-spend.js';
 
@@ -24,6 +25,7 @@ import './src/ui/connections-spend.js';
         try { startDesktopQueue(); } catch (e) { console.warn(LOG, 'background queue did not start', e); }
         installGeneratedBookGuard().catch(e => console.warn(LOG, 'generated book guard did not start', e));
         try { startMemory(); } catch (e) { console.warn(LOG, 'chat memory did not start', e); }
+        try { startChapters(); } catch (e) { console.warn(LOG, 'chapters did not start', e); }
         console.log(LOG, 'loaded', missing.length ? `missing events: ${missing.join(', ')}` : '');
     } catch (e) {
         console.error(LOG, 'failed to start', e);

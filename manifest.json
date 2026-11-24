@@ -4,9 +4,10 @@
     "requires": [],
     "optional": [],
     "js": "index.js",
+    "generate_interceptor": "roleplayInstructionsInterceptor",
     "css": "style.css",
     "author": "Dr. H",
-    "version": "10.0.38",
+    "version": "10.0.39",
     "homePage": "https://github.com/htleffew/agentos-harness/tree/roleplay-instructions-v10",
     "auto_update": false,
     "minimum_client_version": "1.19.0"

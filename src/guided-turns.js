@@ -39,7 +39,7 @@ function validateTurnTarget(target) {
 function nativeDraftAvailable(base) {
     const host = ctx();
     return ['prompt', 'blank'].includes(base?.kind) &&
-        !executionSetting('playerDraft').profileId && host.mainApi === 'openai' && !host.groupId && host.onlineStatus !== 'no_connection' &&
+        !executionSetting('playerDraft').profileId && !executionSetting('playerDraft').fallback && host.mainApi === 'openai' && !host.groupId && host.onlineStatus !== 'no_connection' &&
         typeof host.generate === 'function' && typeof host.stopGeneration === 'function' &&
         typeof host.eventSource?.removeListener === 'function' && hasEvent('CHAT_COMPLETION_PROMPT_READY') && hasEvent('IMPERSONATE_READY');
 }
