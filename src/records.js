@@ -30,6 +30,11 @@ import { loadEffectiveWorld, recordManualWorldChange, saveV10Record, syncWorld }
 import { readRecord, rowsForWorld, portrayalSources, baselineFor, effectivePortrayal, PLOT_KINDS, KIND_MODULE, baseWorld } from './v10.js';
 import { reserveStoryUids, storyJournalStatus, editableReplySlots } from './memory-journal.js';
 import { chatState } from './store.js';
+import { ctx } from './st.js';
+import { fold } from './memory/fold.js';
+import { memoryStore } from './memory/store.js';
+import { follow, currentWorldData, memoryActive, staleChapters } from './memory/import.js';
+import { freeUid } from './books.js';
 
 /** Every chat record kind, the screen that shows it and the feature that switches it on. */
 export const RECORD_KINDS = {
@@ -71,22 +76,67 @@ export async function readRecordById(id, kinds = Object.keys(RECORD_KINDS)) {
     return (await listRecords(kinds)).find(record => record.id === id) || null;
 }
 
-export const writeRecord = (input, options = {}) => saveV10Record(input, options);
+/** Save a record as before, then file the change as your edit in chat data. */
+export async function writeRecord(input, options = {}) {
+    const result = await saveV10Record(input, options);
+    if (memoryActive()) await follow({ origin: 'you' });
+    return result;
+}
 
-/** Where a record is stored and who wrote it. Records live in this chat's Story World book today. */
+// ---------------------------------------------------------------- memory in chat data (MB2)
+
+export { memoryActive };
+const folded = () => { const c = ctx(); return fold(c.chat || [], c.chatMetadata || {}); };
+const dataOf = record => { try { return JSON.parse(record?.view?.fields?.data || 'null'); } catch { return null; } };
+
+/** The record in the fold a screen's record stands for: by its fold id, its book uid, or its structured id. */
+export function memoryRecordOf(record, result = folded()) {
+    if (!record) return null;
+    if (result.byId.has(record.id)) return result.byId.get(record.id);
+    if (Number.isFinite(record.uid) && result.byId.has(`u${record.uid}`)) return result.byId.get(`u${record.uid}`);
+    return result.records.find(item => dataOf(item)?.id === record.id) || null;
+}
+
+/** Every saved version of a record with its source, including those that no longer apply, oldest first. */
+export function recordVersions(record) {
+    const found = memoryRecordOf(record);
+    return found ? memoryStore().history(found.id) : [];
+}
+
+export const revertChange = (entryId, reason) => memoryStore().revert(entryId, reason);
+export async function restoreRecord(record) { const found = memoryRecordOf(record); return found ? memoryStore().restore(found.id) : { committed: false }; }
+export async function lockRecord(record) { const found = memoryRecordOf(record); return found ? memoryStore().lock([found.id]) : { committed: false }; }
+export async function unlockRecord(record) { const found = memoryRecordOf(record); return found ? memoryStore().unlock(found.id) : []; }
+
+/** How this chat's memory stands: where it lives, how much, and what waits. */
+export function memoryStatus() {
+    const active = memoryActive();
+    if (!active) return { active: false };
+    const result = folded();
+    const meta = ctx().chatMetadata?.ri_memory || {};
+    return { active, imported: meta.imported || null, records: result.current.length, flags: result.flags.length, stale: staleChapters(result).map(item => item.id), bytes: memoryStore().bytes() };
+}
+
+/** Where a record is stored and who wrote it. */
 export function recordSource(record) {
     if (!record) return null;
+    const found = memoryActive() ? memoryRecordOf(record) : null;
+    const latest = found?.versions?.at(-1);
     return {
-        store:'story-world',
+        store:found ? 'chat' : 'story-world',
         world:chatWorld() || '',
-        origin:record.baseline && !record.source ? 'character card' : record.source === 'user' ? 'player' : 'reply',
+        origin:found ? latest?.origin?.type === 'you' ? 'player' : latest?.origin?.type === 'import' && record.source === 'user' ? 'player' : record.baseline && !record.source ? 'character card' : latest?.origin?.type === 'import' ? 'reply' : latest?.origin?.type || 'reply'
+            : record.baseline && !record.source ? 'character card' : record.source === 'user' ? 'player' : 'reply',
         quote:record.quote || '',
-        atIndex:Number.isInteger(record.atIndex) ? record.atIndex : null,
+        atIndex:Number.isInteger(record.atIndex) ? record.atIndex : found && Number.isInteger(latest?.index) ? latest.index : null,
     };
 }
 
-/** Saved changes to one record from the chat's change log, oldest first. */
+/** Saved changes to one record, oldest first: the versions in chat data, or today's change log before the import. */
 export function recordHistory(record) {
+    if (memoryActive()) {
+        return recordVersions(record).map(row => ({ time:row.at, type:row.op, field:'data', before:'', after:row.text, entry:row.entry, origin:row.origin, route:row.route, counts:row.counts, note:row.note, index:row.index }));
+    }
     const items = Object.entries(chatState()?.worldLog?.items || {}).sort((a, b) => Number(a[0]) - Number(b[0]));
     const out = [];
     for (const [time, item] of items) for (const change of item.changes || []) {
@@ -99,24 +149,55 @@ export function recordHistory(record) {
 }
 
 export function filingStatus() {
-    return { ...storyJournalStatus(), slots:editableReplySlots() };
+    return { ...storyJournalStatus(), slots:editableReplySlots(), memory:memoryStatus() };
 }
-export const refileStory = () => syncWorld();
+export const refileStory = async () => { const result = await syncWorld(); if (memoryActive()) await follow(); return result; };
+
+// A screen loads the book data, changes entries and saves it. For an imported chat the data it loads is the fold's
+// view; on save only the entries the screen changed reach the book, and the change is filed as your edit.
+const loadedFromFold = new WeakMap();
+const isStoryWorld = id => !!id && id === chatWorld() && memoryActive();
+const sameEntry = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+async function loadForScreen(id) {
+    if (!isStoryWorld(id)) return loadWorld(id);
+    const book = await loadWorld(id);
+    if (!book) return null;
+    const data = await currentWorldData(id);
+    data.extensions = { ...(book.extensions || {}), riNextUid: Math.max(freeUid(book), freeUid(data)) };
+    loadedFromFold.set(data, structuredClone(data.entries));
+    return data;
+}
+
+async function saveFromScreen(id, data) {
+    const base = loadedFromFold.get(data);
+    if (!base) return saveWorld(id, data);
+    const book = await loadWorld(id);
+    if (!book) throw new Error('The Story World book could not be read.');
+    for (const uid of new Set([...Object.keys(base), ...Object.keys(data.entries || {})])) {
+        if (sameEntry(base[uid], data.entries?.[uid])) continue;
+        if (data.entries?.[uid]) book.entries[uid] = structuredClone(data.entries[uid]);
+        else delete book.entries[uid];
+    }
+    book.extensions = { ...(book.extensions || {}), riNextUid: Math.max(freeUid(book), Number(data.extensions?.riNextUid) || 0) };
+    await saveWorld(id, book);
+    loadedFromFold.set(data, structuredClone(data.entries));
+    await follow({ origin: 'you' });
+}
 
 export const entries = {
-    load:id => loadWorld(id),
+    load:id => loadForScreen(id),
     list:(data, id) => listWorld(data, id),
-    save:(id, data) => saveWorld(id, data),
+    save:(id, data) => saveFromScreen(id, data),
     blank:(data, kind) => newWorldEntry(data, kind),
     put:(data, entry, id) => writeWorldEntry(data, entry, id),
     flags:entryFlags,
     text:renderEntry,
     recall:storyRecall,
-    effective:id => loadEffectiveWorld(id),
+    effective:async id => isStoryWorld(id) ? currentWorldData(id) : loadEffectiveWorld(id),
     reserve:(data, id) => reserveStoryUids(data, id),
-    changed:(id, uid, before, after) => recordManualWorldChange(id, uid, before, after),
+    changed:async (id, uid, before, after) => { const result = recordManualWorldChange(id, uid, before, after); if (isStoryWorld(id)) await follow({ origin: 'you' }); return result; },
     draftWithAI:options => writeWorldEntryWithAI(options),
 };
-
 /** The pinned Base World is read-only reference material and is not a Story World record. */
 export const baseEntries = () => Object.values(baseWorld()?.entries || {});

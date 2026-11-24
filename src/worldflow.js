@@ -6,6 +6,7 @@ import { separateReply } from './reply-format.js';
 import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, baseWorld, prefs } from './v10.js';
 import { promptText, promptStatus, roastVoiceText } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor, sceneAt, sceneFromReplyHeader, stripSceneTracker } from './state.js';
+import { currentWorldData, memoryActive } from './memory/import.js';
 // Keeping the story world up to date by itself.
 //  1. With each reply the extension asks the model to add one short block that records what the reply made true.
 //     The block is lifted out of the reply and filed as world entries. No extra AI request is made.
@@ -593,7 +594,8 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, 
         rememberStory(carried);
         return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, ask: '', order: null };
     }
-    const data = await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}).catch(() => null);
+    // An imported chat reads its records from chat data, the same fold the Story World page reads (MB2).
+    const data = memoryActive() ? await currentWorldData(id,{before:worldBeforeGeneration(type)}) : await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}).catch(() => null);
     if (!data) return null;
     const o = settings().world;
     const list = listWorld(data, id);

@@ -14,6 +14,7 @@ import { chatState, settings, saveChatState } from './store.js';
 import { rollInt, createSet, cleanSetName, setInfo, setOfEntry } from './books.js';
 import { chatWorld, setChatWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
 import { loadEffectiveWorld, worldBeforeGeneration } from './worldflow.js';
+import { foldRows, memoryActive } from './memory/import.js';
 import { statNames, sheet } from './dice.js';
 
 export const PRESET = 'Roleplay Instructions V10';
@@ -629,6 +630,8 @@ export const createGuidelines = createReusableBook;
 
 export async function rowsForWorld(type = 'normal') {
     const id = chatWorld();
+    // An imported chat reads its records from chat data, the same fold the Story World page reads (MB2).
+    if (id && memoryActive()) return foldRows(id,{before:worldBeforeGeneration(type)});
     const data = id ? await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}) : null;
     return data ? listWorld(data,id) : [];
 }

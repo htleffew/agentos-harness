@@ -1,0 +1,1009 @@
+{
+ "activeSets": [],
+ "picks": {},
+ "used": {},
+ "overdue": [],
+ "lastScan": {
+  "len": 40,
+  "states": {},
+  "pace": {
+   "phase": null,
+   "quiet": null
+  },
+  "items": [
+   {
+    "key": "Roleplay Instructions story notes.0",
+    "sentAs": "plain",
+    "version": "[Story notes. These are facts already true in this story. Write the reply so that they stay true, and let the people in the scene act from what they want and what they know. Retain concrete facts, actions, choices, relevant relationships and consequences. Express them in plain affirmative language. Quote exact wording when it matters to the story or a structured evidence field requires it.\nThe story so far:\n- The road to Crossroads (Blossomtide 14 to 18, 348): Hale led fifty riders of the Vanguard from Elerian Keep toward Crossroads Keep. Edren packed waterskins and lost one at Aldermarch. Brannic reset Night's foreshoe. At the Broken Spur, Tobin reported that Lord Darius doubled the toll at Valen Ford, and Jory reported riders in the Northwood. Hale paid the toll from Aldric's purse. The riders proved to be a Crossroads patrol. Marten cut his arm and Orren stitched it. Settled: The Northwood riders were an escort from Lord Darius.]",
+    "misses": 0,
+    "kind": "new",
+    "noCheck": true,
+    "notes": {
+     "ids": [
+      23
+     ],
+     "fresh": [],
+     "extra": [],
+     "present": [],
+     "missing": [
+      "Hale",
+      "Jory"
+     ],
+     "place": "",
+     "how": "the scene state",
+     "tokens": 237
+    }
+   }
+  ]
+ },
+ "locks": {},
+ "world": "Hale of Verath — Story World 2",
+ "presets": {},
+ "goals": {
+  "on": false,
+  "goal": "",
+  "goalDoneManual": false,
+  "actions": [],
+  "steps": [],
+  "goalLine": true,
+  "chance": 35,
+  "waitMin": 6,
+  "waitMax": 10,
+  "autoDone": true,
+  "whenDone": "stop"
+ },
+ "pronouns": {
+  "char": {
+   "preset": "they",
+   "custom": [
+    "they",
+    "them",
+    "their",
+    "theirs",
+    "themself"
+   ]
+  },
+  "user": {
+   "preset": "they",
+   "custom": [
+    "they",
+    "them",
+    "their",
+    "theirs",
+    "themself"
+   ]
+  }
+ },
+ "quickActions": {
+  "version": 1,
+  "owner": "[\"char:Hale of Verath.png\",\"Hale of Verath - 2026-11-23@10h04m14s012ms\"]",
+  "pending": [],
+  "pins": [],
+  "recent": [],
+  "draftRecovery": null,
+  "slotSequence": 32
+ },
+ "worldOwner": "941df0e4-a34c-4df6-bf92-28f89ff378e4",
+ "worldLog": {
+  "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+  "items": {
+   "1795453457075": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 0,
+      "name": "edren-waterskins",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"edren-waterskins\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"edren-waterskins\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Edren packed two spare waterskins into the armor chest.\\\",\\\"subject\\\":\\\"Edren\\\",\\\"quote\\\":\\\"Edren packed both waterskins into the armor chest\\\",\\\"aliases\\\":[],\\\"atIndex\\\":2,\\\"source\\\":1795453457075}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 0,
+       "kind": "fact",
+       "name": "edren-waterskins",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"edren-waterskins\",\"kind\":\"fact\",\"text\":\"Edren packed two spare waterskins into the armor chest.\",\"subject\":\"Edren\",\"quote\":\"Edren packed both waterskins into the armor chest\",\"aliases\":[],\"atIndex\":2,\"source\":1795453457075}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 1
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453458718": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 1,
+      "name": "night-loose-shoe",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"night-loose-shoe\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"night-loose-shoe\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Brannic reset Night's loose left foreshoe with four new nails.\\\",\\\"subject\\\":\\\"Night\\\",\\\"quote\\\":\\\"reset the left foreshoe with four new nails\\\",\\\"aliases\\\":[],\\\"atIndex\\\":4,\\\"source\\\":1795453458718}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 1,
+       "kind": "fact",
+       "name": "night-loose-shoe",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"night-loose-shoe\",\"kind\":\"fact\",\"text\":\"Brannic reset Night's loose left foreshoe with four new nails.\",\"subject\":\"Night\",\"quote\":\"reset the left foreshoe with four new nails\",\"aliases\":[],\"atIndex\":4,\"source\":1795453458718}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 2
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453460479": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 2,
+      "name": "reach-crossroads",
+      "kind": "arc",
+      "type": "create",
+      "createdState": "[\"reach-crossroads\",\"arc\",{\"data\":\"{\\\"id\\\":\\\"reach-crossroads\\\",\\\"kind\\\":\\\"arc\\\",\\\"text\\\":\\\"Hale must bring the column to Crossroads Keep within six days.\\\",\\\"subject\\\":\\\"Hale\\\",\\\"quote\\\":\\\"Six days to Crossroads Keep\\\",\\\"status\\\":\\\"open\\\",\\\"requires\\\":[],\\\"location\\\":\\\"\\\",\\\"schedule\\\":false,\\\"weight\\\":1,\\\"spacing\\\":0,\\\"payoff\\\":\\\"\\\",\\\"realized\\\":false,\\\"outcome\\\":\\\"\\\",\\\"atIndex\\\":6,\\\"source\\\":1795453460479}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 2,
+       "kind": "arc",
+       "name": "reach-crossroads",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"reach-crossroads\",\"kind\":\"arc\",\"text\":\"Hale must bring the column to Crossroads Keep within six days.\",\"subject\":\"Hale\",\"quote\":\"Six days to Crossroads Keep\",\"status\":\"open\",\"requires\":[],\"location\":\"\",\"schedule\":false,\"weight\":1,\"spacing\":0,\"payoff\":\"\",\"realized\":false,\"outcome\":\"\",\"atIndex\":6,\"source\":1795453460479}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 3
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     },
+     {
+      "uid": 3,
+      "name": "hale-knows-six-days",
+      "kind": "knowledge",
+      "type": "create",
+      "createdState": "[\"hale-knows-six-days\",\"knowledge\",{\"data\":\"{\\\"id\\\":\\\"hale-knows-six-days\\\",\\\"kind\\\":\\\"knowledge\\\",\\\"text\\\":\\\"Hale heard Aldric order the column to reach Crossroads Keep within six days.\\\",\\\"subject\\\":\\\"Hale\\\",\\\"quote\\\":\\\"Six days to Crossroads Keep\\\",\\\"basis\\\":\\\"observed\\\",\\\"private\\\":true,\\\"atIndex\\\":6,\\\"source\\\":1795453460479}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 3,
+       "kind": "knowledge",
+       "name": "hale-knows-six-days",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"hale-knows-six-days\",\"kind\":\"knowledge\",\"text\":\"Hale heard Aldric order the column to reach Crossroads Keep within six days.\",\"subject\":\"Hale\",\"quote\":\"Six days to Crossroads Keep\",\"basis\":\"observed\",\"private\":true,\"atIndex\":6,\"source\":1795453460479}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 3
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453462161": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 4,
+      "name": "marten-rear-guard",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"marten-rear-guard\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"marten-rear-guard\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Ser Marten Drey commands the rear guard and the baggage wagons.\\\",\\\"subject\\\":\\\"Marten\\\",\\\"quote\\\":\\\"Ser Marten Drey took the rear guard\\\",\\\"aliases\\\":[],\\\"atIndex\\\":8,\\\"source\\\":1795453462161}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 4,
+       "kind": "fact",
+       "name": "marten-rear-guard",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"marten-rear-guard\",\"kind\":\"fact\",\"text\":\"Ser Marten Drey commands the rear guard and the baggage wagons.\",\"subject\":\"Marten\",\"quote\":\"Ser Marten Drey took the rear guard\",\"aliases\":[],\"atIndex\":8,\"source\":1795453462161}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 4
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453463835": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 5,
+      "name": "hale-first-salt-mark",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"hale-first-salt-mark\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"hale-first-salt-mark\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Hale's mother Brenna gave him his first salt mark.\\\",\\\"subject\\\":\\\"Hale\\\",\\\"quote\\\":\\\"My mother put the first one there\\\",\\\"aliases\\\":[],\\\"atIndex\\\":10,\\\"source\\\":1795453463835}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 5,
+       "kind": "fact",
+       "name": "hale-first-salt-mark",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"hale-first-salt-mark\",\"kind\":\"fact\",\"text\":\"Hale's mother Brenna gave him his first salt mark.\",\"subject\":\"Hale\",\"quote\":\"My mother put the first one there\",\"aliases\":[],\"atIndex\":10,\"source\":1795453463835}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 5
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     },
+     {
+      "uid": 6,
+      "name": "hale-heather",
+      "kind": "relationship",
+      "type": "create",
+      "createdState": "[\"hale-heather\",\"relationship\",{\"data\":\"{\\\"id\\\":\\\"hale-heather\\\",\\\"kind\\\":\\\"relationship\\\",\\\"text\\\":\\\"Hale lets Heather touch his salt mark and trusts her with its story.\\\",\\\"subject\\\":\\\"Hale\\\",\\\"quote\\\":\\\"Heather touched the mark and he let her\\\",\\\"other\\\":\\\"Heather\\\",\\\"perspective\\\":\\\"trusting\\\",\\\"atIndex\\\":10,\\\"source\\\":1795453463835}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 6,
+       "kind": "relationship",
+       "name": "hale-heather",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"hale-heather\",\"kind\":\"relationship\",\"text\":\"Hale lets Heather touch his salt mark and trusts her with its story.\",\"subject\":\"Hale\",\"quote\":\"Heather touched the mark and he let her\",\"other\":\"Heather\",\"perspective\":\"trusting\",\"atIndex\":10,\"source\":1795453463835}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 5
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453465537": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 0,
+      "name": "edren-waterskins",
+      "kind": "fact",
+      "type": "set",
+      "field": "data",
+      "before": "{\"id\":\"edren-waterskins\",\"kind\":\"fact\",\"text\":\"Edren packed two spare waterskins into the armor chest.\",\"subject\":\"Edren\",\"quote\":\"Edren packed both waterskins into the armor chest\",\"aliases\":[],\"atIndex\":2,\"source\":1795453457075}",
+      "after": "{\"id\":\"edren-waterskins\",\"kind\":\"fact\",\"text\":\"Edren lost one spare waterskin in the river and has one left.\",\"subject\":\"Edren\",\"quote\":\"one waterskin slipped from his hands and went downstream\",\"aliases\":[],\"atIndex\":12,\"source\":1795453465537}"
+     }
+    ]
+   },
+   "1795453467208": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453468868": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 7,
+      "name": "tobin",
+      "kind": "profile",
+      "type": "create",
+      "createdState": "[\"tobin\",\"profile\",{\"data\":\"{\\\"id\\\":\\\"tobin\\\",\\\"kind\\\":\\\"profile\\\",\\\"text\\\":\\\"Tobin is the broad innkeeper of the Broken Spur at Harren's Cross.\\\",\\\"subject\\\":\\\"Tobin\\\",\\\"quote\\\":\\\"a broad man named Tobin\\\",\\\"aliases\\\":[],\\\"facet\\\":\\\"\\\",\\\"voice\\\":\\\"\\\",\\\"profileFields\\\":{\\\"text\\\":{\\\"source\\\":\\\"a broad man named Tobin\\\",\\\"revision\\\":1,\\\"updated\\\":1795453469137,\\\"locked\\\":false},\\\"voice\\\":{\\\"source\\\":\\\"a broad man named Tobin\\\",\\\"revision\\\":1,\\\"updated\\\":1795453469137,\\\"locked\\\":false},\\\"aliases\\\":{\\\"source\\\":\\\"a broad man named Tobin\\\",\\\"revision\\\":1,\\\"updated\\\":1795453469137,\\\"locked\\\":false},\\\"facet\\\":{\\\"source\\\":\\\"a broad man named Tobin\\\",\\\"revision\\\":1,\\\"updated\\\":1795453469137,\\\"locked\\\":false}},\\\"atIndex\\\":16,\\\"source\\\":1795453468868}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 7,
+       "kind": "profile",
+       "name": "tobin",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"tobin\",\"kind\":\"profile\",\"text\":\"Tobin is the broad innkeeper of the Broken Spur at Harren's Cross.\",\"subject\":\"Tobin\",\"quote\":\"a broad man named Tobin\",\"aliases\":[],\"facet\":\"\",\"voice\":\"\",\"profileFields\":{\"text\":{\"source\":\"a broad man named Tobin\",\"revision\":1,\"updated\":1795453469137,\"locked\":false},\"voice\":{\"source\":\"a broad man named Tobin\",\"revision\":1,\"updated\":1795453469137,\"locked\":false},\"aliases\":{\"source\":\"a broad man named Tobin\",\"revision\":1,\"updated\":1795453469137,\"locked\":false},\"facet\":{\"source\":\"a broad man named Tobin\",\"revision\":1,\"updated\":1795453469137,\"locked\":false}},\"atIndex\":16,\"source\":1795453468868}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 8
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     },
+     {
+      "uid": 8,
+      "name": "broken-spur-beds",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"broken-spur-beds\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"broken-spur-beds\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"The Broken Spur has beds for nine and a barn for the rest of the riders.\\\",\\\"subject\\\":\\\"Tobin\\\",\\\"quote\\\":\\\"I have beds for nine and a barn for the rest\\\",\\\"aliases\\\":[],\\\"atIndex\\\":16,\\\"source\\\":1795453468868}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 8,
+       "kind": "fact",
+       "name": "broken-spur-beds",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"broken-spur-beds\",\"kind\":\"fact\",\"text\":\"The Broken Spur has beds for nine and a barn for the rest of the riders.\",\"subject\":\"Tobin\",\"quote\":\"I have beds for nine and a barn for the rest\",\"aliases\":[],\"atIndex\":16,\"source\":1795453468868}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 8
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453470615": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 9,
+      "name": "valen-toll",
+      "kind": "payoff",
+      "type": "create",
+      "createdState": "[\"valen-toll\",\"payoff\",{\"data\":\"{\\\"id\\\":\\\"valen-toll\\\",\\\"kind\\\":\\\"seed\\\",\\\"text\\\":\\\"Lord Darius doubled the toll at Valen Ford, and every rider must pay.\\\",\\\"subject\\\":\\\"Darius\\\",\\\"quote\\\":\\\"Lord Darius doubled the toll at Valen Ford last month\\\",\\\"status\\\":\\\"open\\\",\\\"requires\\\":[],\\\"location\\\":\\\"Valen Ford\\\",\\\"schedule\\\":false,\\\"weight\\\":1,\\\"spacing\\\":0,\\\"payoff\\\":\\\"\\\",\\\"realized\\\":false,\\\"outcome\\\":\\\"\\\",\\\"atIndex\\\":18,\\\"source\\\":1795453470615}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 9,
+       "kind": "payoff",
+       "name": "valen-toll",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"valen-toll\",\"kind\":\"seed\",\"text\":\"Lord Darius doubled the toll at Valen Ford, and every rider must pay.\",\"subject\":\"Darius\",\"quote\":\"Lord Darius doubled the toll at Valen Ford last month\",\"status\":\"open\",\"requires\":[],\"location\":\"Valen Ford\",\"schedule\":false,\"weight\":1,\"spacing\":0,\"payoff\":\"\",\"realized\":false,\"outcome\":\"\",\"atIndex\":18,\"source\":1795453470615}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 9
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453472275": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 10,
+      "name": "northwood-riders",
+      "kind": "agenda",
+      "type": "create",
+      "createdState": "[\"northwood-riders\",\"agenda\",{\"data\":\"{\\\"id\\\":\\\"northwood-riders\\\",\\\"kind\\\":\\\"agenda\\\",\\\"text\\\":\\\"Twenty bannerless riders are moving in the Northwood.\\\",\\\"subject\\\":\\\"Northwood riders\\\",\\\"quote\\\":\\\"Scouts saw riders in the Northwood\\\",\\\"status\\\":\\\"open\\\",\\\"requires\\\":[],\\\"location\\\":\\\"\\\",\\\"schedule\\\":false,\\\"weight\\\":1,\\\"spacing\\\":0,\\\"payoff\\\":\\\"\\\",\\\"whereabouts\\\":\\\"the Northwood\\\",\\\"realized\\\":false,\\\"outcome\\\":\\\"\\\",\\\"atIndex\\\":20,\\\"source\\\":1795453472275}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 10,
+       "kind": "agenda",
+       "name": "northwood-riders",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"northwood-riders\",\"kind\":\"agenda\",\"text\":\"Twenty bannerless riders are moving in the Northwood.\",\"subject\":\"Northwood riders\",\"quote\":\"Scouts saw riders in the Northwood\",\"status\":\"open\",\"requires\":[],\"location\":\"\",\"schedule\":false,\"weight\":1,\"spacing\":0,\"payoff\":\"\",\"whereabouts\":\"the Northwood\",\"realized\":false,\"outcome\":\"\",\"atIndex\":20,\"source\":1795453472275}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 10
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453473964": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 11,
+      "name": "night-shoe-loose",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"night-shoe-loose\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"night-shoe-loose\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Night's left foreshoe is loose again and is tied with hide.\\\",\\\"subject\\\":\\\"Night\\\",\\\"quote\\\":\\\"The left foreshoe was loose again\\\",\\\"aliases\\\":[],\\\"atIndex\\\":22,\\\"source\\\":1795453473964}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 11,
+       "kind": "fact",
+       "name": "night-shoe-loose",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"night-shoe-loose\",\"kind\":\"fact\",\"text\":\"Night's left foreshoe is loose again and is tied with hide.\",\"subject\":\"Night\",\"quote\":\"The left foreshoe was loose again\",\"aliases\":[],\"atIndex\":22,\"source\":1795453473964}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 11
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453475626": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 12,
+      "name": "heather-mare-ash",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"heather-mare-ash\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"heather-mare-ash\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Heather rides a grey mare named Ash.\\\",\\\"subject\\\":\\\"Heather\\\",\\\"quote\\\":\\\"Heather rode her grey mare Ash\\\",\\\"aliases\\\":[],\\\"atIndex\\\":24,\\\"source\\\":1795453475626}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 12,
+       "kind": "fact",
+       "name": "heather-mare-ash",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"heather-mare-ash\",\"kind\":\"fact\",\"text\":\"Heather rides a grey mare named Ash.\",\"subject\":\"Heather\",\"quote\":\"Heather rode her grey mare Ash\",\"aliases\":[],\"atIndex\":24,\"source\":1795453475626}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 12
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453477334": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453479029": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453480740": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 13,
+      "name": "edren",
+      "kind": "profile",
+      "type": "create",
+      "createdState": "[\"edren\",\"profile\",{\"data\":\"{\\\"id\\\":\\\"edren\\\",\\\"kind\\\":\\\"profile\\\",\\\"text\\\":\\\"Edren is Hale's squire. He is learning to read the Elerian Reckoning.\\\",\\\"subject\\\":\\\"Edren\\\",\\\"quote\\\":\\\"tracing the months of the Elerian Reckoning with his finger\\\",\\\"aliases\\\":[],\\\"facet\\\":\\\"\\\",\\\"voice\\\":\\\"\\\",\\\"profileFields\\\":{\\\"text\\\":{\\\"source\\\":\\\"tracing the months of the Elerian Reckoning with his finger\\\",\\\"revision\\\":1,\\\"updated\\\":1795453480958,\\\"locked\\\":false},\\\"voice\\\":{\\\"source\\\":\\\"tracing the months of the Elerian Reckoning with his finger\\\",\\\"revision\\\":1,\\\"updated\\\":1795453480958,\\\"locked\\\":false},\\\"aliases\\\":{\\\"source\\\":\\\"tracing the months of the Elerian Reckoning with his finger\\\",\\\"revision\\\":1,\\\"updated\\\":1795453480958,\\\"locked\\\":false},\\\"facet\\\":{\\\"source\\\":\\\"tracing the months of the Elerian Reckoning with his finger\\\",\\\"revision\\\":1,\\\"updated\\\":1795453480958,\\\"locked\\\":false}},\\\"atIndex\\\":30,\\\"source\\\":1795453480740}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 13,
+       "kind": "profile",
+       "name": "edren",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"edren\",\"kind\":\"profile\",\"text\":\"Edren is Hale's squire. He is learning to read the Elerian Reckoning.\",\"subject\":\"Edren\",\"quote\":\"tracing the months of the Elerian Reckoning with his finger\",\"aliases\":[],\"facet\":\"\",\"voice\":\"\",\"profileFields\":{\"text\":{\"source\":\"tracing the months of the Elerian Reckoning with his finger\",\"revision\":1,\"updated\":1795453480958,\"locked\":false},\"voice\":{\"source\":\"tracing the months of the Elerian Reckoning with his finger\",\"revision\":1,\"updated\":1795453480958,\"locked\":false},\"aliases\":{\"source\":\"tracing the months of the Elerian Reckoning with his finger\",\"revision\":1,\"updated\":1795453480958,\"locked\":false},\"facet\":{\"source\":\"tracing the months of the Elerian Reckoning with his finger\",\"revision\":1,\"updated\":1795453480958,\"locked\":false}},\"atIndex\":30,\"source\":1795453480740}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 15
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453482443": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 14,
+      "name": "hale-worry-heather",
+      "kind": "emotion",
+      "type": "create",
+      "createdState": "[\"hale-worry-heather\",\"emotion\",{\"data\":\"{\\\"id\\\":\\\"hale-worry-heather\\\",\\\"kind\\\":\\\"emotion\\\",\\\"text\\\":\\\"Hale worries for Heather when she rides on the outside of the column.\\\",\\\"subject\\\":\\\"Hale\\\",\\\"quote\\\":\\\"I worry when you ride on the outside of the column\\\",\\\"target\\\":\\\"Heather\\\",\\\"axes\\\":{\\\"tenderness\\\":7,\\\"dread\\\":5},\\\"outward\\\":\\\"pulls her cloak higher\\\",\\\"counterweight\\\":\\\"\\\",\\\"atIndex\\\":32,\\\"source\\\":1795453482443}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 14,
+       "kind": "emotion",
+       "name": "hale-worry-heather",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"hale-worry-heather\",\"kind\":\"emotion\",\"text\":\"Hale worries for Heather when she rides on the outside of the column.\",\"subject\":\"Hale\",\"quote\":\"I worry when you ride on the outside of the column\",\"target\":\"Heather\",\"axes\":{\"tenderness\":7,\"dread\":5},\"outward\":\"pulls her cloak higher\",\"counterweight\":\"\",\"atIndex\":32,\"source\":1795453482443}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 16
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453484352": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 23,
+      "name": "The road to Crossroads",
+      "kind": "chapter",
+      "type": "create",
+      "createdState": "[\"The road to Crossroads\",\"chapter\",{\"summary\":\"Hale led fifty riders of the Vanguard from Elerian Keep toward Crossroads Keep. Edren packed waterskins and lost one at Aldermarch. Brannic reset Night's foreshoe. At the Broken Spur, Tobin reported that Lord Darius doubled the toll at Valen Ford, and Jory reported riders in the Northwood. Hale paid the toll from Aldric's purse. The riders proved to be a Crossroads patrol. Marten cut his arm and Orren stitched it.\",\"when\":\"Blossomtide 14 to 18, 348\",\"people\":\"Hale, Heather, Edren, Aldric, Marten, Tobin, Jory, Orren, Darius\",\"places\":\"Elerian Keep, Harren's Cross, Valen Ford, Crying Rock, Crossroads Keep\",\"settled\":\"The Northwood riders were an escort from Lord Darius.\",\"closed\":\"\"},[],\"\",\"shadow\",true]"
+     },
+     {
+      "uid": 23,
+      "name": "The road to Crossroads",
+      "kind": "chapter",
+      "type": "hide",
+      "dates": [
+       "2026-11-23T17:04:16.906Z",
+       "2026-11-23T17:04:17.074Z",
+       "2026-11-23T17:04:18.568Z",
+       "2026-11-23T17:04:18.717Z",
+       "2026-11-23T17:04:20.317Z",
+       "2026-11-23T17:04:20.478Z",
+       "2026-11-23T17:04:21.985Z",
+       "2026-11-23T17:04:22.160Z",
+       "2026-11-23T17:04:23.676Z",
+       "2026-11-23T17:04:23.834Z",
+       "2026-11-23T17:04:25.340Z",
+       "2026-11-23T17:04:25.536Z",
+       "2026-11-23T17:04:27.046Z",
+       "2026-11-23T17:04:27.208Z",
+       "2026-11-23T17:04:28.708Z",
+       "2026-11-23T17:04:28.867Z",
+       "2026-11-23T17:04:30.451Z",
+       "2026-11-23T17:04:30.614Z",
+       "2026-11-23T17:04:32.118Z",
+       "2026-11-23T17:04:32.274Z",
+       "2026-11-23T17:04:33.804Z",
+       "2026-11-23T17:04:33.963Z",
+       "2026-11-23T17:04:35.459Z",
+       "2026-11-23T17:04:35.625Z"
+      ]
+     }
+    ]
+   },
+   "1795453486091": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453487894": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 15,
+      "name": "marten-arm-cut",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"marten-arm-cut\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"marten-arm-cut\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Ser Marten Drey has a deep cut on his sword arm from a branch.\\\",\\\"subject\\\":\\\"Marten\\\",\\\"quote\\\":\\\"Ser Marten Drey had a bloody rag around his sword arm\\\",\\\"aliases\\\":[],\\\"atIndex\\\":38,\\\"source\\\":1795453487894}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 15,
+       "kind": "fact",
+       "name": "marten-arm-cut",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"marten-arm-cut\",\"kind\":\"fact\",\"text\":\"Ser Marten Drey has a deep cut on his sword arm from a branch.\",\"subject\":\"Marten\",\"quote\":\"Ser Marten Drey had a bloody rag around his sword arm\",\"aliases\":[],\"atIndex\":38,\"source\":1795453487894}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 19
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453489566": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 16,
+      "name": "marten-head-column",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"marten-head-column\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"marten-head-column\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Ser Marten Drey now rides at the head of the column, and Jory takes the rear.\\\",\\\"subject\\\":\\\"Marten\\\",\\\"quote\\\":\\\"Marten moved up to ride at the head with the patrol\\\",\\\"aliases\\\":[],\\\"atIndex\\\":40,\\\"source\\\":1795453489566}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 16,
+       "kind": "fact",
+       "name": "marten-head-column",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"marten-head-column\",\"kind\":\"fact\",\"text\":\"Ser Marten Drey now rides at the head of the column, and Jory takes the rear.\",\"subject\":\"Marten\",\"quote\":\"Marten moved up to ride at the head with the patrol\",\"aliases\":[],\"atIndex\":40,\"source\":1795453489566}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 20
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453491245": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 17,
+      "name": "marten-stitched",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"marten-stitched\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"marten-stitched\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Maester Orren stitched Marten's cut with six knots and told him to keep it dry.\\\",\\\"subject\\\":\\\"Marten\\\",\\\"quote\\\":\\\"stitched it with six knots\\\",\\\"aliases\\\":[],\\\"atIndex\\\":42,\\\"source\\\":1795453491245}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 17,
+       "kind": "fact",
+       "name": "marten-stitched",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"marten-stitched\",\"kind\":\"fact\",\"text\":\"Maester Orren stitched Marten's cut with six knots and told him to keep it dry.\",\"subject\":\"Marten\",\"quote\":\"stitched it with six knots\",\"aliases\":[],\"atIndex\":42,\"source\":1795453491245}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 21
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453493089": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 18,
+      "name": "crossroads-ore-carts",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"crossroads-ore-carts\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"crossroads-ore-carts\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"Carts of ore move down the Iron Road from the Crossroads mines.\\\",\\\"subject\\\":\\\"Crossroads Keep\\\",\\\"quote\\\":\\\"Carts of ore moved down the road in a line\\\",\\\"aliases\\\":[],\\\"atIndex\\\":44,\\\"source\\\":1795453493089}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 18,
+       "kind": "fact",
+       "name": "crossroads-ore-carts",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"crossroads-ore-carts\",\"kind\":\"fact\",\"text\":\"Carts of ore move down the Iron Road from the Crossroads mines.\",\"subject\":\"Crossroads Keep\",\"quote\":\"Carts of ore moved down the road in a line\",\"aliases\":[],\"atIndex\":44,\"source\":1795453493089}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 22
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453494921": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 19,
+      "name": "darius-hale",
+      "kind": "relationship",
+      "type": "create",
+      "createdState": "[\"darius-hale\",\"relationship\",{\"data\":\"{\\\"id\\\":\\\"darius-hale\\\",\\\"kind\\\":\\\"relationship\\\",\\\"text\\\":\\\"Darius greets Hale with false warmth and calls him the General's hound.\\\",\\\"subject\\\":\\\"Darius\\\",\\\"quote\\\":\\\"The General's hound\\\",\\\"other\\\":\\\"Hale\\\",\\\"perspective\\\":\\\"wary\\\",\\\"atIndex\\\":46,\\\"source\\\":1795453494921}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 19,
+       "kind": "relationship",
+       "name": "darius-hale",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"darius-hale\",\"kind\":\"relationship\",\"text\":\"Darius greets Hale with false warmth and calls him the General's hound.\",\"subject\":\"Darius\",\"quote\":\"The General's hound\",\"other\":\"Hale\",\"perspective\":\"wary\",\"atIndex\":46,\"source\":1795453494921}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 23
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453496616": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 20,
+      "name": "missing-iron",
+      "kind": "arc",
+      "type": "create",
+      "createdState": "[\"missing-iron\",\"arc\",{\"data\":\"{\\\"id\\\":\\\"missing-iron\\\",\\\"kind\\\":\\\"arc\\\",\\\"text\\\":\\\"Three shipments of iron have gone missing on the road to Saltmar, and Darius wants the Vanguard to find the thieves.\\\",\\\"subject\\\":\\\"Darius\\\",\\\"quote\\\":\\\"Three shipments of iron have gone missing on the road to Saltmar\\\",\\\"status\\\":\\\"open\\\",\\\"requires\\\":[],\\\"location\\\":\\\"\\\",\\\"schedule\\\":false,\\\"weight\\\":1,\\\"spacing\\\":0,\\\"payoff\\\":\\\"\\\",\\\"realized\\\":false,\\\"outcome\\\":\\\"\\\",\\\"atIndex\\\":48,\\\"source\\\":1795453496616}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 20,
+       "kind": "arc",
+       "name": "missing-iron",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"missing-iron\",\"kind\":\"arc\",\"text\":\"Three shipments of iron have gone missing on the road to Saltmar, and Darius wants the Vanguard to find the thieves.\",\"subject\":\"Darius\",\"quote\":\"Three shipments of iron have gone missing on the road to Saltmar\",\"status\":\"open\",\"requires\":[],\"location\":\"\",\"schedule\":false,\"weight\":1,\"spacing\":0,\"payoff\":\"\",\"realized\":false,\"outcome\":\"\",\"atIndex\":48,\"source\":1795453496616}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 24
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453498439": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 21,
+      "name": "salt-sealed-dispatch",
+      "kind": "payoff",
+      "type": "create",
+      "createdState": "[\"salt-sealed-dispatch\",\"payoff\",{\"data\":\"{\\\"id\\\":\\\"salt-sealed-dispatch\\\",\\\"kind\\\":\\\"seed\\\",\\\"text\\\":\\\"A courier's dispatch sealed with a strange salt mark was found on the wall walk.\\\",\\\"subject\\\":\\\"Hale\\\",\\\"quote\\\":\\\"a dispatch with a salt mark pressed into the wax\\\",\\\"status\\\":\\\"open\\\",\\\"requires\\\":[],\\\"location\\\":\\\"\\\",\\\"schedule\\\":false,\\\"weight\\\":1,\\\"spacing\\\":0,\\\"payoff\\\":\\\"\\\",\\\"realized\\\":false,\\\"outcome\\\":\\\"\\\",\\\"atIndex\\\":50,\\\"source\\\":1795453498439}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 21,
+       "kind": "payoff",
+       "name": "salt-sealed-dispatch",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"salt-sealed-dispatch\",\"kind\":\"seed\",\"text\":\"A courier's dispatch sealed with a strange salt mark was found on the wall walk.\",\"subject\":\"Hale\",\"quote\":\"a dispatch with a salt mark pressed into the wax\",\"status\":\"open\",\"requires\":[],\"location\":\"\",\"schedule\":false,\"weight\":1,\"spacing\":0,\"payoff\":\"\",\"realized\":false,\"outcome\":\"\",\"atIndex\":50,\"source\":1795453498439}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 25
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453500314": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": [
+     {
+      "uid": 22,
+      "name": "dispatch-dates",
+      "kind": "fact",
+      "type": "create",
+      "createdState": "[\"dispatch-dates\",\"fact\",{\"data\":\"{\\\"id\\\":\\\"dispatch-dates\\\",\\\"kind\\\":\\\"fact\\\",\\\"text\\\":\\\"The salt-sealed dispatch lists the same three dates as the missing iron shipments and names the Saltmar road, third mile.\\\",\\\"subject\\\":\\\"Hale\\\",\\\"quote\\\":\\\"The dates matched the ledger Darius had shown at supper\\\",\\\"aliases\\\":[],\\\"atIndex\\\":52,\\\"source\\\":1795453500314}\"},[],\"\",\"shadow\",true]",
+      "entry": {
+       "uid": 22,
+       "kind": "fact",
+       "name": "dispatch-dates",
+       "on": true,
+       "aliases": [],
+       "fields": {
+        "data": "{\"id\":\"dispatch-dates\",\"kind\":\"fact\",\"text\":\"The salt-sealed dispatch lists the same three dates as the missing iron shipments and names the Saltmar road, third mile.\",\"subject\":\"Hale\",\"quote\":\"The dates matched the ledger Darius had shown at supper\",\"aliases\":[],\"atIndex\":52,\"source\":1795453500314}"
+       },
+       "status": "",
+       "show": "shadow",
+       "auto": true,
+       "locked": false,
+       "at": {
+        "chat": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+        "n": 26
+       },
+       "span": null,
+       "rollup": false,
+       "isNew": true
+      }
+     }
+    ]
+   },
+   "1795453502335": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453504299": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453506298": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453508341": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453510671": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   },
+   "1795453512688": {
+    "world": "Hale of Verath — Story World 2",
+    "changes": []
+   }
+  }
+ },
+ "v10": {
+  "enabled": true,
+  "speakers": {
+   "speaker:hale": {
+    "name": "Hale",
+    "aliases": [
+     "hale"
+    ],
+    "color": "#7DA8FF"
+   },
+   "speaker:aldric": {
+    "name": "Aldric",
+    "aliases": [
+     "aldric"
+    ],
+    "color": "#95FFCA"
+   },
+   "speaker:edren": {
+    "name": "Edren",
+    "aliases": [
+     "edren"
+    ],
+    "color": "#FF85E8"
+   },
+   "speaker:tobin": {
+    "name": "Tobin",
+    "aliases": [
+     "tobin"
+    ],
+    "color": "#40E8FF"
+   },
+   "speaker:jory": {
+    "name": "Jory",
+    "aliases": [
+     "jory"
+    ],
+    "color": "#D7AAFF"
+   },
+   "speaker:marten": {
+    "name": "Marten",
+    "aliases": [
+     "marten"
+    ],
+    "color": "#99FF75"
+   },
+   "speaker:orren": {
+    "name": "Orren",
+    "aliases": [
+     "orren"
+    ],
+    "color": "#A8B4FF"
+   },
+   "speaker:darius": {
+    "name": "Darius",
+    "aliases": [
+     "darius"
+    ],
+    "color": "#FF66F5"
+   }
+  }
+ },
+ "worldDetached": false,
+ "proseDiagnostics": {
+  "chatId": "Hale of Verath - 2026-11-23@10h04m14s012ms",
+  "spent": [
+   "[\"2026-11-23T17:04:56.615Z\",0,\"262:590612050\"]",
+   "[\"2026-11-23T17:05:00.313Z\",0,\"206:986802672\"]"
+  ]
+ },
+ "chapterAutoAttempt": {
+  "world": "Hale of Verath — Story World 2",
+  "from": 1,
+  "to": 17,
+  "source": "8056:2513185855"
+ }
+}
