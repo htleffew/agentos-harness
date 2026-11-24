@@ -1,4 +1,4 @@
-import { promptGroup } from './prompts.js';
+import { slot } from './homes.js';
 // Random Story Events tab and Random Writing Style tab. Both are a list of sets and an editor for one set:
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
 import { h, button, toggle, select, choiceList, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
@@ -34,7 +34,7 @@ const STYLE = {
     itemPlaceholder: 'Type a new item, for example: short sentences and concrete nouns', themeLabel: 'What you want from this category', themeHelp: 'A few words about the story or the kind of writing you like. The AI writes items that fit.', themePlaceholder: 'Example: tense, grounded fantasy with dry humour',
 };
 let cfg = EVENTS;
-const itemWriterPrompts = category => promptGroup(cfg.kind === 'style'
+const itemWriterPrompts = category => slot(cfg.kind === 'style'
     ? ['styleWriterRules', 'systemStyleItems'] : ['eventWriterRules', ...itemContextPromptIds(category), 'systemItems'],
     'Customize Write with AI prompts', { contextual: true });
 
@@ -44,10 +44,10 @@ export function renderEvents(body, app) {
     if (enabledV10()) body.append(h('div',{class:'ri-note'},
         h('p',{},`Autonomous world events are ${effectiveModules().worldEvents ? 'on' : 'off'} for this chat. They offer optional developments independently of the event sets below.`),
         button('Change autonomous world events',()=>app.openSetting('v10','ri-module-worldEvents','chat'),{kind:'ghost'})));
-    body.appendChild(promptGroup(['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite']));
+    body.appendChild(slot(['event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite']));
     return renderList(body, app);
 }
-export function renderStyle(body, app) { cfg = STYLE; if (app.sroute.view !== 'edit') body.appendChild(promptGroup(['style', 'styleWriterRules', 'systemStyleItems'])); return app.sroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
+export function renderStyle(body, app) { cfg = STYLE; if (app.sroute.view !== 'edit') body.appendChild(slot(['style', 'styleWriterRules', 'systemStyleItems'])); return app.sroute.view === 'edit' ? renderEdit(body, app) : renderList(body, app); }
 
 const go = (app, route, c = cfg) => { app[c.route] = route; app.resetScroll = true; app.render(); app.root?.scrollIntoView?.({ block: 'start' }); };
 
@@ -287,7 +287,7 @@ function rewriteBox(draft, cat, ui, redraw, dirty) {
     const pool = () => cat.items.filter(it => rw.which === 'all' || it.on);
     if (!rw.results) {
         box.append(
-            promptGroup(['rewriteRules', ...itemContextPromptIds(cat), 'systemRewrite'], 'Customize rewrite prompts', { contextual: true }),
+            slot(['rewriteRules', ...itemContextPromptIds(cat), 'systemRewrite'], 'Customize rewrite prompts', { contextual: true }),
             h('div', { class: 'ri-help' }, 'One AI request rewrites each item so that it makes sense wherever the scene is when it fires, and keeps what it does to the people. Items that already work anywhere come back as they were. Nothing changes until you choose.'),
             field('Which items', '', select([{ value: 'on', label: `The items that are on (${cat.items.filter(i => i.on).length})` }, { value: 'all', label: `Every item (${cat.items.length})` }], rw.which, (v) => { rw.which = v; redraw(); })));
         if (rw.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, rw.error));
@@ -452,7 +452,7 @@ function renderEdit(body, app) {
             redraw();
         })),
         field('Exactly what the AI would receive', cfg.exampleHelp, preview),
-        promptGroup([cfg.kind === 'style' ? 'style' : 'event'], 'Customize in-chat wording', {
+        slot([cfg.kind === 'style' ? 'style' : 'event'], 'Customize in-chat wording', {
             contextual: true,
             onChange: () => {
                 if (!r.example) return;

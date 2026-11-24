@@ -3,24 +3,26 @@ import { setMemoryComponent } from '../hide.js';
 import { h, button, field, section, select } from './dom.js';
 import { settings, saveSettings } from '../store.js';
 import { isChatOpen, hasEvent, toast } from '../st.js';
-import { applyHistoryWindow, catchUpChatHistory, historyCatchUpPreview, historyCatchUpStatus, stopHistoryCatchUp, writeChapterNow, chapterBusy, otherSummaryOn } from '../chapters.js';
+import { applyHistoryWindow, catchUpChatHistory, historyCatchUpPreview, historyCatchUpStatus, stopHistoryCatchUp, otherSummaryOn } from '../chapters.js';
 import { refreshUnderReplies } from './sent.js';
-import { promptGroup } from './prompts.js';
-import { chatWorld } from '../world.js';
+import { home, homeLink, slot } from './homes.js';
+import { chatWorld, filingStatus, refileStory } from '../records.js';
 import { historyPreview, chapterPreview, lastContext } from '../context-budget.js';
-import { editableReplySlots, storyJournalStatus } from '../memory-journal.js';
-import { syncWorld } from '../worldflow.js';
-import { executionReceipt } from '../execution.js';
+import { editableReplySlots } from '../memory-journal.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
+import { storyNotesFields, storyNotesBudget, worldUpkeepFields, worldUpdatePrompts, nextReplyPreview } from './world.js';
+import { enabledV10 } from '../v10.js';
+import { numberInput } from './dom.js';
 
 const number = n => Number(n || 0).toLocaleString();
 const approx = n => `~${number(n)} tokens`;
 const row = (name, value, help = '') => h('div', { class: 'ri-context-metric' }, h('div', { class: 'ri-context-metric-label' }, name), h('strong', {}, value), help ? h('div', { class: 'ri-help' }, help) : null);
 
+/** Catch up or rebuild this chat. Its one home is Setup, Memory ("This chat"). */
 function historyTools(app, components) {
     const status = historyCatchUpStatus();
     const keep = h('input',{type:'checkbox',checked:true});
-    const redraw = () => { if (app.tab==='context') app.render(); };
+    const redraw = () => { if (app.tab==='memory') app.render(); };
     const run = async rebuild => {
         try { await catchUpChatHistory(redraw,{rebuild,keepAuthored:keep.checked}); }
         catch (error) { toast('error',error.message); }
@@ -46,9 +48,16 @@ function historyTools(app, components) {
         catchUpBudget.replaceChildren(h('p',{},error.message));
         rebuildBudget.replaceChildren(h('p',{},error.message));
     });
-    return section('Catch up or rebuild this chat',
-        h('p',{class:'ri-help'},'Read accepted replies in order and write chapters in batches. Each batch uses an AI request. Enabled story features file supported details in this chat’s Story World. Auto-hide and the protected message window apply after chapters are saved.'),
-        !components.chapters && h('p',{class:'ri-note'},'Enable Chapter summaries in Setup → Memory to use these actions.'),
+    const hasWorld = !!chatWorld();
+    const applyWindow = components.hide && hasWorld && button('Apply to saved chapters now',async()=>{
+        applyWindow.disabled=true;
+        try { await applyHistoryWindow();refreshUnderReplies();app.render(); }
+        catch(error) { toast('error',error.message); }
+        finally { applyWindow.disabled=false; }
+    },{kind:'ghost'});
+    return home('catch-up', section('This chat',
+        h('p',{class:'ri-help'},'Read accepted replies in order and write chapters in batches. Each batch uses a model call. Enabled story features file supported details in this chat’s Story World. Auto-hide and the protected message window apply after chapters are saved.'),
+        !components.chapters && h('p',{class:'ri-note'},'Turn on Chapter summaries in Recall above to use these actions.'),
         status && h('p',{class:'ri-note',role:'status'},status.text),
         status?.running ? button(status.installing ? 'Saving…' : status.stop ? 'Stopping…' : 'Stop after the current request',()=>{stopHistoryCatchUp();redraw();},{disabled:status.stop || status.installing}) :
             h('div',{class:'ri-row'},catchUp),
@@ -59,30 +68,15 @@ function historyTools(app, components) {
             h('label',{class:'ri-row'},keep,'Keep my authored entries and state corrections'),
             rebuild,
             !disabled && rebuildBudget),
-        promptGroup(['chapterSummary','catchUpHistory','systemCatchUp'],'Customize catch-up and rebuild guidance'));
+        applyWindow || null,
+        slot(['chapterSummary','catchUpHistory','systemCatchUp'],'Customize catch-up and rebuild guidance')));
 }
 
-export function writeChapterControl(onSaved = () => {}) {
-    const status=h('p',{class:'ri-help',role:'status'});
-    const action=executionAction(button('Write a chapter now',async()=>{
-        action.disabled=true;
-        status.textContent='Writing the chapter…';
-        try {
-            const name=await writeChapterNow();
-            status.textContent=`Saved “${name}” to Story World.`;
-            refreshUnderReplies();
-            onSaved();
-        } catch (error) { status.textContent=error.message; }
-        finally {
-            action.disabled=false;
-            receipt.replaceChildren(functionExecution('chapterSummary',{receipt:executionReceipt('chapterSummary')}));
-        }
-    },{kind:'primary',disabled:chapterBusy()}));
-    const receipt=h('div',{},functionExecution('chapterSummary',{receipt:executionReceipt('chapterSummary')}));
-    return h('div',{},action,status,receipt);
-}
-
-export function renderMemorySettings(app) {
+/**
+ * Setup, Memory: every memory setting in one place. Recall, Budgets, Upkeep and the "This chat" block.
+ * The Story, Story World page and Review, Context link here and keep none of these controls.
+ */
+export function renderMemory(body, app) {
     const st = settings(), o = st.summary;
     const memory = memoryOnly(), components = memoryComponents();
     const save = () => { saveSettings(); setTimeout(() => app.render(), 0); };
@@ -115,14 +109,38 @@ export function renderMemorySettings(app) {
     amount.addEventListener('change', () => setTarget(amount.value));
     show(target);
     const control=(key,label,hint,value)=>field(label,hint,select([{value:'on',label:'On'},{value:'off',label:'Off'}],value?'on':'off',next=>{setMemoryComponent(key,next==='on');save();},{'aria-label':label,disabled:!isChatOpen() || key==='hide' && !components.chapters}));
-    const memorySection=section('Memory',
+
+    const recall = section('Recall',
         h('p',{class:'ri-help'},'Memory switches apply to this chat; thresholds, history windows and budgets are extension-wide defaults.'),
         isChatOpen() && !chatWorld() && !memory && h('div',{class:'ri-note ri-note-warn'},
             'Chapter settings are saved. Automatic summaries and hiding are paused until this chat has a Story World.',
-            button('Open Story World',()=>app.openPage('world'),{kind:'ghost'})),
+            button('Open Story World, World Info',()=>app.openPage('books',{anchor:'#ri-world-create'}),{kind:'ghost'})),
+        otherSummaryOn() && components.chapters && h('p',{class:'ri-note ri-note-warn'},'SillyTavern’s own Summarize also adds a summary. Choose the summary source in Setup.'),
         control('world','World Info recall','Include the pinned Base World and relevant Story World entries. Host World Info remains under host control.',components.world),
-        control('chapters','Chapter summaries','Write and recall chapter summaries. Each new chapter uses one request.',components.chapters),
+        control('chapters','Chapter summaries','Write and recall chapter summaries. Each new chapter uses one model call.',components.chapters),
         control('hide','Auto-hide summarized messages','Enable Chapter summaries first. Only saved chapters can hide messages.',components.hide),
+        ...storyNotesFields(app),
+        field('Protect recent history by','Choose how to size the full-text window for covered history. The opening and unsummarized messages stay available.',
+            select([{value:'messages',label:'Message count'},{value:'tokens',label:'Estimated tokens'}],historyUnit,
+                value=>{o.historyUnit=value;save();},{'aria-label':'Protect recent history by'})),
+        field(label, useTokens ? 'Keeps whole messages inside the estimated budget and always protects the newest two story messages.'
+            : 'Protects this many recent story messages.',
+            h('div', {class:'ri-context-slider'}, range, amount, h('span', {class:'ri-unit'},historyUnit)), preview));
+    recall.id='ri-memory-settings';
+
+    const budgets = section('Budgets',
+        h('p',{class:'ri-help'},'Approximate token room for each part of the memory sent with a reply.'),
+        h('div', {class:'ri-grid2'},
+            storyNotesBudget(app),
+            numeric('Chapter notes budget', o.budget, 100, 6000, 'tokens', n => {o.budget=n;}, 'Approximate text budget for the story so far.'),
+            home('state-budget', field('Current state prompt budget','Approximate room for scene and character state; lines that do not fit are left out.',
+                numberInput(st.cards.stateBudget || 350,{min:100,max:1000,unit:'tokens',label:'Current state prompt budget'},value=>{st.cards.stateBudget=value;saveSettings();})))),
+        slot(['stateContext'],'Customize current-state guidance'));
+    budgets.id='ri-memory-budgets';
+
+    const upkeep = section('Upkeep',
+        ...worldUpkeepFields(app),
+        worldUpdatePrompts(),
         !memory && field('Earlier replies kept editable',
             editableReplySlots() ? `The current reply is kept separately · ${editableReplySlots()} total editable slots. The Story World book holds filed facts. Recent changes appear in reply cards and extension recall.`
                 : 'Automatic Story World changes file as soon as a reply is accepted.',
@@ -134,7 +152,6 @@ export function renderMemorySettings(app) {
                 choose(o.retire!==false,value=>{o.retire=value;})),
             numeric('Recent chapters eligible for full recall',o.keep,1,10,'chapters',n=>{o.keep=n;},'The chapter budget also limits recall.'),
             numeric('Combine older chapters when there are more than',o.roll,2,50,'chapters',n=>{o.roll=n;},'Combining follows the saved automatic request setting.')),
-
         h('div',{class:'ri-row'},
             button('Chapter summary connection & automatic requests',()=>app.openSetting('settings','ri-operation-chapterSummary'),{kind:'ghost'}),
             button('Chapter combine connection & automatic requests',()=>app.openSetting('settings','ri-operation-chapterCombine'),{kind:'ghost'})),
@@ -145,49 +162,35 @@ export function renderMemorySettings(app) {
             numeric('Summarize at estimated tokens',o.everyTokens || 0,0,1000000,'tokens',n=>{o.everyTokens=n;},
                 'After an accepted reply, write a chapter when unsummarized text reaches this estimate. Whichever enabled threshold is reached first starts the chapter. Set 0 to disable the token threshold.')),
         isChatOpen() && Number(o.every) > 0 ? (() => { const c = chapterPreview(Number(o.every)); return h('div', {class:'ri-help'}, `The latest ${c.replies} model replies and their surrounding messages contain about ${number(c.tokens)} tokens across ${c.messages} messages. This is a preview of recent text, not the exact next chapter.`); })() : null,
-        field('Protect recent history by','Choose how to size the full-text window for covered history. The opening and unsummarized messages stay available.',
-            select([{value:'messages',label:'Message count'},{value:'tokens',label:'Estimated tokens'}],historyUnit,
-                value=>{o.historyUnit=value;save();},{'aria-label':'Protect recent history by'})),
-        field(label, useTokens ? 'Keeps whole messages inside the estimated budget and always protects the newest two story messages.'
-            : 'Protects this many recent story messages.',
-            h('div', {class:'ri-context-slider'}, range, amount, h('span', {class:'ri-unit'},historyUnit)), preview),
-        h('div', {class:'ri-grid2'},
-            numeric('Story World notes budget', st.world.budget, 100, 4000, 'tokens', n => {st.world.budget=n;}, 'Approximate text budget for relevant story facts.'),
-            numeric('Chapter notes budget', o.budget, 100, 6000, 'tokens', n => {o.budget=n;}, 'Approximate text budget for the story so far.')));
-    memorySection.id='ri-memory-settings';
-    return memorySection;
+        homeLink(app,'write-chapter','Write a chapter now is in Story, Story World, The story so far.'));
+    upkeep.id='ri-memory-upkeep';
+
+    body.append(recall, budgets, upkeep);
+    if (isChatOpen()) body.append(historyTools(app, components));
 }
 
+/** Review, Context: what this chat sends now. Memory settings and chapter actions live in Setup, Memory and Story, Story World. */
 export function renderContext(body, app) {
-    const st=settings(), o=st.summary, components=memoryComponents();
+    const st=settings(), o=st.summary;
     const historyUnit=o.historyUnit==='tokens' ? 'tokens' : 'messages';
     const target=Number(historyUnit==='tokens' ? o.keepTokens : o.keepShown) || (historyUnit==='tokens' ? 8000 : 30);
     const hasWorld=isChatOpen() && !!chatWorld();
-    const filing=storyJournalStatus();
-    const applyWindow=button('Apply to saved chapters now',async()=>{
-        applyWindow.disabled=true;
-        try { await applyHistoryWindow();refreshUnderReplies();app.render(); }
-        catch(error) { toast('error',error.message); }
-        finally { applyWindow.disabled=false; }
-    },{kind:'ghost'});
+    const filing=filingStatus();
     const retryFiling=button('Retry filing',async()=>{
         retryFiling.disabled=true;
-        try { await syncWorld();refreshUnderReplies();app.render(); }
+        try { await refileStory();refreshUnderReplies();app.render(); }
         catch(error) { toast('error',error.message); }
         finally { retryFiling.disabled=false; }
     },{kind:'ghost'});
-    const memorySection=section('Conversation and memory',
-        h('p',{class:'ri-help'},'Review observed history and run memory recovery here.'),
-        button('Memory settings',()=>app.openSetting('v10','ri-memory-settings'),{kind:'ghost'}),
+    const memorySection=section('Memory status',
+        h('p',{class:'ri-help'},'What memory filed for this chat and what the next request holds.'),
         hasWorld && h('p',{class:'ri-help',role:'status'},`Filed through reply ${filing.filed} · ${filing.pending} editable records with changes · ${filing.uncertain} replies need review.`),
         filing.error && h('div',{class:'ri-note ri-note-warn',role:'status'},filing.error,retryFiling),
-        otherSummaryOn() && components.chapters && h('p',{class:'ri-note ri-note-warn'},'SillyTavern’s own Summarize also adds a summary. Choose the summary source in Setup.'),
-        hasWorld && components.chapters && writeChapterControl(),
-        hasWorld && components.hide && applyWindow);
+        homeLink(app,'catch-up','Memory settings, catch up and rebuild are in Setup, Memory.'),
+        hasWorld && homeLink(app,'write-chapter','Write a chapter now is in Story, Story World, The story so far.'));
     memorySection.id='ri-memory-status';
     body.append(memorySection);
     if (!isChatOpen()) return;
-    body.appendChild(historyTools(app,components));
     const p = historyPreview(target,historyUnit), last = lastContext();
     body.appendChild(section('This chat now', h('div', {class:'ri-context-grid'},
         row('Story messages', number(p.total), 'Includes messages hidden from the AI.'),
@@ -207,4 +210,7 @@ export function renderContext(body, app) {
         content.push(h('div', {class:'ri-help'}, 'This is the last assembled request observed in this session, not a prediction of the next reply. Matching can miss text changed by a preset or another extension. Categories are partial and do not add up to the total. The host or provider may change the request afterward. Text is estimated at roughly four characters per token, so actual counts vary by model and language.'));
     }
     body.appendChild(section('Last observed request', ...content));
+    const holder = h('div', { id: 'ri-next-preview' }, h('div', { class: 'ri-muted' }, 'Loading…'));
+    body.appendChild(holder);
+    nextReplyPreview(chatWorld()).then(node => holder.replaceChildren(node)).catch(error => holder.replaceChildren(h('div', { class:'ri-empty' }, error.message)));
 }

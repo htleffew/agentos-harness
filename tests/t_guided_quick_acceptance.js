@@ -103,7 +103,7 @@ async function ordinaryInstruction(page, name) {
         h.mode({ reply: text });
         await h.send(page, message);
     };
-    const oldReply = index => page.locator(`#chat .mes[mesid="${index}"]`).getByRole('button', { name: 'Generate an alternate reply', exact: true }).tap();
+    const oldReply = index => h.openReplyAction(page, 'swipe', index);
     const saved = () => exactText('Reply updated.').waitFor({ timeout: 20000 });
     const draftReady = () => exactText('Draft ready to edit.').waitFor({ timeout: 20000 });
     const choicesReady = count => exactText(`${count} of 3 choices received.`).waitFor({ timeout: 20000 });

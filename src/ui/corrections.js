@@ -1,5 +1,5 @@
 import { h, button, section, textArea, textInput } from './dom.js';
-import { promptGroup } from './prompts.js';
+import { slot } from './homes.js';
 import { ctx, KEY, isChatOpen, replyLabels, toast } from '../st.js';
 import { chatState } from '../store.js';
 import { correctionSwipeTarget, regenerateStoryCorrection } from '../engine.js';
@@ -266,7 +266,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
             h('p',{class:'ri-help'},'Search by exact wording or by the corrected fact. Saving needs the corrected fact. AI tracing can propose source edits in one additional request.'),
             h('div',{class:'ri-row'},search,trace),
             executionSettings({operation:'factRepair'})),
-        promptGroup(['traceCorrection','correctionSwipe','correctionCanon'],'Customize correction prompts'),
+        slot(['traceCorrection','correctionSwipe','correctionCanon'],'Customize correction prompts'),
         results);
     const markDraft=()=>form.toggleAttribute('data-ri-dirty',Boolean(truth.value.trim() || wording.value.trim()));
     truth.addEventListener('input',markDraft);

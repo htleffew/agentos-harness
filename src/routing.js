@@ -227,6 +227,21 @@ export function detectRoutes() {
     return found;
 }
 
+// Listeners hear each finished chain: { job, background, ok, route, model, waiting, attempts }. Setup, Connections,
+// Spend (B19) reads them for its fallback notices and per-route counts. A listener never stops a chain.
+const chainListeners = new Set();
+
+/** Hear every finished chain. Returns a function that stops listening. */
+export function onChainResult(fn) {
+    chainListeners.add(fn);
+    return () => chainListeners.delete(fn);
+}
+
+/** Tell the listeners a background job finished. Chains call it; judgment calls (memory/decide.js) call it for theirs. */
+export function reportChainResult(result) {
+    for (const fn of chainListeners) { try { fn(result); } catch { /* a listener must not stop the job */ } }
+}
+
 const routeKey = (entry, target) => target?.profileId ? `${entry.route}:${target.profileId}` : entry.route;
 
 const TYPES = { object: v => v && typeof v === 'object' && !Array.isArray(v), array: Array.isArray, string: v => typeof v === 'string',
@@ -399,6 +414,7 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
             }
             note({ ...base, outcome: 'completed', reason: '', ms, cost: usd });
             updateLog(entry, { ok: true, result: `Answered on attempt ${n} of ${of}.`, got: res.raw || res.text || '' });
+            reportChainResult({ job, background, ok: true, route: item.route, model: item.model || '', waiting: false, attempts });
             return { ok: true, value: res.value, text: res.text, route: item.route, model: item.model || '', attempts, waiting: false, reason: '' };
         } catch (error) {
             const ms = clock() - started;
@@ -421,6 +437,7 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
     const waiting = ceilingSkipped && !signal?.aborted;
     const reason = signal?.aborted ? 'Cancelled.' : waiting ? 'Paused, monthly ceiling reached. The job waits for a free or local route.' : 'No route in the chain answered.';
     updateLog(entry, { ok: false, status: signal?.aborted ? 'Cancelled' : waiting ? 'Waiting' : 'Failed', result: reason });
+    reportChainResult({ job, background, ok: false, route: '', model: '', waiting, attempts });
     return { ok: false, value: null, text: '', route: '', model: '', attempts, waiting, reason };
 }
 

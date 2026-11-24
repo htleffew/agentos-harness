@@ -254,8 +254,7 @@ export const app = {
         const reply=guidedTarget(index);
         if (!reply) return false;
         const external={label:'Back to chat',returnFocus:trigger,
-            fallbackFocus:()=>[...document.querySelectorAll(`#chat .mes[mesid="${index}"] .ri-guided-actions button`)]
-                .find(control=>control.textContent===trigger?.textContent)};
+            fallbackFocus:()=>document.querySelector(`#chat .mes[mesid="${index}"] .extraMesButtonsHint`)};
         if (!await navigate(page,{reply,anchor,external,focusPage:true})) return false;
         await setExpanded(true);
         if (!focusTarget(anchor)) app.body.querySelector('[data-ri-heading]')?.focus({preventScroll:true});
@@ -393,16 +392,18 @@ function renderBridge(body, page, view) {
 
 // ---------- Search ----------
 
+// Which pages show a control depends on the story workflow too, so the index follows it as well as the chat and preset.
+const indexScope=()=>JSON.stringify([draftScope(),enabledV10()]);
 const index = { scope:'', pages:new Map(), running:null };
 
 function recordHarvest(id, body) {
-    if (index.scope!==draftScope()) { index.scope=draftScope(); index.pages.clear(); }
+    if (index.scope!==indexScope()) { index.scope=indexScope(); index.pages.clear(); }
     index.pages.set(id, harvest(body, id));
 }
 
 /** Read the sections and settings of every page once per chat and preset, drawing each into a detached node. */
 function harvestAll(done) {
-    if (index.scope!==draftScope()) { index.scope=draftScope(); index.pages.clear(); }
+    if (index.scope!==indexScope()) { index.scope=indexScope(); index.pages.clear(); }
     if (index.running) return index.running.then(done);
     const ids=tree().flatMap(top=>top.nested.flatMap(nested=>nested.pages.map(page=>page.id)))
         .filter(id=>!index.pages.has(id) && !id.startsWith('bridge-'));
@@ -414,7 +415,7 @@ function harvestAll(done) {
                 route:{...rootRoutes.route},eroute:{...rootRoutes.eroute},sroute:{...rootRoutes.sroute},wroute:{...rootRoutes.wroute},
                 loreTarget:null,replyTarget:null,anchor:'',history:[]});
             try { renderPage(id, body, view); } catch { /* a page that cannot draw here is found by its name alone */ }
-            if (index.scope===draftScope()) index.pages.set(id, harvest(body, id));
+            if (index.scope===indexScope()) index.pages.set(id, harvest(body, id));
             await new Promise(resolve=>setTimeout(resolve,0));
         }
         index.running=null;
@@ -438,7 +439,9 @@ function searchPanel() {
     const status=h('p',{class:'ri-help',role:'status'});
     const input=h('input',{type:'search',class:'ri-input ri-shell-search-input',id:'ri-menu-search',value:app.searchQuery,
         'aria-label':'Search pages, sections and settings',placeholder:'Search the menu',autocomplete:'off',
-        oninput:()=>{ app.searchQuery=input.value; update(); }});
+        oninput:()=>{ app.searchQuery=input.value; update(); refreshIndex(); }});
+    // A page drawn after the chat or preset changed clears the index; read the missing pages again on the next keystroke.
+    const refreshIndex=()=>{ if (index.scope!==indexScope() || tree().some(top=>top.nested.some(nested=>nested.pages.some(page=>!page.id.startsWith('bridge-') && !index.pages.has(page.id))))) harvestAll(()=>{ if (app.searchOpen && input.isConnected) update(); }); };
     const current=tree();
     const pathOf=id=>{
         const found=locate(current,id);
@@ -752,7 +755,9 @@ export function mount(missing) {
             app.anchor='';
             app.resetScroll=true;
             app.promptsFilter=null;
-            if (app.arrivedByLink || !settings().menuPage) { app.arrivedByLink=false; app.tab=initialPage(); }
+            // The menu stays on the page it shows, a cross-linked page included, and redraws it for the new
+            // chat. The reopen rule keeps arrivedByLink, so closing and opening the menu still returns to the tab page.
+            if (!settings().menuPage && !app.userNavigated) app.tab=initialPage();
         }
         refreshUnderReplies();
         // Setup controls save immediately and their handlers belong to the displayed preset.

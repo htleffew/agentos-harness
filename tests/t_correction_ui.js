@@ -22,8 +22,7 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         ])});
         await L.send(page,'Mira and I look at the bridge.');
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1).extra?.roleplay_instructions?.update?.changes?.length===2);
-        const opener = page.locator('#chat .last_mes .ri-guided-correction');
-        await opener.locator(':scope > summary').click();
+        const opener = (await L.openMenuEntry(page,'correct')).locator('#ri_panel_page');
         const truth = opener.getByLabel('Correct story fact',{exact:true});
         await truth.fill(stone);
         assert.equal(await opener.getByLabel('Regenerate the latest reply').isChecked(),true);
@@ -74,7 +73,8 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         assert.match(prompt,/made of stone/);
         assert.doesNotMatch(prompt,/made of oak|mill bell broke/);
         await page.setViewportSize({width:320,height:720});
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).click();
+        await page.evaluate(async B=>(await import(`${B}/src/ui/panel.js`)).app.setExpanded(false),L.BASE);
+        await L.openReplyAction(page,'swipe');
         const guide=page.getByRole('dialog',{name:'Generate an alternate reply'});
         assert.ok(await guide.evaluate(node=>node.scrollWidth<=node.clientWidth+1 &&
             [...node.querySelectorAll('textarea, select')].every(control=>control.getBoundingClientRect().right<=node.getBoundingClientRect().right)));
@@ -160,10 +160,6 @@ const block = (prose, changes) => prose+'\n<story_update v="2">'+JSON.stringify(
         assert.equal(streamed.swipe,prior);
         assert.equal(streamed.mes,slate);
         assert.equal(streamed.corrections.at(-1).regeneration.status,'ready');
-        assert.ok(await page.locator('#chat .last_mes .ri-guided-correction').evaluate(node=>{
-            const arrows=node.closest('.mes').querySelector('.swipeRightBlock');
-            return !arrows || node.getBoundingClientRect().bottom <= arrows.getBoundingClientRect().top;
-        }));
         console.log('PASS phone correction controls, zero/one/two requests, guided regeneration with and without streaming, selected swipe, retry and automatic AI source edits');
     } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

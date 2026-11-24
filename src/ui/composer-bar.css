@@ -222,7 +222,7 @@
     background: var(--ri-raised);
     border: 1px solid var(--ri-line);
     border-radius: var(--ri-radius);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--ri-void) 60%, transparent);
     font-size: var(--ri-type-body);
 }
 .ri-bar-pop-title {
@@ -297,7 +297,7 @@
     border: 1px solid var(--ri-line);
     border-bottom: 0;
     border-radius: var(--ri-radius);
-    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 -6px 18px color-mix(in srgb, var(--ri-void) 60%, transparent);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     animation: ri-rise var(--ri-rise) linear;
 }

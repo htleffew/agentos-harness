@@ -5,12 +5,13 @@ import { proseDiagnosticsNotes } from '../prose-diagnostics.js';
 import { historySourceMark } from '../history-source.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
-import { replyCardHeader, replyChip, roastCard } from './reply-cards.js';
+import { buildTrayCards, replyCardHeader, replyChip, roastCard } from './reply-cards.js';
 import { chatTray, inScene, presentNames, replyTray, trayShows, traySettings } from './reply-tray.js';
 import { headerMode, headerState, parseSceneHeader } from '../scene-header.js';
-import { replyWorldTabs } from './reply-world.js';
+import { replyWorld } from './reply-world.js';
+import { trayCardConfig } from './tray-settings.js';
 import { chatWorld } from '../world.js';
-import { deliveredDirections, refreshGuidedControl } from './guided.js';
+import { refreshMessageMenu } from './message-menu.js';
 import { snapshotState, snapshotScene, sceneDateLabel, STATE_FIELDS } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
@@ -25,6 +26,19 @@ import { settings } from '../store.js';
 import { ctx, KEY, isChatOpen, isReply, loadBook, replyLabels } from '../st.js';
 import { guidedTarget } from '../guided-context.js';
 import { executionScope } from '../execution.js';
+
+/** The directions that went with a reply (visible OOC or private), with the evidence for required ones. */
+export function deliveredDirections(receipt) {
+    if (!receipt?.directions?.length) return null;
+    const names = {evidenced:'Evidence found in this reply',missed:'Checked and unfulfilled',unverified:'Evidence pending'};
+    return h('details',{},h('summary',{},'Directions sent with this reply'),
+        receipt.directions.map(cue=>h('div',{class:'ri-quick-card'},
+            h('strong',{},cue.title || (cue.required ? 'Required direction':'Nudge')),
+            h('p',{},cue.text),
+            h('p',{class:'ri-help'},[cue.visibility==='visible'?'Visible OOC':'Private guidance',
+                cue.required && names[cue.verification || 'unverified']].filter(Boolean).join(' · ')),
+            cue.evidence && h('blockquote',{},cue.evidence))));
+}
 
 const KIND = { new: 'New', continuing: 'Kept sending', resend: 'Sent again', repeat: 'New' };
 
@@ -156,7 +170,7 @@ function recordBody(id, rec, isLast, withButtons) {
         await app.openSetting(page,control);
     };
     return [
-        rec.quickActions && executionDetails(rec.quickActions),
+        (rec.guided?.execution || rec.quickActions) && executionDetails(rec.guided?.execution || rec.quickActions),
         deliveredDirections(rec.quickActions),
         rec.v10Request ? h('details',{class:'ri-sentitem'},h('summary',{},'Story guidance sent'),
             h('pre',{class:'ri-v10-prompt-text'},rec.v10Request)) : null,
@@ -241,6 +255,8 @@ export function renderSent(body, app) {
     if (exact && !records.some(row=>row.id===selected.index)) {
         const rec=host.chat[selected.index]?.extra?.[KEY];
         if (rec) records.unshift({id:selected.index,rec,isLast:selected.latest});
+        else body.append(h('p',{class:'ri-note',role:'status',id:`ri-review-reply-${selected.index}`},
+            'Nothing was recorded for this reply. The extension adds a receipt when it sends guidance, World Info or instructions with a reply.'));
     }
     if (!records.length) {
         body.appendChild(h('div', { class: 'ri-empty' }, 'No reply receipts yet. Receipts appear after the extension records a reply with story guidance, World Info, or other extension instructions.'));
@@ -350,15 +366,6 @@ function replyLoreRows(lore) {
         loreEntryButton(entry,false))));
 }
 
-// The saved world views open as cards of their own; each names the feature it belongs to, so Theirs hides it.
-const WORLD_CARDS = {
-    Portrayal: { id:'portrayal', icon:'fa-user-pen', module:'state', kinds:['profile'] },
-    Emotions: { id:'emotions', icon:'fa-heart', module:'emotions', kinds:['emotion'] },
-    Relationships: { id:'relationships', icon:'fa-people-arrows', module:'relationships', kinds:['relationship'] },
-    Knowledge: { id:'knowledge', icon:'fa-eye', module:'knowledge', kinds:['knowledge'] },
-    Facts: { id:'facts', icon:'fa-book-open', module:'state', kinds:['fact'] },
-    Plot: { id:'plot', icon:'fa-scroll', module:'plots', kinds:['arc','seed','agenda','event'] },
-};
 const firstLine = text => String(text || '').split(/\r?\n/).map(line=>line.trim()).find(Boolean) || '';
 const sceneTime = scene => [sceneDateLabel(scene),scene.time ?? scene.when].filter(Boolean).join(', ');
 
@@ -371,71 +378,23 @@ function stripScene(msg, snapshot) {
         present:presentNames(snapshot.present),source:'capture'};
 }
 
-function sceneBody(sc, strip, id, redraw) {
-    const rows = [
-        ['Place',sc.where || strip?.place],['Story date and time',sceneTime(sc) || strip?.time],['Weather',sc.weather || strip?.weather],
-        ['Present',sc.present || strip?.present?.join(', ')],['Environment',sc.environment],
-    ].filter(([,value])=>value);
-    const edit = h('div',{class:'ri-state-body'});
-    if (Object.keys(sc).length) edit.append(button('Edit this scene snapshot',()=>edit.replaceChildren(sceneEditor(sc,redraw,{historicalId:id})),{kind:'ghost'}));
-    return [
-        h('dl',{class:'ri-tray-fields'},rows.map(([label,value])=>h('div',{},h('dt',{},label),h('dd',{},value)))),
-        strip && h('p',{class:'ri-tray-help'},strip.source==='header' ? 'From the reply\'s scene header.' : 'From the story state saved after the reply.'),
-        edit,
-    ];
-}
-
-/** Card descriptors for one reply's tray, from the data saved with the reply. */
+/** Card descriptors for one reply's tray: the catalog builds the cards; the receipts that only this file can draw ride along. */
 function trayCardsFor(id, msg, rec, view) {
     const {modules,snapshot,showState,people,profiles,records,planning,roast,lore,notes,saved,latest,redraw} = view;
     const strip = showState ? stripScene(msg,snapshot) : null;
-    const present = strip?.present?.length ? strip.present : people.map(person=>person.name);
-    const sc = showState ? snapshot || {} : {};
-    const cards = [];
-    if (strip || Object.keys(sc).length) cards.push({id:'scene',label:'Scene',icon:'fa-location-dot',family:'story',module:'state',
-        first:[strip?.place || sc.where,strip?.time || sceneTime(sc)].filter(Boolean).join(' · '),strip,
-        body:()=>sceneBody(sc,strip,id,redraw)});
-    if (people.length || profiles.length) {
-        const lead = people[0];
-        const field = lead && STATE_FIELDS.map(([key])=>lead.fields?.[key]).find(Boolean);
-        const showProfile = profile => profile ? h('div',{class:'ri-state-body'},h('p',{},profile.text),
-            profile.voice && h('p',{class:'ri-help'},`Voice · ${profile.voice}`),profile.facet && h('p',{class:'ri-help'},`Facet · ${profile.facet}`)) : null;
-        cards.push({id:'characters',label:'Characters',icon:'fa-masks-theater',family:'story',module:'state',names:present,
-            first:[lead ? `${lead.name}${field ? `: ${field}` : ''}` : profiles[0]?.subject,people.length>1 ? `+${people.length-1}` : ''].filter(Boolean).join(' '),
-            body:()=>[...people.map(person=>{
-                const card=characterStateCard(person,id,redraw,{historical:true,replyCard:true});
-                return h('section',{class:'ri-tray-person-card'},h('h4',{},person.name),card.children[1],
-                    showProfile(profiles.find(profile=>profile.subject===person.name)));
-            }),...profiles.filter(profile=>!people.some(person=>person.name===profile.subject))
-                .map(profile=>h('section',{class:'ri-tray-person-card'},h('h4',{},profile.subject),showProfile(profile)))]});
-    } else if (present.length) cards.push({id:'characters',label:'Characters',icon:'fa-masks-theater',family:'story',module:'state',names:present,first:'',body:()=>null});
-    for (const [name,,render] of saved?.parts || []) {
-        const def = WORLD_CARDS[name];
-        if (!def) continue;
-        const mine = (rec.v10Changes || []).filter(record=>def.kinds.includes(record.kind)).length;
-        cards.push({id:def.id,label:name,icon:def.icon,family:'story',module:def.module,
-            first:mine ? `${mine} recorded this reply` : '',load:panel=>render(panel)});
-    }
-    if (records.length) cards.push({id:'changes',label:'Story changes',icon:'fa-list-check',family:'story',count:records.length,
-        first:records[0].text || records[0].subject || records[0].id,
-        body:()=>h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
-            h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
-            replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))});
-    if (planning) cards.push({id:'plan',label:'Director\'s desk',icon:'fa-route',family:'direction',first:firstLine(planning),
-        body:()=>h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)});
-    if (roast) cards.push({id:'roast',label:'Roast',icon:'fa-fire',family:'review',module:'roast',first:firstLine(roast).replace(/\*+/g,''),
-        body:()=>[...roastCard(roast).children].slice(1)});
-    if (lore.length) cards.push({id:'lore',label:'World Info',icon:'fa-book',family:'story',
-        first:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}: ${lore.map(entry=>entry.title).join(', ')}`,body:()=>replyLoreRows(lore)});
+    const names = strip?.present?.length ? strip.present : people.map(person=>person.name);
     const warnings = [rec.v10Invalid && 'Some structured changes could not be applied.',
         rec.stateOutdated && 'This reply was edited. Its previous state is out of date.',...(rec.cardIssues || [])].filter(Boolean);
-    if (notes.length) cards.push({id:'notes',label:'Notes',icon:'fa-note-sticky',family:'review',first:firstLine(notes[0].textContent),warnings,body:()=>notes});
-    else if (warnings.length) cards.push({id:'notes',label:'Notes',icon:'fa-note-sticky',family:'review',first:warnings[0],warnings,body:()=>warnings.map(text=>h('p',{},text))});
-    const sentShown = settings().showUnder==='display' && (rec.items?.length || rec.v10Lore?.length || rec.v10Request || rec.v10Check || rec.v10Offer);
-    if (sentShown) cards.push({id:'sent',label:'Sent',icon:'fa-receipt',family:'review',first:summaryLine(rec),
-        calls:[rec.checkExecution && 'Follow-through check',rec.automaticSwipeExecution && 'Automatic swipe'].filter(Boolean),
-        body:()=>recordBody(id,rec,latest,false)});
-    return cards;
+    const sentShown = rec.quickActions || rec.guided?.execution
+        || settings().showUnder==='display' && (rec.items?.length || rec.v10Lore?.length || rec.v10Request || rec.v10Check || rec.v10Offer);
+    const extras = {
+        lore: lore.length ? {first:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}: ${lore.map(entry=>entry.title).join(', ')}`,body:()=>replyLoreRows(lore)} : null,
+        notes: notes.length ? {first:firstLine(notes[0].textContent),warnings,body:()=>notes}
+            : warnings.length ? {first:warnings[0],warnings,body:()=>warnings.map(text=>h('p',{},text))} : null,
+        sent: sentShown ? {first:summaryLine(rec),calls:[rec.checkExecution && 'Follow-through check',rec.automaticSwipeExecution && 'Automatic swipe'].filter(Boolean),
+            body:()=>recordBody(id,rec,latest,false)} : null,
+    };
+    return buildTrayCards({id,rec,modules,snapshot,showState,people,profiles,records,planning,roast,strip,presentNames:names,saved,latest,redraw,extras});
 }
 
 function refreshV10Replies(chat) {
@@ -452,7 +411,7 @@ function refreshV10Replies(chat) {
             update?.pending?.revision?.fingerprint,update?.pending?.changes?.length,update?.changes?.length];
     }))});
     const latestReply=chat.findLastIndex(isReply);
-    const look=[traySettings(),chatTray(),headerMode(),headerState()?.fallback || null,settings().showUnder];
+    const look=[traySettings(),chatTray(),headerMode(),headerState()?.fallback || null,settings().showUnder,trayCardConfig()];
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const id=Number(mes.getAttribute('mesid'));
         const msg=chat[id];
@@ -500,14 +459,14 @@ function refreshV10Replies(chat) {
                     diagnostics.auditConfirmed===false ? 'Host omitted part of the requested guidance' : diagnostics.auditConfirmed===true ? 'Confirmed in the assembled request' : 'Selected for the reply request'}] : []),
             ]),
         ].flat().filter(Boolean);
-        const saved = showConsole && native ? replyWorldTabs(id,modules,rec) : null;
+        const saved = showConsole && native ? replyWorld(id) : null;
         const cards = trayCardsFor(id,msg,rec,{modules,snapshot,showState,people,profiles,records,planning,roast,lore,notes,saved,latest,redraw});
         const tray = replyTray({id,latest,cards,modules,previous:old?.dataset.responseKey===responseKey ? old : null});
         if (!tray) {old?.remove();continue;}
         tray.dataset.stamp=stamp;
         tray.dataset.responseKey=responseKey;
         if (old) old.replaceWith(tray);
-        else block.insertBefore(tray,block.querySelector(':scope > .ri-guided'));
+        else block.append(tray);
         // A loading Strip that already ended under this reply gives way to its tray.
         for (const ended of block.querySelectorAll(':scope > .ri-tray-loading:is([data-end="resolved"],[data-end="stopped"],[data-end="failed"])')) ended.remove();
     }
@@ -516,7 +475,7 @@ function refreshV10Replies(chat) {
 
 export function refreshUnderReplies() {
     try { refreshReplyProgress(); } catch (e) { console.warn('[Roleplay Instructions] reply progress',e); }
-    try { refreshGuidedControl(); } catch (e) { console.warn('[Roleplay Instructions] guided swipe', e); }
+    try { refreshMessageMenu(); } catch (e) { console.warn('[Roleplay Instructions] message menu', e); }
     try { refreshStoryState(ctx().chat || []); refreshV10Replies(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
     try {
         const st = settings();

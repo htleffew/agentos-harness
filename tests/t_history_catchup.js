@@ -21,8 +21,8 @@ const L = require('./lib.js');
                     {is_user:false,name:c.name2,send_date:`test-reply-${turn}`,mes:`Mira held up the blue lantern. Grey clouds covered the dock. REPLY-${turn}`});
             }
             const expand = [...app.root.querySelectorAll('button')].find(button=>button.textContent.trim()==='Expand');
-            expand?.click();
-            app.openPage('context');
+            expand?.click(); app.setExpanded(true);
+            app.openPage('memory');
         });
         const payload = JSON.stringify({title:'A lantern at the dock',summary:'Mira held the lantern above the dock.',
             places:['Dock'],people:['Mira'],world:[{line:'place: Dock | The harborside landing',evidence:'Grey clouds covered the dock.'},

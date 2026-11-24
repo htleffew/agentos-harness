@@ -14,13 +14,13 @@ async function customizeGuidedFraming(page) {
  const editor = group.locator('.ri-prompt-editor').filter({hasText:'Guided swipe framing'});
  await editor.locator(':scope > summary').tap();
  await editor.getByRole('textbox',{name:'Guided swipe framing'}).fill('V8_GUIDED_CUSTOM {direction}');
- await editor.getByRole('button',{name:'Save instruction',exact:true}).tap();
+ await editor.getByRole('button',{name:'Update',exact:true}).tap();
  await editor.getByRole('status').filter({hasText:'Saved.'}).waitFor();
  await drawer.tap();
 }
 
 async function openGuidedSheet(page) {
- await page.locator('#chat .last_mes .ri-guided').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+ await L.openReplyAction(page,'swipe');
  return page.getByRole('dialog',{name:'Generate an alternate reply'});
 }
 

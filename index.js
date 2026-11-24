@@ -7,6 +7,7 @@ import { refreshUnderReplies } from './src/ui/sent.js';
 import { applyPronouns, settings } from './src/store.js';
 import { isChatOpen, on, LOG } from './src/st.js';
 import { startDesktopQueue } from './src/memory/queue.js';
+import './src/ui/connections-spend.js';
 
 (function start() {
     try {

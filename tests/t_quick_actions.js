@@ -225,7 +225,7 @@ const fixtures = {
 
         L.mode({reply:'She tests the latch with the edge of her sleeve.'});
         L.resetLog();
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+        await L.openReplyAction(page,'swipe');
         await direct(fixtures.swipe);
         await tap('Generate alternate reply');
         await sheet.getByText('Reply updated.',{exact:true}).waitFor({timeout:20000});
@@ -238,7 +238,7 @@ const fixtures = {
         assert.match(prefix,/tests the latch/);
         L.mode({reply:'Then she pulls her sleeve away.'});
         L.resetLog();
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Continue this reply',exact:true}).tap();
+        await L.openReplyAction(page,'continue');
         await direct(fixtures.continuation);
         await tap('Continue this reply');
         await sheet.getByText('Reply updated.',{exact:true}).waitFor({timeout:20000});
@@ -303,7 +303,7 @@ const fixtures = {
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chat.at(-2).mes.split('OAIRETRY').length-1),1);
         await close();
         for (const [action,reply] of [['Keep original roll','She rechecks the chain.'],['Reroll d20','She leaves the chain loose.']]) {
-            await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+            await L.openReplyAction(page,'swipe');
             await sheet.getByText('Action roll',{exact:true}).tap();
             await tap(action);
             L.mode({reply});

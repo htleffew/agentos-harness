@@ -72,3 +72,24 @@ async function panelClick(root, name) {
     await control.tap();
 }
 module.exports.panelClick=panelClick;
+
+// B4: the card under each reply is gone. A reply's quick action sheet opens as the bar opens it, and the two message menu
+// entries (What was sent, Correct a story fact) open from SillyTavern's own message menu.
+async function openReplyAction(page, family, index) {
+    await page.evaluate(async ({ BASE, family, index }) => {
+        const chat = SillyTavern.getContext().chat;
+        const id = index ?? chat.findLastIndex(message => !message.is_user && !message.is_system);
+        (await import(BASE + '/src/ui/quick-actions.js')).openQuickActions(family, id, document.querySelector('#send_textarea'));
+    }, { BASE, family, index });
+}
+async function openMenuEntry(page, entry, index) {
+    const id = index ?? await page.evaluate(() => SillyTavern.getContext().chat.findLastIndex(message => !message.is_user && !message.is_system));
+    const mes = page.locator('#chat .mes[mesid="' + id + '"]');
+    const control = mes.locator('.ri-mes-button[data-ri-entry="' + entry + '"]');
+    await page.waitForTimeout(400);
+    if (!await control.isVisible()) await mes.locator('.extraMesButtonsHint').click();
+    await control.click();
+    await page.waitForTimeout(800);
+    return page.locator('#ri_root');
+}
+Object.assign(module.exports, { openReplyAction, openMenuEntry });

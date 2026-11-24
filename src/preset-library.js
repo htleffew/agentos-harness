@@ -149,6 +149,31 @@ const VERDICT_CHIP = { duplicative: 'Duplicate', contradictory: 'Conflict' };
 export const verdictChip = verdict => VERDICT_CHIP[verdict] || '';
 
 /**
+ * Blocks added to a recognised preset under names the library knows (Default with a "Dice Rolls" and a "Prose Rules" block
+ * added) count like the library's own blocks. A block counts as added when neither its id nor its text hash is one the edition
+ * names; a feature the library lists under Works alongside keeps the library's verdict. An unchanged preset has no added block.
+ */
+function addedByName(blocks, edition, switched, alongside, nameMatch) {
+    const known = new Set([...(edition.recognize?.ids || []), ...Object.values(edition.modules || {}).flatMap(item => item.ids || []),
+        ...Object.values(edition.optional || {}).flatMap(item => item.ids || [])]);
+    const hashes = new Set(edition.recognize?.hashes || []);
+    const claimed = new Set([...switched, ...alongside].flatMap(row => row.blocks.map(block => block.id)));
+    const listedAlongside = new Set(alongside.map(row => row.key));
+    let added = false;
+    for (const block of blocks) {
+        if (block.marker || claimed.has(block.id) || known.has(block.id) || (block.hash && hashes.has(block.hash))) continue;
+        for (const key of nameMatch(block)) {
+            if (!Object.hasOwn(FEATURES, key) || listedAlongside.has(key)) continue;
+            const row = switched.find(item => item.key === key);
+            if (row) { if (!row.blocks.includes(block)) row.blocks = [...row.blocks, block]; }
+            else switched.push({ key, label: FEATURES[key].label, verdict: 'duplicative', rule: '', blocks: [block], matchedBy: 'name' });
+            added = true;
+        }
+    }
+    if (added) switched.sort((a, b) => FEATURE_KEYS.indexOf(a.key) - FEATURE_KEYS.indexOf(b.key));
+}
+
+/**
  * The features both sides offer for one preset. A recognised edition lists its duplicate and conflicting modules
  * (and switched-off optional ones when she turned their blocks on); complementary blocks go to Works alongside.
  * An unrecognised preset falls back to the name tables through nameMatch(block) and is marked "Matched by block name".
@@ -168,6 +193,7 @@ export function presetFeatures(blocks, edition, nameMatch = () => []) {
             const row = { key, label: FEATURES[key].label, verdict: item.verdict, rule: item.rule, blocks: item.blocks, matchedBy: 'library' };
             (item.verdict === 'complementary' ? alongside : switched).push(row);
         }
+        addedByName(blocks, edition, switched, alongside, nameMatch);
         return { switched, alongside };
     }
     const grouped = new Map();

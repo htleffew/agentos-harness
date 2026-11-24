@@ -39,7 +39,7 @@ const L = require('./lib.js');
 
         L.resetLog();
         L.mode({reply:'The heavy brass key stays on the desk.'});
-        await page.locator('#chat .mes[mesid="2"]').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+        await L.openReplyAction(page,'swipe',2);
         const sheet = page.getByRole('dialog',{name:'Generate an alternate reply'});
         const disclosure = await sheet.getByText(/1 later replies and 1 dependent cards/).innerText();
         await sheet.getByLabel('Your direction',{exact:true}).fill('Rey leaves the key on the desk.');
@@ -55,8 +55,7 @@ const L = require('./lib.js');
         assert(!L.text(generated).includes(later));
         await sheet.getByRole('button',{name:'Close',exact:true}).tap();
 
-        const corrections = page.locator('#chat .last_mes .ri-guided-correction');
-        await corrections.locator(':scope > summary').tap();
+        const corrections = (await L.openMenuEntry(page,'correct')).locator('#ri_panel_page');
         await corrections.getByLabel('Correct story fact',{exact:true}).fill('The gate is closed.');
         await corrections.getByRole('button',{name:'Repair facts only',exact:true}).tap();
         await corrections.getByRole('status').filter({hasText:/repaired 1/}).waitFor();

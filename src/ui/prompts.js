@@ -1,104 +1,34 @@
+// Prompt editors. Each prompt is stored once; promptEditor and promptGroup draw the mirrored editor of
+// prompt-mirror.js, the same view that Setup, Prompts lists. No model calls are made by this UI.
 import { createVoice, exportVoice, importVoice, voiceRecords } from '../voices.js';
-// Inline prompt editors. No model calls are made by this UI.
 import { h, button, download } from './dom.js';
-import { promptDefinition, promptStatus, selectedVoice, validatePrompt, savePrompt, restorePrompt } from '../prompts.js';
+import { promptDefinition, promptStatus, selectedVoice } from '../prompts.js';
 import { settings, saveSettings } from '../store.js';
-import { promptOwner } from '../prompt-variations.js';
-import { promptComparison, variationEditor } from './prompt-variations.js';
+import { mirroredPrompt, problemNote, watchPrompts } from './prompt-mirror.js';
+import './prompts-home.js';
 
-export function promptEditor(id, { saveLabel = 'Save instruction', onChange = () => {} } = {}) {
-    const def = promptDefinition(id);
-    if (!def) throw new Error(`Unknown instruction: ${id}`);
-    const title = h('span', {}, def.label);
-    const badge = h('span', { class: 'ri-prompt-badge' });
-    const note = h('div', { class: 'ri-help', role: 'status' });
-    const box = h('textarea', { class: 'ri-input ri-textarea', rows: Math.max(3, Math.min(10, def.text.split('\n').length + 1)), maxLength: 12000, 'aria-label': def.label });
-    // Show the saved template, not rendered chat data or substituted placeholders.
-    const active = () => settings().prompts?.[id]?.text ?? def.text;
-    box.value = active();
-    let savedText = box.value;
-    const defaultView = h('details', { class: 'ri-prompt-default' }, h('summary', {}, 'Compare with baseline'));
-    const original = id.startsWith('voice-') ? 'First saved voice direction' : 'Installed extension default';
-    const required = def.required.length ? `Keep ${def.required.map(x => `{${x}}`).join(', ')}; the extension fills ${def.required.length === 1 ? 'it' : 'them'} in.` : 'Live story details and any required response format are supplied separately.';
-    const update = () => {
-        const status = promptStatus(id);
-        badge.textContent = status.customized ? 'Customized' : 'Default';
-        if (status.defaultChanged) note.textContent = 'The built-in default has changed since you saved this instruction. Your wording is still in use.';
-    };
-    function assertCurrent() {
-        if (active()!==savedText) throw new Error('This instruction was changed in another editor. Reopen it to compare before saving.');
-    }
-    function commit() {
-        assertCurrent();
-        savePrompt(id,box.value);
-        savedText=box.value;
-        syncDraft(); update(); onChange();
-    }
-    const save = button(saveLabel, () => {
-        try { commit(); note.textContent = 'Saved.'; } catch (e) { note.textContent = e.message; }
-    }, { kind: 'primary' });
-    const discard = button('Discard draft', () => {
-        box.value=savedText;
-        syncDraft();
-        note.textContent='Draft discarded.';
-        box.focus();
-    }, {kind:'ghost'});
-    let undoValue = null;
-    const undo = button('Undo restore', () => {
-        if (!undoValue) return;
-        try {
-            assertCurrent(); savePrompt(id,undoValue);
-            box.value = savedText = undoValue; undoValue = null; undo.hidden = true; syncDraft(); update(); onChange();
-            note.textContent = 'Your previous instruction was restored.';
-        } catch (error) { note.textContent=error.message; }
-    }, { kind: 'ghost' });
-    undo.hidden = true;
-    const restore = button(id.startsWith('voice-') ? 'Restore first saved voice' : 'Restore default', () => {
-        try {
-            assertCurrent(); undoValue = savedText === def.text ? null : savedText;
-            restorePrompt(id); box.value = savedText = def.text; syncDraft(); undo.hidden = !undoValue; update(); onChange();
-            note.textContent = `${original} restored.`;
-        } catch (error) { note.textContent=error.message; }
-    }, { kind: 'ghost' });
-    const variants = variationEditor({owner:promptOwner('extension',id),readDraft:()=>box.value,readActive:active,
-        loadDraft:value=>{box.value=value;syncDraft();},applyDraft:commit,validate:value=>typeof value==='string' ? validatePrompt(id,value) : 'Choose a text instruction variation.'});
-    const wrap = h('details', { class: 'ri-prompt-editor' },
-        h('summary', {}, title, badge),
-        h('div', { class: 'ri-prompt-body' }, h('div', { class: 'ri-help' }, [def.help, required].filter(Boolean).join(' ')), box, defaultView,
-            h('div', { class: 'ri-row ri-row-tight' }, save, discard, restore, undo), variants.root, note));
-    const difference = h('div');
-    defaultView.append(difference);
-    const showDifference = () => {
-        if (defaultView.open) difference.replaceChildren(promptComparison({before:def.text,after:box.value,beforeLabel:original}));
-    };
-    defaultView.ontoggle=showDifference;
-    function syncDraft() {
-        const dirty = box.value!==savedText;
-        wrap.toggleAttribute('data-ri-dirty',dirty);
-        discard.hidden = !dirty;
-        variants.updateDraftStatus();
-        showDifference();
-    }
-    box.addEventListener('input',syncDraft);
-    syncDraft();
-    update(); return wrap;
+/** One mirrored editor for a stored prompt. An unknown id draws a Problem note in its place. */
+export function promptEditor(id, { onChange = () => {} } = {}) {
+    return mirroredPrompt(id, { onChange });
 }
 
+/** A fold of mirrored editors for one feature. The ids are the stored prompts the feature uses. */
 export function promptGroup(ids, label = 'Customize AI instructions', { contextual = false, onChange = () => {} } = {}) {
+    const known = ids.filter(id => promptDefinition(id));
     const badge = h('span', { class: 'ri-prompt-badge' });
     const refresh = () => {
-        const customized = ids.filter(id => promptStatus(id).customized).length;
+        const customized = known.filter(id => promptStatus(id).customized).length;
         badge.textContent = customized ? `Customized (${customized})` : 'Default';
     };
-    const options = {
-        onChange: () => { if (contextual) refresh(); onChange(); },
-        saveLabel: contextual ? 'Save prompt' : 'Save instruction',
-    };
-    const group = h('details', { class: contextual ? 'ri-prompt-group ri-prompt-contextual' : 'ri-prompt-group' },
+    const options = { onChange: () => { if (contextual) refresh(); onChange(); } };
+    const group = h('details', { class: contextual ? 'ri-prompt-group ri-prompt-contextual' : 'ri-prompt-group', 'data-ri-prompt-ids': ids.join(' ') },
         h('summary', {}, h('span', {}, label), contextual ? badge : null),
-        h('div', { class: 'ri-help' }, 'Edits apply to this feature across chats. Live chat data and required output formats are assembled separately.'),
-        ids.map(id => promptEditor(id, options)));
-    if (contextual) refresh();
+        h('div', { class: 'ri-help' }, 'Edits apply to this feature across chats and appear in Setup, Prompts at once. Live chat data and required output formats are assembled separately.'),
+        ids.map(id => mirroredPrompt(id, options)));
+    if (contextual) {
+        refresh();
+        watchPrompts(group, changed => { if (known.includes(changed)) refresh(); });
+    }
     return group;
 }
 
@@ -147,6 +77,7 @@ export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice')
                 if (download(`${voice.name.replace(/[\\/:*?"<>|]/g,'-')}.json`,JSON.stringify(voice,null,2))) note.textContent='Export started.';
                 else note.textContent='This host could not start the download.';
             })),note,...otherIds.map(id=>promptEditor(id)));
+    watchPrompts(group,()=>{ if (group.isConnected) refreshLabels(); });
     showVoice();
     return group;
 }

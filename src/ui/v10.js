@@ -1,5 +1,3 @@
-import { renderComposerSettings } from './quick-actions.js';
-import { renderMemorySettings } from './context-dashboard.js';
 import { DEFAULT_NPC_AVOID } from '../npc-names.js';
 import { DEFAULT_STORY_AVOID } from '../defaults.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
@@ -7,24 +5,25 @@ import { executionPreview, executionReceipt, executionScope } from '../execution
 import { presetWorkbench } from './preset-workbench.js';
 import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
-import { promptGroup, roastVoiceEditor } from './prompts.js';
+import { roastVoiceEditor } from './prompts.js';
+import { slot, home, homeLink } from './homes.js';
+import { listRecords, writeRecord, baseEntries, kindsFor } from '../records.js';
 import { impersonationInspector } from './impersonation.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
-import { renderChatBooks } from './chat-books.js';
-import { renderReplyDisplayOptions } from './settings.js';
+import { renderChatBooks, storyWorldSection } from './chat-books.js';
+import { renderReplyDisplayOptions, sceneCardControl, pronounsSection, diceSection, versionLine } from './settings.js';
 import { memoryOnly, memoryComponents } from '../components.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
 import { ctx, KEY, isChatOpen, toast, isGenerating, confirmBox } from '../st.js';
 import { settings, chatState, saveSettings, saveChatState } from '../store.js';
 import { acceptV10Opening, guideSwipe } from '../engine.js';
-import { saveV10Record } from '../worldflow.js';
 import { statNames } from '../dice.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES, writingProfileText, SCENE_CHECKS, sceneCheckId, hostSceneChecks, avoidPhrases,
-    isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText, rowsForWorld,
-    readRecord, portrayalSources, baselineFor, effectivePortrayal, greetings, draftOpening, setSpeakerColor, chooseAutomaticSpeakerColor, displayColor, baseWorld,
+    isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, setModuleOwner, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText,
+    greetings, draftOpening, setSpeakerColor, chooseAutomaticSpeakerColor, displayColor, baseWorld,
 } from '../v10.js';
 
 const options = names => names.map(name => ({ value:name, label:name }));
@@ -185,7 +184,7 @@ function renderOpening(local, redraw) {
             scoped('Review or edit opening',area),h('p',{class:'ri-help'},'Using this opening sets the first reply and files its story facts in this chat.'),accept);
     return section('Opening setup',available ? form : h('p',{class:'ri-help'},'Opening setup is available at the start of a chat.'),
         profileEditor(local,'opening','Opening message guidance',OPENING),
-        promptGroup(['systemOpening','readGreeting','openingPlayerThoughts','sceneOpening'],'Customize opening and greeting prompts'));
+        slot(['systemOpening','readGreeting','openingPlayerThoughts','sceneOpening'],'Customize opening and greeting prompts'));
 }
 
 function renderDice(local, redraw) {
@@ -358,7 +357,7 @@ function editRecord(original, save, cancel, kinds) {
             h('label',{},lock,' Protect this record from automatic changes'));
         if (k === 'knowledge') root.append(choice('basis','Source type',['observed','reported','rumor','belief'],'observed'),flag('private','Limit to relevant character',true));
         if (k === 'fact') {
-            const pinned = Object.values(baseWorld()?.entries || {});
+            const pinned = baseEntries();
             const entries = pinned.map(entry=>({value:String(entry.uid),label:entry.comment || entry.key?.[0] || `Entry ${entry.uid}`}));
             inputs.baseEntry=select([{value:'',label:'None'},...entries],original?.baseEntry || '',()=>{}, {'aria-label':'Base World entry'});
             root.append(string('aliases','Relevance aliases'),string('link','Related plot record ID'),
@@ -455,7 +454,7 @@ function renderRecords(redraw, title, kinds, app) {
     let records=[];
     const save = async (value,options)=>{
         if (scope!==executionScope()) throw new Error('The chat changed. Open this record in its own chat.');
-        await saveV10Record(value,options);
+        await writeRecord(value,options);
         if (scope===executionScope()) redraw();
     };
     const open = async record=>{
@@ -466,21 +465,8 @@ function renderRecords(redraw, title, kinds, app) {
         editor.scrollIntoView({block:'nearest'});
         editor.querySelector('input,select,textarea')?.focus({preventScroll:true});
     };
-    rowsForWorld().then(rows=>{
-        records=rows.map(readRecord).filter(Boolean);
-        if (kinds.includes('profile')) {
-            const sources = portrayalSources(rows);
-            for (const [index,record] of records.entries()) if (record.kind==='profile') {
-                const baseline = baselineFor(sources,record.subject,record.aliases);
-                records[index]=effectivePortrayal(record,baseline);
-            }
-            for (const baseline of sources.values()) {
-                if (records.some(record=>record.kind==='profile' && baselineFor(sources,record.subject,record.aliases)===baseline)) continue;
-                const id = `portrayal-${baseline.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,45) || records.length}`;
-                records.push({kind:'profile',id,subject:baseline.name,text:baseline.text || baseline.voice,voice:baseline.voice,aliases:baseline.aliases,baseline});
-            }
-        }
-        records=records.filter(record=>kinds.includes(record.kind));
+    listRecords(kinds).then(rows=>{
+        records=rows;
         filter();
     }).catch(error=>{status.textContent=error.message;});
     function filter() {
@@ -538,16 +524,24 @@ const MODULE_HELP = {
     roast: 'Asks for one reader reaction in the same reply. Edit its voice under Setup → Reply Display.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
-function presetDetails(preset, app, advanced = false) {
-    const prompts = activeHostPrompts();
-    if (advanced) return section('Advanced prompts',
-        prompts ? presetWorkbench(preset,app,key=>key==='style' ? profileEditor(prefs(),'style','Live writing guidance',defaultWritingGuidance(),false)
-            : key==='preflight' ? profileEditor(prefs(),'preflight','Scene check guidance',PREFLIGHT,false) : null) : h('p',{class:'ri-help'},'This host does not expose preset prompt blocks.'),
-        h('div',{id:'ri-planning-prompts'},promptGroup(['planGuidance','proseFirst'],'Customize planning and prose prompts')),impersonationInspector());
-    return section('Active host preset',
-        h('p',{},preset ? `SillyTavern or TauriTavern preset · ${preset}` : 'Select a preset in the host’s AI Response Configuration. Roleplay Instructions V10 is the companion for Chat Completion.'),
-        isCompanionPreset(preset) ? h('p',{class:'ri-help'},'The Roleplay Instructions V10 companion preset supplies writing guidance for viewpoint, character voice, pacing, dialogue, and consequences. Keep its Chat History block on to send the recent messages allowed by Context & Memory.') : null,
-        button('Review What Was Sent',()=>app.openPage('sent'),{kind:'ghost'}));
+function advancedPrompts(preset, app) {
+    return section('Advanced prompts',
+        activeHostPrompts() ? presetWorkbench(preset,app) : h('p',{class:'ri-help'},'This host does not expose preset prompt blocks.'),
+        h('div',{id:'ri-planning-prompts'},slot(['planGuidance','proseFirst'],'Customize planning and prose prompts')),impersonationInspector());
+}
+
+function presetLinks(app) {
+    return h('div',{class:'ri-note ri-home-link','data-home-link':'preset'},
+        h('span',{},'The active preset, its blocks, the Ours or Theirs switch for each feature and saved loadouts are in Setup, Presets.'),
+        button('Open Setup, Presets',()=>app.openPage('presets'),{kind:'ghost'}));
+}
+
+function composerLinks(app) {
+    return h('section',{id:'ri-composer-settings',class:'ri-section'},
+        h('h3',{class:'ri-section-title'},'Composer quick actions'),
+        h('p',{class:'ri-help'},'The bar above the message box, its pins and the library of saved quick actions are set in the Quick actions tab.'),
+        h('div',{class:'ri-row'},button('Open Quick actions, Bar',()=>app.openPage('quick-bar',{focusPage:true}),{kind:'ghost'}),
+            button('Open Quick actions, Library',()=>app.openPage('quick-library',{focusPage:true}),{kind:'ghost'})));
 }
 
 function hostOverlap(key, owner, preset, enabled, redraw) {
@@ -623,7 +617,7 @@ function moduleSettings(local, app, preset, modules, redraw) {
         const message = editingPreset
             ? `Extension default for this preset: ${onOff(value ?? fallback)}`
             : hostBlockOn ? 'Host block on · Extension off' : blocked ? 'Extension off in this chat' : `${onOff(modules[key])} in this chat`;
-        return h('div',{class:'ri-module-row','data-module':key},
+        const moduleRow = h('div',{class:'ri-module-row','data-module':key},
             h('div',{class:'ri-module-heading'},
                 blocked ? h('strong',{},label) : h('label',{htmlFor:controlId},label),
                 h('span',{class:'ri-module-status',id:`${controlId}-status`,'data-enabled':String(editingPreset ? value ?? fallback : modules[key])},message)),
@@ -635,6 +629,8 @@ function moduleSettings(local, app, preset, modules, redraw) {
                 ? editingPreset || !canEditPreset ? 'Using the extension’s factory default.' : presetValue===undefined ? 'Following the extension factory default for this preset.' : 'Following the extension default saved for this preset.'
                 : editingPreset ? (override===undefined ? 'Applies to chats that follow this preset.' : `This chat keeps its own setting (${onOff(override)}).`)
                     : 'Saved for this chat.'));
+        if (key === 'roast') moduleRow.dataset.control = 'roast-switches';
+        return moduleRow;
     });
     return section('Extension modules',
         h('div',{class:'ri-module-scopes',role:'group','aria-label':'Settings scope'},
@@ -656,13 +652,30 @@ function moduleSettings(local, app, preset, modules, redraw) {
             h('h3',{class:'ri-label'},label),keys.map(key=>rows.find(row=>row.dataset.module===key)))));
 }
 
+function statsFold(app) {
+    const dice = diceSection(app);
+    return h('details',{class:'ri-card ri-tight',id:'ri-dice-stats',open:!!app.legacyControlsOpen,ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},
+        h('summary',{},'Stats'),
+        h('p',{class:'ri-help'},'Stats and the legacy dice defaults.'),
+        ...[...dice.children].slice(1),
+        slot(['dice'],'Customize dice instruction'));
+}
+
+const roastVoice = () => {
+    const editor = roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback');
+    editor.dataset.promptSlot = '';
+    editor.dataset.promptIds = 'structuredRoast roastFeedback';
+    return home('roast-voice',editor);
+};
+
 export function renderV10(body, app, page) {
     if (!isChatOpen()) {
-        if (page==='v10') body.append(presetDetails(activePreset(),app),renderComposerSettings(),renderMemorySettings(app),presetDetails(activePreset(),app,true));
+        if (page==='v10') body.append(presetLinks(app),composerLinks(app),roastVoice(),advancedPrompts(activePreset(),app),versionLine());
         if (page==='display') {
-            body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
+            body.append(homeLink(app,'roast-voice','The Roast commentator voice is edited in Setup, Features.'));
             renderReplyDisplayOptions(body,app);
         }
+        if (page==='checks') body.append(statsFold(app));
         return;
     }
     const local = prefs();
@@ -677,10 +690,10 @@ export function renderV10(body, app, page) {
             {id:`ri-${key}`,'aria-label':label}));
     const replyScreening = () => section('Reply screening',
         profileEditor(local,'avoidPhrases','Stock phrases to avoid',DEFAULT_STORY_AVOID,true,true),
-        !enabledV10() && profileEditor(local,'avoidNpcNames','New NPC names to avoid',DEFAULT_NPC_AVOID,true,true),
+        home('npc-avoid',profileEditor(local,'avoidNpcNames','New NPC names to avoid',DEFAULT_NPC_AVOID,true,true)),
         chatFlag('proseMetrics','Show turn length and dialogue share','Add word count and the approximate percentage in quotation marks to the reply’s Notes tab.'),
         chatFlag('proseAudit','Review recent writing with the reply','Add a short review of recurring writing patterns when at least two earlier story replies are available. Notes show which revisions support each finding.'),
-        promptGroup(['proseReview'],'Customize the writing review prompt'),
+        slot(['proseReview'],'Customize the writing review prompt'),
         executionDetails([
             executionPreview('prose-screen',{stage:'code',label:'Local prose screening',trigger:'When the reply is accepted.'}),
             executionPreview('prose-audit',{stage:'reply',label:'Review and next-turn guidance',trigger:'On an ordinary story reply when enabled or supported guidance is ready.'}),
@@ -696,6 +709,7 @@ export function renderV10(body, app, page) {
             return;
         }
         const manage = enabledV10() || memoryOnly() && memoryComponents().world;
+        body.append(storyWorldSection(app));
         if (manage) body.append(renderBooks(local,redraw,app,memoryOnly()));
         body.append(renderChatBooks(app, { assignedEditors:manage }));
         return;
@@ -715,15 +729,12 @@ export function renderV10(body, app, page) {
                 }
                 saveChatState();redraw();
             },{id:'ri-story-workflow','aria-label':'Story workflow for this chat'}))));
-        body.append(presetDetails(preset,app));
-        body.append(h('div',{class:'ri-row'},['Composer quick actions','Modules','Memory','Advanced prompts'].map((label,index)=>
-            button(label,()=>app.focusTarget(['#ri-composer-settings','#ri-modules','#ri-memory-settings','#ri-planning-prompts'][index]),{kind:'ghost'}))));
-        body.append(renderComposerSettings());
-        if (enabledV10()) body.append(h('div',{id:'ri-modules'},moduleSettings(local,app,preset,modules,redraw)),
+        body.append(presetLinks(app),composerLinks(app));
+        if (enabledV10()) body.append(h('div',{id:'ri-modules'},home('module-switches',moduleSettings(local,app,preset,modules,redraw))),
             isCompanionPreset(preset)
                 ? chatFlag('generatePlan','Request a reply plan','The extension asks for a brief outline before the prose. Show Reply planning in Reply Display controls its card.')
                 : h('p',{class:'ri-help'},'To request a reply plan from the extension, select the Roleplay Instructions V10 companion preset in AI Response Configuration.'));
-        body.append(renderMemorySettings(app),presetDetails(preset,app,true));
+        body.append(roastVoice(),homeLink(app,'world-budget','Memory, budgets and catch-up are in Setup, Memory.'),advancedPrompts(preset,app),versionLine());
         return;
     }
     if (!enabledV10()) {
@@ -734,7 +745,7 @@ export function renderV10(body, app, page) {
         if (page==='display') {
             renderReplyDisplayOptions(body,app,{legacy:!memoryOnly()});
             if (memoryOnly()) body.append(h('p',{class:'ri-help'},'The active host preset supplies reply cards in Memory only.'));
-            body.append(roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback'));
+            body.append(homeLink(app,'roast-voice','The Roast commentator voice is edited in Setup, Features.'));
             return;
         }
         body.append(h('div',{class:'ri-note'},
@@ -750,22 +761,19 @@ export function renderV10(body, app, page) {
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
                 chatFlag('showRoast','Show Roast cards','Show the saved reader reaction beneath its reply. Choose the commentator voice below.',true),
-                field('Story state under replies','Extension-wide. The console shows saved scene, character and world records for the reply.',
-                    select([{value:'auto',label:'Auto'},{value:'always',label:'Always'},{value:'off',label:'Off'}],settings().scene.card,value=>{
-                        settings().scene.card=value;saveSettings();redraw();
-                    },{'aria-label':'Story state under replies'})),
+                sceneCardControl(app,()=>{saveSettings();redraw();}),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.'),
-                button('Planning and prose generation prompts',()=>app.openSetting('v10','ri-planning-prompts'),{kind:'ghost'}),
-                roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback')));
+                homeLink(app,'roast-switches','Roast generation and feedback are switched on in Setup, Features.'),
+                homeLink(app,'roast-voice','The Roast commentator voice is edited in Setup, Features.')));
             renderReplyDisplayOptions(body,app);
             break;
         case 'opening': body.append(renderOpening(local,redraw)); break;
-        case 'facts': body.append(renderRecords(redraw,'Chat Facts',['fact'],app),
-            promptGroup(['structuredFacts','structuredRepair'],'Customize fact and repair prompts')); break;
-        case 'plots': body.append(renderRecords(redraw,'Plot Records',PLOT_KINDS,app),
-            promptGroup(['autonomousEvent','optionalOpportunity','structuredSchedule','structuredOutcomes','lockedPayoff','checkPlot'],'Customize plot and event prompts')); break;
-        case 'portrayal': body.append(renderRecords(redraw,'Portrayal & Knowledge',['profile','knowledge'],app),
-            profileEditor(local,'avoidNpcNames','New NPC names to avoid',DEFAULT_NPC_AVOID,true,true),promptGroup(['structuredPortrayal','structuredKnowledge','checkKnowledge'],'Customize portrayal and knowledge prompts')); break;
+        case 'facts': body.append(renderRecords(redraw,'Chat Facts',kindsFor('facts'),app),
+            slot(['structuredFacts','structuredRepair'],'Customize fact and repair prompts')); break;
+        case 'plots': body.append(renderRecords(redraw,'Plot Records',kindsFor('plots'),app),
+            slot(['autonomousEvent','optionalOpportunity','structuredSchedule','structuredOutcomes','lockedPayoff','checkPlot'],'Customize plot and event prompts')); break;
+        case 'portrayal': body.append(pronounsSection(app),renderRecords(redraw,'Portrayal & Knowledge',kindsFor('portrayal'),app),
+            homeLink(app,'npc-avoid','New NPC names to avoid are set in Direction, Writing, Reply screening.'),slot(['structuredPortrayal','structuredKnowledge','checkKnowledge'],'Customize portrayal and knowledge prompts')); break;
         case 'emotion': {
             if (modules.emotions) {
                 const tuning=local.emotion ||= {};
@@ -775,11 +783,11 @@ export function renderV10(body, app, page) {
                 body.append(section('Emotion tuning',h('div',{class:'ri-grid2'},dial('baseline','Baseline',0,10,3),dial('persistence','Persistence in replies',0,40,3),dial('recovery','Recovery per reply',0,10,1),
                     scoped('Sensitivity',select(options(['flexible','subtle','responsive']),tuning.sensitivity || 'flexible',value=>{tuning.sensitivity=value;saveChatState();})))));
             }
-            body.append(renderRecords(redraw,'Emotions & Relationships',['emotion','relationship'],app),
-                promptGroup(['emotionSensitivity','checkEmotion','structuredEmotions','structuredRelationships'],'Customize emotion and relationship prompts'));
+            body.append(renderRecords(redraw,'Emotions & Relationships',kindsFor('emotion'),app),
+                slot(['emotionSensitivity','checkEmotion','structuredEmotions','structuredRelationships'],'Customize emotion and relationship prompts'));
             break;
         }
-        case 'speakers': body.append(renderSpeakers(local),promptGroup(['speakerGuidance'],'Customize speaker attribution prompt')); break;
+        case 'speakers': body.append(renderSpeakers(local),slot(['speakerGuidance'],'Customize speaker attribution prompt')); break;
         case 'writing': {
             const hostChecks = hostSceneChecks();
             body.append(section('Writing profile',
@@ -788,22 +796,22 @@ export function renderV10(body, app, page) {
                         ({value:key,label:key==='grounded' ? 'Grounded realism' : 'Heightened drama'}))],local.writingProfile || 'default',
                     value=>{local.writingProfile=value;saveChatState();redraw();},{'aria-label':'Portrayal intensity'})),
                 local.writingProfile && writingProfileText(local.writingProfile) ? h('p',{class:'ri-help'},writingProfileText(local.writingProfile)) : null,
-                promptGroup(Object.values(WRITING_PROFILES),'Customize portrayal profiles')),
-                profileEditor(local,'style','Live writing guidance',defaultWritingGuidance()),
-                profileEditor(local,'preflight','Scene and character checks',PREFLIGHT),
+                slot(Object.values(WRITING_PROFILES),'Customize portrayal profiles')),
+                home('live-guidance',profileEditor(local,'style','Live writing guidance',defaultWritingGuidance())),
+                home('scene-checks',profileEditor(local,'preflight','Scene and character checks',PREFLIGHT)),
                 section('Checks for this chat',
                     h('p',{class:'ri-help'},modules.preflight ? 'The extension sends these enabled checks with a normal reply. Any checks marked Host preset are sent by the preset.'
                         : 'The extension’s checks are off for this chat. Any checks marked Host preset are sent by the preset.'),
-                    button('Open module settings',()=>app.openPage('v10'),{kind:'ghost'}),
+                    button('Open module settings',()=>app.openPage('v10',{anchor:'#ri-modules'}),{kind:'ghost'}),
                     ...Object.entries(SCENE_CHECKS).map(([key,label])=>h('label',{class:'ri-row'},
                         h('input',{type:'checkbox',disabled:!!hostChecks[key],checked:!!hostChecks[key] || local.sceneChecks?.[key]!==false,onchange:event=>{
                             (local.sceneChecks ||= {})[key]=event.currentTarget.checked;saveChatState();
                         }}),label,hostChecks[key] && h('span',{class:'ri-help'},`Host preset · ${hostChecks[key]}`))),
-                    promptGroup([...Object.keys(SCENE_CHECKS).map(sceneCheckId),'sceneSolo','sceneEnsemble','sceneUnknown','sceneContinue'],'Customize individual scene checks')),
+                    slot([...Object.keys(SCENE_CHECKS).map(sceneCheckId),'sceneSolo','sceneEnsemble','sceneUnknown','sceneContinue'],'Customize individual scene checks')),
                 replyScreening());
             break;
         }
-        case 'checks': body.append(promptGroup(['resolvedActionGuidance'],'Customize action check prompt'),
+        case 'checks': body.append(statsFold(app),slot(['resolvedActionGuidance'],'Customize action check prompt'),
             modules.dice ? renderDice(local,redraw) : h('div',{class:'ri-note'},
                 h('p',{},'Turn on Explicit action checks for this chat.'),
                 button('Action check settings',()=>app.openSetting('v10','ri-module-dice','chat'),{kind:'ghost'}))); break;

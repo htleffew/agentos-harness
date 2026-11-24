@@ -53,7 +53,7 @@ const preset = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instruc
         assert.equal(await latest.locator('.ri-v10-reply .ri-reply-roast').evaluate(el=>el.open),false);
         assert.match(await latest.locator('.ri-v10-reply .ri-reply-roast').textContent(),/light do the talking/);
         const tr = latest.locator('.ri-v10-reply');
-        assert.ok(await tr.evaluate(node=>node.nextElementSibling?.classList.contains('ri-guided')));
+        assert.equal(await latest.locator('.ri-guided').count(),0);
         const consoleCard = tr.locator('.ri-v10-console');
         assert.equal(await consoleCard.evaluate(el=>el.open),false);
         const cast = tr.locator('.ri-glance-person');

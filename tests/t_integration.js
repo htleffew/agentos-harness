@@ -172,7 +172,6 @@ async function run(browser, tag, viewport) {
     out.checks.fold.second = await fold();
     out.checks.fold.third = await fold();
     assert.deepEqual([out.checks.fold.first, out.checks.fold.second, out.checks.fold.third], ['true', 'false', 'true']);
-    await page.waitForTimeout(1500);
 
     // Reload: the chat, the folded bar, the switch and the menu page survive.
     await page.reload({ waitUntil: 'networkidle' });

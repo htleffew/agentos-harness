@@ -50,12 +50,12 @@ export const tabs = [
 // where its settings live today; a registered page with the nested tab's name replaces it.
 const PAGES = [
     { id:'state', tab:'scene', label:'Current scene', help:'Review the active scene and character snapshots.' },
-    { id:'opening', tab:'scene', label:'Opening', help:'Choose a greeting or prepare an opening.', aliases:'first message greeting' },
+    { id:'opening', tab:'scene', label:'Opening', help:'Choose a greeting or prepare an opening. It comes first while the chat holds only its first message.', aliases:'first message greeting' },
     { id:'corrections', tab:'scene', label:'Correct story facts', help:'Find, correct or undo a story fact.', aliases:'fix a fact correct source repair wrong facts' },
-    { id:'portrayal', tab:'characters', label:'Portrayal & knowledge', help:'Edit character portrayal and who knows a fact.', aliases:'persona character card npc' },
+    { id:'portrayal', tab:'characters', label:'Portrayal & knowledge', help:'Pronouns, character portrayal and who knows a fact.', aliases:'persona character card npc pronouns' },
     { id:'emotion', tab:'characters', label:'Emotions & relationships', help:'Review a character or relationship pair.' },
     { id:'speakers', tab:'characters', label:'Dialogue colors', help:'Review or change speaker colors.' },
-    { id:'world', tab:'story-world', label:'Story record storage', help:'Choose the book that stores this chat’s lasting records.', aliases:'world info lorebook source book story so far chapter' },
+    { id:'world', tab:'story-world', label:'Story World', help:'The lasting records of this chat, its entries by kind and the story so far.', aliases:'story record storage world info source book story so far chapter new chapter continue in a new chat' },
     { id:'facts', tab:'facts', label:'Chat facts', help:'Find facts recorded for this chat.', aliases:'edit fact provenance source' },
     { id:'plots', tab:'plot', label:'Plot records', help:'Review arcs, seeds, agendas and events.' },
     { id:'books', tab:'world-info', label:'World Info books', help:'Assign books to the chat or edit their entries.', aliases:'lorebook world info import source' },
@@ -63,21 +63,21 @@ const PAGES = [
     { id:'events', tab:'random-sets', label:'Random story events', help:'Manage event sets, eligibility and rolls.' },
     { id:'style', tab:'random-sets', label:'Random writing style', help:'Manage writing categories and wording.' },
     { id:'goals', tab:'goal', label:'Character goals', help:'Set a goal and order its steps.', aliases:'objective' },
-    { id:'writing', tab:'writing', label:'Writing guidance', help:'Edit ongoing guidance and reply screening.', aliases:'writing review diagnostics prose' },
-    { id:'checks', tab:'action-checks', label:'Action checks', help:'Queue or clear a check for the next reply.', aliases:'roll dice' },
+    { id:'writing', tab:'writing', label:'Writing guidance', help:'Edit ongoing guidance and reply screening, including new NPC names to avoid.', aliases:'writing review diagnostics prose npc names avoid stock phrases' },
+    { id:'checks', tab:'action-checks', label:'Action checks', help:'Queue or clear a check for the next reply, and set the stats.', aliases:'roll dice stats' },
     { id:'bridge-bar', tab:'bar', label:'Bar', withoutChat:true, aliases:'pins composer toolbar',
         bridge:{ page:'v10', anchor:'#ri-composer-settings', text:'The bar’s pins are set in Setup, Features, Composer quick actions until this page is built.' } },
     { id:'bridge-library', tab:'library', label:'Library', withoutChat:true, aliases:'manage quick actions saved actions',
         bridge:{ page:'v10', anchor:'#ri-composer-library', text:'The library opens from Setup, Features, Composer quick actions until this page is built.' } },
     { id:'sent', tab:'replies', label:'What was sent', help:'Inspect a reply’s directions, sources and execution.', aliases:'receipt review reply notes swipe alternate version' },
-    { id:'context', tab:'context', label:'Context & memory', help:'Review editable facts, filed replies and chapters.', aliases:'summary catch up recall history filing' },
+    { id:'context', tab:'context', label:'Context & memory', help:'What this chat sends now, memory filing status and the next reply preview.', aliases:'summary recall history filing next reply preview token' },
     { id:'log', tab:'request-log', label:'Request log', help:'Inspect request outcomes or export the log.', withoutChat:true },
-    { id:'v10', tab:'features', label:'Preset & Extension', help:'Identify the host preset, its prompts and extension settings.', aliases:'preset prompt workbench impersonation modules', withoutChat:true },
+    { id:'v10', tab:'features', label:'Features', help:'Turn each feature on or off, set the story workflow and edit the Roast voice.', aliases:'preset prompt impersonation modules extensions workflow roast reply plan version', withoutChat:true },
     { id:'bridge-presets', tab:'presets', label:'Presets', withoutChat:true,
         bridge:{ page:'v10', match:'Active host preset', text:'The active preset is shown in Setup, Features until this page is built.' } },
     { id:'bridge-memory', tab:'memory', label:'Memory', withoutChat:true, aliases:'budget recall',
-        bridge:{ page:'v10', anchor:'#ri-memory-settings', text:'Memory settings sit in Setup, Features until this page is built.' } },
-    { id:'settings', tab:'connections', label:'Connections & defaults', help:'Set storage, connections, and automatic checks.', aliases:'connection profile provider request automation pronouns', withoutChat:true },
+        bridge:{ page:'memory', anchor:'#ri-memory-settings', text:'Memory settings sit in Setup, Memory.' } },
+    { id:'settings', tab:'connections', label:'Connections', help:'Which connection each job uses and what the AI writes for you.', aliases:'connection profile provider request automation more room writer rules word list', withoutChat:true },
     { id:'display', tab:'look', label:'Reply display', help:'Choose which reply cards and commentator voice appear.', aliases:'roast commentator notes card visual tray' },
     { id:'bridge-prompts', tab:'prompts', label:'Prompts', withoutChat:true, aliases:'prompt manager instructions',
         bridge:{ page:'v10', anchor:'#ri-planning-prompts', text:'Each page lists its own prompts at its foot. The advanced prompts sit in Setup, Features until this page is built.' } },
@@ -93,6 +93,10 @@ const decorate = page => {
     return { ...page, group:top.id, section:top.label, subgroup:nestedTab(page.tab).label };
 };
 export const pages = PAGES.map(decorate);
+
+// Hints from the running app that the static list cannot know. panel code sets them once.
+const hints = { openingFirst: () => false };
+export const setTreeHints = next => Object.assign(hints, next);
 
 // The registry wrapper in page-registry.js reads groups: one per top tab.
 export const groups = tabs.map(top => ({ id:top.id, label:top.label, accent:top.family,
@@ -144,6 +148,7 @@ export function buildTree(registered = []) {
             const rest = own.filter(page => !page.leads).sort((a,b)=>(a.order ?? 999)-(b.order ?? 999));
             let list = [...leading, ...base, ...rest];
             if (own.length) list = list.filter(page => !page.bridge);
+            if (item.id === 'scene' && hints.openingFirst()) list = [...list.filter(page => page.id === 'opening'), ...list.filter(page => page.id !== 'opening')];
             return { ...item, top:top.id, pages:list.map(page => ({ ...page, subgroup:item.label })) };
         });
         return { ...top, nested };

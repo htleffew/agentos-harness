@@ -1,10 +1,10 @@
 import { replyCardHeader } from './reply-cards.js';
-import { promptGroup } from './prompts.js';
+import { slot, homeLink, home } from './homes.js';
 import { h, button } from './dom.js';
 import { ctx, KEY, toast, confirmBox } from '../st.js';
 import { STATE_FIELDS, SCENE_FIELDS, stateAt, sceneAt, sceneProtected, editState, editScene, editSnapshot, editSceneSnapshot, blockedEventTags, setBlockedEventTags } from '../state.js';
-import { chatWorld, loadWorld, listWorld, writeWorldEntry, saveWorld, WORLD_KINDS } from '../world.js';
-import { buildAsk, buildSceneAsk, parseUpdate, afterReply, worldIdle, recordManualWorldChange } from '../worldflow.js';
+import { chatWorld, WORLD_KINDS, entries } from '../records.js';
+import { buildAsk, buildSceneAsk, parseUpdate, afterReply, worldIdle } from '../worldflow.js';
 import { changesFromProfiles } from '../state.js';
 import { request } from '../ai.js';
 import { settings, saveChatState } from '../store.js';
@@ -58,9 +58,9 @@ function worldEditor(person, done) {
             try {
                 const id = chatWorld();
                 if (!id) throw new Error('Choose a Story World first.');
-                const data = await loadWorld(id);
+                const data = await entries.load(id);
                 if (!data) throw new Error('The Story World could not be read.');
-                const matches = listWorld(data, id).filter(w => w.kind === 'character' && w.name.trim().toLocaleLowerCase() === person.name.trim().toLocaleLowerCase());
+                const matches = entries.list(data, id).filter(w => w.kind === 'character' && w.name.trim().toLocaleLowerCase() === person.name.trim().toLocaleLowerCase());
                 if (matches.length !== 1) throw new Error(matches.length ? 'More than one character has this name; edit the correct entry in Story World.' : 'No matching character entry exists; add one in Story World first.');
                 const value = area.value.trim();
                 if (!value) throw new Error('Enter the fact to save.');
@@ -68,8 +68,8 @@ function worldEditor(person, done) {
                 if (entry.fields[select.value] && !await confirmBox(`Replace the existing ${select.selectedOptions[0].textContent} value for ${person.name}?`)) return;
                 const before = data.entries[entry.uid] ? structuredClone(data.entries[entry.uid]) : null;
                 entry.fields[select.value] = value; entry.auto = false;
-                writeWorldEntry(data, entry, id); await saveWorld(id, data);
-                recordManualWorldChange(id, entry.uid, before, data.entries[entry.uid]);
+                entries.put(data, entry, id); await entries.save(id, data);
+                entries.changed(id, entry.uid, before, data.entries[entry.uid]);
                 toast('success', 'Saved to the Story World.'); done();
             } catch (e) { toast('error', `Could not save: ${e.message}`); }
         }), button('Cancel', done, { kind: 'ghost' }));
@@ -147,9 +147,9 @@ function rebuildEditor(refresh) {
             const messages = (c.chat || []).filter(m => m && !m.is_system && typeof m.mes === 'string').map(m => `${m.is_user ? 'User' : 'Character'}: ${m.mes}`).join('\n\n');
             if (!messages.trim()) throw new Error('There is no story text to review.');
             const clipped = messages.length > 40000;
-            const wid = chatWorld(), data = wid ? await loadWorld(wid) : null;
+            const wid = chatWorld(), data = wid ? await entries.load(wid) : null;
             if (executionScope()!==scope || signature()!==originalSignature) throw new Error('The story changed. Draft the update again.');
-            const form = data ? buildAsk(listWorld(data, wid)) : buildSceneAsk();
+            const form = data ? buildAsk(entries.list(data, wid)) : buildSceneAsk();
             const answer = await request({ operation:'editedState',authorization:'manual',what:'Rebuild edited story state',
                 user:`Review the current story. ${clipped ? 'Use the supplied recent excerpt as the evidence.' : ''}\n\n${messages.slice(-40000)}\n\n${form}\nReturn only the update block.`,tokens:1200 });
             if (executionScope()!==scope || signature()!==originalSignature) throw new Error('The story changed while drafting. Draft the update again.');
@@ -192,7 +192,7 @@ function rebuildEditor(refresh) {
 }
 
 export function renderCurrentState(body, refresh) {
-    body.appendChild(promptGroup(['rebuild','timingUpdate'], 'Customize scene timing and rebuild prompts'));
+    body.appendChild(slot(['rebuild','timingUpdate'], 'Customize scene timing and rebuild prompts'));
     const id = lastReply(), scene = sceneAt();
     const needsReview = !!ctx().chatMetadata?.[KEY]?.historyNeedsReview;
     body.append(h('div', { class: 'ri-h2' }, 'Current story state'), h('div', { class: 'ri-help' }, 'These details guide future replies. Edits are protected until you allow automatic changes. Lasting facts can be saved to Story World.'));
@@ -207,11 +207,18 @@ export function renderCurrentState(body, refresh) {
     for (const [key, label] of SCENE_FIELDS) if (scene[key]) content.append(h('div', { class: 'ri-state-field' }, h('span', { class: 'ri-state-label' }, label, sceneProtected(key) ? ' · protected' : ''), h('div', {}, scene[key])));
     content.append(button('Edit scene', () => content.replaceChildren(sceneEditor(scene, refresh)), { kind: 'ghost' }));
     sceneCard.append(content); body.append(sceneCard);
-    const tagInput = h('input', { class: 'ri-input', type: 'text', value: blockedEventTags().join(', '), placeholder: 'e.g. betrayal, violence' });
-    body.append(h('details', { class: 'ri-profile' }, h('summary', { class: 'ri-profile-name' }, 'Story event limits'), h('div', { class: 'ri-help' }, 'Skip event items with any of these exact tags, separated by commas. This only filters tagged random event items; it does not interpret prose or constrain other instructions.'), tagInput, button('Save event limits', () => { setBlockedEventTags(tagInput.value); refresh(); }, { kind: 'ghost' })));
+    body.append(homeLink(null, 'event-tags', 'Story event limits (tags to skip) are set in Direction, Random sets.'));
     const values = Object.values(stateAt());
     if (!values.length) body.append(h('div', { class: 'ri-empty' }, 'No character state has been recorded yet.'));
     else values.forEach(p => body.append(characterStateCard(p, id, refresh)));
 }
 import { executionAction, functionExecution } from './execution.js';
 import { executionReceipt, executionScope } from '../execution.js';
+
+/** The tags to skip: event items with any of these exact tags are filtered out. Its one home is Direction, Random sets. */
+export function eventTagsSection(refresh) {
+    const tagInput = h('input', { class: 'ri-input', type: 'text', value: blockedEventTags().join(', '), placeholder: 'e.g. betrayal, violence', 'aria-label': 'Tags to skip' });
+    return home('event-tags', h('details', { class: 'ri-profile', id: 'ri-event-tags' }, h('summary', { class: 'ri-profile-name' }, 'Tags to skip'),
+        h('div', { class: 'ri-help' }, 'Skip event items with any of these exact tags, separated by commas. This only filters tagged random event items; it does not interpret prose or constrain other instructions.'),
+        tagInput, button('Save event limits', () => { setBlockedEventTags(tagInput.value); refresh(); }, { kind: 'ghost' })));
+}

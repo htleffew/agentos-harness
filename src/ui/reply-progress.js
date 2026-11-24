@@ -87,7 +87,7 @@ const blockFor = (chat, id) => chat?.querySelector(`.mes[mesid="${id}"]:not([is_
 function place(chat, block) {
     const target = block || chat;
     if (strip.parentElement === target) return;
-    if (block) block.insertBefore(strip,block.querySelector(':scope > .ri-tray, :scope > .ri-guided'));
+    if (block) block.insertBefore(strip,block.querySelector(':scope > .ri-tray'));
     else chat.append(strip);
 }
 

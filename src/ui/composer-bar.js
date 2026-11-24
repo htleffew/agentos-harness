@@ -65,7 +65,7 @@ const calls = action => QUICK_ACTION_KINDS[kindOf(action)]?.call !== 'code';
 
 const state = {
     root: null, runner: null, popover: null, hostGenerating: false, live: null, timer: null,
-    status: { state: 'idle' },
+    status: { state: 'idle' }, notice: null,
 };
 
 export const barElement = () => state.root;
@@ -98,6 +98,17 @@ export function setBarStatus(next) {
 }
 
 export const barStatus = () => state.status;
+
+/**
+ * A note in the status slot while the bar is idle (B19: a route fallback, a route back, the spend warning).
+ * notice: null, or { id, label, text, tone, count, actions: [{ label, run }], onDismiss }. The slot shows the short label;
+ * a tap opens a popover with the full text, the actions and Dismiss. Running, ready and failed states take the slot first.
+ */
+export function setBarNotice(notice) {
+    state.notice = notice || null;
+    if (!notice) closePopover();
+    renderBar();
+}
 
 function closePopover() {
     state.popover?.remove();
@@ -241,10 +252,28 @@ function wirePress(control, onTap, onHold) {
     });
 }
 
+function noticeButton(notice) {
+    const full = notice.count > 1 ? `${notice.text} (${notice.count} notes)` : notice.text;
+    const control = h('button', { type: 'button', class: 'ri-bar-status-button ri-bar-notice', 'data-tone': notice.tone || 'problem',
+        'aria-label': full, 'aria-haspopup': 'dialog', title: full }, icon('fa-circle-info'), notice.label);
+    control.addEventListener('click', () => {
+        if (state.popover?.riAnchor === control) { closePopover(); return; }
+        const done = () => closePopover();
+        const actions = (notice.actions || []).map(action => h('button', { type: 'button', class: 'ri-bar-btn',
+            onclick: () => { done(); action.run?.(); } }, action.label));
+        const dismiss = h('button', { type: 'button', class: 'ri-bar-btn', onclick: () => { done(); notice.onDismiss?.(); } }, 'Dismiss');
+        openPopover(control, [h('p', { class: 'ri-bar-notice-text' }, full), h('div', { class: 'ri-bar-notice-actions' }, actions, dismiss)], notice.label);
+    });
+    return control;
+}
+
 function statusSlot() {
     const { status } = state;
     const slot = h('div', { class: 'ri-bar-status' });
-    if (status.state === 'idle' || status.state === 'done') return slot;
+    if (status.state === 'idle' || status.state === 'done') {
+        if (state.notice) slot.append(noticeButton(state.notice));
+        return slot;
+    }
     const runner = state.runner;
     let control;
     if (status.state === 'running') {
@@ -293,6 +322,88 @@ function layoutPins(row, pins, more) {
     return pins.slice(shown);
 }
 
+/**
+ * SillyTavern saves its settings a second after the last change, so a page closed or reloaded inside that second
+ * loses it. Folding the bar and restoring a quick action write at once.
+ */
+export async function saveSettingsNow() {
+    try { await (await import('/script.js')).saveSettings(); } catch { /* the delayed save still runs */ }
+}
+
+// ---------- The fold handle and other fixed controls (B25) ----------
+
+const HANDLE_EDGE_PX = 4;
+const HANDLE_STEP_PX = 8;
+const CLICKABLE = 'button, a, input, select, textarea, summary, label, [role="button"], [tabindex], [onclick]';
+const clickable = node => node.matches?.(CLICKABLE) || getComputedStyle(node).cursor === 'pointer';
+
+/** The elements that sit above the fold handle at five by three points of its hit box. */
+function handleBlockers(fold) {
+    const box = fold.getBoundingClientRect();
+    const found = new Set();
+    for (const fx of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+        for (const fy of [0.15, 0.5, 0.85]) {
+            const stack = document.elementsFromPoint(box.x + box.width * fx, box.y + box.height * fy);
+            const mine = stack.findIndex(node => fold.contains(node));
+            for (const node of mine < 0 ? stack : stack.slice(0, mine)) if (!state.root.contains(node)) found.add(node);
+        }
+    }
+    return [...found];
+}
+
+/** One more than the highest z-index in the blockers' ancestry, so the handle takes the tap they would have taken. */
+function zAbove(blockers) {
+    let top = 2;
+    for (const node of blockers) {
+        for (let at = node; at && at !== document.body; at = at.parentElement) {
+            const z = Number.parseInt(getComputedStyle(at).zIndex, 10);
+            if (Number.isFinite(z)) top = Math.max(top, z);
+        }
+    }
+    return top + 1;
+}
+
+/**
+ * Keep the fold handle tappable. Another extension's fixed bar can sit on the handle's box (Pathweaver's bar
+ * does when ours is folded). With nothing above the handle it stays where the stylesheet puts it. Otherwise it
+ * moves sideways, in 8 px steps, to the nearest spot with no control from another extension under it, and
+ * takes a z-index above whatever plain surface still covers that spot. With no free spot it stays put.
+ */
+export function clearFoldHandle() {
+    const root = state.root;
+    const fold = root?.querySelector('.ri-bar-fold');
+    if (!fold || root.hidden || !fold.getClientRects().length) return;
+    const set = (shift, z) => {
+        fold.style.setProperty('--ri-fold-shift', `${shift}px`);
+        if (z) fold.style.setProperty('--ri-fold-z', String(z)); else fold.style.removeProperty('--ri-fold-z');
+    };
+    set(0, 0);
+    if (!handleBlockers(fold).length) return;
+    const limit = Math.floor((root.getBoundingClientRect().width - fold.getBoundingClientRect().width) / 2) - HANDLE_EDGE_PX;
+    for (let step = 0; step <= limit; step += HANDLE_STEP_PX) {
+        for (const shift of step ? [-step, step] : [0]) {
+            set(shift, 0);
+            const covering = handleBlockers(fold);
+            if (covering.some(clickable)) continue;
+            if (covering.length) set(shift, zAbove(covering));
+            return;
+        }
+    }
+    set(0, 0);
+}
+
+/** Re-check the handle when the page resizes or another extension changes the send area. */
+function watchFoldHandle() {
+    let queued = 0;
+    const later = () => { cancelAnimationFrame(queued); queued = requestAnimationFrame(() => clearFoldHandle()); };
+    addEventListener('resize', later);
+    const sheld = document.querySelector('#form_sheld');
+    if (sheld && globalThis.MutationObserver) {
+        new MutationObserver(records => { if (records.some(record => !state.root.contains(record.target))) later(); })
+            .observe(sheld, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+    }
+}
+
 /** Draw or redraw the bar into its container. */
 export function renderBar() {
     const root = state.root;
@@ -310,7 +421,7 @@ export function renderBar() {
         : ['ri-bar-fold', 'ri-bar-more', 'ri-bar-queue', 'ri-bar-status-button'].map(name => `.${name}`).find(name => active.matches(name)));
     const fold = h('button', { type: 'button', class: 'ri-bar-fold', 'aria-expanded': String(!folded),
         'aria-controls': 'ri_composer_bar_row', 'aria-label': folded ? 'Open quick actions' : 'Fold quick actions',
-        onclick: () => { setBarFolded(!composerBar().folded); renderBar(); root.querySelector('.ri-bar-fold')?.focus({ preventScroll: true }); } },
+        onclick: () => { setBarFolded(!composerBar().folded); saveSettingsNow(); renderBar(); root.querySelector('.ri-bar-fold')?.focus({ preventScroll: true }); } },
     h('span', { class: 'ri-bar-fold-face' }, icon('fa-chevron-down')));
     const queued = context.queued || 0;
     const queue = h('button', { type: 'button', class: 'ri-bar-icon ri-bar-queue', hidden: !queued,
@@ -336,6 +447,7 @@ export function renderBar() {
     state.relayout = relayout;
     wirePress(more, () => moreMenu(more, overflow), () => moreMenu(more, overflow));
     if (focused) root.querySelector(focused)?.focus({ preventScroll: true });
+    clearFoldHandle();
 }
 
 /**
@@ -364,6 +476,7 @@ export function mountComposerBar(runner) {
         state.root = h('div', { id: 'ri_composer_bar', class: 'ri-bar' });
         if (globalThis.ResizeObserver) new ResizeObserver(() => state.relayout?.()).observe(state.root);
         document.addEventListener('ri-look-change', () => renderBar());
+        watchFoldHandle();
     }
     placeBar();
     renderBar();

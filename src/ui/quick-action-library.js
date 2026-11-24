@@ -9,7 +9,7 @@ import { exportQuickActionLibrary, importQuickActionData, inspectQuickActionImpo
 import { add, button, captureView, clear, download, field, h, insertAtCursor, restoreView, select, textArea, textInput } from './dom.js';
 import { composerBar, costWords, kindOf, pinToBar, QUICK_ACTION_KINDS } from '../quick-actions.js';
 import { registerPage } from './page-registry.js';
-import { renderBar } from './composer-bar.js';
+import { renderBar, saveSettingsNow as saveNow } from './composer-bar.js';
 import { renderBarPage } from './quick-action-bar-editor.js';
 import { connectionOperation, draftError, draftOf, draftToAction, KIND_ORDER, NAME_LIMIT, renderActionEditor } from './quick-action-fields.js';
 
@@ -524,8 +524,9 @@ export function renderQuickActionLibrary(host, {
             ui.layout && h('p', {}, 'Reset button order and archive ' + (preview.archive.map(item => item.title).join(', ') || 'no custom buttons') + '.'),
             ui.layout && h('p', {}, pins.length ? 'Pins removed from this chat · ' + pins.map(pin => pin.title).join(', ')
                 : 'This chat has no pins in the selected scope.'),
-            button('Apply library restore', run(() => {
+            button('Apply library restore', run(async () => {
                 const result = restoreQuickActionLibrary(scope, { layout: ui.layout });
+                await saveNow();
                 if (ui.layout) onRestore?.({ family: scope, undoId: actionLibrary().undo?.id, ...result });
                 next('manage');
                 changed('Library restored. Undo is available.');
@@ -541,8 +542,9 @@ export function renderQuickActionLibrary(host, {
             item.family === 'steer' && field('Baseline delivery', '', readOnly(
                 (item.baseline.delivery?.visibility === 'visible' ? 'Visible OOC' : 'Private system note') +
                 (item.baseline.delivery?.required ? ' · Required direction' : ' · Nudge'))),
-            button('Confirm button restore', run(() => {
+            button('Confirm button restore', run(async () => {
                 restoreQuickAction(item.id);
+                await saveNow();
                 edit(readQuickAction(item.id),{replace:true});
                 changed('Restored ' + item.title + '.');
             }), { kind: 'primary' }));
@@ -807,6 +809,7 @@ export function renderLibraryPage(body, app) {
         const restore = action?.origin === 'built-in' && action.changed
             ? h('button', { type: 'button', class: 'ri-bar-btn', 'data-ri-restore': '', onclick: () => {
                 restoreQuickAction(action.id);
+                saveNow();
                 view.draft = null;
                 say(`${action.title} restored to its built-in settings.`);
                 refreshBar();

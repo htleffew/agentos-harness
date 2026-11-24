@@ -5,6 +5,7 @@ import { chatState, saveChatState, saveSettings, settings } from '../store.js';
 import { isChatOpen } from '../st.js';
 import { h } from './dom.js';
 import { registerPage } from './page-registry.js';
+import { renderCardSettings } from './tray-settings.js';
 import { fallbackNote, headerMode, headerSetting, headerState, HEADER_MODES, setHeaderSetting, tryHeaderInReplyAgain } from '../scene-header.js';
 
 export const TRAY_VIEWS = Object.freeze({ strip: 'Strip', compact: 'Compact', expanded: 'Expanded' });
@@ -307,6 +308,7 @@ export function replyTray({ id, latest, cards, modules, previous }) {
     loadTrayStyles();
     const shown = visibleCards(cards, modules);
     const marks = stripMarks(shown);
+    const drawn = shown.filter(card => !card.stripOnly);
     const root = h('div', { class: 'ri-tray', 'data-reply': String(id), 'data-latest': latest ? 'true' : undefined,
         role: 'group', 'aria-label': 'Reply tray' });
     applyCardText(root);
@@ -325,8 +327,8 @@ export function replyTray({ id, latest, cards, modules, previous }) {
         root.replaceChildren(...[
             stripRow(marks, { view: state.view, choose, open }),
             latest && headerMode() === 'tray' ? headerNote() : null,
-            state.view === 'compact' ? compactLines(shown, select) : null,
-            state.view === 'expanded' ? expandedPanel(shown, state.selected, select) : null,
+            state.view === 'compact' ? compactLines(drawn, select) : null,
+            state.view === 'expanded' ? expandedPanel(drawn, state.selected, select) : null,
         ].flat().filter(Boolean));
     };
     draw();
@@ -416,6 +418,7 @@ export function renderTraySettings(body) {
             chatChoice('Earlier replies', 'earlier', TRAY_VIEWS),
             chatChoice('Tray shows under', 'where', TRAY_PLACES));
     }
+    renderCardSettings(host, rerender);
     host.append(h('button', { type: 'button', class: 'ri-bar-btn', onclick: () => { settings().tray = { ...TRAY_DEFAULTS }; saveSettings(); redraw(); rerender(); } },
         'Restore tray defaults'));
     body.append(host);

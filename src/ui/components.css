@@ -1,0 +1,311 @@
+/* Components for every menu surface (DESIGN.md 1.5, 1.6 and 1.9).
+   One short set: Button, Icon button, Tab, Switch row, Field, Card, Chip, Disclosure, Note, Sheet, Popover, Toast.
+   Every color comes from src/ui/theme/tokens.css; nothing here is a literal. Radius is zero, lines are 1 px,
+   focus is the 2 px violet ring, state changes step in 60 ms and a sheet rises in 120 ms. */
+
+/* The hidden attribute wins over every component display rule (the shell hides replaced Back buttons with it). */
+.ri-root [hidden], .ri-overlay [hidden] { display: none !important; }
+
+/* ---------------------------------------------------------------- Family scope
+   A container wears the family of its page. data-family wins over the older data-accent names. */
+.ri-root {
+    --ri-fam: var(--ri-setup);
+    --ri-fam-line: var(--ri-setup-line);
+    --ri-fam-tint: var(--ri-setup-tint);
+}
+.ri-root[data-accent="green"], .ri-root[data-family="story"] { --ri-fam: var(--ri-story); --ri-fam-line: var(--ri-story-line); --ri-fam-tint: var(--ri-story-tint); }
+.ri-root[data-accent="cyan"], .ri-root[data-family="direction"] { --ri-fam: var(--ri-direction); --ri-fam-line: var(--ri-direction-line); --ri-fam-tint: var(--ri-direction-tint); }
+.ri-root[data-accent="blue"], .ri-root[data-accent="sky"], .ri-root[data-family="review"] { --ri-fam: var(--ri-review); --ri-fam-line: var(--ri-review-line); --ri-fam-tint: var(--ri-review-tint); }
+.ri-root[data-family="reply"] { --ri-fam: var(--ri-reply); --ri-fam-line: var(--ri-reply-line); --ri-fam-tint: var(--ri-reply-tint); }
+.ri-root[data-family="setup"] { --ri-fam: var(--ri-setup); --ri-fam-line: var(--ri-setup-line); --ri-fam-tint: var(--ri-setup-tint); }
+.ri-quick-sheet[data-accent] { --ri-fam: var(--ri-reply); --ri-fam-line: var(--ri-reply-line); --ri-fam-tint: var(--ri-reply-tint); }
+
+/* ---------------------------------------------------------------- Surface and type roles */
+.ri-root {
+    --ri-card-surface: var(--ri-surface);
+    background: var(--ri-bg);
+    color: var(--ri-text);
+    font-family: var(--ri-font);
+    font-size: var(--ri-type-body);
+    font-weight: 500;
+    line-height: 1.45;
+    border: 1px solid var(--ri-line-faint);
+    border-radius: var(--ri-radius);
+    padding: var(--ri-pad);
+    text-align: left;
+    box-sizing: border-box;
+    position: relative;
+}
+.ri-root *, .ri-root *::before, .ri-root *::after { box-sizing: border-box; }
+.ri-root :is(h1, h2, h3, h4) { font-family: var(--ri-font); }
+
+/* Title role */
+.ri-title, .ri-page-title, .ri-quick-header h2 {
+    font-size: var(--ri-type-title);
+    font-weight: 700;
+    letter-spacing: var(--ri-track-title);
+    text-transform: uppercase;
+    line-height: 1.2;
+    color: var(--ri-text);
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+/* Label role: tab labels, field labels, eyebrows */
+.ri-label, .ri-k, .ri-vnum, .ri-insert-label, .ri-log-label, .ri-sent-sub, .ri-state-label, .ri-scene-k,
+.ri-switch-row, .ri-section-title, .ri-onoff, .ri-page-section {
+    font-size: var(--ri-type-label);
+    font-weight: 700;
+    letter-spacing: var(--ri-track-label);
+    text-transform: uppercase;
+    line-height: 1.3;
+}
+.ri-label, .ri-k, .ri-vnum, .ri-insert-label, .ri-log-label, .ri-sent-sub, .ri-onoff, .ri-page-section { color: var(--ri-text-muted); }
+.ri-section-title { color: var(--ri-fam); margin: 0 0 var(--ri-pad); padding-bottom: var(--ri-pad); border-bottom: 1px solid var(--ri-line-faint); }
+.ri-label { margin-bottom: var(--ri-gap); }
+.ri-k { padding-top: 2px; }
+/* Body, Help and Data roles */
+.ri-intro, .ri-help, .ri-muted, .ri-unit, .ri-kept, .ri-world-line { color: var(--ri-text-muted); font-size: var(--ri-type-help); font-weight: 500; }
+.ri-intro { margin-bottom: var(--ri-pad); }
+.ri-help { margin-top: var(--ri-gap); }
+.ri-h2, .ri-sent-title, .ri-sent-name, .ri-log-what, .ri-card-name { color: var(--ri-text); font-weight: 700; font-size: var(--ri-type-body); }
+.ri-pre, .ri-token-raw, .ri-num input { font-family: var(--ri-font); font-size: var(--ri-type-data); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- Button
+   Secondary is the default and the ghost kind; Primary, Text and Danger are the rest. */
+.ri-btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ri-gap);
+    font: inherit;
+    font-size: var(--ri-type-body);
+    font-weight: 500;
+    line-height: 1.2;
+    min-height: var(--ri-hit-size);
+    min-width: var(--ri-hit-min);
+    padding: 0 calc(var(--ri-pad) * 1.5);
+    border: 1px solid var(--ri-fam-line);
+    border-radius: var(--ri-radius);
+    background: transparent;
+    color: var(--ri-fam);
+    cursor: pointer;
+    text-align: center;
+    touch-action: manipulation;
+    transition: border-color var(--ri-step) linear, background-color var(--ri-step) linear, color var(--ri-step) linear;
+}
+.ri-btn:hover:not(:disabled) { border-color: var(--ri-fam); }
+.ri-btn:active:not(:disabled) { background: var(--ri-fam-tint); }
+.ri-btn-primary { background: var(--ri-fam); border-color: var(--ri-fam); color: var(--ri-on-ink); font-weight: 700; }
+.ri-btn-primary:hover:not(:disabled) { background: var(--ri-fam); }
+.ri-btn-primary:active:not(:disabled) { background: var(--ri-fam-tint); color: var(--ri-fam); }
+.ri-btn-text { border-color: transparent; background: transparent; }
+.ri-btn-text:hover:not(:disabled) { border-color: var(--ri-fam-line); }
+.ri-btn-danger { border-color: var(--ri-problem-line); color: var(--ri-problem); }
+.ri-btn-danger:hover:not(:disabled) { border-color: var(--ri-problem); }
+.ri-btn-danger:active:not(:disabled) { background: var(--ri-problem-tint); }
+.ri-btn:disabled, .ri-btn[aria-disabled="true"] { border-color: var(--ri-line-faint); border-style: dashed; background: transparent; color: var(--ri-text-dim); cursor: default; }
+.ri-btn[data-ri-model-cost]::after { content: attr(data-ri-model-cost); display: block; font-size: var(--ri-type-label); font-weight: 500; color: var(--ri-call); }
+.ri-btn[data-ri-model-cost] { flex-direction: column; gap: 0; }
+.ri-btn-primary[data-ri-model-cost]::after { color: inherit; }
+
+/* Icon button: a glyph in a hit area, always with an accessible name */
+.ri-icon-btn {
+    appearance: none; display: inline-grid; place-items: center; font: inherit; font-size: var(--ri-icon-size);
+    min-width: var(--ri-hit-size); min-height: var(--ri-hit-size); padding: 0; border: 1px solid var(--ri-line);
+    border-radius: var(--ri-radius); background: transparent; color: var(--ri-text); cursor: pointer;
+    transition: border-color var(--ri-step) linear;
+}
+.ri-icon-btn:hover:not(:disabled) { border-color: var(--ri-fam); }
+.ri-icon-btn:disabled { color: var(--ri-text-dim); border-style: dashed; cursor: default; }
+
+/* ---------------------------------------------------------------- Tab */
+.ri-tabs { display: flex; flex-wrap: wrap; gap: var(--ri-gap); border-bottom: 1px solid var(--ri-line-faint); margin-bottom: var(--ri-pad); }
+.ri-tab {
+    appearance: none; background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: var(--ri-radius);
+    color: var(--ri-text-muted); font: inherit; font-size: var(--ri-type-label); font-weight: 500;
+    letter-spacing: var(--ri-track-label); text-transform: uppercase; padding: 0 var(--ri-pad);
+    min-height: var(--ri-hit-size); cursor: pointer; transition: color var(--ri-step) linear, border-color var(--ri-step) linear;
+}
+.ri-tab:hover { color: var(--ri-text); }
+.ri-tab-on, .ri-tab[aria-selected="true"] { color: var(--ri-fam); border-bottom-color: var(--ri-fam); font-weight: 700; text-shadow: none; box-shadow: 0 1px 6px -2px var(--ri-fam); }
+
+/* ---------------------------------------------------------------- Switch row */
+.ri-switch {
+    appearance: none; position: relative; flex: none; padding: 0; cursor: pointer;
+    width: calc(var(--ri-hit-size) * 1.5); min-width: calc(var(--ri-hit-size) * 1.5);
+    height: var(--ri-hit-size); min-height: var(--ri-hit-min);
+    border: 1px solid var(--ri-line); border-radius: var(--ri-radius); background: var(--ri-raised);
+    transition: border-color var(--ri-step) linear, background-color var(--ri-step) linear;
+}
+.ri-switch-knob {
+    position: absolute; top: 4px; left: 4px; width: calc(50% - 4px); height: calc(100% - 8px);
+    border-radius: var(--ri-radius); background: var(--ri-text-muted);
+    transition: transform var(--ri-step) linear, background-color var(--ri-step) linear;
+}
+.ri-switch[aria-checked="true"] { background: var(--ri-fam-tint); border-color: var(--ri-fam); }
+.ri-switch[aria-checked="true"] .ri-switch-knob { transform: translateX(100%); background: var(--ri-fam); }
+.ri-switch-row { display: flex; align-items: center; gap: var(--ri-pad); min-height: var(--ri-hit-size); color: var(--ri-text); cursor: pointer; }
+
+/* ---------------------------------------------------------------- Field */
+.ri-field { margin: var(--ri-pad) 0; }
+.ri-control { display: flex; flex-wrap: wrap; gap: var(--ri-gap); align-items: center; }
+.ri-root .ri-input, .ri-root input[type="number"], .ri-root input[type="text"]:not(.ri-check), .ri-root textarea, .ri-root select {
+    font: inherit; font-size: var(--ri-type-body); font-weight: 500; color: var(--ri-text);
+    -webkit-text-fill-color: var(--ri-text);
+    background-color: var(--ri-raised); color-scheme: dark;
+    border: 1px solid var(--ri-line); border-radius: var(--ri-radius);
+    padding: 0 var(--ri-pad); min-height: var(--ri-hit-size); max-width: 100%; margin: 0;
+}
+.ri-root .ri-input { width: 100%; }
+.ri-root select.ri-input { width: auto; flex: 1 1 220px; }
+.ri-root .ri-textarea, .ri-root textarea { padding: var(--ri-pad); min-height: 76px; line-height: 1.45; resize: vertical; }
+.ri-root .ri-input:focus, .ri-root input[type="number"]:focus, .ri-root textarea:focus, .ri-root select:focus { border-color: var(--ri-focus); }
+.ri-root :is(.ri-input, input, textarea, select):disabled { color: var(--ri-text-dim); -webkit-text-fill-color: var(--ri-text-dim); border-style: dashed; }
+.ri-root ::placeholder { color: var(--ri-text-muted); opacity: 1; }
+.ri-num { display: inline-flex; align-items: center; gap: var(--ri-pad); }
+.ri-root .ri-input-num { width: 96px; }
+.ri-check, .ri-root input[type="checkbox"], .ri-root input[type="radio"] { accent-color: var(--ri-fam); width: var(--ri-icon-size); height: var(--ri-icon-size); min-width: var(--ri-icon-size); margin: 2px 0 0; }
+.ri-root input[type="range"] { accent-color: var(--ri-fam); }
+.ri-root label:has(> input[type="checkbox"]) { min-height: var(--ri-hit-size); align-content: center; }
+.ri-preview { width: 100%; background: var(--ri-raised); border: 1px dashed var(--ri-line); border-radius: var(--ri-radius); padding: var(--ri-pad); color: var(--ri-text); font-size: var(--ri-type-body); white-space: pre-wrap; word-break: break-word; }
+
+/* ---------------------------------------------------------------- Card
+   Section, Record (2 px family edge), Tray card (2 px family edge) and Note share one surface. */
+.ri-card, .ri-section, .ri-quick-card, .ri-sheet-box, .ri-prompt-group, .ri-where, .ri-part, .ri-version, .ri-choice-list, .ri-prompt-editor,
+.ri-correction-sources, .ri-correction-edit, .ri-module-overlap, .ri-context-metric {
+    background: var(--ri-surface);
+    border: 1px solid var(--ri-line-faint);
+    border-radius: var(--ri-radius);
+}
+.ri-card, .ri-section { padding: var(--ri-pad); margin: var(--ri-pad) 0; }
+.ri-section { border-color: var(--ri-line-faint); }
+.ri-setcard, .ri-inscard, .ri-profile, .ri-scene, .ri-world-record, .ri-version-editing, .ri-sheet-box { border-left: 2px solid var(--ri-fam-line); }
+.ri-sheet-box { border: 1px solid var(--ri-fam-line); border-left-width: 2px; padding: var(--ri-pad); }
+.ri-off { border-left-color: var(--ri-line); color: var(--ri-text-muted); }
+.ri-card-top { display: flex; align-items: center; justify-content: space-between; gap: var(--ri-pad); flex-wrap: wrap; }
+.ri-card-name { appearance: none; background: none; border: 0; padding: 0; font: inherit; font-weight: 700; text-align: left; cursor: pointer; min-height: var(--ri-hit-size); }
+.ri-card-name:hover { color: var(--ri-fam); }
+.ri-empty { border: 1px dashed var(--ri-line); border-radius: var(--ri-radius); padding: calc(var(--ri-pad) * 2); color: var(--ri-text-muted); text-align: center; margin: var(--ri-pad) 0; }
+.ri-version-blocked { border-color: var(--ri-problem-line); }
+.ri-version-flagged { border-color: var(--ri-line); border-left: 2px solid var(--ri-call-line); }
+.ri-version { padding: var(--ri-pad); }
+
+/* ---------------------------------------------------------------- Chip */
+.ri-chip, .ri-prompt-badge, .ri-module-status, .ri-reply-chip, .ri-token, .ri-flag {
+    display: inline-flex; align-items: center; gap: var(--ri-gap); max-width: 100%;
+    border: 1px solid var(--ri-line); border-radius: var(--ri-radius); padding: 0 var(--ri-pad);
+    min-height: calc(var(--ri-hit-min) - 4px);
+    font-size: var(--ri-type-label); font-weight: 700; letter-spacing: var(--ri-track-label); line-height: 1.3; text-transform: uppercase;
+    color: var(--ri-text-muted); background: transparent; overflow-wrap: anywhere;
+}
+.ri-chip::before, .ri-flag::before, .ri-note::before { font-family: 'Font Awesome 6 Free'; font-weight: 900; font-style: normal; text-transform: none; letter-spacing: 0; }
+.ri-chip-group { border-color: var(--ri-fam-line); color: var(--ri-fam); }
+.ri-chip-done { border-color: var(--ri-story-line); color: var(--ri-story); }
+.ri-chip-done::before { content: '\f058'; }
+.ri-chip-wait { color: var(--ri-text-muted); }
+.ri-chip-wait::before { content: '\f254'; }
+.ri-chip-warn { border-color: var(--ri-line); color: var(--ri-text); }
+.ri-chip-warn::before { content: '\f071'; }
+.ri-chip-bad { border-color: var(--ri-problem-line); color: var(--ri-problem); background: var(--ri-problem-tint); }
+.ri-chip-bad::before { content: '\f071'; }
+.ri-chip-keep { margin-left: var(--ri-pad); }
+.ri-chip-cost { border-color: var(--ri-call-line); color: var(--ri-call); }
+.ri-chip-cost::before { content: '\f2db'; }
+.ri-chips { display: flex; flex-wrap: wrap; gap: var(--ri-gap); margin: var(--ri-gap) 0; }
+/* Tokens: a placeholder shown as a small labelled chip */
+.ri-token { display: inline-flex; min-height: 0; padding: 0 var(--ri-gap); text-transform: none; letter-spacing: 0; font-weight: 500; font-size: var(--ri-type-body); color: var(--ri-text); }
+.ri-token-char { color: var(--ri-reply); border-color: var(--ri-reply-line); }
+.ri-token-user { color: var(--ri-review); border-color: var(--ri-review-line); }
+.ri-token-raw { color: var(--ri-text-muted); border-style: dashed; }
+.ri-token-btn { appearance: none; font: inherit; font-size: var(--ri-type-body); min-height: var(--ri-hit-size); padding: 0 var(--ri-pad); cursor: pointer; background: transparent; }
+
+/* Flags under a version: the same three notes in small */
+.ri-flags { margin-top: var(--ri-gap); }
+.ri-flag { display: flex; margin-top: var(--ri-gap); padding: var(--ri-gap) var(--ri-pad); text-transform: none; letter-spacing: 0; font-weight: 500; font-size: var(--ri-type-help); }
+.ri-flag-block { border-color: var(--ri-problem-line); background: var(--ri-problem-tint); color: var(--ri-text); }
+.ri-flag-block::before { content: '\f071'; color: var(--ri-problem); }
+.ri-flag-check, .ri-flag-warn { border-color: var(--ri-line); color: var(--ri-text); }
+.ri-flag-check::before, .ri-flag-warn::before { content: '\f071'; }
+.ri-flag-info { border-color: var(--ri-line); color: var(--ri-text-muted); }
+.ri-flag-info::before { content: '\f05a'; }
+
+/* ---------------------------------------------------------------- Disclosure
+   One marker for every details element: a right-hand chevron, rotating when open, in the family ink only while open. */
+.ri-root details > summary {
+    list-style: none; position: relative; cursor: pointer; padding-right: calc(var(--ri-icon-size) + var(--ri-pad));
+    min-height: var(--ri-hit-size); align-content: center;
+}
+.ri-root details > summary::-webkit-details-marker { display: none; }
+.ri-root details > summary::marker { content: ''; }
+.ri-root details > summary::after {
+    content: '\f078'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: var(--ri-type-label);
+    position: absolute; right: var(--ri-gap); top: 50%; margin-top: -0.5em; line-height: 1; color: var(--ri-text-muted);
+    transition: transform var(--ri-step) linear;
+}
+.ri-root details[open] > summary::after { transform: rotate(180deg); color: var(--ri-fam); }
+.ri-fold { padding: 0; }
+.ri-fold-head { display: flex; align-items: center; gap: var(--ri-pad); padding: 0 var(--ri-pad); }
+.ri-fold-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ri-fold-body { padding: 0 var(--ri-pad) var(--ri-pad); }
+.ri-root details[open] > summary { color: var(--ri-text); }
+/* Older hand-drawn chevrons inside a summary give way to the shared one. */
+.ri-chevron, .ri-reply-chevron { display: none; }
+
+/* ---------------------------------------------------------------- Note
+   Info (neutral), Caution (neutral with a triangle) and Problem (red). The lead-in word is the first bold child. */
+.ri-note {
+    display: block; border: 1px solid var(--ri-line-faint); border-left: 2px solid var(--ri-line); border-radius: var(--ri-radius);
+    background: var(--ri-surface); padding: var(--ri-pad); margin: 0 0 var(--ri-pad); color: var(--ri-text); font-size: var(--ri-type-help);
+}
+.ri-note::before { content: '\f05a'; margin-right: var(--ri-gap); color: var(--ri-text-muted); }
+.ri-note-warn::before { content: '\f071'; }
+.ri-note-bad, .ri-note-problem { border-left-color: var(--ri-problem-line); background: var(--ri-problem-tint); }
+.ri-note-bad::before, .ri-note-problem::before { content: '\f071'; color: var(--ri-problem); }
+.ri-note-cost { border-left-color: var(--ri-call-line); }
+.ri-note-cost::before { content: '\f071'; color: var(--ri-call); }
+
+/* ---------------------------------------------------------------- Sheet, popover and toast */
+.ri-sheet, .ri-quick-sheet {
+    background: var(--ri-raised); border: 1px solid var(--ri-line); border-bottom: 0; border-radius: var(--ri-radius);
+    box-shadow: 0 -4px 24px color-mix(in srgb, var(--ri-void) 50%, transparent);
+}
+.ri-sheet-handle { display: block; width: var(--ri-handle-w); height: var(--ri-handle-h); margin: var(--ri-gap) auto; background: var(--ri-line); border: 0; padding: 0; }
+.ri-popover { background: var(--ri-raised); border: 1px solid var(--ri-line); border-radius: var(--ri-radius); padding: var(--ri-pad); box-shadow: 0 4px 16px color-mix(in srgb, var(--ri-void) 60%, transparent); }
+.ri-toast { background: var(--ri-raised); border: 1px solid var(--ri-line); border-left: 2px solid var(--ri-fam-line); border-radius: var(--ri-radius); padding: var(--ri-pad); color: var(--ri-text); }
+.ri-toast-error { border-left-color: var(--ri-problem); }
+@keyframes ri-rise { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.ri-quick-sheet, .ri-sheet { animation: ri-rise var(--ri-rise) linear both; }
+
+/* ---------------------------------------------------------------- Focus */
+.ri-root :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible,
+.ri-quick-sheet :is(button, a, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--ri-focus); outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- Reduced motion, contrast and forced colors */
+@media (prefers-reduced-motion: reduce) {
+    .ri-root *, .ri-root *::before, .ri-root *::after, .ri-sheet, .ri-quick-sheet { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+/* Every edge steps up to the muted text ink and disabled text steps up one tone, so states read without the fine hairlines. */
+@media (prefers-contrast: more) {
+    :root { --ri-line: var(--ri-text-muted); --ri-line-faint: var(--ri-text-muted); --ri-text-dim: var(--ri-text-muted); }
+    .ri-root details > summary::after { color: var(--ri-text); }
+    .ri-btn:disabled, .ri-btn[aria-disabled="true"] { text-decoration: line-through; }
+}
+/* Forced colors replace the palette, so each state is carried by a border, an outline or a glyph. */
+@media (forced-colors: active) {
+    .ri-root { border: 1px solid CanvasText; }
+    .ri-btn, .ri-icon-btn, .ri-chip, .ri-flag, .ri-note, .ri-card, .ri-section, .ri-input, .ri-root :is(input, select, textarea) { border: 1px solid ButtonText; }
+    .ri-btn:disabled, .ri-btn[aria-disabled="true"], .ri-icon-btn:disabled { border-style: dashed; color: GrayText; }
+    .ri-btn-primary { background: Highlight; color: HighlightText; border-color: Highlight; }
+    .ri-tab-on, .ri-tab[aria-selected="true"] { border-bottom: 3px solid Highlight; color: Highlight; box-shadow: none; }
+    .ri-switch { border: 1px solid ButtonText; background: Canvas; }
+    .ri-switch-knob { background: ButtonText; forced-color-adjust: none; }
+    .ri-switch[aria-checked="true"] { border: 2px solid Highlight; }
+    .ri-switch[aria-checked="true"] .ri-switch-knob { background: Highlight; }
+    .ri-root details[open] > summary::after { color: Highlight; }
+    .ri-root :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+    .ri-note-bad, .ri-note-problem, .ri-chip-bad { border: 2px solid Mark; }
+    .ri-setcard, .ri-inscard, .ri-profile, .ri-scene, .ri-world-record { border-left: 3px solid CanvasText; }
+}

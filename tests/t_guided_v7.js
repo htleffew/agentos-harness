@@ -11,7 +11,7 @@ const idleWorld = async page => { await page.evaluate(async B => (await import(`
   await page.evaluate(async B=>{const S=await import(`${B}/src/state.js`);const c=SillyTavern.getContext();S.editState(c.chat.length-1,'Seraphina','mind','DISCARDED_OVERRIDE_MARKER',true);},L.BASE);
   await page.evaluate(async B=>(await import(`${B}/src/ui/sent.js`)).refreshUnderReplies(),L.BASE);
   const fold=page.getByRole('dialog',{name:'Generate an alternate reply'});
-  await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).click();
+  await L.openReplyAction(page,'swipe');
   await fold.getByRole('textbox',{name:'Your direction'}).fill('GUIDED_DIRECTION: Let her decline calmly.');
   L.resetLog(); await fold.getByRole('button',{name:'Generate alternate reply'}).click(); await fold.locator('[role="status"]').getByText(/protected state or scene correction/i).waitFor(); assert.equal(L.requests().length,0);
   await page.evaluate(async B=>{const S=await import(`${B}/src/state.js`);const c=SillyTavern.getContext();S.editState(c.chat.length-1,'Seraphina','mind','DISCARDED_OVERRIDE_MARKER',false);},L.BASE);

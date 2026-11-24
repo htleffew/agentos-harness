@@ -64,6 +64,14 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         await switchTo(imported);
         // The page no longer prints "Active preset: <name>"; wait for the extension to see the switch, then redraw.
         await page.waitForFunction(async ({B,name})=>(await import(`${B}/src/v10.js`)).activePreset()===name,{B:L.BASE,name:imported.name});
+        // The imported preset is a recognised one with two name-matched blocks, so the Presets card owns the sides:
+        // a memory feature starts on Ours, and Theirs hands it to the host preset. The module page mirrors that choice.
+        const sides = side => ext(async({B,value})=>{
+            const wb=await import(`${B}/src/preset-workbench.js`), context=wb.switchContext();
+            wb.setSwitches(context,Object.fromEntries(context.features.switched.map(item=>[item.key,value])));
+            (await import(`${B}/src/ui/panel.js`)).app.render();
+        },side);
+        await sides('theirs');
         await openModules();
         assert.match(await row.textContent(),/Internal States Template · On in host preset/);
         assert.equal(await page.locator('#ri_root').getByLabel('Request a reply plan',{exact:true}).count(),0);
@@ -74,21 +82,9 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.doesNotMatch(text,/Scene and character checks:/);
         assert.equal(n(text,hostRule),1);
         assert.equal(n(text,extensionRule),0);
-        await row.locator('#ri-owner-relationships').evaluate(input=>{
-            input.value='extension';input.dispatchEvent(new Event('change',{bubbles:true}));
-        });
-        assert.match(await row.textContent(),/host preset still has a matching block on/);
-        assert.equal(await row.locator('.ri-module-status').textContent(),'Host block on · Extension off');
-        text = await send('I knock again.');
-        assert.equal(n(text,hostRule),1);
-        assert.equal(n(text,extensionRule),0);
-        // Simulate toggling the host's own prompt in its editor.
-        await page.evaluate(ids=>{
-            const order=SillyTavern.getContext().chatCompletionSettings.prompt_order.find(row=>row.character_id===100001);
-            for (const id of ids) order.order.find(row=>row.identifier===id).enabled=false;
-        },[prompt.identifier,route.identifier]);
-        await row.getByText('Recheck these host blocks',{exact:true}).evaluate(button=>button.click());
-        assert.match(await row.textContent(),/Internal States Template · Off in host preset/);
+        await sides('ours');
+        await openModules();
+        assert.equal(await row.locator('#ri-owner-relationships').inputValue(),'both');
         assert.equal(await row.locator('#ri-module-relationships').isDisabled(),false);
         text = await send('I take one step inside.');
         assert.doesNotMatch(text,/HOST-ANTITHESIS-FIXTURE/);
@@ -116,7 +112,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.match(text,/Give NPCs practical aims of their own/);
         await ext(async({B})=>(await import(`${B}/src/ui/panel.js`)).app.openPage('writing'));
         await page.locator('#ri_root').getByText('Host preset · Check: Physical',{exact:true}).waitFor({state:'attached'});
-        assert.equal(L.requests().length,9);
+        assert.equal(L.requests().length,8);
         assert.deepEqual(errors,[]);
         console.log('PASS module ownership: inherited preset values, chat override and reset, separate preset blocks and exclusive instructions on the wire.');
     } finally { await browser.close(); }

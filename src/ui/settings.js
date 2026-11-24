@@ -1,15 +1,27 @@
-import { promptGroup } from './prompts.js';
+import { slot, home, homeLink } from './homes.js';
 import { executionSettings } from './execution.js';
 // Settings tab.
 import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
 import { statNames, sheet, setStat, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../dice.js';
 import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
-import { names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
+import { ctx, names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
+import { setTreeHints } from './destinations.js';
 import { ensureRegexScript, setsMoved } from '../engine.js';
 import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '../books.js';
 import { refreshUnderReplies } from './sent.js';
 import { enabledV10 } from '../v10.js';
+import { registerPage } from './page-registry.js';
+import { renderMemory } from './context-dashboard.js';
+import { worldOrdersSection } from './world.js';
+import { eventTagsSection } from './state.js';
+
+/** Pronouns. Their one home is Story, Characters (top). */
+export function pronounsSection(app) {
+    return home('pronouns', h('div', { id: 'ri-pronouns' }, section('Pronouns',
+        isChatOpen() ? [pronounControl('char', app), pronounControl('user', app)] : h('div', { class: 'ri-muted' }, 'Open a chat to set pronouns for it.'),
+        h('div', { class: 'ri-help' }, 'Your choice is remembered for this character and this persona in new chats.'))));
+}
 
 function pronounControl(role, app) {
     const p = chatPronouns()[role];
@@ -50,7 +62,7 @@ function whereFold(app, count, rows) {
     return fold;
 }
 
-function whereSection(app) {
+export function whereSection(app) {
     const st = settings();
     const books = [...new Set([...sharedBooks(), ...(st.home ? [st.home] : [])])].sort((a, b) => a.localeCompare(b));
     const ids = KINDS.flatMap(k => knownSets(k));
@@ -95,14 +107,20 @@ function whereSection(app) {
 
 const onOff = (v, set) => select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], v ? 'on' : 'off', (x) => set(x === 'on'));
 
+/** Story state under replies. Its one home is Setup, Look. */
+export function sceneCardControl(app, save = () => { saveSettings(); refreshUnderReplies(); app.render(); }) {
+    const o = settings().scene || (settings().scene = { track: true, card: 'auto' });
+    return home('scene-card', field('Story state under replies', { auto: 'Shown under a reply that has no scene tracker of its own. With a preset that draws its own HUD (such as Sola V6 Slim) it stays hidden, so nothing is shown twice.', always: 'Separate Scene, character and Roast cards are shown under replies where data is available. Each starts collapsed.', off: 'Not shown. The lines are still kept and used.' }[o.card || 'auto'],
+        select([{ value: 'auto', label: 'Auto' }, { value: 'always', label: 'Always' }, { value: 'off', label: 'Off' }], o.card || 'auto', (v) => { o.card = v; save(); }, { 'aria-label': 'Story state under replies' })));
+}
+
 function sceneSection(app) {
     const o = settings().scene || (settings().scene = { track: true, card: 'auto' });
     const save = () => { saveSettings(); refreshUnderReplies(); app.render(); };
     return section('Scene',
-        field('Keep track of who is present, where and when', o.track !== false ? 'On: every reply is asked for who is present, where and when; continuing environmental conditions are updated when they change. The extension takes them out of the reply and keeps them, so the story notes, story events and dice know who is present under any preset. This adds no AI request.' : 'Off: who is present is read from a scene header, a HUD or a "Present:" line written by the preset, or from names in the last messages.',
+        field('Keep track of who is present, where and when', o.track !== false ? 'On: every reply is asked for who is present, where and when; continuing environmental conditions are updated when they change. The extension takes them out of the reply and keeps them, so the story notes, story events and dice know who is present under any preset. This adds no model call.' : 'Off: who is present is read from a scene header, a HUD or a "Present:" line written by the preset, or from names in the last messages.',
             onOff(o.track !== false, (v) => { o.track = v; save(); })),
-        o.track !== false ? field('Story state under each reply', { auto: 'Shown under a reply that has no scene tracker of its own. With a preset that draws its own HUD (such as Sola V6 Slim) it stays hidden, so nothing is shown twice.', always: 'Separate Scene, character and Roast cards are shown under replies where data is available. Each starts collapsed.', off: 'Not shown. The lines are still kept and used.' }[o.card || 'auto'],
-            select([{ value: 'auto', label: 'When the reply has no tracker of its own' }, { value: 'always', label: 'Always' }, { value: 'off', label: 'Off' }], o.card || 'auto', (v) => { o.card = v; save(); })) : null);
+        o.track !== false ? sceneCardControl(app, save) : null);
 }
 
 function cardsSection(app) {
@@ -113,7 +131,7 @@ function cardsSection(app) {
         field('Character state tracking', o.on ? 'On: the current Mind, Heart, Body and Psyche state is kept with the chat and sent with future replies. Changes are requested in the normal reply, without an extra AI call.' : 'Off: character state is not requested or sent.',
             onOff(o.on, (v) => { o.on = v; save(); app.render(); })),
         o.on ? [
-            field('Current state prompt budget', 'Approximate token budget for scene and character state; character and scene lines that do not fit are left out. Story World and chapter budgets are separate.', numberInput(o.stateBudget || 350, { min: 100, max: 1000, unit: 'tokens' }, (v) => { o.stateBudget = v; saveSettings(); })),
+            homeLink(app, 'state-budget', 'The current state prompt budget is set in Setup, Memory, Budgets.'),
             field('Profiles in one reply, at most', `${ch} always gets one. 2 lets one other character have a card when they mattered in the reply.`,
                 select([{ value: '1', label: `1: only ${ch}` }, { value: '2', label: '2' }, { value: '3', label: '3' }], String(o.most || 2), (v) => { o.most = Number(v); save(); })),
             field('The roast', o.roast !== false ? "On: every reply also gets one reaction from the commentator, a separate personality who only reacts to the reply and writes none of the story. It is drawn at the bottom of the cards. You can separately include the previous roast in the next request." : 'Off: no roast is asked for or drawn.',
@@ -123,7 +141,7 @@ function cardsSection(app) {
         ] : null);
 }
 
-function diceSection(app) {
+export function diceSection(app) {
     const d = settings().dice;
     const save = () => { saveSettings(); };
     const nm = names();
@@ -142,14 +160,14 @@ function diceSection(app) {
                 field('Roll for {{char}}', '', onOff(d.char !== false, (v) => { d.char = v; save(); })),
                 field('Roll for other characters', 'One roll, with no stats, shared by any other character who attempts something.', onOff(d.others !== false, (v) => { d.others = v; save(); }))),
             h('div', { class: 'ri-help' }, 'The total (the d20 plus the stat) alone decides: 2 or less fails badly, 3 to 7 fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 to 21 succeeds well, 22 or more succeeds brilliantly.'),
-            field('Stats', `Separate them with commas. Each stat is a whole number from ${MOD_MIN} to +${MOD_MAX} that is added to the d20 roll. 0 is average. +1 to +5 is ordinary skill, and more is for someone exceptional at that one thing. At +20 the lowest total is 21, so every attempt succeeds well or brilliantly; at -20 the highest total is 0, so every attempt fails badly.`,
-                textInput((d.stats || DEFAULT_STATS).join(', '), (v) => { d.stats = v.split(',').map(x => x.trim()).filter(Boolean); save(); }, { placeholder: DEFAULT_STATS.join(', ') })),
+            home('dice-stats', field('Stats', `Separate them with commas. Each stat is a whole number from ${MOD_MIN} to +${MOD_MAX} that is added to the d20 roll. 0 is average. +1 to +5 is ordinary skill, and more is for someone exceptional at that one thing. At +20 the lowest total is 21, so every attempt succeeds well or brilliantly; at -20 the highest total is 0, so every attempt fails badly.`,
+                textInput((d.stats || DEFAULT_STATS).join(', '), (v) => { d.stats = v.split(',').map(x => x.trim()).filter(Boolean); save(); }, { placeholder: DEFAULT_STATS.join(', '), 'aria-label': 'Stats' }))),
             h('div', { class: 'ri-row ri-row-tight' }, button('Show the stat boxes for this list', () => app.render(), { kind: 'ghost' })),
             isChatOpen() ? [grid('char', `Stats for ${nm.char} (kept with this character card)`), grid('user', `Stats for ${nm.user} (kept with this persona)`)] : h('div', { class: 'ri-muted' }, 'Open a chat to set the stats of its character and of your persona.'),
         ] : null);
 }
 
-function paceSection(app) {
+export function paceSection(app) {
     const st = settings();
     const o = st.pace;
     const save = () => { saveSettings(); };
@@ -199,7 +217,7 @@ function writerSection(app) {
 export function renderReplyDisplayOptions(body, app, { legacy=false } = {}) {
     const st=settings(), save=()=>saveSettings();
     if (legacy) body.append(sceneSection(app),cardsSection(app),
-        promptGroup(['scene','profile','stateContext'],'Customize legacy scene and character prompts'));
+        slot(['scene','profile'],'Customize legacy scene and character prompts'));
     const underHelp = {
         off: 'Nothing is added to the chat screen. What was sent is always in the What Was Sent tab.',
         display: 'A closed section is drawn under each reply that was sent an instruction. The message text is unchanged and the AI never sees it. It is gone if the extension is turned off.',
@@ -215,38 +233,12 @@ export function renderReplyDisplayOptions(body, app, { legacy=false } = {}) {
 
 }
 
-export function renderSettings(body, app) {
+/** Follow-through checks. Their one home is Direction, Random sets. */
+export function followThroughSection(app) {
     const st = settings();
     const save = () => { saveSettings(); };
-
-    body.appendChild(section('Connections & automatic requests',
-        h('p',{class:'ri-help'},'Extension-wide · connection settings take effect when you select them.'),
-        h('div',{id:'ri-model-request-settings'},h('h3',{class:'ri-label'},'Model request settings'),executionSettings({canonical:true})),
-        field('Give the AI more room to answer', 'Increase the answer budget for models that use part of the answer for reasoning. An empty answer leaves the next attempt up to you.',
-            select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); }))));
-
-    body.appendChild(section('Storage & chat identity',
-        isChatOpen() ? [pronounControl('char', app), pronounControl('user', app)] : h('div', { class: 'ri-muted' }, 'Open a chat to set pronouns for it.'),
-        h('div', { class: 'ri-help' }, 'Your choice is remembered for this character and this persona in new chats.')));
-
-    const storage=whereSection(app);
-    body.lastElementChild.append(...storage.children);
-
-    body.appendChild(section('Direction & pacing defaults',
-        field('How many new things can start in one reply', 'Counted across every instruction set, every story event set and the goal task together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
-            numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply' }, (n) => { st.perReply = n; save(); }))));
-
-    const directionGroup=body.lastElementChild;
-    directionGroup.id='ri-direction-defaults';
-    const pacing=paceSection(app);
-    directionGroup.append(...pacing.children);
-    const dice=diceSection(app);
-    directionGroup.append(h('details',{id:'ri-legacy-dice',open:!!app.legacyControlsOpen,
-        ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},h('summary',{},'Legacy dice defaults'),
-        ...[...dice.children].slice(1)),promptGroup(['dice'],'Customize dice instruction'));
-
-    body.appendChild(section('AI writer & checks',
-        field('Check each reply that was sent an instruction', 'Automatic checks also need the permission below. Each check uses one additional model request to look for evidence in the reply.',
+    return section('Follow-through checks',
+        field('Check each reply that was sent an instruction', 'Automatic checks also need the permission below. Each check uses one additional model call to look for evidence in the reply.',
             select([{ value: 'full', label: 'On' }, { value: 'off', label: 'Off' }], st.check.mode, (v) => { st.check.mode = v; save(); app.render(); })),
         button('Instruction check connection & permission',()=>app.openSetting('settings','ri-operation-instructionCheck'),{kind:'ghost'}),
         st.check.mode === 'off' ? null : [
@@ -259,24 +251,75 @@ export function renderSettings(body, app) {
             button('Automatic swipe connection & permission',()=>app.openSetting('settings','ri-operation-automaticSwipe'),{kind:'ghost'}),
             field('Check that the reply did not write for you', 'Checked in the same request, only on replies that were sent an instruction.',
                 select([{ value: 'off', label: 'Off' }, { value: 'flag', label: 'Show a warning in What Was Sent' }, { value: 'regen', label: 'Show a warning and write a new reply' }], st.check.agency, (v) => { st.check.agency = v; save(); })),
-        ]));
+        ],
+        slot(['checker', 'systemCheck'], 'Customize checking instructions'));
+}
+
+/** How many new things can start in one reply. Its one home is Direction, Random sets. */
+export function perReplyControl(app) {
+    const st = settings();
+    return home('per-reply', field('How many new things can start in one reply', 'Counted across every instruction set, every story event set, the goal and the world orders together. When more are ready, one is picked at random and the others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are how the reply is written and are always sent. 0 turns this off.',
+        numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply', label: 'New things in one reply' }, (n) => { st.perReply = n; saveSettings(); })));
+}
+
+/** Setup, Connections: which connection each job uses and what the AI writes for you. */
+export function renderSettings(body, app) {
+    const st = settings();
+    const save = () => { saveSettings(); };
+
+    body.appendChild(section('Connections & automatic requests',
+        h('p',{class:'ri-help'},'Extension-wide · connection settings take effect when you select them.'),
+        h('div',{id:'ri-model-request-settings'},h('h3',{class:'ri-label'},'Model request settings'),executionSettings({canonical:true})),
+        field('Give the AI more room to answer', 'Increase the answer budget for models that use part of the answer for reasoning. An empty answer leaves the next attempt up to you.',
+            select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], st.writer.moreRoom ? 'yes' : 'no', (v) => { st.writer.moreRoom = v === 'yes'; save(); })),
+        slot(['guided','guidedContinue','historicalSwipe','historicalContinue','freshStart'], 'Customize guided-turn instructions')));
 
     const writer=writerSection(app);
-    body.lastElementChild.append(...writer.children,
-        enabledV10() && field('Current state prompt budget','Extension-wide · approximate room for scene and character state.',
-            numberInput(st.cards.stateBudget || 350,{min:100,max:1000,unit:'tokens'},value=>{st.cards.stateBudget=value;save();})),
-        enabledV10() && promptGroup(['stateContext'],'Customize current-state guidance'),
-        button('Action Checks',()=>app.openPage('checks'),{kind:'ghost'}),
-        button('Reply Display',()=>app.openPage('display'),{kind:'ghost'}),
-        promptGroup(['checker', 'systemCheck'], 'Customize checking instructions'),
-        promptGroup(['guided','guidedContinue','historicalSwipe','historicalContinue','freshStart'], 'Customize guided-turn instructions'));
+    body.appendChild(section('What the AI writes for you', ...[...writer.children].slice(1)));
 
-    body.appendChild(section('Appearance & about',
-        field('Accent colour', 'The colour of buttons and highlights in this panel.',
-            select([{ value: 'auto', label: 'Blues and greens, a different one for each tab' }, { value: 'cyan', label: 'Cyan' }, { value: 'sky', label: 'Sky blue' }, { value: 'blue', label: 'Blue' }, { value: 'green', label: 'Green' }, { value: 'yellow', label: 'Yellow' }, { value: 'violet', label: 'Violet' }, { value: 'magenta', label: 'Pink' }], st.accent || 'auto', (v) => { st.accent = v; save(); app.render(); }))));
-
-    const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
-    body.lastElementChild.append(
-        h('div', { class: 'ri-help' }, `Roleplay Instructions 10.0.32: Random Instructions, Random Story Events, Random Writing Style, Character Goals and Story World. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`),
-        h('div', { class: 'ri-help' }, 'Sets are kept in ordinary lorebooks. With this extension off, a set still works if you turn its lorebook on in World Info, without limits, checking or the What Was Sent record. A shared lorebook turned on that way sends from every set inside it.'));
+    body.appendChild(section('Settings that moved',
+        h('p', { class: 'ri-help' }, 'Each of these has one home. The links open it.'),
+        homeLink(app, 'pronouns', 'Pronouns are set in Story, Characters.'),
+        homeLink(app, 'set-storage', 'Where your sets are kept is set in Direction, Random sets.'),
+        homeLink(app, ['pacing','per-reply'], 'Pacing and the number of new things in one reply are set in Direction, Random sets.'),
+        homeLink(app, 'follow-through', 'Follow-through checks are set in Direction, Random sets.'),
+        homeLink(app, 'dice-stats', 'Dice stats are set in Direction, Action checks.'),
+        homeLink(app, 'state-budget', 'The current state prompt budget is set in Setup, Memory.')));
 }
+
+/** The version line, at the foot of Setup. */
+export function versionLine() {
+    const need = ['WORLDINFO_ENTRIES_LOADED', 'WORLDINFO_SCAN_DONE', 'MESSAGE_RECEIVED', 'GENERATION_STARTED'];
+    const line = h('div', { class: 'ri-help' });
+    const finish = number => { line.textContent = `Roleplay Instructions${number ? ` ${number}` : ''}. ${need.every(hasEvent) ? 'This app has everything the extension needs.' : `Missing in this app: ${need.filter(n => !hasEvent(n)).join(', ')}.`}`; };
+    finish('');
+    fetch(new URL('../../manifest.json', import.meta.url)).then(response => response.json()).then(manifest => finish(manifest.version)).catch(() => {});
+    return h('div', { class: 'ri-section', id: 'ri-about' }, line,
+        h('div', { class: 'ri-help' }, 'Sets are kept in ordinary World Info books. With this extension off, a set still works if you turn its book on in World Info, without limits, checking or the What Was Sent record. A shared book turned on that way sends from every set inside it.'));
+}
+
+// ---------- pages this file places in the menu tree ----------
+
+// The Opening section comes first on Story, Scene while the chat holds only its first message.
+setTreeHints({ openingFirst: () => isChatOpen() && (ctx().chat || []).length <= 1 });
+
+/** A section drawn as one fold: the title becomes the summary and the rest sits inside. */
+const fold = (title, node, { id, open = false } = {}) => h('details', { class: 'ri-card ri-tight', id, open },
+    h('summary', {}, title), ...[...node.children].slice(1));
+
+registerPage({ id: 'memory', group: 'setup', tab: 'memory', label: 'Memory', withoutChat: true,
+    help: 'How story memory is kept, recalled and budgeted.',
+    aliases: 'budget recall chapter summary catch up rebuild upkeep story notes editable replies',
+    render: (body, app) => renderMemory(body, app) });
+
+registerPage({ id: 'set-rules', group: 'direction', tab: 'random-sets', label: 'Sets and pacing', withoutChat: true,
+    help: 'How often new things start, where sets are kept, follow-through checks, world orders and tags to skip.',
+    aliases: 'pacing storage where sets are kept follow-through check world orders tags to skip one new thing per reply phases',
+    render: (body, app) => {
+        body.append(section('New things in one reply', perReplyControl(app)),
+            home('set-storage', fold('Where your sets are kept', whereSection(app), { id: 'ri-set-storage' })),
+            home('pacing', fold('Pacing', paceSection(app), { id: 'ri-pacing' })),
+            home('follow-through', fold('Follow-through checks', followThroughSection(app), { id: 'ri-follow-through' })),
+            worldOrdersSection(app),
+            eventTagsSection(() => app.render()));
+    } });

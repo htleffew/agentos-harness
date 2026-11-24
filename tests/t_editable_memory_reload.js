@@ -31,7 +31,7 @@ const answer = (prose,...lines)=>prose+'\n<story_update>\n'+lines.join('\n')+'\n
             if (index===1) {
                 const replacement = 'A blue ribbon hangs above the gate.';
                 H.mode({reply:answer(replacement,place('Revised Gate',replacement))});
-                await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+                await H.openReplyAction(page,'swipe');
                 const sheet = page.getByRole('dialog',{name:'Generate an alternate reply'});
                 await sheet.getByLabel('Your direction',{exact:true}).fill('Replace the red seal with a blue ribbon.');
                 await sheet.getByRole('button',{name:'Generate alternate reply',exact:true}).tap();
@@ -49,7 +49,7 @@ const answer = (prose,...lines)=>prose+'\n<story_update>\n'+lines.join('\n')+'\n
         const newest = six.messages.at(-1);
         const extra = 'A blue lantern lights the tower stair.';
         H.mode({reply:answer(extra,place('Tower Stair',extra))});
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Continue this reply',exact:true}).tap();
+        await H.openReplyAction(page,'continue');
         const continuation = page.getByRole('dialog',{name:'Continue this reply'});
         await continuation.getByRole('button',{name:'Continue this reply',exact:true}).tap();
         await H.result(continuation,'Reply updated.');

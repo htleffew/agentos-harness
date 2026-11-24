@@ -1,4 +1,4 @@
-import { promptGroup } from './prompts.js';
+import { slot } from './homes.js';
 // Character Goals tab: one goal for {{char}} in this chat, repeatable actions, one-time steps.
 import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip } from './dom.js';
 import { goals, saveGoals, goalProgress, stepDone, goalDone, setStepDone, library, saveToLibrary, loadFromLibrary, blankGoal } from '../goals.js';
@@ -146,7 +146,7 @@ export function renderGoals(body, app) {
         if (goals()!==g) return;
         Object.assign(g, blankGoal()); saveGoals(); redraw();
     }, { kind: 'danger' })));
-    body.append(promptGroup(['goalOrder','goalOngoing','goalWriterRules','systemGoal'],'Customize goal prompts'));
+    body.append(slot(['goalOrder','goalOngoing','goalWriterRules','systemGoal'],'Customize goal prompts'));
 }
 
 function aiBox(g, ui, redraw) {

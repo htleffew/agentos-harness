@@ -200,8 +200,12 @@ async function world(page, name, entries) {
         // ----- H. the panel
         await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'settings'; P.app.render(); }, L.BASE);
         await page.waitForTimeout(500);
-        const setText = await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-section-title')].map(x => x.textContent.trim()));
-        const setLabels = await page.evaluate(() => [...document.querySelectorAll('#ri_root .ri-field .ri-label')].map(x => x.textContent.trim()));
+        const readPage = () => page.evaluate(() => ({ titles: [...document.querySelectorAll('#ri_root .ri-section-title, #ri_root summary')].map(x => x.textContent.trim()), labels: [...document.querySelectorAll('#ri_root .ri-field .ri-label')].map(x => x.textContent.trim()) }));
+        const connections = await readPage();
+        await page.evaluate(async (B) => { const P = await import(`${B}/src/ui/panel.js`); P.app.tab = 'set-rules'; P.app.render(); }, L.BASE);
+        await page.waitForTimeout(500);
+        const rules = await readPage();
+        const setText = [...connections.titles, ...rules.titles], setLabels = [...connections.labels, ...rules.labels];
         assert(setText.includes('Pacing') && setText.includes('What the AI writes for you') && ['Quiet after a big event (replies)', 'Order a character who has gone quiet (replies)', 'Story phases', 'Rules given to the AI writer', 'Your word list'].every(x => setLabels.includes(x)), 'panel: Settings has the pacing settings, the rules for the AI writer and the word list');
         await page.screenshot({ path: '/tmp/s55_settings.png', fullPage: false });
         // an item's condition is set in the editor and kept when the set is saved

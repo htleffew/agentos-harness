@@ -76,8 +76,8 @@ test('pages are named as the navigation shows them',()=>{
 test('SillyTavern words find their page and setting',()=>{
     const tree=buildTree([{id:'look',group:'setup',label:'Look',render}]);
     const harvested=[
-        {kind:'setting',page:'settings',label:'Pronouns for {{user}}',match:'Pronouns for {{user}}',terms:'pronouns for {{user}}'},
-        {kind:'setting',page:'settings',label:'Current state prompt budget',match:'Current state prompt budget',terms:'current state prompt budget approximate token budget'},
+        {kind:'setting',page:'portrayal',label:'Pronouns for {{user}}',match:'Pronouns for {{user}}',terms:'pronouns for {{user}}'},
+        {kind:'setting',page:'memory',label:'Current state prompt budget',match:'Current state prompt budget',terms:'current state prompt budget approximate token budget'},
         {kind:'section',page:'world',label:'How story notes are sent',match:'How story notes are sent',terms:'how story notes are sent'},
     ];
     const entries=[...pageEntries(tree),...harvested];
@@ -89,12 +89,12 @@ test('SillyTavern words find their page and setting',()=>{
     assert.equal(first('World Info').page,'books');
     assert.equal(first('lorebook').page,'books');
     const pronouns=first('pronouns');
-    assert.equal(pronouns.page,'settings');
+    assert.equal(pronouns.page,'portrayal');
     assert.equal(pronouns.match,'Pronouns for {{user}}');
     assert.equal(pronouns.kind,'setting');
     const budget=searchMenu(entries,'budget');
     assert.equal(budget[0].match,'Current state prompt budget');
-    assert(budget.some(item=>item.page==='bridge-memory'));
+    assert.equal(budget[0].page,'memory');
     assert.equal(first('theme').page,'look');
     // Plain words: every word must start a word in the entry.
     assert.equal(first('story notes').page,'world');
@@ -108,5 +108,5 @@ test('queries split into SillyTavern terms and plain words',()=>{
     assert.deepEqual(terms.map(term=>term.label).sort(),['Author’s Note','Budget','Impersonate']);
     assert.deepEqual(words,['where','is']);
     for (const term of SILLYTAVERN_TERMS) for (const target of term.targets)
-        assert(pages.some(page=>page.id===target.page) || target.page==='look',`${term.label} points at ${target.page}`);
+        assert(pages.some(page=>page.id===target.page) || ['look','memory','prompts'].includes(target.page),`${term.label} points at ${target.page}`);
 });

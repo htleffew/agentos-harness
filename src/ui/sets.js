@@ -1,4 +1,4 @@
-import { promptGroup } from './prompts.js';
+import { slot } from './homes.js';
 // Random Instructions tab: the list of instruction sets, and the list of instructions inside one set.
 import { h, button, toggle, select, numberInput, chip, field, download } from './dom.js';
 import { knownSets, setOptions, setInfo, setName, patchSet, loadSet, editSet, createSet, adoptSet, forgetSet, exportSet, deleteSet, listInstructions, estimateTokens, newInstruction, writeInstruction, frequencyText, LIMITS } from '../books.js';
@@ -12,7 +12,7 @@ export function renderInstructions(body, app) {
     if (sets?.length===0) body.append(h('div',{class:'ri-note'},
         h('p',{},'Random instruction sets are optional. Add a set when you want occasional directions sent with replies.'),
         isChatOpen() && button('Set up this chat',()=>app.openSetting('v10','ri-story-workflow'),{kind:'ghost'})));
-    body.appendChild(promptGroup(['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions'], 'Customize Random Instructions prompts'));
+    body.appendChild(slot(['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions'], 'Customize Random Instructions prompts'));
     if (app.route.view === 'set') return renderSet(body, app);
     return renderSets(body, app, sets);
 }

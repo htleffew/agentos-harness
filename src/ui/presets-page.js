@@ -7,6 +7,7 @@ import { presetBlockEditor } from './preset-workbench.js';
 import { ctx, on, confirmBox, isChatOpen } from '../st.js';
 import { activePreset, enabledV10 } from '../v10.js';
 import { FEATURES, plainName, verdictChip, activeProfile } from '../preset-library.js';
+import { profileStatus, profileValues, syncProfile, onProfileChange } from '../preset-profiles.js';
 import { listLoadouts, saveLoadout, updateLoadout, renameLoadout, deleteLoadout, loadoutConflicts, loadoutName } from '../preset-loadouts.js';
 import { ensureLibrary, libraryStatus, switchContext, resolvedSwitches, switchScope, setSwitches, pinSwitches, bulkSwitches,
     bulkUndoAvailable, undoBulkSwitches, featureBlockIds, blockFeatures, workingCopyOff, currentMarker, applyWorkingCopy, restoreWorkingCopy,
@@ -35,10 +36,42 @@ function segmented(key, side, onPick) {
     return h('div', { class: 'ri-ps-segmented', role: 'group', 'aria-label': `Who supplies ${FEATURES[key].label}` }, option('ours'), option('theirs'));
 }
 
+const size = value => Number(value).toLocaleString('en-US');
+const valueText = (key, value) => key === 'openai_max_context' ? `context size ${size(value)}` : `${key.replace(/_/g, ' ')} ${String(value)}`;
+
+/** One line on the card: which profile follows the selected model, what it set and whether she has changed it since. */
+function profileRow(follow, libraryProfile) {
+    const { active, values, edited, live } = follow;
+    if (!active) return libraryProfile ? h('p', { class: 'ri-ps-meta' }, `Model profile: ${plainName(libraryProfile.name)}`)
+        : follow.profiles.length ? h('p', { class: 'ri-ps-meta', id: 'ri-profile-line' }, `No model profile follows ${follow.model || 'the selected model'}; the preset's own values stay.`) : null;
+    const parts = Object.entries(values).map(([key, value]) => valueText(key, value));
+    const note = edited.length ? ` You changed it to ${live === null ? 'another value' : size(live)}; that stays until the model changes.` : '';
+    return h('p', { class: 'ri-ps-meta', id: 'ri-profile-line', 'data-profile': active.id },
+        `Model profile: ${plainName(active.label)}${parts.length ? `, ${parts.join(', ')}` : ''} (${follow.match === 'exact' ? 'exact match' : 'family match'}).${note} `,
+        edited.length ? chip('Edited', 'edited') : null);
+}
+
+/** Every model profile stored on the preset, with the one that follows the selected model marked. */
+function modelProfiles(follow) {
+    if (!follow.profiles.length) return null;
+    const now = follow.live === null ? 'not set' : size(follow.live);
+    return h('details', { class: 'ri-ps-fold', id: 'ri-model-profiles' }, h('summary', {}, `Model profiles (${follow.profiles.length})`),
+        hint(follow.model ? `Selected model: ${follow.model}. Context size now ${now}. A profile sets its values when the model or preset changes and the saved preset file stays as it is.`
+            : 'Select a model to see which profile follows it.'),
+        follow.profiles.map(item => {
+            const values = Object.entries(profileValues(item)).map(([key, value]) => valueText(key, value));
+            return h('div', { class: 'ri-ps-line', 'data-profile': item.id }, h('strong', {}, plainName(item.label) || item.id),
+                item.id === follow.active?.id ? chip('Follows the selected model', 'on') : null,
+                item.models?.length ? chip(item.models.join(', ')) : chip('No model named'),
+                h('p', { class: 'ri-ps-meta' }, values.length ? values.join(', ') : 'Sets nothing'));
+        }));
+}
+
 function presetCard(context, app, rerender) {
     const { edition, marker } = context;
     const model = ctx().getChatCompletionModel?.() || '';
     const profile = activeProfile(edition, model);
+    const follow = profileStatus();
     const off = workingCopyOff(context);
     const status = libraryStatus();
     const recognition = marker ? `Loadout of ${marker.base}` : edition ? `${edition.familyLabel}, edition ${edition.label}`
@@ -61,7 +94,8 @@ function presetCard(context, app, rerender) {
         h('ul', {}, context.features.switched.map(item => h('li', {}, `${item.label}: ${resolvedSwitches(context)[item.key] === 'ours' ? 'the extension supplies it' : 'the preset supplies it; the extension sends none of its text'}`))));
     const overrides = edition?.overrides?.length ? h('details', { class: 'ri-ps-fold' }, h('summary', {}, `Overrides (${edition.overrides.length})`),
         edition.overrides.map(item => h('div', { class: 'ri-ps-line' }, h('strong', {}, plainName(item.name)), chip(item.kind === 'customization' ? 'Yours' : item.kind), hint(plainName(item.description))))) : null;
-    const profiles = edition?.profiles?.length ? h('details', { class: 'ri-ps-fold' }, h('summary', {}, `Model profiles (${edition.profiles.length})`),
+    const profiles = modelProfiles(follow);
+    const family = edition?.profiles?.length ? h('details', { class: 'ri-ps-fold' }, h('summary', {}, `Profiles in the preset family (${edition.profiles.length})`),
         hint(model ? `Selected model: ${model}. A profile follows the model it names.` : 'Select a model to see which profile follows it.'),
         edition.profiles.map(item => h('div', { class: 'ri-ps-line' }, h('strong', {}, plainName(item.name)),
             item === profile && chip('Follows the selected model', 'on'), item.models.length && chip(item.models.join(', ')), hint(plainName(item.description))))) : null;
@@ -69,9 +103,9 @@ function presetCard(context, app, rerender) {
         h('div', { class: 'ri-ps-card-head' }, h('strong', { class: 'ri-ps-title' }, plainName(context.preset) || context.preset),
             edition?.distinct && chip('Distinct', 'distinct'), marker && chip('Loadout', 'ours')),
         h('p', { class: 'ri-ps-meta' }, recognition, context.score !== null && !marker ? ` · match ${Math.round(context.score * 100)}%` : ''),
-        profile && h('p', { class: 'ri-ps-meta' }, `Model profile: ${plainName(profile.name)}`),
+        profileRow(follow, profile),
         edition?.distinct && hint('Evening Truth presets stay distinct presets, one per model.'),
-        overrides, profiles, changes,
+        overrides, profiles, family, changes,
         !context.companion && h('details', { class: 'ri-ps-fold', open: !!state.loadoutName }, h('summary', {}, 'Save as loadout'),
             hint('Writes a new SillyTavern preset with the working copy’s blocks and a hidden marker of every switch. This preset stays as it is.'),
             name, preview, save));
@@ -197,10 +231,12 @@ function loadoutsSection(rerender) {
         }) : hint('Save a working copy as a loadout from the preset card to list it here.'));
 }
 
+let redraw = null;
 export function renderPresetsPage(body, app) {
     ensureLibrary();
     const host = h('div', { class: 'ri-ps', id: 'ri-presets-page' });
     const rerender = () => { const fresh = h('div'); renderPresetsPage(fresh, app); host.replaceWith(...fresh.childNodes); };
+    redraw = rerender;
     const preset = activePreset();
     const context = switchContext(preset);
     if (!preset || !context) {
@@ -231,7 +267,9 @@ export function mountPresetsPage() {
     ensureLibrary();
     on('GENERATION_STARTED', () => { try { applyWorkingCopy(); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });
     for (const name of ['CHAT_COMPLETION_PROMPT_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED']) on(name, restoreWorkingCopy);
-    on('OAI_PRESET_CHANGED_AFTER', () => { state.status = ''; onPresetSelected(); });
+    on('OAI_PRESET_CHANGED_AFTER', () => { state.status = ''; onPresetSelected(); syncProfile('preset'); });
+    for (const name of ['CHATCOMPLETION_MODEL_CHANGED', 'CHATCOMPLETION_SOURCE_CHANGED']) on(name, () => syncProfile('model'));
+    onProfileChange(() => { if (document.getElementById('ri-presets-page')) redraw?.(); });
     on('CHAT_CHANGED', () => syncOwners());
     onSwitchChange(() => document.dispatchEvent(new CustomEvent('ri-preset-switch-change')));
 }

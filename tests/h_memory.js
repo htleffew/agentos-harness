@@ -70,7 +70,7 @@ async function closePanel(page) {
 
 async function repairSheet(page,index) {
     const message = index===undefined ? '#chat .last_mes' : `#chat .mes[mesid="${index}"]`;
-    await page.locator(message).getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+    await L.openReplyAction(page,'swipe',index);
     const dialog = page.getByRole('dialog',{name:'Generate an alternate reply'});
     await dialog.getByRole('button',{name:'Fix world facts',exact:true}).tap();
     return dialog;

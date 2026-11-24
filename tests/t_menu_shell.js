@@ -146,7 +146,7 @@ async function run(browser, viewport, tag) {
     await tap(page, '.ri-shell-foot-link');
     out.footOpens = await shell(page);
     assert.equal(out.footOpens.nested, 'prompts');
-    out.footList = await page.locator('.ri-shell-prompt').count();
+    out.footList = await page.locator('.ri-prompts-home [data-ri-prompt]').count();
     assert(out.footList > 0);
     await shot('prompts-filtered');
 
@@ -182,10 +182,11 @@ async function run(browser, viewport, tag) {
     await tap(page, '[data-ri-tab="review"]');
     await tap(page, '[data-ri-nested="request-log"]');
     out.search = {};
-    const search = async (query, name) => {
+    const search = async (query, name, ready) => {
         if (!await page.locator('#ri-menu-search').count()) await tap(page, '[data-ri-search]');
         await page.fill('#ri-menu-search', query);
         await page.waitForTimeout(900);
+        if (ready) await page.waitForFunction(re => [...document.querySelectorAll('.ri-shell-result')].some(node => new RegExp(re).test(node.innerText.replace(/\s+/g, ' '))), ready.source, { timeout: 20000 });
         const list = await page.evaluate(() => [...document.querySelectorAll('.ri-shell-result')].slice(0, 4).map(node => node.innerText.replace(/\s+/g, ' ')));
         if (name) await shot(name);
         await tap(page, '.ri-shell-result');
@@ -205,18 +206,28 @@ async function run(browser, viewport, tag) {
     await shot('back-named');
     await tap(page, '[data-ri-back]');
     assert.equal((await shell(page)).page, 'log');
+    // The pronouns and budget fields show only in V10 mode, which follows the active preset; pin it for this chat
+    // so another suite's preset choice cannot hide them (the Characters page is a V10 page).
+    const pinned = await page.evaluate(async BASE => {
+        const { chatState } = await import(`${BASE}/src/store.js`);
+        const state = chatState();
+        if (!state) return false;
+        state.v10 = { ...(state.v10 || {}), enabled: true };
+        return true;
+    }, BASE);
+    assert.ok(pinned, 'a chat is open for the pronouns and budget searches');
     out.search.pronouns = await search('pronouns', 'search-pronouns');
-    assert.equal(out.search.pronouns.landed.page, 'settings');
+    assert.equal(out.search.pronouns.landed.page, 'portrayal');
     assert.equal(out.search.pronouns.landed.tag, 'SELECT');
     await shot('landed-pronouns');
     out.search.budget = await search('budget');
-    assert.match(out.search.budget.landed.label || '', /budget/i);
+    assert.match(out.search.budget.landed.label || '', /budget/i, JSON.stringify(out.search.budget));
     out.search.impersonate = await search('impersonate');
     out.search.summarize = await search('summarize');
     assert.equal(out.search.summarize.landed.page, 'world');
     out.search.worldInfo = await search('World Info');
     assert.equal(out.search.worldInfo.landed.page, 'books');
-    out.search.foldedPrompt = await search('Dice guidance', 'search-folded');
+    out.search.foldedPrompt = await search('Dice guidance', 'search-folded', /Dice guidance PROMPT/);
     assert.equal(out.search.foldedPrompt.landed.tag, 'TEXTAREA');
     assert(out.search.foldedPrompt.landed.foldsOpen.length && out.search.foldedPrompt.landed.foldsOpen.every(Boolean));
     await shot('landed-folded-prompt');

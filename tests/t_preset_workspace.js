@@ -75,16 +75,16 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         assert.ok(reordered.indexOf('Use ordinary quoted dialogue')>=0 && reordered.indexOf('Use ordinary quoted dialogue')<reordered.indexOf('Scene and character checks:'),'extension order changed the request');
         const moved=extOrder.locator(':scope > details').filter({has:page.getByText('Dialogue colors · Order changed',{exact:true})});
         await open(moved);await click(moved.getByRole('button',{name:'Restore position'}));
-        await pageTab('display');
+        await pageTab('v10');
         const voices=root.locator('details').filter({has:page.getByText('Roast commentator voice and feedback',{exact:true})}).last();
         await open(voices);const picker=voices.getByLabel('Commentator voice',{exact:true});
         const previousVoice=await picker.inputValue();await pick(picker,'voiceDetective');
         const voice=voices.locator('.ri-prompt-editor').first();await open(voice);await input(voice.locator('textarea'),'DETECTIVE_TEST_432');
-        await click(voice.getByRole('button',{name:'Save instruction'}));
+        await click(voice.getByRole('button',{name:'Update',exact:true}));
         assert.match(await picker.locator('option:checked').textContent(),/Customized/);
         await page.evaluate(async base=>{const p=(await import(base+"/src/v10.js")).prefs();(p.modules ||= {}).roast=true;},L.BASE);
         L.resetLog();await L.send(page,'What happened?');assert.match(L.text(L.requests()[0]),/DETECTIVE_TEST_432/);
-        await pageTab('display');await open(voices);await open(voice);await click(voice.getByRole('button',{name:'Restore default'}));
+        await pageTab('v10');await open(voices);await open(voice);await click(voice.getByRole('button',{name:'Restore default prompt',exact:true}));
         assert.doesNotMatch(await picker.locator('option:checked').textContent(),/Customized/);
         await pick(picker,previousVoice);
         // Wait for the host's debounced settings write before switching presets or closing the browser.

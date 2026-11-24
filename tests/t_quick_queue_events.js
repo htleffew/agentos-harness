@@ -68,7 +68,7 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
         await close();
     };
     const swipe=async text=>{
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+        await L.openReplyAction(page,'swipe');
         await type(text);
         await tap('Generate alternate reply');
         await sheet.getByText('Reply updated.',{exact:true}).waitFor();
@@ -138,7 +138,7 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
         assert.equal((await snapshot()).queue.length,3);
         L.resetLog();
         L.mode({reply:'The caretaker looks down at the quay.'});
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+        await L.openReplyAction(page,'swipe');
         const pin=sheet.locator('.ri-quick-shelf-option').filter({has:page.getByRole('button',{name:'More emotional',exact:true})});
         await tap('Pin',pin);
         await tap('Swipe with More emotional');
@@ -152,7 +152,7 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
 
         L.resetLog();
         L.mode({reply:'The caretaker considers the boundary.'});
-        await page.locator('#chat .last_mes').getByRole('button',{name:'Generate an alternate reply',exact:true}).tap();
+        await L.openReplyAction(page,'swipe');
         await tap('Customize');
         await sheet.getByText('Available directions',{exact:true}).tap();
         await tap('Bring in conflict');
@@ -241,8 +241,7 @@ const allMarkers=new RegExp([ingredient,privateMarker,visibleMarker].join('|'));
         await close();
 
         L.resetLog();
-        const corrections=page.locator('#chat .last_mes .ri-guided-correction');
-        await corrections.locator(':scope > summary').tap();
+        const corrections=(await L.openMenuEntry(page,'correct')).locator('#ri_panel_page');
         await corrections.getByLabel('Correct story fact',{exact:true}).fill('The quay gate is closed.');
         await corrections.getByRole('button',{name:'Repair facts only',exact:true}).tap();
         await corrections.getByRole('status').filter({hasText:/repaired 1/i}).waitFor();

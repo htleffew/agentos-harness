@@ -16,6 +16,18 @@ test('each panel page has one stable destination and a first-open route',()=>{
     assert.equal(destination('portrayal').subgroup,'Characters');
 });
 
+test('Opening comes first on Scene only while the chat holds its first message',async()=>{
+    const { buildTree, setTreeHints, destination: find } = await import('../../src/ui/destinations.js');
+    const scene=()=>buildTree([]).find(top=>top.id==='story').nested.find(item=>item.id==='scene').pages.map(page=>page.id);
+    setTreeHints({openingFirst:()=>true});
+    assert.deepEqual(scene(),['opening','state','corrections']);
+    setTreeHints({openingFirst:()=>false});
+    assert.deepEqual(scene(),['state','opening','corrections']);
+    assert.equal(find('world').label,'Story World');
+    assert.equal(find('v10').label,'Features');
+    assert.equal(find('settings').label,'Connections');
+});
+
 test('plain language and old terms find the actual task in the right surface',()=>{
     const match=(query,id)=>findDestinations(query).find(page=>page.id===id);
     assert.equal(match('fix a fact','corrections').label,'Correct story facts');

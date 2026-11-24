@@ -50,9 +50,9 @@ async function openPrompt(page, groupLabel, promptLabel) {
         await target.locator('input[value="user"]').uncheck();
         const framing = await openPrompt(page, 'Customize in-chat instruction wording', 'Instruction framing');
         await framing.box.fill('FRAMING_MARKER {instruction}');
-        await framing.prompt.getByRole('button', { name: 'Save prompt' }).click();
+        await framing.prompt.getByRole('button', { name: 'Update', exact: true }).click();
         assert.match(await root.locator('.ri-preview').textContent(), /FRAMING_MARKER.*last five replies/);
-        await framing.prompt.getByRole('button', { name: 'Restore default' }).click();
+        await framing.prompt.getByRole('button', { name: 'Restore default prompt', exact: true }).click();
         assert.doesNotMatch(await root.locator('.ri-preview').textContent(), /FRAMING_MARKER/);
 
         await root.getByRole('button', { name: 'Write versions with AI' }).click();
@@ -60,8 +60,8 @@ async function openPrompt(page, groupLabel, promptLabel) {
         await seed.fill("Review the last five replies for speech and behavior that depart from {{char}}'s personality ({{personality}}). Use that to avoid flattening in the next reply.");
         const writing = await openPrompt(page, 'Customize Write with AI prompts', 'Writing model-directed versions');
         const defaultRules = await writing.box.inputValue();
-        const save = writing.prompt.getByRole('button', { name: 'Save prompt' });
-        const restore = writing.prompt.getByRole('button', { name: 'Restore default' });
+        const save = writing.prompt.getByRole('button', { name: 'Update', exact: true });
+        const restore = writing.prompt.getByRole('button', { name: 'Restore default prompt', exact: true });
         await writing.box.fill(`${defaultRules}\n- REANCHOR_MARKER`);
         L.resetLog();
         await save.click();

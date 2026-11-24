@@ -3,18 +3,41 @@
 // code skips the call on a turn with no action by anyone. Every other turn goes to the routes in order:
 //   1. the desktop's resident gemma4:12b over Tailscale, one structured answer, within a 1 s limit;
 //   2. with the desktop unreachable or late, the on-phone Gemma 4 E2B, as one-word items (about 2.6 s each);
-//   3. Jev's slot: jev-router through SillyTavern's own OpenRouter connection (the key stays there), within the ceiling;
+//   3. Jev's slot, within the ceiling: with her OpenRouter key saved in Setup, Connections, Background jobs, the calibrated
+//      jev-1.13 on OpenRouter's decisions endpoint (typed questions, one call); with no key, or when that fails or is
+//      refused, jev-router through SillyTavern's own OpenRouter connection (that key stays there);
 //   4. code's default.
 // B22 writes the dice judge's wording (src/dice-judge.js) and MB14 stores the roll; this file routes the call.
 import { askFull, parseJson } from '../st.js';
-import { chainFor, resolveRoute, routeHealth, runChain, schemaProblem } from '../routing.js';
-import { settings } from '../store.js';
+import { chainFor, reportChainResult, resolveRoute, routeHealth, runChain, schemaProblem } from '../routing.js';
+import { saveSettings, settings } from '../store.js';
+import { catalogCost, recordSpend, releaseSpend, reserveSpend } from '../spend.js';
 import { askOneWord, phoneModelReady } from './phone-model.js';
 import { desktopQueue } from './queue.js';
 
 export const DESKTOP_LIMIT_MS = 1000;
 export const MISS_MS = 60 * 1000;
 export const JEV_ROUTER = Object.freeze({ route: 'openrouter', model: 'typesafe/jev-router', price: { in: 0.10, out: 0.40 }, timeoutMs: 3000 });
+// The calibrated decision model (DECISIONS, MB8 follow-ups): typed questions posted straight to OpenRouter with her key.
+// OpenRouter billed US$0.042 per million input tokens and nothing for output when measured (memory/m1b-jeved.md 6.2).
+export const JEV_MODEL = 'typesafe/jev-1.13';
+export const JEV_ENDPOINT = 'https://openrouter.ai/api/alpha/decisions';
+export const JEV_PRICE = Object.freeze({ in: 0.042, out: 0 });
+export const JEV_TIMEOUT_MS = 3000;
+
+/** The OpenRouter key she saved for jev-1.13. It lives only in this extension's settings and goes only to OpenRouter. */
+export const jevKey = () => String(settings().jev?.key || '');
+export const hasJevKey = () => !!jevKey();
+
+/** Save the key, or remove it with an empty string. It is never logged and never shown again once saved. */
+export function setJevKey(key) {
+    const st = settings();
+    const value = String(key ?? '').trim();
+    st.jev = st.jev && typeof st.jev === 'object' ? st.jev : {};
+    if (value) st.jev.key = value; else delete st.jev.key;
+    saveSettings();
+    return hasJevKey();
+}
 
 /** The five difficulty steps and their numbers (M1l 5). Fair is the middle step and code's default. */
 export const STEPS = Object.freeze([['Easy', 8], ['Fair', 11], ['Hard', 14], ['Very hard', 17], ['Extreme', 20]]);
@@ -96,6 +119,22 @@ export const DICE = Object.freeze({
     codeDefault(input, screen) {
         return { attempt: !!screen.attemptWords, actor: actorFromText(input.message, input.npcNames), stat: screen.stat || 'Wits', difficulty: 'Fair', stance: 'neutral' };
     },
+    decision: {
+        state: ({ message, scene = '' }) => ({ message: String(message || ''), ...(scene ? { scene: String(scene) } : {}) }),
+        questions: {
+            attempt: { type: 'noul', instructions: '`message` holds an attempt whose outcome is uncertain: a fight, a climb, a lie, a search.' },
+            stat: { type: 'choice', instructions: 'Which stat does the attempt in `message` rest on?', criteria: {
+                Strength: 'force, endurance, hauling, fighting', Agility: 'speed, balance, stealth, dodging', Wits: 'reasoning, memory, solving, studying',
+                Charm: 'persuasion, deception, bargaining', Will: 'nerve, resisting, intimidating', Senses: 'noticing, searching, tracking' } },
+            difficulty: { type: 'choice', instructions: 'How hard is the attempt in `message`?', criteria: {
+                Easy: 'most people succeed', Fair: 'an even chance for a capable person', Hard: 'needs skill or luck',
+                'Very hard': 'only a few succeed', Extreme: 'close to impossible' } },
+            stance: { type: 'choice', instructions: 'What is the stance of whoever resists the attempt in `message`?', criteria: {
+                helping: 'the resisting side helps', neutral: 'no one resists or helps', resisting: 'someone works against it' } },
+        },
+        fromAnswers: (answers, input) => ({ attempt: Number(answers?.attempt?.noul) >= 0.5, actor: actorFromText(input.message, input.npcNames),
+            stat: answers?.stat?.choice, difficulty: answers?.difficulty?.choice, stance: answers?.stance?.choice }),
+    },
     normalize(value) {
         const stat = STATS.find(s => s.toLowerCase() === String(value?.stat || '').toLowerCase());
         const step = STEPS.find(([name]) => name.toLowerCase() === String(value?.difficulty || '').toLowerCase());
@@ -115,6 +154,11 @@ export const ASIDE = Object.freeze({
     fromPhone: answers => ({ aside: answers.aside === 'yes' }),
     codeDefault: (_input, screen) => ({ aside: !!screen.ooc }),
     normalize: value => typeof value?.aside === 'boolean' ? { aside: value.aside } : null,
+    decision: {
+        state: ({ message }) => ({ message: String(message || '') }),
+        questions: { aside: { type: 'noul', instructions: 'In `message` the player steps out of the story to speak to the narrator or the app, outside their character.' } },
+        fromAnswers: answers => ({ aside: Number(answers?.aside?.noul) >= 0.5 }),
+    },
 });
 
 /** Whether a reply changed a lasting fact, asked while capture waits for a route. */
@@ -128,6 +172,11 @@ export const FACT_CHANGED = Object.freeze({
     codeDefault: () => ({ changed: false }),
     normalize: value => typeof value?.changed === 'boolean' ? { changed: value.changed } : null,
     screen: () => ({ skip: false }),
+    decision: {
+        state: ({ reply }) => ({ reply: String(reply || '') }),
+        questions: { changed: { type: 'noul', instructions: '`reply` changes a lasting fact of the story: where someone lives, who is alive, what someone owns, a relationship, a promise.' } },
+        fromAnswers: answers => ({ changed: Number(answers?.changed?.noul) >= 0.5 }),
+    },
 });
 
 let desktopMissUntil = 0;
@@ -147,15 +196,62 @@ async function askDesktop({ system, user, schema, signal }) {
     return { ...res, model: entry.model };
 }
 
-async function askJev({ system, user, schema, signal }) {
+const scrub = (text, key) => (key ? String(text).split(key).join('[key]') : String(text)).slice(0, 200);
+
+/**
+ * jev-1.13 on OpenRouter's decisions endpoint: typed questions in one call, metered under the ceiling. The key goes in
+ * the header of this one request to OpenRouter and nowhere else. Throws with text that holds no key.
+ */
+export async function askJevDecision({ def, input = {}, screen = {}, signal, fetchImpl = globalThis.fetch } = {}) {
+    const key = jevKey();
+    if (!key) throw new Error('no OpenRouter key is saved for jev-1.13');
+    const body = JSON.stringify({ model: JEV_MODEL, state: def.decision.state(input), questions: def.decision.questions });
+    const estimate = catalogCost(JEV_PRICE, Math.ceil(body.length / 4), 0) ?? 0;
+    const reservation = reserveSpend({ route: 'openrouter', estimate });
+    if (!reservation) throw new Error('the monthly spend ceiling is reached');
+    const controller = new AbortController();
+    const stop = () => controller.abort(signal?.reason);
+    signal?.addEventListener?.('abort', stop, { once: true });
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(new Error('jev-1.13 ran past its time limit.')); }, JEV_TIMEOUT_MS);
+    try {
+        const response = await fetchImpl(JEV_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body, signal: controller.signal });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.error) throw new Error(`OpenRouter answered ${response.status}${data?.error?.message ? `: ${data.error.message}` : ''}`);
+        const usage = data?.usage || {};
+        const tokens = { in: Number(usage.input_tokens) || 0, out: Number(usage.output_tokens) || 0 };
+        const reported = usage.cost !== undefined && usage.cost !== null && Number.isFinite(Number(usage.cost)) ? Number(usage.cost) : null;
+        recordSpend({ route: 'openrouter', model: JEV_MODEL, cost: reported ?? catalogCost(JEV_PRICE, tokens.in, tokens.out) ?? estimate,
+            basis: reported !== null ? 'usage' : 'catalog', reservation, job: 'judgment', tokens });
+        return { value: def.decision.fromAnswers(data?.answers || {}, input, screen), model: JEV_MODEL };
+    } catch (error) {
+        // A call that timed out may still be billed, so it keeps its reservation as spent; any other failure lets it go.
+        if (timedOut) recordSpend({ route: 'openrouter', model: JEV_MODEL, cost: estimate, basis: 'reserved', reservation, job: 'judgment' });
+        else releaseSpend(reservation);
+        throw new Error(scrub(timedOut ? 'jev-1.13 ran past its time limit.' : error?.message || error, key));
+    } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener?.('abort', stop);
+    }
+}
+
+async function askJev({ system, user, schema, signal, def, input, screen }) {
     // On by default, as routing is automatic; it is reached only when the desktop and the phone gave no answer, and
     // runs as a paid entry within the ceiling. false turns it off.
     const on = settings().routing?.judgmentCloud ?? true;
     if (on === false) return { skipped: 'the Jev slot is turned off' };
+    let decisionFailed = '';
+    if (def?.decision && hasJevKey()) {
+        try {
+            const res = await askJevDecision({ def, input, screen, signal });
+            if (def.normalize(res.value)) return res;
+            decisionFailed = 'jev-1.13 returned answers that could not be used';
+        } catch (error) { decisionFailed = String(error?.message || error); }
+    }
     const entry = { ...JEV_ROUTER, ...(typeof on === 'object' ? on : {}) };
     const res = await runChain([entry], { job: 'judgment', system, user, schema, tokens: 120, signal, label: 'Judgment call on Jev' });
-    if (!res.ok) throw new Error(res.reason);
-    return { text: res.text, value: res.value, model: entry.model };
+    if (!res.ok) throw Object.assign(new Error(res.reason), { decisionFailed });
+    return { text: res.text, value: res.value, model: entry.model, ...(decisionFailed ? { decisionFailed } : {}) };
 }
 
 const DEFAULT_DEPS = {
@@ -173,6 +269,20 @@ const DEFAULT_DEPS = {
  * 'desktop', 'phone' or 'jev', and attempts lists each route tried with its outcome and time.
  */
 export async function judge(def, input = {}, deps = {}) {
+    const result = await runJudgment(def, input, deps);
+    if (!result.skipped) reportJudgment(result);
+    return result;
+}
+
+// Tell the route notices how the call went: each route that was asked, in order, and the one that answered.
+function reportJudgment(result) {
+    const pooled = { desktop: 'desktop', phone: 'phone', jev: 'openrouter' };
+    const attempts = result.attempts.filter(item => pooled[item.route])
+        .map(item => ({ route: pooled[item.route], outcome: item.outcome === 'answered' ? 'completed' : item.outcome, reason: item.reason || '' }));
+    reportChainResult({ job: 'judgment', background: true, ok: result.route !== 'code', route: pooled[result.route] || '', model: result.model || '', waiting: false, attempts });
+}
+
+async function runJudgment(def, input, deps) {
     const d = { ...DEFAULT_DEPS, ...deps };
     const started = d.clock();
     const screen = def.screen ? def.screen(input) : screenTurn(input.message, { threads: input.threads });
@@ -239,7 +349,8 @@ export async function judge(def, input = {}, deps = {}) {
     // 3. Jev's slot, through SillyTavern's own connection.
     try {
         const t0 = d.clock();
-        const res = await d.jev({ system, user, schema: def.schema });
+        const res = await d.jev({ system, user, schema: def.schema, def, input, screen });
+        if (res?.decisionFailed) attempts.push({ route: 'jev-1.13', outcome: 'failed', reason: res.decisionFailed.slice(0, 200) });
         if (res?.skipped) attempts.push({ route: 'jev', outcome: 'skipped', reason: res.skipped });
         else {
             const value = def.normalize(res?.value ?? parseJson(res?.text, { object: true }));
@@ -250,6 +361,7 @@ export async function judge(def, input = {}, deps = {}) {
             attempts.push({ route: 'jev', outcome: 'invalid', ms: d.clock() - t0 });
         }
     } catch (error) {
+        if (error?.decisionFailed) attempts.push({ route: 'jev-1.13', outcome: 'failed', reason: String(error.decisionFailed).slice(0, 200) });
         attempts.push({ route: 'jev', outcome: 'failed', reason: String(error?.message || error).slice(0, 200) });
     }
 
