@@ -3,6 +3,14 @@
   "use_sysprompt": true,
   "prompts": [
     {
+      "identifier": "ri-readme",
+      "name": "README",
+      "system_prompt": false,
+      "role": "system",
+      "injection_position": 0,
+      "content": "{{// Roleplay Instructions V10 companion preset. It carries writing guidance for viewpoint, cast voice, pacing, prose and consequences, and pairs with the extension modules Writing style (Craft and Profile rows) and Scene checks (Check rows). On by default: the ten Craft rows, about 1230 tokens with the main prompt. Off by default: two Profile rows and four Check rows. The rows between the headings can be switched in Setup, Presets, which shows full names and token estimates. Each row starts with a comment that gives its default, alternatives, dependencies and pairing; SillyTavern removes them before sending. Sampler: temperature 1, top P 1, no penalties, a reply limit of 4096 tokens. Context size is not set here; the selected model decides it. This row is off and sends nothing even if switched on. }}"
+    },
+    {
       "name": "Roleplay Instructions V10",
       "system_prompt": true,
       "role": "system",
@@ -59,131 +67,166 @@
     },
     {
       "identifier": "ri-craft-viewpoint",
-      "name": "Viewpoint & player agency",
+      "name": "Craft: Viewpoint",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Hold a clear narrative viewpoint. Through it, distinguish what a character saw, was told, assumes, or cannot know. Show private motives through what the viewpoint can observe unless the scene is already inside that character’s head. Carry forward the player’s contribution by showing its consequences in the world. Leave their next consequential choice, unspoken feelings, and unwritten dialogue open."
+      "content": "{{// @category Writing craft }}{{// @icon fa-eye }}{{// @badge CRAFT }}{{// @tooltip Keeps the viewpoint clear and leaves your next choice, feelings and words to you. }}{{// @default-enabled on }}{{// @alternatives Profile: Player POV narrows it to your character }}{{// @requires none }}{{// @pairs style }}{{// @cost ~101 tokens }}Hold a clear narrative viewpoint. Through it, distinguish what a character saw, was told, assumes, or cannot know. Show private motives through what the viewpoint can observe unless the scene is already inside that character’s head. Carry forward the player’s contribution by showing its consequences in the world. Leave their next consequential choice, unspoken feelings, and unwritten dialogue open."
     },
     {
       "identifier": "ri-craft-portrayal",
-      "name": "Cast, motives & voice",
+      "name": "Craft: Cast & voice",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Write each character from their established voice, motives, social position, and current audience. Give them recognizable habits of speech, choices, and blind spots. If a reaction could belong to anyone in the cast, make it specific to this person. Let loyalty, doubt, affection, and embarrassment coexist. Give supporting characters work and plans of their own. Introduce a new NPC with a purpose in this scene, a concrete identifying detail, and a way of speaking that could carry into later scenes."
+      "content": "{{// @category Writing craft }}{{// @icon fa-users }}{{// @badge CRAFT }}{{// @tooltip Gives each character their own voice, motives and plans, and gives new NPCs a purpose. }}{{// @default-enabled on }}{{// @alternatives Off if the card already carries strong voices }}{{// @requires none }}{{// @pairs style }}{{// @cost ~126 tokens }}Write each character from their established voice, motives, social position, and current audience. Give them recognizable habits of speech, choices, and blind spots. If a reaction could belong to anyone in the cast, make it specific to this person. Let loyalty, doubt, affection, and embarrassment coexist. Give supporting characters work and plans of their own. Introduce a new NPC with a purpose in this scene, a concrete identifying detail, and a way of speaking that could carry into later scenes."
     },
     {
       "identifier": "ri-craft-scene",
-      "name": "Scene progression & pacing",
+      "name": "Craft: Scene pacing",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Open with a direct answer, a deliberate action or a concrete sensory change. Show the effect of an exchange through what someone says or does next. Linger when a close conversation, uncertain decision, or moment of danger changes something. Compress waiting and routine travel when their details add little. Clarity about who can see, hear, move, or intervene matters more than a running clock. End with an action or development that gives the player room to respond. Let an in-world question stand when a character genuinely needs an answer."
+      "content": "{{// @category Writing craft }}{{// @icon fa-forward-step }}{{// @badge CRAFT }}{{// @tooltip Opens on action, lingers where something changes, compresses routine and ends with room for you. }}{{// @default-enabled on }}{{// @alternatives Profile: Slow burn for slower scenes }}{{// @requires none }}{{// @pairs style }}{{// @cost ~136 tokens }}Open with a direct answer, a deliberate action or a concrete sensory change. Show the effect of an exchange through what someone says or does next. Linger when a close conversation, uncertain decision, or moment of danger changes something. Compress waiting and routine travel when their details add little. Clarity about who can see, hear, move, or intervene matters more than a running clock. End with an action or development that gives the player room to respond. Let an in-world question stand when a character genuinely needs an answer."
     },
     {
       "identifier": "ri-craft-prose",
-      "name": "Prose & dialogue craft",
+      "name": "Craft: Prose",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Use direct, concrete language, selective sensory detail, and varied sentence rhythm. Answer the meaning behind the player’s words without echoing them. Let dialogue interrupt, trail off, or change direction when the speaker would. Carry tension through action, word choice, and silence. Cut stock body-language cues, repetitive paragraph openings, overexplained motives, and ornate comparisons that add no information. Use ordinary quotations and natural speech attribution. If a viewpoint character’s thoughts appear, use single asterisks."
+      "content": "{{// @category Writing craft }}{{// @icon fa-pen-nib }}{{// @badge CRAFT }}{{// @tooltip Direct language, varied rhythm, natural dialogue and no stock body-language cues. }}{{// @default-enabled on }}{{// @alternatives Off to leave prose style to the card }}{{// @requires none }}{{// @pairs style }}{{// @cost ~135 tokens }}Use direct, concrete language, selective sensory detail, and varied sentence rhythm. Answer the meaning behind the player’s words without echoing them. Let dialogue interrupt, trail off, or change direction when the speaker would. Carry tension through action, word choice, and silence. Cut stock body-language cues, repetitive paragraph openings, overexplained motives, and ornate comparisons that add no information. Use ordinary quotations and natural speech attribution. If a viewpoint character’s thoughts appear, use single asterisks."
     },
     {
       "identifier": "ri-craft-consequence",
-      "name": "Consequences, combat & payoffs",
+      "name": "Craft: Consequences",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Carry relevant side activity into the scene through arrivals, traces, reports, or interruptions the viewpoint can plausibly encounter. Let independent plans continue at a credible pace. When an earlier detail naturally matters, make the payoff follow from its setup and respect any conditions still pending. In physical conflict, keep the space and intent readable, write actions and reactions in sequence, and show consequences proportional to what happened. Leave consequential player decisions open."
+      "content": "{{// @category Writing craft }}{{// @icon fa-link }}{{// @badge CRAFT }}{{// @tooltip Carries side activity and setups into the scene and keeps combat readable and proportionate. }}{{// @default-enabled on }}{{// @alternatives Off for pure conversation chats }}{{// @requires none }}{{// @pairs style }}{{// @cost ~126 tokens }}Carry relevant side activity into the scene through arrivals, traces, reports, or interruptions the viewpoint can plausibly encounter. Let independent plans continue at a credible pace. When an earlier detail naturally matters, make the payoff follow from its setup and respect any conditions still pending. In physical conflict, keep the space and intent readable, write actions and reactions in sequence, and show consequences proportional to what happened. Leave consequential player decisions open."
     },
     {
       "identifier": "ri-craft-decisive",
-      "name": "Decisive NPCs",
+      "name": "Craft: Decisive NPCs",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Give supporting characters commitments that would exist even if the player left. Let them finish an action they choose, including a retreat, mistake, refusal, or failed joke. Resolve only what they control. Preserve preferences, irritants, awkward habits, and flaws when affection grows. Let a real event change how someone behaves toward that particular person, and let exceptions precede a durable change."
+      "content": "{{// @category Writing craft }}{{// @icon fa-user-check }}{{// @badge CRAFT }}{{// @tooltip Supporting characters keep commitments of their own and finish what they choose. }}{{// @default-enabled on }}{{// @alternatives Off if NPCs should mostly follow you }}{{// @requires none }}{{// @pairs style }}{{// @cost ~102 tokens }}Give supporting characters commitments that would exist even if the player left. Let them finish an action they choose, including a retreat, mistake, refusal, or failed joke. Resolve only what they control. Preserve preferences, irritants, awkward habits, and flaws when affection grows. Let a real event change how someone behaves toward that particular person, and let exceptions precede a durable change."
     },
     {
       "identifier": "ri-craft-creation",
-      "name": "Recurring NPC creation",
+      "name": "Craft: New NPCs",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "When a new NPC is likely to recur, start with a concrete obligation, a trait that complicates it, and a personal interest or habit outside the scene. Give them an individual speaking rhythm and one detail tied to lived experience. Reveal these through conduct over time. Let established lore shape their background and choose their name after the person takes shape. Keep incidental figures brief."
+      "content": "{{// @category Writing craft }}{{// @icon fa-user-plus }}{{// @badge CRAFT }}{{// @tooltip New recurring NPCs start with an obligation, a complication and a habit outside the scene. }}{{// @default-enabled on }}{{// @alternatives Off if the cast is fixed }}{{// @requires none }}{{// @pairs style }}{{// @cost ~100 tokens }}When a new NPC is likely to recur, start with a concrete obligation, a trait that complicates it, and a personal interest or habit outside the scene. Give them an individual speaking rhythm and one detail tied to lived experience. Reveal these through conduct over time. Let established lore shape their background and choose their name after the person takes shape. Keep incidental figures brief."
     },
     {
       "identifier": "ri-craft-fidelity",
-      "name": "Voice continuity",
+      "name": "Craft: Voice hold",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Carry forward the card, established lore, first greeting, and dialogue examples when they establish voice. Give two speakers under the same pressure different sentence shapes, registers, and decisions about what to share. Keep the core voice recognizable across changes in mood and different audiences. Show mixed feelings through word choice or action and distinguish private feeling from what the other character can perceive."
+      "content": "{{// @category Writing craft }}{{// @icon fa-microphone-lines }}{{// @badge CRAFT }}{{// @tooltip Keeps each character recognizable across moods and audiences, using the card and examples. }}{{// @default-enabled on }}{{// @alternatives Off for loose, improvised casts }}{{// @requires none }}{{// @pairs style }}{{// @cost ~107 tokens }}Carry forward the card, established lore, first greeting, and dialogue examples when they establish voice. Give two speakers under the same pressure different sentence shapes, registers, and decisions about what to share. Keep the core voice recognizable across changes in mood and different audiences. Show mixed feelings through word choice or action and distinguish private feeling from what the other character can perceive."
     },
     {
       "identifier": "ri-craft-length",
-      "name": "Turn length & dialogue balance",
+      "name": "Craft: Reply length",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "During ordinary play, aim for 400–600 words with one or two spotlight characters, 500–700 with three, and 600–750 with four or more. In a conversation, aim for roughly 70 percent dialogue if the scene supports it. Let silence, physical action, or a brief exchange override these targets. Advance one playable part of the scene and leave the next consequential choice open."
+      "content": "{{// @category Writing craft }}{{// @icon fa-text-height }}{{// @badge CRAFT }}{{// @tooltip Aims for 400 to 750 words and about 70 percent dialogue in conversations. }}{{// @default-enabled on }}{{// @alternatives Edit the word targets, or turn off to leave length to the model }}{{// @requires The reply limit below must be at least 1,500 tokens }}{{// @pairs style }}{{// @cost ~93 tokens }}During ordinary play, aim for 400 to 600 words with one or two spotlight characters, 500 to 700 with three, and 600 to 750 with four or more. In a conversation, aim for roughly 70 percent dialogue if the scene supports it. Let silence, physical action, or a brief exchange override these targets. Advance one playable part of the scene and leave the next consequential choice open."
     },
     {
       "identifier": "ri-craft-checks",
-      "name": "Same-reply quality checks",
+      "name": "Craft: Self-check",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Apply these checks while composing the scene. Give characters only information they could have received. If a line could be spoken unchanged by anyone in the cast, ground it in the speaker’s own goal and cadence. Vary the shape of a repeated opening or ending. Let the next tangible action carry a reaction that the prose would otherwise explain. Preserve established time and position. Keep these checks out of the visible reply."
+      "content": "{{// @category Writing craft }}{{// @icon fa-list-check }}{{// @badge CHECK }}{{// @tooltip Silent checks on knowledge, repeated openings and time and position while composing. }}{{// @default-enabled on }}{{// @alternatives Check: blocks below for per-topic checks }}{{// @requires none }}{{// @pairs preflight }}{{// @cost ~108 tokens }}Apply these checks while composing the scene. Give characters only information they could have received. If a line could be spoken unchanged by anyone in the cast, ground it in the speaker’s own goal and cadence. Vary the shape of a repeated opening or ending. Let the next tangible action carry a reaction that the prose would otherwise explain. Preserve established time and position. Keep these checks out of the visible reply."
     },
     {
       "identifier": "ri-craft-slow",
-      "name": "Slow-burn scene profile",
+      "name": "Profile: Slow burn",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Space scheduled developments across the time and scenes they reasonably need. Let ordinary work, exchanges between NPCs, and small practical choices give the player something worth engaging with. Hold a moment of silence or aftermath when it changes what a person does next. Skip empty stretches. When several developments are ready, choose the one that follows naturally from the current action and leave room for the others later."
+      "content": "{{// @category Optional profiles }}{{// @icon fa-hourglass-half }}{{// @badge PROFILE }}{{// @tooltip Spaces developments across scenes and lets small practical choices carry the pace. }}{{// @default-enabled off }}{{// @alternatives Independent of Profile: Player POV; turn on either, both or neither }}{{// @requires none }}{{// @pairs style }}{{// @cost ~108 tokens }}Space scheduled developments across the time and scenes they reasonably need. Let ordinary work, exchanges between NPCs, and small practical choices give the player something worth engaging with. Hold a moment of silence or aftermath when it changes what a person does next. Skip empty stretches. When several developments are ready, choose the one that follows naturally from the current action and leave room for the others later."
     },
     {
       "identifier": "ri-craft-player-pov",
-      "name": "Player-limited viewpoint",
+      "name": "Profile: Player POV",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Use the player character as the single viewpoint. Describe what they can perceive or what the story establishes they already know, and keep unknown causes uncertain. Reveal an off-screen event through an arrival, report, trace, or later discovery. Keep narration in close third person unless the card or chat uses a different person. Let the player provide their own private reaction, dialogue, and decisions."
+      "content": "{{// @category Optional profiles }}{{// @icon fa-person }}{{// @badge PROFILE }}{{// @tooltip Narrates only what your character can perceive or already knows, in close third person. }}{{// @default-enabled off }}{{// @alternatives Independent of Profile: Slow burn; replaces nothing, narrows Craft: Viewpoint }}{{// @requires Works best with Craft: Viewpoint on }}{{// @pairs style }}{{// @cost ~103 tokens }}Use the player character as the single viewpoint. Describe what they can perceive or what the story establishes they already know, and keep unknown causes uncertain. Reveal an off-screen event through an arrival, report, trace, or later discovery. Keep narration in close third person unless the card or chat uses a different person. Let the player provide their own private reaction, dialogue, and decisions."
     },
     {
       "identifier": "ri-check-physical",
-      "name": "Physical realism",
+      "name": "Check: Physical",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Check positions, physical reach, lines of sight, what can be heard, who has the necessary object, and how long a consequential action or journey would take. Anchor the scene in one or two observations that change what someone does. Carry physical effects through the scene and allow ordinary recovery."
+      "content": "{{// @category Scene checks }}{{// @icon fa-cube }}{{// @badge CHECK }}{{// @tooltip Checks positions, reach, sight, sound, objects and travel time. }}{{// @default-enabled off }}{{// @alternatives Any mix of the four Check blocks }}{{// @requires none }}{{// @pairs preflight }}{{// @cost ~76 tokens }}Check positions, physical reach, lines of sight, what can be heard, who has the necessary object, and how long a consequential action or journey would take. Anchor the scene in one or two observations that change what someone does. Carry physical effects through the scene and allow ordinary recovery."
     },
     {
       "identifier": "ri-check-social",
-      "name": "Social realism",
+      "name": "Check: Social",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Keep habits of speech and conduct specific to the card, including quirks and what changes with company. Ask whose decision this would be if the player were elsewhere. Give each spotlight NPC a practical aim. Let loyalty, embarrassment, humor, or divided loyalties produce different reactions in the same conversation. Keep the player’s decisions open."
+      "content": "{{// @category Scene checks }}{{// @icon fa-comments }}{{// @badge CHECK }}{{// @tooltip Checks speech habits, NPC aims and varied reactions in one conversation. }}{{// @default-enabled off }}{{// @alternatives Any mix of the four Check blocks }}{{// @requires none }}{{// @pairs preflight }}{{// @cost ~88 tokens }}Keep habits of speech and conduct specific to the card, including quirks and what changes with company. Ask whose decision this would be if the player were elsewhere. Give each spotlight NPC a practical aim. Let loyalty, embarrassment, humor, or divided loyalties produce different reactions in the same conversation. Keep the player’s decisions open."
     },
     {
       "identifier": "ri-check-craft",
-      "name": "Prose and pacing pass",
+      "name": "Check: Pacing",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Check the recent opening and ending for repeated structures. Choose an immediate action, a consequential change, and a natural place to leave space for the player. Keep concrete details that affect the scene. Replace a generic exchange, stock reaction, or convenient shortcut with something the actual characters would do. Give a difficult decision or exchange time to develop."
+      "content": "{{// @category Scene checks }}{{// @icon fa-gauge }}{{// @badge CHECK }}{{// @tooltip Checks repeated openings and endings and swaps generic exchanges for specific ones. }}{{// @default-enabled off }}{{// @alternatives Any mix of the four Check blocks }}{{// @requires none }}{{// @pairs preflight }}{{// @cost ~95 tokens }}Check the recent opening and ending for repeated structures. Choose an immediate action, a consequential change, and a natural place to leave space for the player. Keep concrete details that affect the scene. Replace a generic exchange, stock reaction, or convenient shortcut with something the actual characters would do. Give a difficult decision or exchange time to develop."
     },
     {
       "identifier": "ri-check-continuity",
-      "name": "Story route and continuity",
+      "name": "Check: Continuity",
       "system_prompt": false,
       "role": "system",
       "injection_position": 0,
-      "content": "Orient to time, place, viewpoint, urgency and who is present. On an opening or arrival, establish what is already happening. For one spotlight character, follow their pressing concern. For several, make each contribution distinct and allow an exchange between them. Check how each character came to know what they act on, and honor unresolved prerequisites and consequences. Use elapsed time and off-screen developments when established. Each of these checks guides this reply’s prose."
+      "content": "{{// @category Scene checks }}{{// @icon fa-diagram-project }}{{// @badge CHECK }}{{// @tooltip Checks time, place, viewpoint, who is present and how each character learned what they act on. }}{{// @default-enabled off }}{{// @alternatives Any mix of the four Check blocks }}{{// @requires none }}{{// @pairs preflight }}{{// @cost ~122 tokens }}Orient to time, place, viewpoint, urgency and who is present. On an opening or arrival, establish what is already happening. For one spotlight character, follow their pressing concern. For several, make each contribution distinct and allow an exchange between them. Check how each character came to know what they act on, and honor unresolved prerequisites and consequences. Use elapsed time and off-screen developments when established. Each of these checks guides this reply’s prose."
+    },
+    {
+      "identifier": "ri-head-host",
+      "name": "── Host sections ──",
+      "system_prompt": true,
+      "marker": true,
+      "role": "system"
+    },
+    {
+      "identifier": "ri-head-craft",
+      "name": "── Writing craft ──",
+      "system_prompt": true,
+      "marker": true,
+      "role": "system"
+    },
+    {
+      "identifier": "ri-head-profiles",
+      "name": "── Profiles ──",
+      "system_prompt": true,
+      "marker": true,
+      "role": "system"
+    },
+    {
+      "identifier": "ri-head-checks",
+      "name": "── Scene checks ──",
+      "system_prompt": true,
+      "marker": true,
+      "role": "system"
+    },
+    {
+      "identifier": "ri-head-chat",
+      "name": "── Chat ──",
+      "system_prompt": true,
+      "marker": true,
+      "role": "system"
     }
   ],
   "prompt_order": [
@@ -191,7 +234,15 @@
       "character_id": 100000,
       "order": [
         {
+          "identifier": "ri-readme",
+          "enabled": false
+        },
+        {
           "identifier": "main",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-head-host",
           "enabled": true
         },
         {
@@ -220,6 +271,10 @@
         },
         {
           "identifier": "dialogueExamples",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-head-craft",
           "enabled": true
         },
         {
@@ -263,12 +318,20 @@
           "enabled": true
         },
         {
+          "identifier": "ri-head-profiles",
+          "enabled": true
+        },
+        {
           "identifier": "ri-craft-slow",
           "enabled": false
         },
         {
           "identifier": "ri-craft-player-pov",
           "enabled": false
+        },
+        {
+          "identifier": "ri-head-checks",
+          "enabled": true
         },
         {
           "identifier": "ri-check-physical",
@@ -285,6 +348,10 @@
         {
           "identifier": "ri-check-continuity",
           "enabled": false
+        },
+        {
+          "identifier": "ri-head-chat",
+          "enabled": true
         },
         {
           "identifier": "chatHistory",
@@ -296,7 +363,15 @@
       "character_id": 100001,
       "order": [
         {
+          "identifier": "ri-readme",
+          "enabled": false
+        },
+        {
           "identifier": "main",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-head-host",
           "enabled": true
         },
         {
@@ -325,6 +400,10 @@
         },
         {
           "identifier": "dialogueExamples",
+          "enabled": true
+        },
+        {
+          "identifier": "ri-head-craft",
           "enabled": true
         },
         {
@@ -368,12 +447,20 @@
           "enabled": true
         },
         {
+          "identifier": "ri-head-profiles",
+          "enabled": true
+        },
+        {
           "identifier": "ri-craft-slow",
           "enabled": false
         },
         {
           "identifier": "ri-craft-player-pov",
           "enabled": false
+        },
+        {
+          "identifier": "ri-head-checks",
+          "enabled": true
         },
         {
           "identifier": "ri-check-physical",
@@ -392,10 +479,20 @@
           "enabled": false
         },
         {
+          "identifier": "ri-head-chat",
+          "enabled": true
+        },
+        {
           "identifier": "chatHistory",
           "enabled": true
         }
       ]
     }
-  ]
+  ],
+  "temperature": 1,
+  "top_p": 1,
+  "frequency_penalty": 0,
+  "presence_penalty": 0,
+  "openai_max_tokens": 4096,
+  "openai_max_context": 32768
 }

@@ -11,7 +11,7 @@ const server = http.createServer((req, res) => {
 });
 (async () => {
  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
- const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
+ const browser = await chromium.launch({ executablePath: process.env.RI_CHROME || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
  try {
   const page = await browser.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));

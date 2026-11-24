@@ -39,6 +39,13 @@ async function boot(browser, viewport) {
     await page.evaluate(async BASE => {
         const Q = await import(`${BASE}/src/quick-actions.js`);
         Q.setBarFolded(false);
+        // Other suites on a shared host may unpin actions or give the chat its own bar; this pass needs every kind.
+        if (Q.hasChatBar()) Q.useChatBar(false);
+        const pinned = new Set(Q.barPins().map(id => Q.readQuickAction(id)?.kind));
+        for (const kind of ['options', 'swipe', 'continue', 'impersonate', 'review', 'direction']) {
+            const action = !pinned.has(kind) && Q.listQuickActions('', { allKinds: true }).find(item => item.kind === kind);
+            if (action) Q.pinToBar(action.id);
+        }
         (await import(`${BASE}/src/ui/composer-bar.js`)).renderBar();
     }, BASE);
     await page.waitForTimeout(800);
@@ -111,6 +118,12 @@ async function tapPin(page, kind, title) {
     await page.touchscreen.tap(box.x + box.w / 2, box.y + box.h / 2);
     await page.waitForTimeout(250);
     return box;
+}
+
+// B2's results cache reopens the last options on a re-tap; these checks need a fresh request, so the cache is cleared.
+async function tapFreshOptions(page) {
+    await page.evaluate(async BASE => (await import(`${BASE}/src/ui/results-sheet.js`)).clearOptionsCache(), BASE);
+    return tapPin(page, 'options');
 }
 
 async function touch(page, type, points) {
@@ -269,7 +282,7 @@ async function run(browser, label, viewport) {
         await page.touchscreen.tap(button.x + button.w / 2, button.y + button.h / 2);
         await page.waitForTimeout(150);
     };
-    await tapPin(page, 'options');
+    await tapFreshOptions(page);
     await generateNow();
     await closeSheet(page);
     await page.waitForSelector('.ri-bar-status-button[data-tone="ready"]', { timeout: 30000 });
@@ -281,7 +294,7 @@ async function run(browser, label, viewport) {
     const viewed = await page.locator('.ri-gsheet .ri-option-card').count();
     await closeSheet(page);
     start = requestCount();
-    await tapPin(page, 'options');
+    await tapFreshOptions(page);
     await generateNow();
     const stop = await rect(page, '.ri-bar-status-button[data-tone="call"]');
     await page.touchscreen.tap(stop.x + stop.w / 2, stop.y + stop.h / 2);
@@ -295,7 +308,7 @@ async function run(browser, label, viewport) {
         (await import(`${BASE}/src/quick-actions.js`)).saveQuickAction({ id: 'builtin:options:npc', set: 'missing-set' });
         (await import(`${BASE}/src/ui/composer-bar.js`)).renderBar();
     }, BASE);
-    await tapPin(page, 'options');
+    await tapFreshOptions(page);
     await generateNow();
     await page.waitForSelector('.ri-gsheet [data-ri-retry]', { timeout: 10000 });
     const failure = await page.evaluate(() => ({ status: document.querySelector('.ri-bar-status-button')?.textContent,

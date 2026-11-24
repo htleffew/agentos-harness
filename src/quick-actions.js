@@ -4,7 +4,7 @@ import { MOD_MAX, MOD_MIN, outcome, sheet } from './dice.js';
 import { countPresent, worldOffers } from './pacing.js';
 import { blockedEventTags } from './state.js';
 import { ctx, KEY, names } from './st.js';
-import { chatState, FORMS, pronounForms, saveSettings, settings } from './store.js';
+import { chatState, FORMS, pronounForms, saveChatState, saveSettings, settings } from './store.js';
 import { chatWorld, DONE, isWorldEntry, listWorld, readScene, readWorldEntry, WORLD_KINDS } from './world.js';
 import { loadEffectiveWorld } from './worldflow.js';
 
@@ -809,7 +809,14 @@ export function migrateComposerBar(library = actionLibrary(), cfg = settings()) 
     return bar;
 }
 
-export function composerBar() {
+// This chat pins (DESIGN.md 4.7): a copy of the global bar that replaces it for the open chat only.
+// The copy lives in the chat's metadata, so it follows the chat and never touches the global bar.
+const chatBarRecord = () => {
+    const record = chatState()?.quickBar;
+    return object(record) && Array.isArray(record.pins) ? record : null;
+};
+
+function globalBar() {
     const library = actionLibrary();
     if (!object(library.bar) || library.bar.version !== 1) {
         migrateComposerBar(library);
@@ -821,32 +828,67 @@ export function composerBar() {
     return bar;
 }
 
-/** Pinned actions that still exist, in bar order. */
-export function barPins() {
-    return composerBar().pins.map(readQuickAction).filter(action => action && action.enabled && !action.hidden && !action.removed);
-}
+/** True when the open chat has its own pins. */
+export const hasChatBar = () => !!chatBarRecord();
 
-export function pinToBar(id, pinned = true) {
-    const bar = composerBar();
-    const at = bar.pins.indexOf(id);
-    if (pinned && at < 0 && readQuickAction(id)) bar.pins.push(id);
-    else if (!pinned && at >= 0) bar.pins.splice(at, 1);
+/** Give the open chat its own pins (a copy of the global bar), or hand it back to the global bar. */
+export function useChatBar(on) {
+    const cs = chatState();
+    if (!cs) return false;
+    if (on && !chatBarRecord()) cs.quickBar = { version: 1, pins: [...globalBar().pins] };
+    else if (!on && cs.quickBar) delete cs.quickBar;
     else return false;
-    saveSettings();
+    saveChatState();
     return true;
 }
 
-export function moveBarPin(id, step) {
-    const bar = composerBar();
-    const at = bar.pins.indexOf(id), to = at + Math.sign(step);
-    if (at < 0 || to < 0 || to >= bar.pins.length || to === at) return false;
-    [bar.pins[at], bar.pins[to]] = [bar.pins[to], bar.pins[at]];
-    saveSettings();
+/** The bar the open chat shows: its own pins when it has them, otherwise the global bar. `folded` is always global. */
+export function composerBar() {
+    const bar = globalBar();
+    const own = chatBarRecord();
+    if (!own) return bar;
+    own.pins = own.pins.filter(validId);
+    return { version: bar.version, notes: bar.notes, get pins() { return own.pins; }, set pins(value) { own.pins = value; },
+        get folded() { return bar.folded; }, set folded(value) { bar.folded = value; } };
+}
+
+/** The pins of one scope for the pin editor: 'global', 'chat' or, when omitted, the bar the open chat shows. */
+function pinsOf(scope) {
+    if (scope === 'global') return { pins: globalBar().pins, save: saveSettings };
+    const own = chatBarRecord();
+    if (own) return { pins: own.pins, save: saveChatState };
+    return scope === 'chat' ? null : { pins: globalBar().pins, save: saveSettings };
+}
+
+/** Pinned actions that still exist, in bar order. */
+export function barPins(scope) {
+    const target = pinsOf(scope);
+    return (target?.pins || []).map(readQuickAction).filter(action => action && action.enabled && !action.hidden && !action.removed);
+}
+
+export function pinToBar(id, pinned = true, scope) {
+    const target = pinsOf(scope);
+    if (!target) return false;
+    const at = target.pins.indexOf(id);
+    if (pinned && at < 0 && readQuickAction(id)) target.pins.push(id);
+    else if (!pinned && at >= 0) target.pins.splice(at, 1);
+    else return false;
+    target.save();
+    return true;
+}
+
+export function moveBarPin(id, step, scope) {
+    const target = pinsOf(scope);
+    if (!target) return false;
+    const at = target.pins.indexOf(id), to = at + Math.sign(step);
+    if (at < 0 || to < 0 || to >= target.pins.length || to === at) return false;
+    [target.pins[at], target.pins[to]] = [target.pins[to], target.pins[at]];
+    target.save();
     return true;
 }
 
 export function setBarFolded(folded) {
-    composerBar().folded = !!folded;
+    globalBar().folded = !!folded;
     saveSettings();
 }
 

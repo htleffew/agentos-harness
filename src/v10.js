@@ -30,7 +30,10 @@ export const DEFAULT_MODULES = {
 };
 export const STYLE = 'Write direct, concrete fiction. Give the current cast distinct voices and independent motives. Show actions and speech, respect viewpoint knowledge, and leave the player’s speech, thoughts and choices to the player. End with an in-world action or development that gives the player room to respond. Most people are generally well, rested and capable; transient setbacks usually resolve quickly. Let significant moments breathe and skip uneventful intervals when appropriate.';
 const COMPANION_STYLE = 'Treat good health and rest as normal. Minor setbacks usually resolve quickly. Carry a lasting limitation only when the story establishes one.';
-const COMPANION_WRITING_BLOCKS = new Set(['Viewpoint & player agency','Cast, motives & voice','Scene progression & pacing','Prose & dialogue craft','Consequences, combat & payoffs', 'Decisive NPCs', 'Recurring NPC creation', 'Voice continuity', 'Same-reply quality checks', 'Slow-burn scene profile', 'Player-limited viewpoint']);
+// Matched by block id: the preset's row names are shortened for phone width and can change, the ids do not.
+const COMPANION_WRITING_BLOCKS = new Set(['ri-craft-viewpoint','ri-craft-portrayal','ri-craft-scene','ri-craft-prose','ri-craft-consequence','ri-craft-decisive','ri-craft-creation','ri-craft-fidelity','ri-craft-checks','ri-craft-slow','ri-craft-player-pov']);
+// Comment macros carry a preset block's annotations; SillyTavern removes them before sending.
+export const stripPresetComments = text => String(text||'').replace(/\{\{\/\/[\s\S]*?\}\}/g,'').trim();
 export const defaultWritingGuidance = () => pairedPreset() ? COMPANION_STYLE : STYLE;
 export const PREFLIGHT = 'Apply the enabled checks to the prose itself. Use the established scene and cast to decide which checks matter on this turn.';
 export const SCENE_CHECKS = {physical:'Physical realism',social:'Social realism and character fidelity',craft:'Pacing and prose',continuity:'Information and continuity'};
@@ -1016,7 +1019,7 @@ export async function draftOpening({ text = '', direction = '', signal } = {}) {
     const writing = modules.style ? local.style ?? defaultWritingGuidance() : '';
     const companionChecks = new Set(Object.values(HOST_SCENE_CHECKS));
     const companionWriting = pairedPreset() && !text ? (activeHostPrompts() || [])
-        .filter(block=>block.enabled && (block.id === 'ri-craft-scene' || COMPANION_WRITING_BLOCKS.has(block.name) || companionChecks.has(block.id))).map(block=>block.content).join('\n') : '';
+        .filter(block=>block.enabled && (COMPANION_WRITING_BLOCKS.has(block.id) || companionChecks.has(block.id))).map(block=>stripPresetComments(block.content)).join('\n') : '';
     const openingPermission = local.openingPlayerThoughts === true
         ? promptText('openingPlayerThoughts')
         : 'The player supplies their own thoughts, dialogue, and choices.';

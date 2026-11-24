@@ -1,0 +1,222 @@
+/* Reply tray (DESIGN.md 6.1, 6.4 and 6.5). The tray's controls keep the terminal look; card values take
+   the chat's story style through the --ri-style-* tokens. No height targets: each view takes the height its
+   content needs. Card text: labels 12 px and values 13 px in Compact, 13 and 14 px in Comfortable, times the scale. */
+
+.ri-tray {
+    --ri-card-text-scale: 1;
+    --ri-card-label: max(12px, calc(12px * var(--ri-card-text-scale)));
+    --ri-card-data: max(12px, calc(13px * var(--ri-card-text-scale)));
+    display: block;
+    margin: 6px 0 2px;
+    padding: 0;
+    font-family: var(--ri-font);
+    font-weight: 500;
+    color: var(--ri-text);
+    box-sizing: border-box;
+    min-width: 0;
+}
+.ri-tray[data-card-text="comfortable"] {
+    --ri-card-label: max(12px, calc(13px * var(--ri-card-text-scale)));
+    --ri-card-data: max(12px, calc(14px * var(--ri-card-text-scale)));
+}
+.ri-tray *, .ri-tray *::before, .ri-tray *::after { box-sizing: border-box; }
+
+/* Strip: one line. */
+.ri-tray-strip {
+    display: flex;
+    align-items: center;
+    gap: var(--ri-gap);
+    min-height: var(--ri-hit-min);
+    border: 1px solid var(--ri-line-faint);
+    border-left: 2px solid var(--ri-story-line);
+    background: var(--ri-surface);
+}
+.ri-tray-summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: var(--ri-hit-min);
+    padding: 2px var(--ri-pad);
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--ri-card-label);
+    line-height: 1.3;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+}
+span.ri-tray-summary { cursor: default; }
+.ri-tray-summary:focus-visible, .ri-tray-view:focus-visible, .ri-tray-line:focus-visible, .ri-tray-chip:focus-visible, .ri-tray-link:focus-visible {
+    outline: 2px solid var(--ri-focus);
+    outline-offset: -2px;
+}
+.ri-tray-scene { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+.ri-tray-scene-text { overflow: hidden; text-overflow: ellipsis; font-family: var(--ri-style-face); font-size: var(--ri-card-data); color: var(--ri-style-ink); }
+.ri-tray-mark { color: var(--ri-story); font-size: var(--ri-card-label); }
+.ri-tray-people { display: inline-flex; gap: 2px; flex: none; }
+.ri-tray-person, .ri-tray-more {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 3px;
+    border: 1px solid var(--ri-story-line);
+    color: var(--ri-story);
+    font-size: 12px;
+    line-height: 1;
+}
+.ri-tray-count { flex: none; color: var(--ri-text-muted); }
+.ri-tray-call { flex: none; width: var(--ri-dot); height: var(--ri-dot); border-radius: 50%; background: var(--ri-call); }
+.ri-tray-warn { flex: none; color: var(--ri-problem); }
+.ri-tray-empty { color: var(--ri-text-muted); }
+
+.ri-tray-views { display: inline-flex; flex: none; }
+.ri-tray-view {
+    display: inline-grid;
+    place-items: center;
+    width: var(--ri-hit-min);
+    height: var(--ri-hit-min);
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ri-text-dim);
+    font-size: calc(var(--ri-icon-size) * 0.75);
+    cursor: pointer;
+}
+.ri-tray-view[aria-pressed="true"] { color: var(--ri-select); box-shadow: inset 0 -2px 0 var(--ri-select-line); }
+
+/* The header fallback note (6.8). */
+.ri-tray-note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 4px var(--ri-pad);
+    border: 1px solid var(--ri-line-faint);
+    border-top: 0;
+    background: var(--ri-setup-tint);
+    color: var(--ri-text-muted);
+    font-size: var(--ri-card-label);
+}
+.ri-tray-link {
+    min-height: var(--ri-hit-min);
+    padding: 0 4px;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ri-reply);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Compact: one line per card with a value. */
+.ri-tray-lines { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ri-line-faint); border-top: 0; background: var(--ri-style-surface); }
+.ri-tray-line {
+    display: grid;
+    grid-template-columns: 16px minmax(64px, max-content) minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    min-height: var(--ri-hit-min);
+    padding: 2px var(--ri-pad);
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.ri-tray-lines li + li .ri-tray-line { border-top: 1px solid var(--ri-line-faint); }
+.ri-tray-line-icon { font-size: var(--ri-card-label); color: var(--ri-story); justify-self: center; }
+.ri-tray-line-label { font-size: var(--ri-card-label); color: var(--ri-text-muted); letter-spacing: var(--ri-track-label); text-transform: uppercase; white-space: nowrap; }
+.ri-tray-line-value { font-family: var(--ri-style-face); font-size: var(--ri-card-data); color: var(--ri-style-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-family="direction"] > .ri-tray-line .ri-tray-line-icon, .ri-tray-chip[data-family="direction"] i { color: var(--ri-direction); }
+[data-family="review"] > .ri-tray-line .ri-tray-line-icon, .ri-tray-chip[data-family="review"] i { color: var(--ri-review); }
+
+/* Expanded: a chip row and one card. */
+.ri-tray-chips {
+    display: flex;
+    gap: var(--ri-gap);
+    overflow-x: auto;
+    padding: 4px var(--ri-pad);
+    border: 1px solid var(--ri-line-faint);
+    border-top: 0;
+    background: var(--ri-surface);
+    scrollbar-width: thin;
+}
+.ri-tray-chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    min-height: var(--ri-hit-min);
+    padding: 0 8px;
+    margin: 0;
+    border: 1px solid var(--ri-line-faint);
+    background: transparent;
+    color: var(--ri-text);
+    font: inherit;
+    font-size: var(--ri-card-label);
+    cursor: pointer;
+}
+.ri-tray-chip i { color: var(--ri-story); }
+.ri-tray-chip[data-empty="true"] { color: var(--ri-text-muted); border-style: dashed; }
+.ri-tray-chip[aria-selected="true"] { border-color: var(--ri-select-line); color: var(--ri-text); }
+.ri-tray .ri-tray-panel.ri-root {
+    margin: 0;
+    padding: var(--ri-pad);
+    border: 1px solid var(--ri-line-faint);
+    border-top: 0;
+    border-radius: var(--ri-style-corner);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    background: var(--ri-style-surface);
+    color: var(--ri-style-ink);
+    font-family: var(--ri-style-face);
+    font-size: var(--ri-card-data);
+    line-height: 1.45;
+}
+.ri-tray-panel :is(p, ul, dl, pre, blockquote) { margin: 0 0 6px; }
+.ri-tray-panel :is(.ri-label, .ri-k, dt, .ri-state-label) { font-family: var(--ri-font); font-size: var(--ri-card-label); color: var(--ri-style-muted); }
+.ri-tray-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 10px; }
+.ri-tray-fields > div { display: contents; }
+.ri-tray-fields dd { margin: 0; color: var(--ri-style-ink); overflow-wrap: anywhere; }
+.ri-tray-help { color: var(--ri-style-muted); font-size: var(--ri-card-label); }
+.ri-tray-person-card + .ri-tray-person-card { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ri-style-rule); }
+.ri-tray-person-card h4 { margin: 0 0 4px; font-family: var(--ri-font); font-size: var(--ri-card-label); color: var(--ri-style-accent); letter-spacing: var(--ri-track-label); text-transform: uppercase; }
+
+/* Loading (6.4): the Strip alone, with a chip per card as it arrives. */
+.ri-tray-loading .ri-tray-strip { border-left-color: var(--ri-reply-line); }
+.ri-tray-signal { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; flex: none; }
+.ri-tray-signal i { width: 3px; height: 4px; background: var(--ri-reply); animation: ri-tray-pulse calc(var(--ri-rise) * 6) ease-in-out infinite alternate; }
+.ri-tray-signal i:nth-child(2) { animation-delay: var(--ri-rise); }
+.ri-tray-signal i:nth-child(3) { animation-delay: calc(var(--ri-rise) * 2); }
+.ri-tray-loading[data-end]:not([data-end=""]) .ri-tray-signal i { animation: none; height: 4px; background: var(--ri-text-dim); }
+.ri-tray-loading[data-end="failed"] .ri-tray-strip { border-left-color: var(--ri-problem-line); }
+.ri-tray-loading[data-end="stopped"] .ri-tray-strip { border-left-color: var(--ri-setup-line); }
+.ri-tray-phase { flex: none; color: var(--ri-text); }
+.ri-tray-arrivals { display: inline-flex; gap: 4px; min-width: 0; overflow: hidden; }
+.ri-tray-arrival { flex: none; padding: 0 6px; border: 1px solid var(--ri-story-line); color: var(--ri-story); font-size: var(--ri-card-label); line-height: 18px; }
+.ri-tray-arrival[data-state="arrived"] { animation: ri-tray-light var(--ri-rise) ease-out; }
+.ri-tray-arrival[data-state="missing"] { border-color: var(--ri-line-faint); border-style: dashed; color: var(--ri-text-muted); }
+.ri-tray-end { flex: none; padding-right: 4px; }
+@keyframes ri-tray-pulse { from { height: 3px; } to { height: 12px; } }
+@keyframes ri-tray-light { from { background: var(--ri-story-tint); } to { background: transparent; } }
+#chat > .ri-tray-loading { flex: none; align-self: stretch; margin: 8px 12px 12px; }
+
+/* Setup, Look, Reply tray. */
+.ri-tray-settings .ri-tray-setting { margin: 0 0 10px; }
+.ri-tray-subhead { margin: 12px 0 6px; font-family: var(--ri-font); font-size: var(--ri-type-title); letter-spacing: var(--ri-track-title); text-transform: uppercase; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ri-tray-signal i, .ri-tray-arrival { animation: none; }
+}

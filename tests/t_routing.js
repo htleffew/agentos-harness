@@ -115,7 +115,7 @@ const { askFull } = await import('../src/st.js');
 const routing = await import('../src/routing.js');
 const spend = await import('../src/spend.js');
 const { resolveChain, setExecutionSetting } = await import('../src/execution.js');
-const { runChain, runJob, chainFor, RECOMMENDED_CHAINS, ROUTES, resetRouteHealth, registerPhoneModel, setRouteBinding, setRoutingAccepted, DOWN_MS, PROBE_MS } = routing;
+const { runChain, runJob, chainFor, RECOMMENDED_CHAINS, ROUTES, resetRouteHealth, registerPhoneModel, setRouteBinding, DOWN_MS, PROBE_MS } = routing;
 
 const schema = { name: 'capture', value: { type: 'object', required: ['facts'], properties: { facts: { type: 'array', items: { type: 'string' } } } } };
 const last = () => requests.at(-1).body;
@@ -355,22 +355,70 @@ test('the on-phone model takes judgment calls and is skipped for writing jobs', 
 test('saved per-operation profiles keep routing their operation', async () => {
     reset();
     setExecutionSetting('chapterSummary', { profileId: 'p-alt' });
-    assert.deepEqual(resolveChain('chapterSummary'), [{ route: 'override', profileId: 'p-alt' }]);
-    setRoutingAccepted(true);
     assert.deepEqual(resolveChain('chapterSummary'), [{ route: 'override', profileId: 'p-alt' }], 'a saved profile overrides the tier chain');
     assert.deepEqual(resolveChain('chapterCombine').map(e => e.route), chainFor('storySoFar').map(e => e.route));
     const run = await runChain(resolveChain('chapterSummary'), { job: 'chapter', user: 'x', schema });
     assert.equal(run.ok, true);
     assert.equal(last().model, 'alt-model', 'the profile model is used when the entry names none');
     assert.match(run.attempts[0].receipt, /^Attempt 1 of 1: Saved connection profile/);
-    // The older shared profile still routes the functions that inherited it until the tier chains are accepted.
+    // The tier chains apply from the first run with no approval step; the older shared profile routes only the
+    // functions that have no tier chain.
     reset();
     host.extensionSettings[KEY].profileId = 'p-nano';
-    assert.deepEqual(resolveChain('historyCatchUp'), [{ route: 'override', profileId: 'p-nano' }]);
-    assert.deepEqual(resolveChain('playerChoices'), [{ route: 'main' }]);
-    setRoutingAccepted(true);
     assert.equal(resolveChain('historyCatchUp')[0].route, 'desktop');
+    assert.equal(host.extensionSettings[KEY].routing?.accepted, undefined, 'no acceptance flag is read or written');
     assert.deepEqual(resolveChain('automaticSwipe'), [{ route: 'main' }]);
+});
+
+test('routes are detected with no user action, and her Gemma-over-Tailscale profile is the desktop', async () => {
+    reset();
+    const extra = [
+        { id: 'p-lan', name: 'Home LAN', api: 'custom', model: 'qwen3.5:9b', 'api-url': 'http://10.0.0.100:11434/v1', preset: '' },
+        { id: 'p-gemma-ts', name: 'Gemma over Tailscale', api: 'custom', model: 'gemma4:12b', 'api-url': 'http://100.97.15.107:11434/v1', preset: '' },
+        { id: 'p-cloud', name: 'Cloud custom', api: 'custom', model: 'x', 'api-url': 'https://api.example.com/v1', preset: '' },
+    ];
+    profiles.unshift(...extra);
+    try {
+        const found = routing.detectRoutes();
+        assert.equal(found.desktop.profileId, 'p-gemma-ts', 'the tailnet profile with the resident model wins');
+        assert.equal(found.desktop.detected, true);
+        assert.equal(found.nanogpt.profileId, 'p-nano');
+        assert.equal(found.openrouter.profileId, 'p-or');
+        assert.equal(found.main.kind, 'main');
+        assert.equal(found.phone, undefined, 'no phone route until the model is registered');
+        registerPhoneModel(async () => ({ text: '{}' }));
+        assert.equal(routing.detectRoutes().phone.kind, 'phone');
+        assert.equal(routing.resolveRoute({ route: 'desktop' }).profileId, 'p-gemma-ts');
+        assert.equal(host.extensionSettings[KEY].routing?.routes?.desktop, undefined, 'detection saves no binding; nothing waits for approval');
+        // A binding set by hand still wins.
+        setRouteBinding('desktop', { profileId: 'p-lan' });
+        assert.equal(routing.resolveRoute({ route: 'desktop' }).profileId, 'p-lan');
+    } finally { profiles.splice(0, extra.length); }
+});
+
+test('a paid entry runs only when no free route answered, and within the ceiling', async () => {
+    reset();
+    replies.set('gemma4:12b', { status: 503 });
+    replies.set('deepseek/deepseek-v4.1-flash', { content: '{"facts":[]}' });
+    const free = await runJob('capture', { user: 'x', schema });
+    assert.equal(free.route, 'nanogpt', 'the plan answers and nothing paid is sent');
+    assert.equal(spend.spendState().total, 0);
+    reset();
+    replies.set('gemma4:12b', { status: 503 });
+    replies.set('inclusionai/ling-3.2-flash:free', { status: 429 });
+    const nano = profiles.splice(profiles.findIndex(p => p.id === 'p-nano'), 1);
+    try {
+        const paid = await runJob('capture', { user: 'x', schema });
+        assert.equal(paid.route, 'openrouter');
+        assert.ok(spend.spendState().total > 0, 'the paid call is metered');
+        reset();
+        replies.set('gemma4:12b', { status: 503 });
+        replies.set('inclusionai/ling-3.2-flash:free', { status: 429 });
+        spend.setSpendLimits({ ceiling: 0 });
+        const stopped = await runJob('capture', { user: 'x', schema });
+        assert.ok(!requests.some(r => r.body.model === 'deepseek/deepseek-v4.1-flash'), 'no paid request past the ceiling');
+        assert.ok(stopped.attempts.some(a => /ceiling/.test(a.receipt)));
+    } finally { profiles.splice(1, 0, ...nano); }
 });
 
 test('route bindings: a saved key with no profile becomes a direct route', async () => {

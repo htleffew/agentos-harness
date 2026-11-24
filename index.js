@@ -6,6 +6,7 @@ import { mountReplyProgress } from './src/ui/reply-progress.js';
 import { refreshUnderReplies } from './src/ui/sent.js';
 import { applyPronouns, settings } from './src/store.js';
 import { isChatOpen, on, LOG } from './src/st.js';
+import { startDesktopQueue } from './src/memory/queue.js';
 
 (function start() {
     try {
@@ -17,6 +18,7 @@ import { isChatOpen, on, LOG } from './src/st.js';
         mountQuickActions();
         for (const name of ['CHARACTER_MESSAGE_RENDERED', 'USER_MESSAGE_RENDERED', 'MORE_MESSAGES_LOADED']) on(name, () => setTimeout(refreshUnderReplies, 50));
         on('CHAT_CHANGED', () => setTimeout(refreshUnderReplies, 300));
+        try { startDesktopQueue(); } catch (e) { console.warn(LOG, 'background queue did not start', e); }
         console.log(LOG, 'loaded', missing.length ? `missing events: ${missing.join(', ')}` : '');
     } catch (e) {
         console.error(LOG, 'failed to start', e);

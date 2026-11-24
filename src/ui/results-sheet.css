@@ -1,0 +1,69 @@
+/* Options results (DESIGN.md 4.4). Loaded after composer-bar.css; the doubled class outranks its sheet rules. */
+
+/* The results take the Results sheet height setting (40% by default) as a cap, shrink to fit fewer
+   options, and stop one chat line short of the chat's top edge when the keyboard leaves less room. */
+.ri-gsheet.ri-gsheet[data-results="true"] {
+    height: auto;
+    max-height: min(calc(var(--ri-vv-height, 100vh) * var(--ri-sheet-height, 40) / 100), var(--ri-results-room, 100vh));
+}
+.ri-gsheet.ri-gsheet[data-results="true"] .ri-gsheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ri-gsheet.ri-gsheet[data-results="true"] .ri-gsheet-results { overflow: visible; }
+/* Generate again in the header takes over from the text box and the Generate button. */
+.ri-gsheet[data-results="true"] :is(.ri-gsheet-saved, .ri-gsheet-label, .ri-gsheet-box),
+.ri-gsheet[data-results="true"] .ri-gsheet-body > .ri-gsheet-actions { display: none; }
+
+/* While results show, a spacer at the end of the chat lets its latest reply scroll up above the sheet. */
+#chat.ri-results-open::after { content: ''; display: block; flex: 0 0 auto; height: var(--ri-results-overlap, 0px); }
+
+.ri-results-head { display: flex; align-items: center; gap: var(--ri-gap); flex: 0 0 auto; }
+.ri-results-count { font: 500 var(--ri-type-data) / 1.2 var(--ri-font); font-variant-numeric: tabular-nums; color: var(--ri-call); white-space: nowrap; }
+.ri-results-note { margin: 0; font-size: var(--ri-type-help); color: var(--ri-text-muted); }
+.ri-results-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; }
+
+/* The Cost chip of 1.9: amber outline, microchip glyph and the amber dot. */
+.ri-bar-btn.ri-cost-chip { --ri-ink: var(--ri-call); border-color: var(--ri-call); color: var(--ri-call); position: relative; }
+.ri-cost-chip .ri-bar-dot { top: 3px; right: 3px; }
+
+.ri-gsheet .ri-option-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--ri-pad);
+    background: var(--ri-surface);
+    border-left: 2px solid var(--ri-direction-line);
+}
+.ri-option-card[data-incomplete="true"] { border-left-color: var(--ri-line); }
+.ri-option-title {
+    margin: 0;
+    font: 700 var(--ri-type-label) / 1.3 var(--ri-font);
+    letter-spacing: var(--ri-track-label);
+    text-transform: uppercase;
+    color: var(--ri-direction);
+}
+.ri-option-card .ri-option-note { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--ri-type-help); color: var(--ri-text-muted); }
+.ri-gsheet .ri-option-card .ri-option-body {
+    margin: 0;
+    font: 500 var(--ri-type-body) / 1.45 var(--ri-font);
+    color: var(--ri-text);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.ri-option-actions { display: flex; justify-content: flex-end; gap: var(--ri-gap); flex-wrap: wrap; }
+.ri-option-actions .ri-bar-btn { gap: 6px; }
+
+/* The queue sheet (4.5) shares the sheet and card look; it fits its items up to 60% of the screen. */
+.ri-gsheet.ri-queue-sheet { --ri-kind-line: var(--ri-direction-line); max-height: min(calc(var(--ri-vv-height, 100vh) * 0.6), calc(var(--ri-room, 100vh) - 8px)); }
+.ri-queue-sheet .ri-gsheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ri-queue-sheet .ri-gsheet-results { overflow: visible; }
+.ri-queue-sheet .ri-option-title { display: flex; align-items: center; gap: 6px; }
+.ri-queue-item[data-kind="check"] { border-left-color: var(--ri-direction); }
+.ri-queue-row { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--ri-line-faint); }
+.ri-queue-toggle[aria-pressed="true"] { border-color: var(--ri-direction-line); color: var(--ri-direction); }
+.ri-queue-undo { display: flex; align-items: center; justify-content: space-between; gap: var(--ri-gap); }
+.ri-bar-btn.ri-bar-btn-danger { --ri-ink: var(--ri-problem); border-color: var(--ri-problem-line); color: var(--ri-problem); background: transparent; }
+.ri-bar-btn:disabled { color: var(--ri-text-dim); border-color: var(--ri-line); cursor: default; }
+
+@media (forced-colors: active) {
+    .ri-gsheet .ri-option-card { border-left-color: CanvasText; }
+    .ri-bar-btn.ri-cost-chip { border-color: Mark; }
+}

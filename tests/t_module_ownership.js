@@ -37,7 +37,8 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         await L.openChat(page);
         await ext(async({B})=>(await import(`${B}/src/v10.js`)).prefs().enabled=true);
         const row = page.locator('#ri_root [data-module="relationships"]');
-        const openModules = () => page.locator('#ri_root [data-ri-page="v10"]').evaluate(el=>el.click());
+        // B5's shell has no page chooser; Preset & Extension (Setup, Features) opens through the shell.
+        const openModules = () => ext(async({B})=>{ const {app}=await import(`${B}/src/ui/panel.js`); await app.openPage('v10',{focusPage:true}); });
         const scope = value => page.locator(`#ri_root [data-module-scope="${value}"]`).evaluate(el=>el.click());
         const setting = row.locator('#ri-module-relationships');
         const set = value => setting.evaluate((el,value)=>{
@@ -61,7 +62,9 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.equal(n(await send('I wait.'),extensionRule),0);
         await setting.evaluate(el=>el.focus());
         await switchTo(imported);
-        await page.locator('#ri_root').getByText('Active preset: '+imported.name,{exact:true}).waitFor({state:'attached'});
+        // The page no longer prints "Active preset: <name>"; wait for the extension to see the switch, then redraw.
+        await page.waitForFunction(async ({B,name})=>(await import(`${B}/src/v10.js`)).activePreset()===name,{B:L.BASE,name:imported.name});
+        await openModules();
         assert.match(await row.textContent(),/Internal States Template · On in host preset/);
         assert.equal(await page.locator('#ri_root').getByLabel('Request a reply plan',{exact:true}).count(),0);
         assert.equal(await row.locator('#ri-module-relationships').count(),0);
@@ -112,7 +115,7 @@ const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Inst
         assert.doesNotMatch(text,/Ground the action in the established surroundings/);
         assert.match(text,/Give NPCs practical aims of their own/);
         await ext(async({B})=>(await import(`${B}/src/ui/panel.js`)).app.openPage('writing'));
-        await page.locator('#ri_root').getByText('Host preset · Physical realism',{exact:true}).waitFor({state:'attached'});
+        await page.locator('#ri_root').getByText('Host preset · Check: Physical',{exact:true}).waitFor({state:'attached'});
         assert.equal(L.requests().length,9);
         assert.deepEqual(errors,[]);
         console.log('PASS module ownership: inherited preset values, chat override and reset, separate preset blocks and exclusive instructions on the wire.');

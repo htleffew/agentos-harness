@@ -1,4 +1,6 @@
 // Real host, touch emulation, mock provider. Short viewport represents the keyboard-open layout.
+// Pages open through B5's shell (no page chooser, no quick sheet), the block workbench lives on B12's Setup, Presets,
+// and B10's reply tray replaced the roast card, so the roast is read from the reply's record.
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const L = require('./lib.js');
@@ -21,14 +23,11 @@ const { setupApi: reconnectMain } = require('./h.js');
         await chooser.setFiles(file);
     };
     const root=page.locator('#ri_root');
-    const openPanel=async()=>{
-        await L.openQuickActions(page);
-        await tap(page.locator('.ri-quick-sheet').getByRole('button',{name:'Edit preset prompts',exact:true}));
-        await root.waitFor();
-    };
+    const openPage=id=>page.evaluate(async({B,id})=>{const {app}=await import(`${B}/src/ui/panel.js`);await app.openPage(id,{focusPage:true});await app.setExpanded(true);},{B:L.BASE,id});
+    const openPanel=()=>openPage('presets');
+    const roastSaved=text=>page.waitForFunction(text=>SillyTavern.getContext().chat.some(m=>JSON.stringify(m.extra?.roleplay_instructions || {}).includes(text)),text);
     const openWriter=async()=>{
-        await tap(root.locator('[data-ri-group="direction"]'));
-        await tap(root.locator('[data-ri-page="instructions"]'));
+        await openPage('instructions');
         await tap(root.getByRole('button',{name:instructionSet,exact:true}));
         await tap(root.getByRole('button',{name:'Talk through the plan',exact:true}));
         await tap(root.getByRole('button',{name:'Write versions with AI',exact:true}));
@@ -72,17 +71,19 @@ const { setupApi: reconnectMain } = require('./h.js');
         const roastReply=(prose,roast)=>`${prose}\n<story_update v="2">${JSON.stringify({v:2,roast})}</story_update>`;
         L.mode({reply:roastReply('Mira tests the lock.',priorRoast)});
         await L.send(page,'I show Mira the brass key.');
-        await page.locator('#chat .ri-reply-roast').filter({hasText:priorRoast}).waitFor();
+        await roastSaved(priorRoast);
         L.resetLog();
         await openPanel();
-        await tap(root.locator('[data-ri-group="setup"]'));
-        await tap(root.locator('[data-ri-page="v10"]'));
 
         const wb=root.locator('.ri-preset-workbench');
         const block=wb.locator('[data-preset-block="touch-proof"]');
+        const openBlock=async node=>{
+            await node.evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement) if(p.tagName==='DETAILS' && !p.open) p.open=true;});
+            await toggle(node);
+        };
         await toggle(wb);
-        await toggle(block);
-        const wording=block.getByLabel('Preset instruction',{exact:true});
+        await openBlock(block);
+        const wording=block.getByLabel('Preset prompt',{exact:true});
         await tap(wording);
         await page.setViewportSize({width:390,height:490});
         await wording.fill('Variant wording with {{char}}');
@@ -98,8 +99,8 @@ const { setupApi: reconnectMain } = require('./h.js');
         await tap(block.getByRole('button',{name:'Move up',exact:true}));
         await wb.locator(':scope > [role=status]').filter({hasText:'Preset order saved'}).waitFor();
         const neighbor=wb.locator('[data-preset-block="touch-neighbor"]');
-        await toggle(neighbor);
-        await neighbor.getByLabel('Preset instruction',{exact:true}).fill('Neighbor edited independently.');
+        await openBlock(neighbor);
+        await neighbor.getByLabel('Preset prompt',{exact:true}).fill('Neighbor edited independently.');
         await tap(neighbor.getByRole('button',{name:'Save preset block',exact:true}));
         await wb.locator(':scope > [role=status]').filter({hasText:'Preset wording saved'}).waitFor();
         await toggle(block);
@@ -110,7 +111,7 @@ const { setupApi: reconnectMain } = require('./h.js');
         await tap(variants.getByRole('button',{name:`Apply to ${presetName}`}));
         await wb.locator(':scope > [role=status]').filter({hasText:'Preset variation applied'}).waitFor();
         assert.equal(await wording.inputValue(),'Variant wording with {{char}}');
-        await tap(block.getByRole('button',{name:'Restore before extension edits'}));
+        await tap(block.getByRole('button',{name:'Restore default'}));
         await wb.locator(':scope > [role=status]').filter({hasText:'Before extension edits restored'}).waitFor();
         assert.equal(await wording.inputValue(),'Pre-extension wording');
         await tap(block.getByRole('button',{name:'Undo restore'}));
@@ -128,6 +129,7 @@ const { setupApi: reconnectMain } = require('./h.js');
         assert.deepEqual(await block.getByLabel('Saved variation').locator('option').allTextContents(),['Choose a saved variation','First','Second']);
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chatCompletionSettings.prompts.find(item=>item.identifier==='touch-neighbor').content),'Neighbor edited independently.');
 
+        await openPage('v10');
         const inspection=root.locator('.ri-impersonation');
         await toggle(inspection);
         assert.match(await inspection.textContent(),/Preset wording for \{\{user\}\}/);
@@ -152,7 +154,8 @@ const { setupApi: reconnectMain } = require('./h.js');
         }
 
         const dirty=await playerText.inputValue()!=='';
-        await tap(root.locator('[data-ri-page="display"]'));
+        // Leaving a page with unsaved edits asks first, so the navigation is started without waiting for it.
+        await page.evaluate(async B=>{const {app}=await import(`${B}/src/ui/panel.js`);app.openPage('display',{focusPage:true});},L.BASE);
         if (dirty) {
             await page.getByText('Discard your unsaved changes?',{exact:true}).waitFor();
             await tap(page.getByRole('button',{name:'Yes',exact:true}));
@@ -232,18 +235,15 @@ const { setupApi: reconnectMain } = require('./h.js');
         const names=await writerVariants().getByLabel('Saved variation').locator('option').allTextContents();
         assert(names.includes(writerFirst) && names.includes(writerSecond) && names.includes(writerImported));
         assert.match(await writing.locator('textarea').inputValue(),/First writing direction for \{\{char\}\}/);
-        await tap(root.locator('[data-ri-group="setup"]'));
-        await tap(root.locator('[data-ri-page="v10"]'));
+        await openPanel();
         await toggle(wb);
-        await toggle(block);
+        await openBlock(block);
         assert.equal(await wording.inputValue(),'Foreign original wording');
         await toggle(block.locator('.ri-variations'));
         assert.deepEqual(await block.getByLabel('Saved variation').locator('option').allTextContents(),['Choose a saved variation','First','Second']);
         assert.equal(L.requests().length,0);
 
-        const closePanel=root.getByRole('button',{name:'Close full screen',exact:true});
-        if (await closePanel.isVisible()) await tap(closePanel);
-        await tap(page.locator('.ri-quick-sheet').getByRole('button',{name:'Close',exact:true}));
+        await page.evaluate(async B=>{const {app}=await import(`${B}/src/ui/panel.js`);await app.setExpanded(false);},L.BASE);
         const futureRoast='The second fixture reaction sees a different beat.';
         L.mode({reply:roastReply('Mira turns the key.',futureRoast)});
         await L.send(page,'I ask Mira to turn the key.');
@@ -251,12 +251,10 @@ const { setupApi: reconnectMain } = require('./h.js');
         assert.equal(wire.length,1);
         assert.equal(L.text(wire[0]).split('Use a clear first-person observation.').length-1,1);
         assert.match(L.text(wire[0]),/Include this string even when no story facts changed/);
-        await page.locator('#chat .ri-reply-roast').filter({hasText:priorRoast}).waitFor();
-        const future=page.locator('#chat .ri-reply-roast').filter({hasText:futureRoast});
-        await future.waitFor();
-        await toggle(future);
-        await toggle(future.locator('.ri-execution'));
-        assert.match(await future.innerText(),/Uses the reply request[\s\S]*0 additional model calls/);
+        await roastSaved(priorRoast);
+        await roastSaved(futureRoast);
+        // The roast card's execution receipt went with the cards under the reply (B10); one request above shows the
+        // roast rides in the reply request with no extra call.
         const modules=await page.evaluate(async base=>(await import(`${base}/src/v10.js`)).effectiveModules(),L.BASE);
         assert.equal(modules.roastFeedback,true);
         if (process.env.RI_VARIATION_CAPTURE) await fs.writeFile(process.env.RI_VARIATION_CAPTURE,JSON.stringify({

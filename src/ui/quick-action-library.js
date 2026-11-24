@@ -7,6 +7,11 @@ import {
 } from '../quick-actions.js';
 import { exportQuickActionLibrary, importQuickActionData, inspectQuickActionImport } from '../quick-action-import.js';
 import { add, button, captureView, clear, download, field, h, insertAtCursor, restoreView, select, textArea, textInput } from './dom.js';
+import { composerBar, costWords, kindOf, pinToBar, QUICK_ACTION_KINDS } from '../quick-actions.js';
+import { registerPage } from './page-registry.js';
+import { renderBar } from './composer-bar.js';
+import { renderBarPage } from './quick-action-bar-editor.js';
+import { connectionOperation, draftError, draftOf, draftToAction, KIND_ORDER, NAME_LIMIT, renderActionEditor } from './quick-action-fields.js';
 
 const append = (parent, ...children) => add(parent, children);
 const row = (...children) => h('div', { class: 'ri-qa-library-row' }, children);
@@ -626,3 +631,251 @@ export function renderQuickActionLibrary(host, {
     draw();
     return library;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Quick actions, Library (DESIGN.md 4.3 and 4.7). One page lists every quick action by kind, with Pin, Edit,
+// Duplicate and Delete on each row, plus Import and Export; Edit opens the editor of 4.3 in the same page.
+// ---------------------------------------------------------------------------------------------
+const view = { mode: 'list', id: '', kind: '', draft: null, original: null, wantPinned: false, query: '', message: '', error: '', inspection: null, selected: new Set(), pasted: '' };
+const icon = name => h('i', { class: `fa-solid ${name}`, 'aria-hidden': 'true' });
+const iconOf = action => action.icon || QUICK_ACTION_KINDS[kindOf(action)]?.icon || 'fa-star';
+
+/** Open the editor for a saved quick action the next time the Library page renders (the bar's Edit buttons call this). */
+export function requestQuickActionEdit(id) {
+    Object.assign(view, { mode: 'edit', id, kind: '', draft: null, original: null, error: '', message: '', query: '' });
+}
+
+/** Open the editor for a new quick action of a kind. */
+export function requestNewQuickAction(kind) {
+    Object.assign(view, { mode: 'edit', id: '', kind, draft: null, original: null, error: '', message: '', query: '' });
+}
+
+/** A copy of a saved action as a new standalone one; the copy keeps its kind and settings. */
+export function duplicateQuickAction(id) {
+    const source = readQuickAction(id);
+    if (!source) return null;
+    const draft = draftOf(source);
+    delete draft.id;
+    delete draft.family;
+    delete draft.hidden;
+    draft.title = `${source.title} copy`.slice(0, NAME_LIMIT).trim();
+    return saveQuickAction({ ...draftToAction({ ...draft, barOnly: source.barOnly }), origin: 'standalone' });
+}
+
+const pinnedNow = id => composerBar().pins.includes(id);
+
+function matchesQuery(query) {
+    const words = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return action => {
+        const text = [action.title, QUICK_ACTION_KINDS[kindOf(action)]?.name, action.text, action.prompt, action.category].join(' ').toLowerCase();
+        return words.every(word => text.includes(word));
+    };
+}
+
+export function renderLibraryPage(body, app) {
+    const host = h('div', { class: 'ri-qa-page ri-qa-library-page', id: 'ri-qa-library' });
+    body.append(host);
+    const say = text => { view.message = text; view.error = ''; };
+    const fail = error => { view.error = error?.message || String(error); view.message = ''; };
+    const open = (page, options) => app?.openPage?.(page, { focusPage: true, ...options });
+    const openConnections = () => open('settings', { anchor: `#ri-model-request-settings [data-ri-operation="${connectionOperation(view.draft?.kind)}"]` });
+    const openPrompts = async () => { if (!await open('prompts')) await open('v10'); };
+    const refreshBar = () => { try { renderBar(); } catch { /* the bar is not mounted yet */ } };
+    const live = () => h('p', { class: view.error ? 'ri-qa-error' : 'ri-help', role: view.error ? 'alert' : 'status', 'aria-live': 'polite' }, view.error || view.message);
+
+    function draw(focusSelector) {
+        const parts = view.mode === 'edit' ? drawEditor() : view.mode === 'import' ? drawImport() : drawList();
+        host.replaceChildren(...[parts].flat(Infinity).filter(Boolean));
+        if (focusSelector) host.querySelector(focusSelector)?.focus({ preventScroll: true });
+    }
+
+    function drawList() {
+        const matches = matchesQuery(view.query);
+        const all = listQuickActions('', { allKinds: true, includeHidden: true });
+        const active = all.filter(action => !action.removed && !action.hidden);
+        const gone = all.filter(action => action.removed || action.hidden);
+        const undo = actionLibrary().undo;
+        const kindPick = h('select', { class: 'ri-input', 'aria-label': 'Kind of quick action to add', 'data-ri-new-kind': '' },
+            KIND_ORDER.map(kind => h('option', { value: kind }, QUICK_ACTION_KINDS[kind].name)));
+        const groups = KIND_ORDER.map(kind => {
+            const rows = active.filter(action => kindOf(action) === kind && matches(action));
+            if (!rows.length) return null;
+            const def = QUICK_ACTION_KINDS[kind];
+            return h('details', { class: 'ri-qa-details', open: true, 'data-kind': kind },
+                h('summary', {}, icon(def.icon), ` ${def.name} · ${rows.length}`),
+                h('p', { class: 'ri-help' }, costWords(kind)),
+                h('ul', { class: 'ri-qa-list' }, rows.map(listItem)));
+        }).filter(Boolean);
+        return [
+            h('div', { class: 'ri-qa-head' }, icon('fa-bolt'), h('span', { class: 'ri-qa-head-title' }, 'Library'), h('span', { class: 'ri-qa-pill' }, `${active.length} QUICK ACTIONS`)),
+            h('p', { class: 'ri-help' }, 'Every quick action, by kind. Pin the ones you use to the bar; edit a name, icon, prompt or direction once and play needs no setup.'),
+            h('div', { class: 'ri-qa-row' }, kindPick,
+                h('button', { type: 'button', class: 'ri-bar-btn ri-bar-btn-primary', 'data-ri-new': '', onclick: () => { requestNewQuickAction(kindPick.value); draw(); } }, 'Add')),
+            h('div', { class: 'ri-qa-row' },
+                h('button', { type: 'button', class: 'ri-bar-btn', 'data-ri-import': '', onclick: () => { Object.assign(view, { mode: 'import', inspection: null, selected: new Set(), error: '', message: '' }); draw(); } }, 'Import'),
+                h('button', { type: 'button', class: 'ri-bar-btn', 'data-ri-export': '', onclick: exportLibrary }, 'Export'),
+                undo && h('button', { type: 'button', class: 'ri-bar-btn', 'data-ri-undo': '', onclick: () => { if (undoQuickActionLibrary()) { say('Restored the library as it was.'); refreshBar(); draw(); } } }, `Undo: ${undo.label}`)),
+            textInput(view.query, value => { view.query = value; refilter(); }, { type: 'search', placeholder: 'Search quick actions', 'aria-label': 'Search quick actions' }),
+            live(),
+            h('div', { class: 'ri-qa-groups' }, groups.length ? groups : h('p', { class: 'ri-help' }, view.query ? 'No quick action matches. Try another word.' : 'No quick actions yet. Add one above.')),
+            gone.length ? h('details', { class: 'ri-qa-details', 'data-ri-deleted': '' }, h('summary', {}, `Deleted · ${gone.length}`),
+                h('ul', { class: 'ri-qa-list' }, gone.map(action => h('li', { class: 'ri-qa-item', 'data-action-id': action.id },
+                    h('span', { class: 'ri-qa-pin-text' }, h('strong', {}, action.title), h('span', { class: 'ri-help' }, QUICK_ACTION_KINDS[kindOf(action)]?.name)),
+                    h('button', { type: 'button', class: 'ri-bar-btn', 'aria-label': `Restore ${action.title}`, onclick: () => { recoverQuickAction(action.id); say(`${action.title} restored.`); refreshBar(); draw(); } }, 'Restore'))))) : null,
+        ];
+    }
+
+    // Typing in the search box redraws the groups only, so the box keeps its focus and cursor.
+    function refilter() {
+        const search = host.querySelector('input[type="search"]');
+        const hadFocus = document.activeElement === search;
+        const caret = search?.selectionStart;
+        draw();
+        const fresh = host.querySelector('input[type="search"]');
+        if (hadFocus && fresh) { fresh.focus({ preventScroll: true }); fresh.setSelectionRange?.(caret, caret); }
+    }
+
+    function listItem(action) {
+        const kind = kindOf(action);
+        const pinned = pinnedNow(action.id);
+        const status = action.status && !['Default', 'First saved version', 'Follows source'].includes(action.status) ? action.status : '';
+        const control = (label, onClick, extra = {}) => h('button', { type: 'button', class: 'ri-bar-btn', 'aria-label': `${label} ${action.title}`, onclick: onClick, ...extra }, label);
+        return h('li', { class: 'ri-qa-item', 'data-action-id': action.id, 'data-kind': kind, 'data-ink': QUICK_ACTION_KINDS[kind]?.ink || 'setup' },
+            h('span', { class: 'ri-qa-pin-icon' }, icon(iconOf(action)), kind === 'options' && h('span', { class: 'ri-qa-dot', 'aria-hidden': 'true' })),
+            h('span', { class: 'ri-qa-pin-text' }, h('strong', {}, action.title),
+                h('span', { class: 'ri-help' }, [costWords(kind), status, pinned ? 'On the bar' : ''].filter(Boolean).join(' · '))),
+            h('span', { class: 'ri-qa-item-actions' },
+                control(pinned ? 'Unpin' : 'Pin', () => {
+                    pinToBar(action.id, !pinned);
+                    say(`${action.title} ${pinned ? 'unpinned' : 'pinned'}.`);
+                    refreshBar();
+                    draw(`[data-action-id="${CSS.escape(action.id)}"] [data-ri-pin]`);
+                }, { 'data-ri-pin': '', 'aria-pressed': String(pinned) }),
+                control('Edit', () => { requestQuickActionEdit(action.id); draw(); bringIntoView(); }, { 'data-ri-edit': '' }),
+                control('Duplicate', () => {
+                    try { const copy = duplicateQuickAction(action.id); say(`Duplicated as ${copy.title}.`); } catch (error) { fail(error); }
+                    draw();
+                }, { 'data-ri-duplicate': '' }),
+                control('Delete', () => {
+                    removeQuickAction(action.id);
+                    say(`${action.title} deleted. Undo is at the top.`);
+                    refreshBar();
+                    draw();
+                }, { 'data-ri-delete': '' })));
+    }
+
+    const bringIntoView = () => host.scrollIntoView?.({ block: 'start' });
+
+    async function exportLibrary() {
+        const value = exportQuickActionLibrary();
+        if (download('roleplay-instructions-quick-actions.json', value)) say('Exported the library as a JSON file.');
+        else fail(new Error('This device would not download the file. Copy the JSON below instead.'));
+        draw();
+        if (view.error) host.append(h('textarea', { class: 'ri-input ri-textarea', readOnly: true, rows: 6, 'aria-label': 'Library export JSON', value }));
+    }
+
+    function drawEditor() {
+        let action = view.id ? readQuickAction(view.id) : null;
+        if (view.id && !action) { Object.assign(view, { mode: 'list', id: '', draft: null }); return drawList(); }
+        const kind = action ? kindOf(action) : view.kind;
+        if (!view.draft) {
+            view.draft = draftOf(action, kind);
+            view.original = action ? structuredClone(view.draft) : null;
+            view.wantPinned = action ? pinnedNow(action.id) : false;
+        }
+        const draft = view.draft;
+        const editor = h('div', { class: 'ri-qa-editor' });
+        renderActionEditor(editor, {
+            draft, original: action, pinned: view.wantPinned, onPinned: on => { view.wantPinned = on; },
+            openConnections, openPrompts, openBar: () => open('quick-bar'),
+        });
+        const back = () => { Object.assign(view, { mode: 'list', id: '', draft: null, original: null, error: '' }); draw(); bringIntoView(); };
+        const errorLine = h('p', { class: 'ri-qa-error', role: 'alert' });
+        const save = () => {
+            const problem = draftError(draft, action?.title || '');
+            if (problem) { errorLine.textContent = problem; editor.querySelector('input')?.focus({ preventScroll: true }); return; }
+            try {
+                const saved = saveQuickAction(draftToAction(draft));
+                if (view.wantPinned !== pinnedNow(saved.id)) pinToBar(saved.id, view.wantPinned);
+                refreshBar();
+                Object.assign(view, { mode: 'list', id: '', draft: null, original: null });
+                say(`Saved ${saved.title}.`);
+                draw();
+                bringIntoView();
+            } catch (error) { errorLine.textContent = error.message || String(error); }
+        };
+        const restore = action?.origin === 'built-in' && action.changed
+            ? h('button', { type: 'button', class: 'ri-bar-btn', 'data-ri-restore': '', onclick: () => {
+                restoreQuickAction(action.id);
+                view.draft = null;
+                say(`${action.title} restored to its built-in settings.`);
+                refreshBar();
+                draw();
+            } }, 'Restore built-in settings') : null;
+        return [
+            h('nav', { class: 'ri-qa-crumbs', 'aria-label': 'Breadcrumb' },
+                h('button', { type: 'button', class: 'ri-bar-btn ri-bar-btn-text', onclick: back }, 'Library'),
+                h('span', { 'aria-hidden': 'true' }, ' › '),
+                h('span', { class: 'ri-qa-head-title', 'data-ri-editor-title': '', tabIndex: -1 }, action ? `Edit ${action.title}` : `New ${QUICK_ACTION_KINDS[kind].name}`)),
+            editor, errorLine,
+            h('div', { class: 'ri-qa-row ri-qa-foot' },
+                h('button', { type: 'button', class: 'ri-bar-btn ri-bar-btn-primary', 'data-ri-save': '', onclick: save }, 'Save quick action'),
+                h('button', { type: 'button', class: 'ri-bar-btn', 'data-ri-cancel': '', onclick: back }, 'Cancel'), restore),
+        ];
+    }
+
+    function drawImport() {
+        const back = () => { view.mode = 'list'; view.inspection = null; draw(); };
+        const inspect = (value, name) => {
+            try { view.inspection = inspectQuickActionImport(value, name); view.error = ''; } catch (error) { view.inspection = null; fail(error); }
+            draw();
+        };
+        const upload = h('input', { type: 'file', accept: '.json,application/json', hidden: true, onchange: async event => {
+            const file = event.target.files[0];
+            if (file) inspect(await file.text(), file.name);
+        } });
+        const preview = view.inspection;
+        return [
+            h('nav', { class: 'ri-qa-crumbs', 'aria-label': 'Breadcrumb' },
+                h('button', { type: 'button', class: 'ri-bar-btn ri-bar-btn-text', onclick: back }, 'Library'), h('span', { 'aria-hidden': 'true' }, ' › '),
+                h('span', { class: 'ri-qa-head-title' }, 'Import')),
+            h('p', { class: 'ri-help' }, 'A Roleplay Instructions library, a World Info book or a Quick Reply export. You review what is in the file before anything is added.'),
+            h('div', { class: 'ri-qa-row' }, h('button', { type: 'button', class: 'ri-bar-btn', 'data-ri-choose-file': '', onclick: () => { upload.value = ''; upload.click(); } }, 'Choose a JSON file'), upload),
+            h('details', { class: 'ri-qa-details' }, h('summary', {}, 'Paste JSON instead'),
+                textArea(view.pasted, value => { view.pasted = value; }, { 'aria-label': 'Paste import JSON', rows: 5 }),
+                h('button', { type: 'button', class: 'ri-bar-btn', onclick: () => inspect(view.pasted, '') }, 'Review pasted JSON')),
+            live(),
+            preview && [
+                h('h4', { class: 'ri-qa-section-title' }, preview.name),
+                h('p', { class: 'ri-help' }, `${preview.entries.length} ${preview.entries.length === 1 ? 'entry' : 'entries'} · Runs in code`),
+                preview.entries.slice(0, 40).map(entry => h('details', { class: 'ri-qa-details' }, h('summary', {}, `${entry.title} · ${entry.kind}`),
+                    h('p', { class: 'ri-help' }, entry.reason || ''),
+                    entry.translation && h('label', { class: 'ri-qa-switch' }, h('input', { type: 'checkbox', checked: view.selected.has(entry.id), onchange: event => {
+                        if (event.target.checked) view.selected.add(entry.id); else view.selected.delete(entry.id);
+                    } }), h('span', {}, 'Install this translation')))),
+                h('button', { type: 'button', class: 'ri-bar-btn ri-bar-btn-primary', 'data-ri-import-now': '', onclick: async () => {
+                    try {
+                        const result = await importQuickActionData(preview, { selected: [...view.selected] });
+                        view.mode = 'list';
+                        view.inspection = null;
+                        say(result.book ? `Imported ${result.book}.` : `Imported ${result.actions} ${result.actions === 1 ? 'quick action' : 'quick actions'}.`);
+                        refreshBar();
+                    } catch (error) { fail(error); }
+                    draw();
+                } }, 'Import reviewed file'),
+            ],
+        ];
+    }
+
+    draw();
+    if (view.mode === 'edit') host.querySelector('[data-ri-editor-title]')?.focus({ preventScroll: true });
+}
+
+// Both pages register through B1's page registry, so they join today's panel without an edit to panel.js and B5's
+// Quick actions tab places them by `tab` and `nested`.
+registerPage({ id: 'quick-bar', group: 'quick', label: 'Bar', tab: 'bar', withoutChat: true,
+    help: 'Choose which quick actions sit above the message box and in what order, globally or for this chat.',
+    aliases: 'composer bar pins move up move down unpin this chat global overflow more toolbar', render: (body, app) => renderBarPage(body, app) });
+registerPage({ id: 'quick-library', group: 'quick', label: 'Library', tab: 'library', withoutChat: true,
+    help: 'Every quick action by kind: pin, edit, duplicate, delete, import and export.',
+    aliases: 'quick actions edit options swipe continue impersonate direction action check review prompt icon import export library', render: (body, app) => renderLibraryPage(body, app) });

@@ -1,131 +1,80 @@
+// Options quick action on the composer bar: the saved count, prompt and Random Instruction Set travel in one request,
+// the draft and its selection survive, a re-tap is free, and a missing set fails before any request.
+// Rewritten for B1 to B3: the bolt launcher, the suggestion slots and the "Configure quick actions" sheet are gone.
+// Their touch, sheet, cancel and cache checks now live in t_composer_bar.js, t_results_sheet.js and
+// t_quick_action_setup.js; the 12-option request text moved to the titled format ("distinct objects").
 const assert = require('node:assert/strict');
 const L = require('./lib.js');
 
 (async()=>{
     L.sync();
-    const {browser,page} = await L.open({width:320,height:475,hasTouch:true,isMobile:true});
+    const {browser,page,errors} = await L.open({width:523,height:1021,hasTouch:true,isMobile:true});
+    const ext = (fn,value)=>page.evaluate(fn,{B:L.BASE,value});
+    const save = patch=>ext(async({B,value})=>{
+        (await import(`${B}/src/quick-actions.js`)).saveQuickAction({id:'builtin:options:npc',...value});
+        (await import(`${B}/src/ui/results-sheet.js`)).clearOptionsCache();
+        (await import(`${B}/src/ui/composer-bar.js`)).renderBar();
+    },patch);
+    const tapAt = async selector=>{
+        const box = await page.locator(selector).first().boundingBox();
+        assert.ok(box,selector);
+        await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);
+        await page.waitForTimeout(250);
+    };
+    const pin = '#ri_composer_bar .ri-bar-pin[data-kind="options"]';
     try {
         await L.setupApi(page,{legacyAutomation:false});
         await L.openChat(page);
         await L.send(page,'I stop beside the gate.');
         const name = 'Composer instruction ' + Date.now();
         await L.makeSet(page,name,[{name:'Gate cue',versions:['A1']}]);
+        await ext(async({B})=>{ const Q=await import(`${B}/src/quick-actions.js`); Q.setBarFolded(false); (await import(`${B}/src/ui/composer-bar.js`)).renderBar(); });
         const composer = page.locator('#send_textarea');
-        const toolbar = page.locator('.ri-quick-toolbar');
-        const panel = page.locator('#ri_root');
-        const sheet = page.locator('.ri-quick-sheet');
-        const tap = (scope,name)=>scope.getByRole('button',{name,exact:true}).tap();
-        const launcher = page.getByRole('button',{name:'Quick actions',exact:true});
-        if (await launcher.getAttribute('aria-expanded')==='false') await launcher.tap();
-        await tap(toolbar,'More actions');
-        await tap(sheet,'Configure quick actions');
-        await panel.locator('#ri-composer-slot-0 > summary').tap();
-        await panel.getByLabel('Composer shortcut 1',{exact:true}).selectOption('suggestions');
-        const slot = panel.locator('.ri-composer-slot').first();
-        await slot.getByLabel('Button name',{exact:true}).fill('Gate arrivals');
-        await slot.getByLabel('Icon',{exact:true}).selectOption('fa-key');
-        await slot.getByLabel('Number of options',{exact:true}).selectOption('8');
-        await slot.getByLabel('Generation prompt',{exact:true}).fill('Describe distinct visitors to this gate. GATE-ACTION-PROMPT');
-        await slot.getByLabel('Active Random Instruction Set').selectOption(name);
-        await tap(panel,'Back to Quick actions');
-        await tap(sheet,'Close');
-
         await composer.fill('My unsent reply.');
         await composer.evaluate(node=>node.setSelectionRange(3,8,'backward'));
-        L.resetLog();
-        const choices = Array.from({length:12},(_,i)=>`Visitor ${i+1} arrives at the gate.`);
-        L.mode({reply:JSON.stringify(choices),delayMs:550});
-        const icon = toolbar.getByRole('button',{name:'Gate arrivals · 1 model call'});
-        assert.equal((await icon.textContent()).trim(),'1 model call');
-        await icon.locator('.fa-key').waitFor();
-        await tap(toolbar,'Request details for Gate arrivals');
-        assert.equal(L.requests().length,0);
-        assert.equal(await sheet.locator('.ri-execution-settings').count(),0);
-        await tap(sheet,'Close');
-        await icon.evaluate(node=>{node.click();node.click();});
-        await sheet.getByText('Generating 8 options…',{exact:true}).waitFor();
-        await tap(sheet,'Close');
-        const operation=page.locator('.ri-composer-operation');
-        await operation.getByText('8 of 8 options ready.',{exact:true}).waitFor();
-        await launcher.tap();
-        assert.equal(await toolbar.evaluate(node=>node.getBoundingClientRect().height),0);
-        await tap(operation,'View results');
-        await sheet.getByText('8 of 8 options ready.',{exact:true}).waitFor();
-        await sheet.getByText(choices[7],{exact:true}).waitFor();
-        assert.equal(L.requests().length,1);
-        const messages = L.requests()[0].messages;
-        assert.match(messages.find(message=>message.role==='system').content,/GATE-ACTION-PROMPT/);
-        assert.match(L.text(L.requests()[0]),/exactly 8 distinct suggestions/);
-        assert.match(L.text(L.requests()[0]),/thing A1/);
-        await tap(sheet,'Close');
-        assert.equal(await composer.inputValue(),'My unsent reply.');
-        assert.deepEqual(await composer.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection]),[3,8,'backward']);
-        await launcher.tap();
-        await icon.tap();
-        await sheet.getByText(choices[7],{exact:true}).waitFor();
-        assert.equal(L.requests().length,1,'Reopening completed choices is free');
-        await tap(sheet,'Close');
-        for (const count of [1,12,4]) {
-            await tap(toolbar,'More actions');
-            await tap(sheet,'Configure quick actions');
-            if(!await slot.evaluate(node=>node.open)) await slot.locator(':scope > summary').tap();
-            await slot.getByLabel('Number of options',{exact:true}).selectOption(String(count));
-            await tap(panel,'Back to Quick actions');
-            await tap(sheet,'Close');
+
+        for (const count of [8,1,12,4]) {
+            await save({count,prompt:'Describe distinct visitors to this gate. GATE-ACTION-PROMPT',set:name});
             L.resetLog();
-            L.mode({reply:JSON.stringify(choices.slice(0,count))});
-            await icon.tap();
-            await sheet.getByText(`${count} of ${count} options ready.`,{exact:true}).waitFor();
-            assert.equal(L.requests().length,1);
-            await tap(sheet,'Close');
+            await tapAt(pin);
+            assert.equal(L.requests().length,0,'a tap only opens the sheet');
+            await tapAt('.ri-gsheet [data-ri-generate]');
+            await page.waitForFunction(()=>document.querySelector('.ri-gsheet .ri-option-card, .ri-gsheet [data-ri-retry]'),null,{timeout:30000})
+                .catch(async error=>{ await page.screenshot({path:`${process.env.RI_EVIDENCE || '.'}/options-${count}.png`}); throw error; });
+            assert.equal(await page.locator('.ri-gsheet .ri-option-card').count(),count,`${count} cards`);
+            assert.equal(L.requests().length,1,`one request for ${count}`);
+            const text = L.text(L.requests()[0]);
+            assert.match(text,new RegExp(`exactly ${count} distinct objects`));
+            assert.match(text,/GATE-ACTION-PROMPT/);
+            assert.match(text,/thing A1/,'the saved set rolls into the request');
+            await tapAt('.ri-gsheet [data-ri-close]');
+            assert.equal(await composer.inputValue(),'My unsent reply.');
+            assert.deepEqual(await composer.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection]),[3,8,'backward']);
         }
-
+        // Reopening the last results is free.
         L.resetLog();
-        L.mode({reply:JSON.stringify(choices.slice(0,4)),delayMs:900});
-        const dispatched = page.waitForRequest(request=>new URL(request.url()).pathname.endsWith('/generate'));
-        await icon.tap();
-        await tap(sheet,'Generate again · 1 model call');
-        await dispatched;
-        await tap(sheet,'Cancel request');
-        await sheet.getByText('Generation cancelled.',{exact:true}).waitFor();
-        assert.equal(await sheet.getByText('Option 1',{exact:true}).count(),0);
-        await tap(sheet,'Close');
+        await tapAt(pin);
+        await page.locator('.ri-gsheet .ri-option-card').first().waitFor();
+        assert.equal(await page.locator('.ri-gsheet .ri-option-card').count(),4);
+        assert.equal(L.requests().length,0,'reopening completed options is free');
+        await tapAt('.ri-gsheet [data-ri-close]');
 
-        await page.evaluate(async ({base,name})=>{
-            const {chatState,saveChatState}=await import(base+'/src/store.js');
-            chatState().activeSets=chatState().activeSets.filter(set=>set!==name);
-            saveChatState();
-        },{base:L.BASE,name});
+        // A set that is no longer active fails before any request, with Retry.
+        await ext(async({B,value})=>{
+            const {chatState,saveChatState}=await import(`${B}/src/store.js`);
+            chatState().activeSets=chatState().activeSets.filter(set=>set!==value); saveChatState();
+        },name);
+        await save({set:'missing-set'});
         L.resetLog();
-        await icon.tap();
-        await tap(sheet,'Retry · 1 model call');
-        await sheet.getByText('Activate the configured Random Instruction Set in this chat.',{exact:true}).waitFor();
-        assert.equal(L.requests().length,0);
-        await tap(sheet,'Close');
-        // Cancel while an uncached source is loading: no request reaches the model.
-        await page.evaluate(async ({base,name})=>{
-            const {chatState,saveChatState,settings}=await import(base+'/src/store.js');
-            chatState().activeSets.push(name);saveChatState();
-            settings().quickToolbarSuggestions[0].prompt+=' LOADING_FIXTURE';
-            (await import(base+'/src/ui/quick-actions.js')).refreshComposerToolbar();
-            const {worldInfoCache}=await import('/scripts/world-info.js');worldInfoCache.delete(name);
-        },{base:L.BASE,name});
-        let releaseSource;
-        const sourceGate=new Promise(resolve=>{releaseSource=resolve;});
-        const sourceStarted=page.waitForRequest(request=>request.url().includes('/api/worldinfo/get') && request.postDataJSON()?.name===name);
-        await page.route('**/api/worldinfo/get',async route=>{
-            if(route.request().postDataJSON()?.name===name) await sourceGate;
-            await route.continue();
-        });
-        await icon.tap();
-        await sourceStarted;
-        await tap(sheet,'Cancel request');
-        releaseSource();
-        await sheet.getByText('Generation cancelled.',{exact:true}).waitFor();
-        assert.equal(L.requests().length,0,'Cancelling source loading does not dispatch');
-        await tap(sheet,'Close');
-        await page.unroute('**/api/worldinfo/get');
-        console.log('PASS single-tap generation, double-tap guard, free details/reopen, independent result status, zero-height collapse, one request for 1/4/8/12 options, set preflight, explicit retry and preserved backward selection');
+        await tapAt(pin);
+        await tapAt('.ri-gsheet [data-ri-generate]');
+        await page.locator('.ri-gsheet [data-ri-retry]').waitFor({timeout:10000});
+        assert.equal(L.requests().length,0,'a missing set makes no request');
+        await tapAt('.ri-gsheet [data-ri-close]');
+        await ext(async({B})=>(await import(`${B}/src/quick-actions.js`)).restoreQuickAction('builtin:options:npc'));
+        await page.waitForTimeout(1500); // the host saves settings on a debounce; let the restore reach disk
+        assert.deepEqual(errors,[]);
+        console.log('PASS options quick action: one request for 1, 4, 8 and 12 options with the saved prompt and set, free reopen, preserved draft and backward selection, set preflight with no request');
     } finally {
         L.mode({});
         await browser.close();

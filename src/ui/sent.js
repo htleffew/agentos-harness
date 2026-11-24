@@ -5,11 +5,13 @@ import { proseDiagnosticsNotes } from '../prose-diagnostics.js';
 import { historySourceMark } from '../history-source.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
-import { storyStateChips, loreChips, replyCardHeader, replyChip, replyGlance, revealReplyBody, roastCard } from './reply-cards.js';
+import { replyCardHeader, replyChip, roastCard } from './reply-cards.js';
+import { chatTray, inScene, presentNames, replyTray, trayShows, traySettings } from './reply-tray.js';
+import { headerMode, headerState, parseSceneHeader } from '../scene-header.js';
 import { replyWorldTabs } from './reply-world.js';
 import { chatWorld } from '../world.js';
 import { deliveredDirections, refreshGuidedControl } from './guided.js';
-import { snapshotState, snapshotScene, sceneDateLabel } from '../state.js';
+import { snapshotState, snapshotScene, sceneDateLabel, STATE_FIELDS } from '../state.js';
 import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
@@ -325,49 +327,6 @@ function refreshStoryState(chat) {
     for (const el of document.querySelectorAll('#chat .mes .ri-scene, #chat .mes .ri-cards')) if (!el.closest('.ri-story-state')) el.remove();
 }
 
-function replyTabs(parts, active, id) {
-    const list=h('div',{class:'ri-tabs',role:'tablist','aria-label':'Reply details'});
-    const panels=h('div',{class:'ri-v10-panels'});
-    const ids=parts.map(([name])=>name);
-    const initial=Math.max(0,ids.indexOf(active));
-    const tabs=[];
-    const loaded = new Set();
-    let selected = initial;
-    function loadSelected() {
-        const load = parts[selected]?.[2];
-        if (!load || loaded.has(selected) || !list.closest('details')?.open) return;
-        loaded.add(selected);
-        load(panels.children[selected]);
-    }
-    function activate(index,focus=false) {
-        selected = index;
-        tabs.forEach((tab,i)=>{
-            tab.setAttribute('aria-selected',String(i===index));
-            tab.tabIndex=i===index ? 0 : -1;
-            tab.classList.toggle('ri-tab-on',i===index);
-            panels.children[i].hidden=i!==index;
-        });
-        if (focus) tabs[index]?.focus();
-        loadSelected();
-    }
-    parts.forEach(([label,content],i)=>{
-        const tab=h('button',{class:'ri-tab',type:'button',role:'tab',id:`ri-reply-${id}-tab-${i}`,'aria-controls':`ri-reply-${id}-panel-${i}`,'data-tab':label,onclick:()=>activate(i)},label);
-        tab.addEventListener('keydown',event=>{
-            const next={ArrowLeft:(i+parts.length-1)%parts.length,ArrowRight:(i+1)%parts.length,Home:0,End:parts.length-1}[event.key];
-            if(next!==undefined){event.preventDefault();activate(next,true);}
-        });
-        list.append(tab);tabs.push(tab);
-        panels.append(h('div',{role:'tabpanel',id:`ri-reply-${id}-panel-${i}`,'aria-labelledby':tab.id},content));
-    });
-    activate(initial);
-    return {list,panels,loadSelected,reset:()=>loaded.clear(),choose(label){
-        const index = ids.indexOf(label);
-        if (index<0) return null;
-        activate(index,true);
-        return panels.children[index];
-    }};
-}
-
 function loreEntryButton(entry, fromReview) {
     if (!entry.book) return null;
     const managed = entry.managedSet || ['Random Instructions','Random Story Events','Random Writing Style'].includes(entry.role);
@@ -391,27 +350,92 @@ function replyLoreRows(lore) {
         loreEntryButton(entry,false))));
 }
 
-function updateSceneHeader(mes,id,scene) {
-    const area = mes.querySelector('.mes_text');
-    if (!area) return;
-    const existing = area.parentElement.querySelector(':scope > .ri-scene-header');
-    if (!scene) { existing?.remove(); return; }
-    const days = scene.daysAfterKnownDate;
-    const date = sceneDateLabel(scene);
-    const fields = [['Time',scene.time ?? scene.when],['Date',date],['Location',scene.where],['Weather',scene.weather]];
-    const record = ctx().chat?.[id]?.extra?.[KEY];
-    if (id===0 && !record && !fields.some(([,value])=>value)) { existing?.remove(); return; }
-    const inherited = !!record?.weatherInherited && !Object.hasOwn(record?.sceneSnapshotEdits || {},'weather');
-    const stamp = JSON.stringify([fields,inherited,scene.lastKnownDate,days]);
-    if (existing?.dataset.scene === stamp) return;
-    const header = h('div',{class:'ri-scene-header','aria-label':'Scene details','data-scene':stamp},
-        h('dl',{},fields.map(([label,value])=>h('div',{class:`ri-scene-header-${label.toLowerCase()}`},
-            h('dt',{},label==='Date' ? (!scene.date && scene.lastKnownDate && !days ? 'Last known date' : 'Story date') : label),
-            h('dd',{title:label==='Weather' && inherited ? 'Last established weather' :
-                label==='Date' && !scene.date && days && scene.lastKnownDate ? `Last full date: ${scene.lastKnownDate}` : undefined},
-                value || h('span',{class:'ri-scene-header-empty'},label==='Date' ? 'Awaiting story date' : '—'))))));
-    if (existing) existing.replaceWith(header);
-    else area.before(header);
+// The saved world views open as cards of their own; each names the feature it belongs to, so Theirs hides it.
+const WORLD_CARDS = {
+    Portrayal: { id:'portrayal', icon:'fa-user-pen', module:'state', kinds:['profile'] },
+    Emotions: { id:'emotions', icon:'fa-heart', module:'emotions', kinds:['emotion'] },
+    Relationships: { id:'relationships', icon:'fa-people-arrows', module:'relationships', kinds:['relationship'] },
+    Knowledge: { id:'knowledge', icon:'fa-eye', module:'knowledge', kinds:['knowledge'] },
+    Facts: { id:'facts', icon:'fa-book-open', module:'state', kinds:['fact'] },
+    Plot: { id:'plot', icon:'fa-scroll', module:'plots', kinds:['arc','seed','agenda','event'] },
+};
+const firstLine = text => String(text || '').split(/\r?\n/).map(line=>line.trim()).find(Boolean) || '';
+const sceneTime = scene => [sceneDateLabel(scene),scene.time ?? scene.when].filter(Boolean).join(', ');
+
+/** The scene for the Strip: the reply's own header while it lives in the reply, else the captured scene. */
+function stripScene(msg, snapshot) {
+    const header = headerMode()==='reply' ? parseSceneHeader(msg.mes) : null;
+    if (header) return {...header,source:'header'};
+    if (!snapshot || !Object.keys(snapshot).length) return null;
+    return {place:snapshot.where || '',time:sceneTime(snapshot),weather:snapshot.weather || '',
+        present:presentNames(snapshot.present),source:'capture'};
+}
+
+function sceneBody(sc, strip, id, redraw) {
+    const rows = [
+        ['Place',sc.where || strip?.place],['Story date and time',sceneTime(sc) || strip?.time],['Weather',sc.weather || strip?.weather],
+        ['Present',sc.present || strip?.present?.join(', ')],['Environment',sc.environment],
+    ].filter(([,value])=>value);
+    const edit = h('div',{class:'ri-state-body'});
+    if (Object.keys(sc).length) edit.append(button('Edit this scene snapshot',()=>edit.replaceChildren(sceneEditor(sc,redraw,{historicalId:id})),{kind:'ghost'}));
+    return [
+        h('dl',{class:'ri-tray-fields'},rows.map(([label,value])=>h('div',{},h('dt',{},label),h('dd',{},value)))),
+        strip && h('p',{class:'ri-tray-help'},strip.source==='header' ? 'From the reply\'s scene header.' : 'From the story state saved after the reply.'),
+        edit,
+    ];
+}
+
+/** Card descriptors for one reply's tray, from the data saved with the reply. */
+function trayCardsFor(id, msg, rec, view) {
+    const {modules,snapshot,showState,people,profiles,records,planning,roast,lore,notes,saved,latest,redraw} = view;
+    const strip = showState ? stripScene(msg,snapshot) : null;
+    const present = strip?.present?.length ? strip.present : people.map(person=>person.name);
+    const sc = showState ? snapshot || {} : {};
+    const cards = [];
+    if (strip || Object.keys(sc).length) cards.push({id:'scene',label:'Scene',icon:'fa-location-dot',family:'story',module:'state',
+        first:[strip?.place || sc.where,strip?.time || sceneTime(sc)].filter(Boolean).join(' · '),strip,
+        body:()=>sceneBody(sc,strip,id,redraw)});
+    if (people.length || profiles.length) {
+        const lead = people[0];
+        const field = lead && STATE_FIELDS.map(([key])=>lead.fields?.[key]).find(Boolean);
+        const showProfile = profile => profile ? h('div',{class:'ri-state-body'},h('p',{},profile.text),
+            profile.voice && h('p',{class:'ri-help'},`Voice · ${profile.voice}`),profile.facet && h('p',{class:'ri-help'},`Facet · ${profile.facet}`)) : null;
+        cards.push({id:'characters',label:'Characters',icon:'fa-masks-theater',family:'story',module:'state',names:present,
+            first:[lead ? `${lead.name}${field ? `: ${field}` : ''}` : profiles[0]?.subject,people.length>1 ? `+${people.length-1}` : ''].filter(Boolean).join(' '),
+            body:()=>[...people.map(person=>{
+                const card=characterStateCard(person,id,redraw,{historical:true,replyCard:true});
+                return h('section',{class:'ri-tray-person-card'},h('h4',{},person.name),card.children[1],
+                    showProfile(profiles.find(profile=>profile.subject===person.name)));
+            }),...profiles.filter(profile=>!people.some(person=>person.name===profile.subject))
+                .map(profile=>h('section',{class:'ri-tray-person-card'},h('h4',{},profile.subject),showProfile(profile)))]});
+    } else if (present.length) cards.push({id:'characters',label:'Characters',icon:'fa-masks-theater',family:'story',module:'state',names:present,first:'',body:()=>null});
+    for (const [name,,render] of saved?.parts || []) {
+        const def = WORLD_CARDS[name];
+        if (!def) continue;
+        const mine = (rec.v10Changes || []).filter(record=>def.kinds.includes(record.kind)).length;
+        cards.push({id:def.id,label:name,icon:def.icon,family:'story',module:def.module,
+            first:mine ? `${mine} recorded this reply` : '',load:panel=>render(panel)});
+    }
+    if (records.length) cards.push({id:'changes',label:'Story changes',icon:'fa-list-check',family:'story',count:records.length,
+        first:records[0].text || records[0].subject || records[0].id,
+        body:()=>h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
+            h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
+            replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))});
+    if (planning) cards.push({id:'plan',label:'Director\'s desk',icon:'fa-route',family:'direction',first:firstLine(planning),
+        body:()=>h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)});
+    if (roast) cards.push({id:'roast',label:'Roast',icon:'fa-fire',family:'review',module:'roast',first:firstLine(roast).replace(/\*+/g,''),
+        body:()=>[...roastCard(roast).children].slice(1)});
+    if (lore.length) cards.push({id:'lore',label:'World Info',icon:'fa-book',family:'story',
+        first:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}: ${lore.map(entry=>entry.title).join(', ')}`,body:()=>replyLoreRows(lore)});
+    const warnings = [rec.v10Invalid && 'Some structured changes could not be applied.',
+        rec.stateOutdated && 'This reply was edited. Its previous state is out of date.',...(rec.cardIssues || [])].filter(Boolean);
+    if (notes.length) cards.push({id:'notes',label:'Notes',icon:'fa-note-sticky',family:'review',first:firstLine(notes[0].textContent),warnings,body:()=>notes});
+    else if (warnings.length) cards.push({id:'notes',label:'Notes',icon:'fa-note-sticky',family:'review',first:warnings[0],warnings,body:()=>warnings.map(text=>h('p',{},text))});
+    const sentShown = settings().showUnder==='display' && (rec.items?.length || rec.v10Lore?.length || rec.v10Request || rec.v10Check || rec.v10Offer);
+    if (sentShown) cards.push({id:'sent',label:'Sent',icon:'fa-receipt',family:'review',first:summaryLine(rec),
+        calls:[rec.checkExecution && 'Follow-through check',rec.automaticSwipeExecution && 'Automatic swipe'].filter(Boolean),
+        body:()=>recordBody(id,rec,latest,false)});
+    return cards;
 }
 
 function refreshV10Replies(chat) {
@@ -428,62 +452,41 @@ function refreshV10Replies(chat) {
             update?.pending?.revision?.fingerprint,update?.pending?.changes?.length,update?.changes?.length];
     }))});
     const latestReply=chat.findLastIndex(isReply);
+    const look=[traySettings(),chatTray(),headerMode(),headerState()?.fallback || null,settings().showUnder];
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const id=Number(mes.getAttribute('mesid'));
         const msg=chat[id];
         const rec=msg?.extra?.[KEY] || (native && id===0 && root?.chapterOf && world ? {time:'chapter-opening'} : null);
         const block=mes.querySelector('.mes_block');
         if (!block) continue;
-        const old=block.querySelector(':scope > .ri-v10-reply');
+        const old=block.querySelector(':scope > .ri-tray:not(.ri-tray-loading)');
+        const latest=id===latestReply;
         const showHeader = enabled && !memoryOnly() && (native || rec?.v10) && isReply(msg);
         const diagnostics = enabled && !memoryOnly() && isReply(msg)
             ? proseDiagnosticsNotes(chat,id,{avoid:local.avoidPhrases,metrics:local.proseMetrics===true}) : null;
         const hasDiagnostics = !!(diagnostics?.notes.length || diagnostics?.details.length || diagnostics?.metrics || diagnostics?.auditRequested);
-        const show = (showHeader || hasDiagnostics) && !!rec;
-        const snapshot=showHeader ? snapshotScene(id) : null;
-        updateSceneHeader(mes,id,snapshot);
+        const show = (showHeader || hasDiagnostics) && !!rec && trayShows(latest);
         if (!show) {old?.remove();continue;}
         const showConsole=showHeader && settings().scene?.card !== 'off';
-        const showState=showConsole && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
-        const sc=showState && modules.state ? snapshot : {};
-        const people=showState && modules.state ? Object.values(snapshotState(id)).filter(p=>!sc.present || sc.present.toLowerCase().includes(p.name.toLowerCase())) : [];
+        const showState=showConsole && modules.state && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
+        const snapshot=showState ? snapshotScene(id) : null;
+        const profiles=showState ? rec.v10Profiles || [] : [];
+        const aliases=name=>profiles.find(profile=>profile.subject===name)?.aliases || [];
+        const header=showState && headerMode()==='reply' ? parseSceneHeader(msg.mes) : null;
+        const present=header?.present.length ? header.present : snapshot?.present;
+        const people=showState ? Object.values(snapshotState(id)).filter(p=>inScene(present,p.name,aliases(p.name))) : [];
         const records=(rec.v10Changes || []).filter(record=>modules[KIND_MODULE[record.kind]]);
-        const profiles=showState && modules.state ? rec.v10Profiles || [] : [];
         const planning=showHeader && local.showPlanning !== false ? rec.v10Plan : '';
         const roast=showHeader && local.showRoast!==false ? rec.roast : '';
         const lore=showHeader && local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
-        const stamp=JSON.stringify([responseKey,showConsole,modules,world,manualVersion,memoryVersion,id===latestReply,sc,people,profiles,records,planning,roast,lore,diagnostics,
-            rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated]);
+        const stamp=JSON.stringify([responseKey,showConsole,showState,modules,world,manualVersion,memoryVersion,latest,snapshot,people,profiles,records,planning,roast,lore,diagnostics,
+            rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated,rec.items?.map(item=>item.status),msg.mes,look]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
-        const out=h('div',{class:'ri-root ri-v10-reply ri-reply-stack','data-accent':'sky'});
-        out.dataset.stamp=stamp;
-        out.dataset.responseKey=responseKey;
-        const parts=[];
-        const redraw=()=>{out.querySelectorAll('.ri-state-editor').forEach(form=>form.remove());out.dataset.stamp='';refreshUnderReplies();};
-        if (Object.keys(sc).length) {
-            const scene=sceneCard(sc);
-            const edit=h('div',{class:'ri-state-body'});
-            edit.append(button('Edit this scene snapshot',()=>edit.replaceChildren(sceneEditor(sc,redraw,{historicalId:id})),{kind:'ghost'}));
-            parts.push(['Scene',[scene.children[1],edit]]);
-        }
-        const showProfile = profile => profile ? h('div',{class:'ri-state-body'},h('p',{},profile.text),
-            profile.voice && h('p',{class:'ri-help'},`Voice · ${profile.voice}`),profile.facet && h('p',{class:'ri-help'},`Facet · ${profile.facet}`)) : null;
-        for (const person of people) {
-            const card=characterStateCard(person,id,redraw,{historical:true,replyCard:true});
-            parts.push([person.name,[card.children[1],showProfile(profiles.find(profile=>profile.subject===person.name))]]);
-        }
-        for (const profile of profiles.filter(profile=>!people.some(person=>person.name===profile.subject))) parts.push([profile.subject,showProfile(profile)]);
-        const saved = showConsole && native ? replyWorldTabs(id,modules,rec) : null;
-        if (saved) parts.push(...saved.parts);
-        if (records.length) parts.push(['Changes',h('ul',{class:'ri-lore-receipt'},records.map(record=>h('li',{},
-            h('div',{class:'ri-lore-receipt-title'},h('strong',{},record.subject || record.id),h('span',{},record.text)),
-            replyChip(record.kind,record.kind === 'fact' ? 'mint' : 'indigo'))))]);
+        const redraw=()=>{const tray=block.querySelector(':scope > .ri-tray:not(.ri-tray-loading)');if(tray) tray.dataset.stamp='';refreshUnderReplies();};
         const notes = [
             rec.v10Check && h('p',{},checkText(rec.v10Check)),
             rec.v10Offer && h('p',{},`Offered plot development: ${rec.v10Offer}`),
-            rec.v10Invalid && h('p',{},'Some structured changes could not be applied.'),
-            rec.stateOutdated && h('p',{},'This reply was edited. Its previous state is out of date.'),
             (rec.v10Issues || []).map(note=>h('p',{},note)),
             ...((diagnostics?.notes || rec.v10Diagnostics || []).map(note=>h('p',{},note))),
             ...(diagnostics?.details || []).map(({heading,items})=>
@@ -496,38 +499,17 @@ function refreshV10Replies(chat) {
                 ...(diagnostics.usedReply ? [{stage:'reply',label:'Writing review and next-turn guidance',trigger:'On the ordinary story reply.',connection:diagnostics.connection,attempts:0,outcome:
                     diagnostics.auditConfirmed===false ? 'Host omitted part of the requested guidance' : diagnostics.auditConfirmed===true ? 'Confirmed in the assembled request' : 'Selected for the reply request'}] : []),
             ]),
-            (rec.cardIssues || []).map(note=>h('p',{},note)),
         ].flat().filter(Boolean);
-        if (notes.length) parts.push(['Notes',notes]);
-        if (!showConsole && hasDiagnostics) out.append(h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'notes'},
-            replyCardHeader({icon:'◇',title:'Notes'}),h('div',{class:'ri-v10-panels'},notes)));
-        if (showConsole && parts.length) {
-            const tabs = replyTabs(parts,old?.querySelector('[role=tab][aria-selected=true]')?.dataset.tab,id);
-            const consoleCard = h('details',{class:'ri-reply-card ri-v10-console','data-reply-fold':'console'},
-                replyCardHeader({icon:'◇',title:'Story state',chips:storyStateChips(people.length,records.length)}),tabs.list,tabs.panels);
-            consoleCard.addEventListener('toggle',()=>{
-                if (consoleCard.open) tabs.loadSelected();
-                else {tabs.reset();saved?.reset();}
-            });
-            const glance = id===latestReply && replyGlance({scene:sc,people,profiles,records,changed:rec.stateChanges || [],hasSavedTabs:!!saved},label=>{
-                consoleCard.open=true;
-                revealReplyBody(consoleCard,tabs.choose(label));
-            });
-            if (glance) out.append(glance);
-            out.append(consoleCard);
-        }
-        if (planning) out.append(h('details',{class:'ri-reply-card ri-v10-plan','data-reply-fold':'planning'},
-            replyCardHeader({icon:'≋',title:'Reply planning'}),
-            h('pre',{class:'ri-v10-prompt-text ri-reply-quote'},planning)));
-        if(roast) out.append(roastCard(roast,{'data-reply-fold':'roast'}));
-        if(lore.length) out.append(h('details',{class:'ri-reply-card ri-v10-lore','data-reply-fold':'lore'},
-            replyCardHeader({icon:'▤',title:'World Info',chips:loreChips(lore.length,lore.filter(entry=>entry.confirmed).length)}),replyLoreRows(lore)));
-        if(old?.dataset.responseKey===responseKey) for(const fold of out.querySelectorAll('[data-reply-fold]')) {
-            fold.open=!!old.querySelector(`[data-reply-fold="${fold.dataset.replyFold}"]`)?.open;
-        }
-        if(!out.childElementCount) old?.remove();
-        else if(old) old.replaceWith(out);
-        else block.insertBefore(out,block.querySelector(':scope > .ri-guided'));
+        const saved = showConsole && native ? replyWorldTabs(id,modules,rec) : null;
+        const cards = trayCardsFor(id,msg,rec,{modules,snapshot,showState,people,profiles,records,planning,roast,lore,notes,saved,latest,redraw});
+        const tray = replyTray({id,latest,cards,modules,previous:old?.dataset.responseKey===responseKey ? old : null});
+        if (!tray) {old?.remove();continue;}
+        tray.dataset.stamp=stamp;
+        tray.dataset.responseKey=responseKey;
+        if (old) old.replaceWith(tray);
+        else block.insertBefore(tray,block.querySelector(':scope > .ri-guided'));
+        // A loading Strip that already ended under this reply gives way to its tray.
+        for (const ended of block.querySelectorAll(':scope > .ri-tray-loading:is([data-end="resolved"],[data-end="stopped"],[data-end="failed"])')) ended.remove();
     }
     refreshDialogue();
 }
@@ -547,6 +529,8 @@ export function refreshUnderReplies() {
                 const rec = chat[id]?.extra?.[KEY];
                 const block = mes.querySelector('.mes_block');
                 if (!(rec?.items?.length || rec?.v10Lore?.length || rec?.v10Request || rec?.v10Check || rec?.v10Offer) || !block) continue;
+                // Under a reply with a tray, What was sent is the tray's Sent card.
+                if (block.querySelector(':scope > .ri-tray:not(.ri-tray-loading)')) continue;
                 const stamp = JSON.stringify([rec.time, rec.checking, rec.items.map(i => [i.status, i.quote]), rec.agency?.quote]);
                 const old = block.querySelector(':scope > .ri-under');
                 seen.add(mes);

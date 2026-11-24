@@ -8,13 +8,15 @@ import { button, field, h, select, textArea, textInput, captureView, restoreView
 import { executionDetails } from './execution.js';
 import { executionPreview } from '../execution.js';
 import { impersonationInspector } from './impersonation.js';
-import { barPins, composerBar, kindOf, listQuickActions, loadQuickActionSources, moveBarPin, optionsRequest, pinToBar, QUICK_ACTION_KINDS,
+import { kindOf, listQuickActions, loadQuickActionSources, optionsRequest, QUICK_ACTION_KINDS,
     quickActionOwner, readQuickAction, resolveQuickAction, rollQuickAction, rollQuickActionDie } from '../quick-actions.js';
 import { mountComposerBar, placeBar, renderBar, renderLookPage, setBarStatus, setHostGenerating, toggleBarHidden } from './composer-bar.js';
 import { openGenerateSheet } from './generate-sheet.js';
+import { cachedOptions, clearOptionsRunning, currentOptionsKey, rememberOptions, showOptions, showOptionsRunning } from './results-sheet.js';
+import { openQueueSheet } from './queue-sheet.js';
 import { loadStyles } from './theme/styles.js';
 import { registerPage } from './page-registry.js';
-import { renderQuickActionLibrary } from './quick-action-library.js';
+import { renderQuickActionLibrary, requestQuickActionEdit } from './quick-action-library.js';
 import { cancelGuidedTurn, guidedPreview, guidedTarget, guidedVersions, runGuidedTurn, selectGuidedVersion, undoGuidedContinuation } from '../guided-turns.js';
 import { freshHistoryCapability } from '../guided-context.js';
 import { armFreshStart, cancelQueued, freshRemaining, moveQuickPin, pinQuickAction, queueCapability,
@@ -861,12 +863,7 @@ export function refreshComposerToolbar() {
 }
 
 // The composer bar's jobs (DESIGN.md 4.2, 4.4 and 4.6).
-const bar = { drafts:new Map(), job:null, results:new Map(), resultsRenderer:null };
-
-/** B2 renders the Options results list into the Generate sheet through this hook. */
-export function registerOptionsResults(renderer) {
-    bar.resultsRenderer = typeof renderer === 'function' ? renderer : null;
-}
+const bar = { drafts:new Map(), job:null };
 
 const barOperation = {options:'playerChoices', impersonate:'playerDraft', swipe:'swipe', continue:'continue'};
 
@@ -884,8 +881,11 @@ async function barCue(action, family) {
     return {...resolveQuickAction(action,{sources,variables:{direction:''}}), reference:action.id};
 }
 
-function openBarSettings() {
-    return openPanel('v10',null,'#ri-composer-settings');
+// Edit opens that quick action in Quick actions, Library; Bar settings opens Quick actions, Bar (B3).
+async function openBarSettings(action) {
+    if (action?.id) requestQuickActionEdit(action.id);
+    const external = {label:'Back to chat',returnFocus:document.activeElement};
+    if (await app.openPage(action?.id ? 'quick-library' : 'quick-bar',{external,focusPage:true})) await app.setExpanded(true);
 }
 
 function insertDraft(text, mode, before) {
@@ -901,18 +901,9 @@ function insertDraft(text, mode, before) {
     writeComposer({text:value, start:start + text.length, end:start + text.length});
 }
 
-function defaultOptionCards(sheet, action, choices) {
-    // Interim list until B2's titled cards register through registerOptionsResults.
-    return choices.map((text,index)=>h('article',{class:'ri-option-card'},h('p',{},text),
-        h('div',{class:'ri-gsheet-actions'},
-            h('button',{type:'button',class:'ri-bar-btn','aria-label':`Insert option ${index+1}`,onclick:()=>{
-                insertDraft(text,action.insertMode);sheet.close({reason:'insert'});
-            }},composerIcon('fa-arrow-turn-down'),'Insert'))));
-}
-
+// B2's titled option cards (results-sheet.js); Generate again reruns with the sheet's typed text.
 function showOptionResults(sheet, action, choices) {
-    const nodes = bar.resultsRenderer ? bar.resultsRenderer({sheet,action,choices,insert:text=>insertDraft(text,action.insertMode)}) : defaultOptionCards(sheet,action,choices);
-    sheet.showResults(...[nodes].flat());
+    showOptions(sheet,choices,{insert:text=>insertDraft(text,action.insertMode),onGenerateAgain:()=>sheet.generate()});
 }
 
 async function runBarOptions(action, typed, job) {
@@ -968,15 +959,19 @@ async function generateFromBar(action, typed, sheet) {
     bar.drafts.delete(action.id);
     setBarStatus({state:'running',actionId:action.id,kind,title:action.title,startedAt:job.startedAt});
     const keepOpen = kind === 'options' && action.autoOpen !== false;
-    if (keepOpen) sheet.setBusy(true,'Generating');
-    else sheet.close({reason:'generate'});
+    // The results cache key is taken as the request starts, against the reply it reads.
+    const cacheKey = kind === 'options' ? currentOptionsKey(action) : '';
+    if (keepOpen) {
+        sheet.setBusy(true,'Generating');
+        showOptionsRunning(sheet,{count:optionsRequest(action).count,onCancel:()=>barRunner.stop()});
+    } else sheet.close({reason:'generate'});
     try {
         if (kind === 'options') {
             const choices = await runBarOptions(action,typed,job);
             // Main API can finish a request after Stop; its result is discarded.
             if (job.cancelled) throw new DOMException('Stopped.','AbortError');
             job.choices = choices;
-            bar.results.set(action.id,{choices,chat:job.chat});
+            rememberOptions(action,choices,cacheKey);
             if (!sheet.closed) {
                 showOptionResults(sheet,action,choices);
                 setBarStatus({state:'done',message:`${choices.length} ${choices.length===1?'option':'options'} ready.`});
@@ -997,6 +992,7 @@ async function generateFromBar(action, typed, sheet) {
     } finally {
         job.running = false;
         if (!sheet.closed) sheet.setBusy(false);
+        if (kind === 'options' && !sheet.closed && sheet.element.dataset.running) clearOptionsRunning(sheet,{onGenerateAgain:()=>sheet.generate()});
     }
 }
 
@@ -1011,17 +1007,19 @@ function showBarFailure(sheet) {
     sheet.showError(job.error,retry,connection);
 }
 
-function openBarSheet(action, trigger) {
+function openBarSheet(action, trigger, saved = kindOf(action) === 'options' ? cachedOptions(action) : null) {
     const kind = kindOf(action);
     const input = openComposer();
     const sheet = openGenerateSheet({kind,action,connection:barConnection(action),draft:bar.drafts.get(action.id) || '',
         returnFocus:document.activeElement===input ? input : trigger,
         onGenerate:(typed,current)=>generateFromBar(action,typed,current),
-        onEdit:()=>openBarSettings(),
+        onEdit:()=>openBarSettings(action),
         onClose:text=>{
             if (text && text!==sheet.consumed) bar.drafts.set(action.id,text);
             else if (!text) bar.drafts.delete(action.id);
         }});
+    // A matching results cache opens on the saved options with no request (4.4).
+    if (saved?.length) showOptionResults(sheet,action,saved);
     return sheet;
 }
 
@@ -1064,14 +1062,17 @@ const barRunner = {
         if (job.plain) ctx().stopGeneration?.();
         else cancelGuidedTurn();
         // Stop takes effect for the bar at once; a late reply from the request is discarded.
-        if (!job.sheet.closed) job.sheet.setBusy(false);
+        if (!job.sheet.closed) {
+            job.sheet.setBusy(false);
+            // Options already on the sheet stay; Cancel only ends the new request.
+            if (job.kind === 'options') clearOptionsRunning(job.sheet,{onGenerateAgain:()=>job.sheet.generate()});
+        }
         setBarStatus({state:'cancelled',actionId:job.action.id,kind:job.kind,title:job.action.title});
     },
     view() {
         const job = bar.job;
         if (!job?.choices || job.chat!==quickChatIdentity()) { setBarStatus({state:'idle'}); return; }
-        const sheet = openBarSheet(job.action,document.querySelector('.ri-bar-status-button'));
-        showOptionResults(sheet,job.action,job.choices);
+        openBarSheet(job.action,document.querySelector('.ri-bar-status-button'),job.choices);
         setBarStatus({state:'idle'});
     },
     showFailure() {
@@ -1083,12 +1084,9 @@ const barRunner = {
         } else toast('error',`${job.action.title}: ${job.error}`);
         setBarStatus({state:'idle'});
     },
-    openQueue(trigger) {
-        openQuickActions(undefined,undefined,trigger);
-        show('pending',undefined,true);
-    },
+    openQueue:trigger=>openQueueSheet(trigger),
     openAll:trigger=>openQuickActions(undefined,undefined,trigger),
-    edit:()=>openBarSettings(),
+    edit:action=>openBarSettings(action),
     openSettings:()=>openBarSettings(),
 };
 
@@ -1096,33 +1094,6 @@ function composerLibrarySettings(scope) {
     const saved = app.composerLibrary ||= new Map();
     if (!saved.has(scope)) saved.set(scope,{family:'',mode:'manage',views:new Map(),drafts:new Map()});
     return saved.get(scope);
-}
-
-/** Bar pins in order with Move left, Move right and Unpin, plus a Pin list (B3 replaces this with Quick actions, Bar). */
-function barPinEditor() {
-    const host = h('div',{class:'ri-composer-slots'});
-    function draw(focus) {
-        const pins = barPins();
-        const pinned = new Set(composerBar().pins);
-        const add = listQuickActions('',{allKinds:true}).filter(action=>!pinned.has(action.id));
-        host.replaceChildren(...pins.map((action,index)=>actionRow(
-            h('span',{},composerIcon(action.icon || QUICK_ACTION_KINDS[kindOf(action)]?.icon || 'fa-star'),` ${action.title} · ${QUICK_ACTION_KINDS[kindOf(action)]?.name || ''}`),
-            button('Move left',()=>{moveBarPin(action.id,-1);draw([action.id,0]);renderBar();},{disabled:index===0}),
-            button('Move right',()=>{moveBarPin(action.id,1);draw([action.id,1]);renderBar();},{disabled:index===pins.length-1}),
-            button('Unpin',()=>{pinToBar(action.id,false);draw();renderBar();}))),
-        !pins.length && info('Nothing is pinned. Pin a quick action below or from More on the bar.'),
-        add.length && field('Pin a quick action','',select([{value:'',label:'Choose an action'},
-            ...add.map(action=>({value:action.id,label:`${action.title} · ${QUICK_ACTION_KINDS[kindOf(action)]?.name || ''}`}))],'',value=>{
-            if (value) { pinToBar(value,true); draw(); renderBar(); }
-        },{'aria-label':'Pin a quick action'})));
-        if (focus) {
-            const row = host.children[pins.findIndex(action=>action.id===focus[0])];
-            const controls = row?.querySelectorAll('button');
-            (controls?.[1+focus[1]]?.disabled ? controls[2-focus[1]] : controls?.[1+focus[1]])?.focus({preventScroll:true});
-        }
-    }
-    draw();
-    return host;
 }
 
 export function renderComposerSettings() {
@@ -1189,7 +1160,7 @@ export function renderComposerSettings() {
     return h('section',{id:'ri-composer-settings',class:'ri-section'},
         h('h3',{class:'ri-section-title'},'Composer quick actions'),
         info('Pinned quick actions sit on the bar above the message box, in this order. Hold an icon on the bar for the same choices.'),
-        barPinEditor(),
+        actionRow(button('Open Quick actions, Bar',()=>app.openPage('quick-bar',{focusPage:true})),button('Open Quick actions, Library',()=>app.openPage('quick-library',{focusPage:true}))),
         h('details',{id:'ri-composer-families'},h('summary',{},'Actions shown in All quick actions'),Object.entries(families).map(([id,{title}])=>
             h('label',{class:'ri-qa-library-check'},h('input',{type:'checkbox',checked:composerMenuFamilies().includes(id),onchange:event=>{
                 const visible = new Set(composerMenuFamilies());

@@ -1,4 +1,7 @@
 // Exercise the native preset save path and inspect the request delivered to the local model.
+// B12 moved the block workbench to Setup, Presets and B5's shell has no page chooser: pages open through the shell.
+// The per-block instruction source select is gone (B12's Ours or Theirs switch, t_preset_switch.js, owns that), so
+// the four source combinations are retired; the edited block is checked on the wire once.
 const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('node:fs');
 (async()=>{
     L.sync();
@@ -11,8 +14,12 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
     const root=page.locator('#ri_root'), wb=root.locator('.ri-preset-workbench');
     const block=wb.locator('[data-preset-block="review-relationships"]');
     const click=locator=>locator.click();
-    const open=async locator=>{if(!await locator.evaluate(el=>el.open))await click(locator.locator(':scope > summary'));};
-    const pageTab=tab=>click(root.locator(`[data-ri-page="${tab}"]`));
+    // Blocks sit inside their heading's fold on the Presets page; open the folds around a block first.
+    const open=async locator=>{
+        await locator.evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement) if(p.tagName==='DETAILS' && !p.open) p.open=true;});
+        if(!await locator.evaluate(el=>el.open))await click(locator.locator(':scope > summary'));
+    };
+    const pageTab=tab=>page.evaluate(async({B,tab})=>{const {app}=await import(`${B}/src/ui/panel.js`);await app.openPage(tab,{focusPage:true});await app.setExpanded(true);},{B:L.BASE,tab});
     const pick=(locator,value)=>locator.evaluate((el,val)=>{el.value=val;el.dispatchEvent(new Event('change',{bubbles:true}));},value);
     const input=(locator,value)=>locator.evaluate((el,val)=>{el.value=val;el.dispatchEvent(new Event('input',{bubbles:true}));},value);
     const waitMessage=msg=>wb.locator(':scope > [role=status]').filter({hasText:msg}).waitFor({state:'attached',timeout:7000});
@@ -20,43 +27,36 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         await L.setupApi(page);
         await page.evaluate(data=>SillyTavern.getContext().getPresetManager('openai').savePreset(data.name,data),preset);
         await L.usePreset(page,preset.name);await L.setupApi(page,{preset:null});await L.openChat(page);
-        if(!await page.locator('#ri_drawer').isVisible())await page.locator('#extensions-settings-button > .drawer-toggle').click();
-        if(!await root.isVisible())await page.locator('#ri_drawer .inline-drawer-header').click();
-        await click(root.locator('[data-ri-expand]'));await click(root.locator('[data-ri-group="setup"]'));
-        await pageTab('v10');await open(wb);await open(block);
-        const source=block.getByLabel('Instruction sources for relationships and Internal States Template',{exact:true});
-        assert.equal(await source.inputValue(),'preset');
-        await input(block.getByLabel('Preset instruction',{exact:true}),'HOST_EDIT_432');
+        await pageTab('presets');await open(wb);await open(block);
+        await input(block.getByLabel('Preset prompt',{exact:true}),'HOST_EDIT_432');
         await click(block.getByRole('button',{name:'Save preset block',exact:true}));await waitMessage('Preset wording saved');
         assert.match(await block.locator(':scope > summary').textContent(),/Edited/);
         const order=()=>page.evaluate(()=>SillyTavern.getContext().chatCompletionSettings.prompt_order.find(g=>g.character_id===100001).order.map(e=>e.identifier));
         const before=await order();await click(block.getByRole('button',{name:'Move up',exact:true}));await waitMessage('Preset order saved');
         assert.equal((await order()).indexOf('review-relationships'),before.indexOf('review-relationships')-1);
         await L.setSettings(page,{check:{mode:'off'}});
-        for(const mode of ['both','extension','none','preset']){
-            await pick(source,mode);
-            await page.waitForFunction(({mode})=>document.querySelector('[aria-label="Instruction sources for relationships and Internal States Template"]')?.value===mode && !document.querySelector('.ri-preset-workbench > div')?.inert,{mode});
-            L.mode({reply:'Mira waits.'}); L.resetLog();await L.send(page,'I wait. '+mode);
-            const request=L.text(L.requests()[0]);
-            assert.equal(request.includes('HOST_EDIT_432'),['both','preset'].includes(mode),'host '+mode);
-            assert.equal(request.includes('For a relationship use subject and other'),['both','extension'].includes(mode),'extension '+mode);
-        }
-        await click(block.getByRole('button',{name:'Restore before extension edits'}));await waitMessage('Before extension edits restored');
-        assert.equal(await block.getByLabel('Preset instruction',{exact:true}).inputValue(),'HOST_REL_432');
+        L.mode({reply:'Mira waits.'}); L.resetLog();await L.send(page,'I wait.');
+        assert.ok(L.text(L.requests()[0]).includes('HOST_EDIT_432'),'the edited block reaches the request');
+        await open(block);await click(block.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
+        await open(block);assert.equal(await block.getByLabel('Preset prompt',{exact:true}).inputValue(),'HOST_REL_432');
         assert.deepEqual(await order(),before);
         const add=wb.locator('details').filter({has:page.getByText('Add a preset block',{exact:true})}).last();
-        await open(add);await input(add.getByLabel('New block name'),'Live addition');await input(add.getByLabel('New instruction'),'ADDED_432');
+        await open(add);await input(add.getByLabel('New block name'),'Live addition');await input(add.getByLabel('New prompt'),'ADDED_432');
         await click(add.getByRole('button',{name:'Add to end of preset'}));await waitMessage('Added an enabled');
-        const added=wb.locator('details[data-preset-block]').filter({has:page.getByText('Live addition · On · Edited',{exact:true})});
-        await open(added);await click(added.getByRole('button',{name:'Restore before extension edits'}));await waitMessage('Before extension edits restored');
+        const added=wb.locator('details[data-preset-block]').filter({has:page.getByText('Live addition',{exact:true})});
+        await open(added);await click(added.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
         assert.equal(await added.count(),0);
         const compare=wb.locator('details').filter({has:page.getByText('Compare preset and extension with AI',{exact:true})}).last();
+        // A match saved by an earlier run on the same host would show "Already matched"; start from automatic matches.
+        await page.evaluate(async({B,name})=>(await import(`${B}/src/preset-workbench.js`)).savePair(name,'review-relationships',null),{B:L.BASE,name:preset.name});
+        await pageTab('presets');await open(wb);
         await open(compare);
         L.resetLog();L.mode({reply:JSON.stringify([{id:'review-relationships',module:'roast',coverage:'partial',reason:'Fixture example.'}])});
-        await click(compare.getByRole('button',{name:'Compare with one model call'}));await waitMessage('Comparison complete');
+        await click(compare.getByRole('button',{name:'Compare with 1 model call'}));await waitMessage('Comparison complete');
         assert.equal(L.requests().length,1);
         await click(compare.getByRole('button',{name:'Use this match'}));await open(block);
-        assert.equal(await block.getByLabel('Instruction sources for roast and Internal States Template',{exact:true}).count(),1);
+        const matches=block.locator('details').filter({has:page.getByText('Choose matching features by hand',{exact:true})}).last();
+        await open(matches);assert.equal(await matches.locator('input[value="roast"]').isChecked(),true,'the accepted match is saved');
         const placement=block.locator('details').filter({has:page.getByText('Placement and generation triggers',{exact:true})}).last();
         await open(placement);await pick(placement.getByLabel('Prompt placement'),'absolute');
         await input(placement.getByLabel('Messages from the end'),'2');await input(placement.getByLabel('Priority at this depth'),'42');
@@ -64,8 +64,8 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         await click(block.getByRole('button',{name:'Save preset block',exact:true}));await waitMessage('Preset wording saved');
         const saved=await page.evaluate(()=>SillyTavern.getContext().chatCompletionSettings.prompts.find(p=>p.identifier==='review-relationships'));
         assert.equal(saved.injection_depth,2);assert.equal(saved.injection_order,42);assert.deepEqual(saved.injection_trigger,['swipe']);
-        await click(block.getByRole('button',{name:'Restore before extension edits'}));await waitMessage('Before extension edits restored');
-        const extOrder=wb.locator('details').filter({has:page.getByText('Extension instruction order',{exact:true})}).last();
+        await open(block);await click(block.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
+        const extOrder=wb.locator('details').filter({has:page.getByText('Extension prompt order',{exact:true})}).last();
         await open(extOrder);
         const colorSection=extOrder.locator(':scope > details').filter({has:page.getByText('Dialogue colors',{exact:true})});
         await open(colorSection);await click(colorSection.getByRole('button',{name:'Move earlier'}));
@@ -74,7 +74,7 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         const reordered=L.text(L.requests()[0]);
         assert.ok(reordered.indexOf('Use ordinary quoted dialogue')>=0 && reordered.indexOf('Use ordinary quoted dialogue')<reordered.indexOf('Scene and character checks:'),'extension order changed the request');
         const moved=extOrder.locator(':scope > details').filter({has:page.getByText('Dialogue colors · Order changed',{exact:true})});
-        await open(moved);await click(moved.getByRole('button',{name:'Restore module position'}));
+        await open(moved);await click(moved.getByRole('button',{name:'Restore position'}));
         await pageTab('display');
         const voices=root.locator('details').filter({has:page.getByText('Roast commentator voice and feedback',{exact:true})}).last();
         await open(voices);const picker=voices.getByLabel('Commentator voice',{exact:true});
@@ -82,7 +82,7 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         const voice=voices.locator('.ri-prompt-editor').first();await open(voice);await input(voice.locator('textarea'),'DETECTIVE_TEST_432');
         await click(voice.getByRole('button',{name:'Save instruction'}));
         assert.match(await picker.locator('option:checked').textContent(),/Customized/);
-        await page.evaluate(async base=>{(await import(base+'/src/v10.js')).prefs().modules.roast=true;},L.BASE);
+        await page.evaluate(async base=>{const p=(await import(base+"/src/v10.js")).prefs();(p.modules ||= {}).roast=true;},L.BASE);
         L.resetLog();await L.send(page,'What happened?');assert.match(L.text(L.requests()[0]),/DETECTIVE_TEST_432/);
         await pageTab('display');await open(voices);await open(voice);await click(voice.getByRole('button',{name:'Restore default'}));
         assert.doesNotMatch(await picker.locator('option:checked').textContent(),/Customized/);
@@ -105,8 +105,7 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
                     const pm=SillyTavern.getContext().getPresetManager('openai');
                     return pm.savePreset(name,{...pm.getCompletionPresetByName(pm.getSelectedPresetName()),prompts:reference.prompts,prompt_order:reference.prompt_order});
                 },{name,reference});
-                await L.usePreset(page,name);await pageTab('v10');
-                await root.getByText('Active preset: '+name,{exact:true}).waitFor();await open(wb);
+                await L.usePreset(page,name);await pageTab('presets');await open(wb);
                 await wb.locator('[data-preset-block]').first().waitFor({state:'attached'});
                 const visibleIds=await wb.locator('[data-preset-block]').evaluateAll(rows=>rows.map(row=>row.dataset.presetBlock));
                 const ids=new Set(reference.prompts.map(p=>p.identifier));
@@ -116,6 +115,6 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
                 console.log(path.basename(file)+': '+source.length+' ordered, '+ids.size+' supplied blocks accounted for.');
             }
         }
-        assert.deepEqual(errors,[]);console.log('PASS: native order, text, all four combinations on the wire, add, per-block restore and a customized commentator in a real request.');
+        assert.deepEqual(errors,[]);console.log('PASS: native order, edited text on the wire, add, per-block restore, accepted match, placement and a customized commentator in a real request.');
     }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

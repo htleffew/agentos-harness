@@ -189,12 +189,9 @@ export function resolveRoute(entry) {
     if (!def) return null;
     if (def.kind === 'main') return { kind: 'main' };
     if (def.kind === 'phone') return phoneModel ? { kind: 'phone' } : null;
-    const binding = routingSettings().routes[entry.route] || {};
-    const profiles = profileDetails();
-    const profile = binding.profileId ? profiles.find(p => p.id === String(binding.profileId)) : profiles.find(def.match);
-    if (profile) return { kind: 'profile', profileId: profile.id, url: profile.url, api: profile.api, name: profile.name };
-    if (binding.direct && def.source && typeof ctx().ChatCompletionService?.processRequest === 'function') return { kind: 'direct', source: def.source };
-    return null;
+    const found = detectRoutes()[entry.route];
+    if (!found) return null;
+    return found.kind === 'profile' ? { kind: 'profile', profileId: found.profileId, url: found.url, api: found.api, name: found.name } : { kind: found.kind, source: found.source };
 }
 
 /** How a saved profile chosen for one operation is billed, read from its source and address. */
@@ -203,13 +200,31 @@ export function profileCostClass(target) {
     return target?.api === 'nanogpt' ? 'plan' : 'paid';
 }
 
-/** Whether the tier chains are in use. Until "Use recommended routes" is accepted, operations keep their saved routes. */
-export const routingAccepted = () => !!routingSettings().accepted;
+// How well a saved profile fits a route, so the best one is picked when several match. The desktop route prefers a
+// profile on the tailnet with the resident model, since that one reaches the desktop from the phone at home and away.
+const FIT = {
+    desktop: p => (/^gemma4/i.test(p.model) ? 4 : 0) + (/^https?:\/\/(100\.|[^/]*\.ts\.net)/i.test(p.url) ? 2 : 0) + (/:11434\b/.test(p.url) ? 1 : 0),
+};
 
-/** Accept the tier chains (the "Use recommended routes" button), or go back to the saved per-operation routes. */
-export function setRoutingAccepted(on = true) {
-    routingSettings().accepted = on ? Date.now() : 0;
-    saveSettings();
+/**
+ * Find every route this host can carry, with no user action: each saved connection profile classified by its source
+ * and address, a binding saved by hand where there is one, and the on-phone model once it is registered.
+ * Returns { [routeId]: { kind, profileId?, name?, url?, source?, detected } }.
+ */
+export function detectRoutes() {
+    const profiles = profileDetails();
+    const bindings = routingSettings().routes;
+    const found = {};
+    for (const [id, def] of Object.entries(ROUTES)) {
+        if (def.kind === 'main') { found[id] = { kind: 'main', detected: true }; continue; }
+        if (def.kind === 'phone') { if (phoneModel) found[id] = { kind: 'phone', detected: true }; continue; }
+        const bound = bindings[id]?.profileId && profiles.find(p => p.id === String(bindings[id].profileId));
+        const fit = FIT[id] || (() => 0);
+        const match = bound || profiles.filter(def.match).sort((a, b) => fit(b) - fit(a))[0];
+        if (match) found[id] = { kind: 'profile', profileId: match.id, name: match.name, url: match.url, api: match.api, detected: !bound };
+        else if (bindings[id]?.direct && def.source && typeof ctx().ChatCompletionService?.processRequest === 'function') found[id] = { kind: 'direct', source: def.source, detected: false };
+    }
+    return found;
 }
 
 const routeKey = (entry, target) => target?.profileId ? `${entry.route}:${target.profileId}` : entry.route;

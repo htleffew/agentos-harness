@@ -56,7 +56,7 @@ const normalized = text => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').tr
 const flagged = DEFAULT_STORY_AVOID.split('\n').map(normalized);
 const ownedText = [
     ...Object.entries(P.PROMPTS).map(([id, prompt]) => [id, prompt.text]),
-    ...preset.prompts.map(prompt => [prompt.name, prompt.content || '']),
+    ...preset.prompts.map(prompt => [prompt.name, (prompt.content || '').replace(/\{\{\/\/[\s\S]*?\}\}/g, '')]), // comment macros never reach the model
     ['writer rules', DEFAULT_WRITER_RULES],
     ['structured scene', updateContract(DEFAULT_MODULES)],
     ['legacy scene', WF.buildAsk([])],

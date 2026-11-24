@@ -57,60 +57,12 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             roast:'The dock has excellent timing, which is to say none.'
         })});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',true).trigger('change'));
-        const progress=page.locator('.ri-v10-progress');
-        let releaseRequest;
-        const waiting = new Promise(resolve=>{releaseRequest=resolve;});
-        await page.route('**/api/backends/chat-completions/generate',async route=>{
-            await waiting;
-            await route.continue();
-        },{times:1});
-        const sending=L.send(page,'I run to the dock.');
-        sending.catch(() => {}); // Awaited below. Preserve the original UI assertion if it fails first.
-        try {
-            await progress.getByRole('status').filter({hasText:'Waiting for the reply'}).waitFor();
-            const display = async changes => story(page,async({B,value})=>{
-                const {prefs}=await import(`${B}/src/v10.js`);
-                Object.assign(prefs(),value);
-                (await import(`${B}/src/ui/reply-progress.js`)).refreshReplyProgress();
-            },changes);
-            await display({showStreamSections:false});
-            assert.equal(await progress.locator('.ri-glance-card,.ri-reply-roast,.ri-v10-lore').count(),0);
-            await display({showStreamSections:true,showRoast:false,showLore:false});
-            assert.ok(await progress.locator('.ri-glance-card').count());
-            assert.equal(await progress.locator('.ri-reply-roast,.ri-v10-lore').count(),0);
-            await display({showRoast:true,showLore:true});
-            assert.ok((await progress.boundingBox()).height>0);
-        }
-        finally { releaseRequest(); }
-        await progress.getByRole('status').filter({hasText:'Writing the reply'}).waitFor();
-        if (process.env.RI_CAPTURE_DIR) await progress.screenshot({path:process.env.RI_CAPTURE_DIR+'/writing.png'});
-        assert.equal(await progress.locator('button,summary').count(),0);
-        assert.equal(await progress.locator('.ri-glance-field .ri-card-skeleton').count(),4);
-        assert.match(await progress.locator('.ri-reply-roast').textContent(),/Reader reactionWaiting/);
-        await page.locator('#chat .last_mes .ri-stream-preview').waitFor({state:'attached'});
-        assert.equal(await page.locator('#chat .last_mes .mes_text').isVisible(),false);
-        await page.emulateMedia({reducedMotion:'reduce'});
-        assert.equal(await progress.locator('.ri-card-skeleton').first().evaluate(node=>getComputedStyle(node).animationName),'none');
-        await progress.getByRole('status').filter({hasText:'Receiving the story update'}).waitFor();
-        await progress.locator('.ri-glance-person').getByText('Reach the bridge').waitFor();
-        assert.equal(await progress.locator('.ri-glance-person').evaluate(node=>getComputedStyle(node).animationName),'none');
-        await progress.locator('.ri-glance-changes').getByText('The ferry left the dock.').waitFor();
-        assert.equal(await progress.locator('.ri-glance-emotions meter').getAttribute('value'),'5');
-        assert.equal(await progress.locator('.ri-reply-chevron').count(),0);
-        const liveCards=await progress.locator('.ri-glance-title,.ri-reply-title').allTextContents();
-        const streamedFields=await progress.locator('.ri-glance-fields').innerText();
-        const streamedStyle=await progress.locator('.ri-glance-person').evaluate(node=>[node.offsetWidth,getComputedStyle(node).backgroundImage]);
-        if (process.env.RI_CAPTURE_DIR) await progress.screenshot({path:process.env.RI_CAPTURE_DIR+'/receiving.png'});
-        await sending;
-        await progress.waitFor({state:'detached'});
-        const accepted=page.locator('#chat .last_mes .ri-v10-reply');
-        assert.deepEqual(await accepted.locator('.ri-glance-title,.ri-reply-title').allTextContents(),liveCards);
-        assert.equal(await accepted.locator('.ri-glance-fields').first().innerText(),streamedFields);
-        assert.deepEqual(await accepted.locator('.ri-glance-person').first().evaluate(node=>[node.offsetWidth,getComputedStyle(node).backgroundImage]),streamedStyle);
-        await accepted.locator('.ri-glance-person').first().click();
-        assert.equal(await accepted.locator('[role=tab][aria-selected=true]').textContent(),'Seraphina');
-        await accepted.locator('.ri-v10-console > summary').click();
-        if (process.env.RI_CAPTURE_DIR) await accepted.screenshot({path:process.env.RI_CAPTURE_DIR+'/saved.png'});
+        // B10 replaced the streaming progress card and the cards under each reply with the reply tray. Its loading
+        // Strip, arrival chips, views and exits are covered by tests/t_reply_tray.js and the B10 touch pass; the old
+        // glance, console and skeleton assertions are retired. Here the reply streams and the tray takes its place.
+        await L.send(page,'I run to the dock.');
+        await page.locator('#chat .last_mes .ri-tray').first().waitFor({state:'attached'});
+        if (process.env.RI_CAPTURE_DIR) await page.locator('#chat .last_mes').screenshot({path:process.env.RI_CAPTURE_DIR+'/saved.png'});
         await page.setViewportSize({width:1280,height:900});
         await page.evaluate(()=>globalThis.jQuery('#stream_toggle').prop('checked',false).trigger('change'));
         await page.waitForFunction(async B=>(await import(`${B}/src/v10.js`)).rowsForWorld().then(rows=>rows.some(x=>x.name==='ferry-gone')),L.BASE);
@@ -123,11 +75,15 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(L.text(L.requests()[0]).split('REACTION-GUIDE').length-1,1);
         assert.doesNotMatch(L.text(L.requests()[0]),/DOCK-GUIDE/);
         assert.match(L.text(L.requests()[0]),/I run to the dock/);
-        for (const name of ['Decisive NPCs','Recurring NPC creation','Voice continuity','Turn length & dialogue balance','Same-reply quality checks']) {
-            const marker=preset.prompts.find(prompt=>prompt.name===name).content.split('. ')[0];
+        for (const name of ['Craft: Decisive NPCs','Craft: New NPCs','Craft: Voice hold','Craft: Reply length','Craft: Self-check']) {
+            const marker=preset.prompts.find(prompt=>prompt.name===name).content.replace(/\{\{\/\/[\s\S]*?\}\}/g,'').split('. ')[0];
             assert.equal(L.text(L.requests()[0]).split(marker).length-1,1,name);
         }
         assert.doesNotMatch(L.text(L.requests()[0]),/Use the player character as the single viewpoint|Space scheduled developments across the time/);
+        // B15: comment macros, their annotation keys, heading marker rows and the README stay out of the request.
+        assert.doesNotMatch(L.text(L.requests()[0]),/\{\{\/\/|@category|@tooltip|@default-enabled|@pairs/);
+        for (const heading of preset.prompts.filter(prompt=>/^ri-head-/.test(prompt.identifier))) assert(!L.text(L.requests()[0]).includes(heading.name),heading.name);
+        assert(L.requests()[0].messages.every(message=>String(message.content ?? '').trim()),'no empty message');
         const state=await story(page,async({B})=>{
             const V=await import(`${B}/src/v10.js`);
             const msg=SillyTavern.getContext().chat.at(-1);
@@ -143,20 +99,15 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(state.records.length,2); assert.equal(state.records.find(x=>x.kind==='emotion').axes.fury,5);
         assert(Object.values(state.speakers).some(x=>x.name==='Seraphina'));
         const latest=page.locator('#chat .last_mes');
-        const header=latest.locator('.ri-scene-header');
-        assert.deepEqual(await header.locator('dt').allTextContents(),['Time','Story date','Location','Weather']);
-        assert.deepEqual(await header.locator('dd').allTextContents(),['11:55 PM','Day 1','Dock','Light rain']);
-        assert.equal(await header.evaluate(node=>node.nextElementSibling?.classList.contains('mes_text')),true);
-        for (const name of ['Viewpoint & player agency','Cast, motives & voice','Scene progression & pacing','Prose & dialogue craft','Consequences, combat & payoffs']) {
-            const marker=preset.prompts.find(prompt=>prompt.name===name).content.split('. ')[0];
+        // B10 moved the scene header into the reply tray's Strip (place, time and weather); the old header box is gone.
+        const stripScene=()=>latest.locator('.ri-tray-scene-text').first().textContent();
+        for (const part of ['Dock','11:55 PM','Light rain']) assert((await stripScene()).includes(part),part);
+        for (const name of ['Craft: Viewpoint','Craft: Cast & voice','Craft: Scene pacing','Craft: Prose','Craft: Consequences']) {
+            const marker=preset.prompts.find(prompt=>prompt.name===name).content.replace(/\{\{\/\/[\s\S]*?\}\}/g,'').split('. ')[0];
             assert.equal(L.text(L.requests()[0]).split(marker).length-1,1,name);
         }
-        await latest.locator('.ri-v10-console').waitFor();
-        await latest.locator('.ri-v10-lore').waitFor();
-        const planning = latest.locator('.ri-v10-plan');
-        assert.equal(await planning.evaluate(el=>el.open),false);
-        await planning.locator('summary').click();
-        assert.match(await planning.innerText(),/PRIVATE-PRELUDE-MARKER/);
+        // The console, lore and planning cards under the reply were removed by B10; the plan stays on the record
+        // (state.rec.v10Plan above) and the tray cards are B11's.
         const colored = await latest.locator('.ri-speaker-text').evaluateAll(spans=>spans.map(span=>({
             speaker:span.dataset.speaker,color:getComputedStyle(span).color,italic:!!span.closest('em, i'),text:span.textContent
         })));
@@ -181,30 +132,10 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert.equal(await latest.locator('.mes_text .ri-speaker-text[data-speaker="seraphina"]').count(),2);
         assert.doesNotMatch(await latest.locator('.mes_text').innerText(),/\[Seraphina\]/);
         await redrawMessage(state.mes);
-        assert.equal(await latest.locator('.ri-v10-console').evaluate(x=>x.open),false);
-        assert.equal(await latest.locator('.ri-scene-header-location dd').textContent(),'Dock');
-        assert.match(await latest.locator('.ri-v10-console .ri-reply-chip-rail').textContent(),/2 changes/);
-        const confirmed = state.rec.v10Lore.filter(entry=>entry.confirmed).length;
-        assert.match(await latest.locator('.ri-v10-lore .ri-reply-chip-rail').first().textContent(),new RegExp(`${confirmed} confirmed`));
-        await latest.locator('.ri-v10-lore > summary').click();
-        await latest.locator('.ri-v10-lore li').filter({hasText:'Harbor marker'}).getByRole('button',{name:'View entry settings'}).click();
-        const entryPanel=page.locator('#ri_overlay #ri_panel_page');
-        assert.equal(await entryPanel.getByLabel('Entry title',{exact:true}).inputValue(),'Harbor marker');
-        assert.equal(await entryPanel.getByLabel('Primary triggers',{exact:true}).inputValue(),'dock');
-        await entryPanel.getByLabel('Chance (%)',{exact:true}).fill('70');
-        await entryPanel.getByRole('button',{name:'Save entry',exact:true}).click();
-        await entryPanel.getByRole('status').filter({hasText:'Entry saved.'}).waitFor();
-        await entryPanel.getByRole('button',{name:'Edit entry again',exact:true}).click();
-        assert.equal(await entryPanel.getByLabel('Chance (%)',{exact:true}).inputValue(),'70');
-        await entryPanel.getByLabel('Chance (%)',{exact:true}).fill('100');
-        await entryPanel.getByRole('button',{name:'Save entry',exact:true}).click();
-        await entryPanel.getByRole('status').filter({hasText:'Entry saved.'}).waitFor();
-        await page.getByRole('button',{name:'Close full screen',exact:true}).click();
+        // Retired with the cards under the reply (B10): console chips, the lore list with its entry editor link,
+        // and the Changes tab. The entry editor itself is covered by the World Info page suites.
+        for (const part of ['Dock','11:55 PM']) assert((await stripScene()).includes(part),part);
         assert.equal(L.requests().length,1);
-        assert.equal(await latest.locator('.ri-reply-roast').evaluate(x=>x.open),false);
-        await latest.locator('.ri-v10-console > summary').click();
-        await latest.getByRole('tab',{name:'Changes'}).click();
-        assert.match(await latest.getByRole('tabpanel',{name:'Changes'}).innerText(),/ferry/);
         L.mode({reply:'[Seraphina] “The lamp lights up.”\n<story_update v="2">{invalid</story_update>'});
         await L.send(page,'Wait by the lamp.');
         const lamp = await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).mes);
@@ -246,7 +177,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await idle();
         const next=L.text(L.requests().at(-1));
         assert.match(next,/Time: 11:58 PM\nDate: Day 1/);
-        assert.deepEqual(await latest.locator('.ri-scene-header dd').allTextContents(),['12:02 AM','Day 2','Dock','Light rain']);
+        for (const part of ['12:02 AM','Dock','Light rain']) assert((await stripScene()).includes(part),part);
         assert.match(next,/bell \[seed, open, prerequisites pending\]/);
         assert.doesNotMatch(next,/LOCKED-BELL-PAYOFF|REACTION-GUIDE|Resolved action check|recover a missing state change/);
         assert.equal((await read()).find(x=>x.id==='bell').status,'open');
@@ -261,14 +192,14 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         assert(records.some(x=>x.id==='rain'));
         assert(records.some(x=>x.id==='lamp-lit'));
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Minutes),125);
-        assert.deepEqual(await latest.locator('.ri-scene-header dd').allTextContents(),['12:00 AM','Day 2','Dock','Light rain']);
+        for (const part of ['12:00 AM','Dock','Light rain']) assert((await stripScene()).includes(part),part);
         assert.match(L.text(L.requests().at(-1)),/Time: 11:58 PM\nDate: Day 1/);
         assert.equal(L.requests().length,5);
         await page.evaluate(()=>SillyTavern.getContext().swipe.left());
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('The snow falls'));
         await idle();
         assert((await read()).some(x=>x.id==='snow'));
-        assert.deepEqual(await latest.locator('.ri-scene-header dd').allTextContents(),['12:02 AM','Day 2','Dock','Light rain']);
+        for (const part of ['12:02 AM','Dock','Light rain']) assert((await stripScene()).includes(part),part);
         assert(!(await read()).some(x=>x.id==='rain'));
         await page.evaluate(()=>SillyTavern.getContext().swipe.right());
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('Rain falls'));
@@ -308,65 +239,11 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
         await idle();
         assert((await read()).some(x=>x.id==='brass-key'));
         assert.equal(L.requests().length,6);
+        // The old page chooser, the Setup module scope controls and the Preset & Extension workbench were replaced
+        // by B5's menu shell (tests/t_menu_shell.js) and B12's Presets page (tests/t_preset_switch.js); those
+        // navigation and scope assertions are retired. The books page is opened through the shell.
         const navigation = page.locator('#ri_root');
-        await page.evaluate(()=>{
-            const drawer=document.querySelector('#ri_drawer .ri-home');
-            if (drawer) drawer.style.display='block';
-        });
-        const go = name => navigation.locator(`[data-ri-group="${name.toLowerCase()}"]`);
-        // Programmatic clicks keep this test independent of the host's Extensions-drawer layout.
-        await go('Story').evaluate(el=>el.click());
-        await navigation.locator('[data-ri-page="opening"]').evaluate(el=>el.click());
-        assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'Opening');
-        await navigation.locator('[data-ri-page="facts"]').evaluate(el=>el.click());
-        assert.match(await navigation.locator('#ri_panel_page').textContent(),/Chat Facts/);
-        await go('Setup').evaluate(el=>el.click());
-        const scope = name => navigation.locator(`[data-module-scope="${name}"]`);
-        const relationships = navigation.locator('[data-module="relationships"]');
-        const choice = relationships.locator('select');
-        const chosen = () => choice.evaluate(el=>el.selectedOptions[0].label);
-        const status = () => relationships.locator('.ri-module-status').textContent();
-        const setChoice = value => choice.evaluate((el,next)=>{
-            el.value=next;
-            el.dispatchEvent(new Event('change',{bubbles:true}));
-        },value);
-        assert.equal(await relationships.locator('select').count(),1);
-        const setup=navigation.locator('#ri_panel_page');
-        assert.equal(await setup.getByText('Roleplay Instructions extension',{exact:true}).count(),1);
-        assert.equal(await setup.getByText('Active host preset',{exact:true}).count(),1);
-        assert.equal(await setup.getByText('SillyTavern or TauriTavern preset · Roleplay Instructions V10',{exact:true}).count(),1);
-        const workbench=setup.locator('.ri-preset-workbench');
-        await workbench.locator(':scope > summary').evaluate(el=>el.click());
-        await workbench.getByText('Viewpoint & player agency · On',{exact:false}).first().waitFor({state:'attached'});
-        assert.match(await setup.textContent(),/Story workflow for this chat/);
-        assert.equal(await scope('chat').getAttribute('aria-pressed'),'true');
-        assert.equal(await chosen(),'On');
-        assert.equal(await status(),'On in this chat');
-        await setChoice('off');
-        await scope('preset').evaluate(el=>el.click());
-        assert.equal(await chosen(),'On');
-        await setChoice('on');
-        assert.match(await relationships.textContent(),/This chat keeps its own setting \(Off\)/);
-        await setChoice('off');
-        await scope('chat').evaluate(el=>el.click());
-        assert.equal(await chosen(),'Off');
-        await relationships.locator('button').filter({hasText:'Use extension default for this preset (Off)'}).evaluate(el=>el.click());
-        assert.equal(await chosen(),'Off');
-        assert.match(await relationships.textContent(),/Following the extension default saved for this preset/);
-        await scope('preset').evaluate(el=>el.click());
-        await relationships.locator('button').filter({hasText:'Use extension factory default (On)'}).evaluate(el=>el.click());
-        assert.equal(await status(),'Extension default for this preset: On');
-        assert.match(await navigation.locator('[data-module="dice"]').textContent(),/regular replies proceed without a roll/i);
-        await navigation.locator('[data-ri-page="display"]').evaluate(el=>el.click());
-        assert.match(await navigation.locator('#ri_panel_page').textContent(),/Show Reply planning/);
-        await navigation.locator('button').filter({hasText:'Review World Info selections'}).evaluate(el=>el.click());
-        assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'What Was Sent');
-        assert.match(await navigation.locator('#ri_panel_page').textContent(),/found the text in the assembled request/);
-        await navigation.locator('button').filter({hasText:'World Info display settings'}).evaluate(el=>el.click());
-        assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'Reply Display');
-        await go('Story').evaluate(el=>el.click());
-        assert.equal(await navigation.locator('[aria-current="page"]').textContent(),'Chat Facts');
-        await navigation.locator('[data-ri-page="books"]').evaluate(el=>el.click());
+        await story(page,async({B})=>{const {app}=await import(`${B}/src/ui/panel.js`); await app.openPage('books',{focusPage:true});});
         const uploaded = `Uploaded harbor ${Date.now()}`;
         const bookFile = { name:`${uploaded}.json`, mimeType:'application/json', buffer:Buffer.from(JSON.stringify({
             entries:{4:{uid:4,key:['harbor'],content:'The harbor closes after sundown.',constant:false,disable:false}}
@@ -375,7 +252,9 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             await navigation.getByLabel('Base World JSON file').setInputFiles(bookFile);
             await navigation.locator('button').filter({hasText:'Upload and assign Base World'}).evaluate(el=>el.click());
         };
-        const savedBase = name => page.waitForFunction(name=>SillyTavern.getContext().chatMetadata.roleplay_instructions.v10.base?.name===name,name);
+        const savedBase = name => page.waitForFunction(name=>SillyTavern.getContext().chatMetadata.roleplay_instructions.v10.base?.name===name,name)
+            .catch(async error=>{ console.error('base is',await page.evaluate(()=>SillyTavern.getContext().chatMetadata.roleplay_instructions.v10.base?.name),
+                await navigation.locator('#ri_panel_page').innerText().then(t=>t.slice(0,600)).catch(()=>'')); throw error; });
         await assign();
         await savedBase(uploaded);
         const stored = await story(page,async({B,value})=>{
@@ -383,6 +262,7 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             return loadBook(value);
         },uploaded);
         assert.deepEqual(stored.entries[4].key,['harbor']);
+        await page.waitForTimeout(1500); // the page redraws after the first upload; pick the file on the redrawn form
         await assign();
         await savedBase(`${uploaded} (2)`);
         assert.equal(L.requests().length,6);
@@ -395,12 +275,13 @@ const story = (page, fn, value) => page.evaluate(fn,{B:L.BASE,value});
             globalThis.jQuery('#send_textarea').val('Look out at the harbor.').trigger('input');
             globalThis.jQuery('#send_but').trigger('click');
         });
-        await progress.locator('.ri-glance-scene').getByText('UNSAVED-HARBOR').waitFor();
+        await page.locator('#chat .ri-tray-loading').first().waitFor({state:'attached'});
+        await page.waitForTimeout(2500);
         await page.locator('#mes_stop').click();
-        await progress.waitFor({state:'detached'});
+        await L.idle(page);
         assert(!(await read()).some(row=>row.id==='unsaved-harbor'));
-        assert.equal(await page.locator('#chat .ri-scene-header').filter({hasText:'UNSAVED-HARBOR'}).count(),0);
+        assert.equal(await page.locator('#chat .ri-tray-scene-text').filter({hasText:'UNSAVED-HARBOR'}).count(),0);
         assert.deepEqual(errors,[]);
-        console.log('PASS v10 host: companion preset, native updates, pinned lore, guidelines, dice, repairs, plot gates, clock, speaker colors, streaming progress, cancellation, console, opening, saved-swipe navigation and branch rollback');
+        console.log('PASS v10 host: companion preset, native updates, pinned lore, guidelines, dice, repairs, plot gates, clock, speaker colors, reply tray, cancellation, opening, saved-swipe navigation and branch rollback');
     } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1});

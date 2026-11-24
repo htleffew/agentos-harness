@@ -9,7 +9,7 @@ const sync = () => {
         const target = path.join(process.env.RI_ST_DATA || path.join(process.env.RI_ST_DIR, 'data'), 'default-user/extensions/roleplay-instructions');
         fs.rmSync(target, { recursive: true, force: true });
         fs.mkdirSync(target, { recursive: true });
-        for (const name of ['index.js', 'manifest.json', 'style.css', 'src']) fs.cpSync(path.join(process.env.RI_EXTENSION_SOURCE, name), path.join(target, name), { recursive: true });
+        for (const name of ['index.js', 'manifest.json', 'style.css', 'src', 'assets', 'presets'].filter(name => fs.existsSync(path.join(process.env.RI_EXTENSION_SOURCE, name)))) fs.cpSync(path.join(process.env.RI_EXTENSION_SOURCE, name), path.join(target, name), { recursive: true });
     } else require('child_process').execSync('rm -rf /tmp/src/st/data/default-user/extensions/roleplay-instructions && mkdir -p /tmp/src/st/data/default-user/extensions/roleplay-instructions && cp -r /home/claude/ri/v5/. /tmp/src/st/data/default-user/extensions/roleplay-instructions/');
 };
 const mode = (m) => fs.writeFileSync(MOCK_MODE, JSON.stringify(m || {}));

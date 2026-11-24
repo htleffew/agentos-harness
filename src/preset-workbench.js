@@ -1,6 +1,8 @@
 import { ctx, parseJson } from './st.js';
-import { settings, saveSettings } from './store.js';
-import { activePreset, defaultWritingGuidance, PREFLIGHT, prefs, MODULES } from './v10.js';
+import { settings, saveSettings, chatState, saveChatState } from './store.js';
+import { activePreset, defaultWritingGuidance, PREFLIGHT, prefs, MODULES, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
+import { FEATURES, FEATURE_KEYS, MEMORY_FEATURES, startingSwitches, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
+import { readMarker, makeMarker } from './preset-loadouts.js';
 import { MODULE_PROMPTS } from './module-layout.js';
 import { promptText, roastVoiceText } from './prompts.js';
 import { request } from './ai.js';
@@ -263,4 +265,182 @@ export async function evaluateParity(rows) {
     });
     result.note(`Received ${suggestions.length} valid suggested pairings.`);
     return suggestions;
+}
+
+// Per-feature Ours or Theirs switch (DESIGN.md 7). Switches save per preset edition in extension settings;
+// a chat can pin its own copy in its metadata. A loadout's marker supplies its switches when it is selected.
+let library = null;
+let libraryState = 'idle';
+const listeners = new Set();
+export const onSwitchChange = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+const notify = () => { for (const fn of listeners) { try { fn(); } catch (error) { console.warn('Roleplay Instructions switch listener failed.', error); } } };
+
+export function ensureLibrary() {
+    if (libraryState !== 'idle') return;
+    libraryState = 'loading';
+    loadLibrary().then(data => { library = data; libraryState = data ? 'ready' : 'missing'; syncOwners(); notify(); });
+}
+export const libraryStatus = () => libraryState;
+export function useLibrary(data) { library = data; libraryState = data ? 'ready' : 'missing'; recognized.clear(); }
+
+const recognized = new Map();
+function recognizeCached(name, data) {
+    const signature = JSON.stringify([name, (data?.prompts || []).length, (data?.prompts || []).reduce((n, p) => n + String(p?.content || '').length, 0)]);
+    if (!recognized.has(signature)) recognized.set(signature, library ? recognize(data, library) : null);
+    return recognized.get(signature);
+}
+const editionByKey = key => library?.editions?.find(edition => edition.key === key) || null;
+
+/** Everything the switch list needs for the selected preset. */
+export function switchContext(name = activePreset()) {
+    if (!name) return null;
+    const data = ctx().chatCompletionSettings;
+    if (!data || !Array.isArray(data.prompts)) return null;
+    const marker = readMarker(data);
+    const companion = isCompanionPreset(name);
+    const match = marker?.edition ? { edition: editionByKey(marker.edition), score: 1 } : recognizeCached(marker?.base || name, data);
+    const edition = match?.edition || null;
+    const blocks = presetBlocks(data);
+    const features = companion ? { switched: [], alongside: [] } : presetFeatures(blocks, edition, block => blockCompanions(block, name));
+    const key = marker ? `loadout:${name}` : edition ? edition.key : `preset:${name}`;
+    return { preset: name, data, marker, companion, edition, score: match?.score ?? null, blocks, features, key };
+}
+
+const pinOf = key => { const pins = chatState()?.v10?.presetPins; return pins && Object.hasOwn(pins, key) ? pins[key] : null; };
+const savedOf = key => { const all = settings().presetSwitches; return all && Object.hasOwn(all, key) ? all[key] : null; };
+
+/** The resolved switches for one context: chat pin, then saved edition choices, then the loadout marker, then the starting sides. */
+export function resolvedSwitches(context) {
+    if (!context) return {};
+    const out = { ...startingSwitches(), ...(context.marker?.switches || {}), ...(savedOf(context.key) || {}), ...(pinOf(context.key) || {}) };
+    return Object.fromEntries(FEATURE_KEYS.map(key => [key, out[key] === 'ours' ? 'ours' : 'theirs']));
+}
+export const switchScope = context => context && pinOf(context.key) ? 'chat' : 'edition';
+
+/** Set one or more switches in the current scope (the chat pin when there is one). */
+export function setSwitches(context, change) {
+    if (!context) return;
+    const clean = Object.fromEntries(Object.entries(change).filter(([key, value]) => Object.hasOwn(FEATURES, key) && ['ours', 'theirs'].includes(value)));
+    const pin = pinOf(context.key);
+    if (pin) {
+        put(chatState().v10.presetPins, context.key, { ...pin, ...clean });
+        saveChatState();
+    } else {
+        const all = settings().presetSwitches ||= {};
+        put(all, context.key, { ...(savedOf(context.key) || {}), ...clean });
+        saveSettings();
+    }
+    syncOwners();
+    notify();
+}
+
+/** Pin the current switches to this chat, or remove the pin. */
+export function pinSwitches(context, pinned) {
+    const local = prefs();
+    if (!context || !local) return false;
+    const pins = local.presetPins ||= {};
+    if (pinned) put(pins, context.key, resolvedSwitches(context)); else delete pins[context.key];
+    saveChatState();
+    syncOwners();
+    notify();
+    return true;
+}
+
+let undoBulk = null;
+/** "Theirs for everything except memory" or "Ours for everything"; the previous switches are kept for Undo. */
+export function bulkSwitches(context, mode) {
+    if (!context) return;
+    const listed = context.features.switched.map(item => item.key);
+    undoBulk = { key: context.key, scope: switchScope(context), switches: resolvedSwitches(context) };
+    const side = key => mode === 'ours' ? 'ours' : MEMORY_FEATURES.includes(key) ? 'ours' : 'theirs';
+    setSwitches(context, Object.fromEntries(listed.map(key => [key, side(key)])));
+}
+export const bulkUndoAvailable = context => !!context && undoBulk?.key === context.key;
+export function undoBulkSwitches(context) {
+    if (!bulkUndoAvailable(context)) return false;
+    const previous = undoBulk;
+    undoBulk = null;
+    setSwitches(context, previous.switches);
+    return true;
+}
+
+/** Block ids each listed feature owns in the selected preset. */
+export function featureBlockIds(context) {
+    return Object.fromEntries((context?.features.switched || []).map(item => [item.key, item.blocks.map(block => block.id)]));
+}
+
+/** Each listed block id with the features that claim it. */
+export function blockFeatures(context) {
+    const owners = new Map();
+    for (const [key, list] of Object.entries(featureBlockIds(context))) for (const id of list) owners.set(id, [...(owners.get(id) || []), key]);
+    return owners;
+}
+
+/**
+ * The block ids the working copy switches off: the preset blocks of Ours features, except a block another
+ * feature on Theirs also uses, which stays on so Theirs keeps its supply. A loadout sends as saved.
+ */
+export function workingCopyOff(context, switches = resolvedSwitches(context)) {
+    if (!context || context.marker || context.companion) return [];
+    return oursOnly(context, switches);
+}
+const oursOnly = (context, switches) => [...blockFeatures(context)].filter(([, keys]) => keys.every(key => switches[key] === 'ours')).map(([id]) => id);
+
+/** The marker for saving the current switches as a loadout, or into the selected loadout with Update. */
+export function currentMarker(context) {
+    return makeMarker({ base: context.marker?.base || context.preset, edition: context.edition?.key || null,
+        switches: resolvedSwitches(context), off: context.companion ? [] : oursOnly(context, resolvedSwitches(context)) });
+}
+
+/**
+ * Mirror the switches into the chat's module owners, which effectiveModules() reads: Theirs maps to 'preset'
+ * (the extension sends none of its text for it), Ours to 'both' (the extension runs it; the working copy has
+ * already taken the preset's blocks out of the request, so nothing runs twice).
+ */
+export function syncOwners(context = switchContext()) {
+    if (!context || context.companion || !chatState()) return false;
+    const switches = resolvedSwitches(context);
+    const owners = chatState().v10?.moduleOwners?.[context.preset] || {};
+    let changed = false;
+    for (const item of context.features.switched) {
+        const value = switches[item.key] === 'ours' ? 'both' : 'preset';
+        if (owners[item.key] !== value) { setModuleOwner(context.preset, item.key, value); changed = true; }
+    }
+    return changed;
+}
+
+// The working copy is applied for the length of one prompt assembly: the Ours blocks are switched off in the live
+// prompt order when a generation starts and switched back when the prompt is ready, so the saved preset file and
+// SillyTavern's own preset state never change.
+let applied = null;
+export function applyWorkingCopy() {
+    restoreWorkingCopy();
+    const c = ctx();
+    if (c.mainApi && c.mainApi !== 'openai') return 0;
+    const context = switchContext();
+    if (!context || !enabledV10()) return 0;
+    syncOwners(context);
+    const off = new Set(workingCopyOff(context));
+    const order = sequence(context.data);
+    if (!off.size || !Array.isArray(order)) return 0;
+    const changed = order.filter(entry => off.has(entry.identifier) && entry.enabled === true);
+    for (const entry of changed) entry.enabled = false;
+    applied = { order, entries: changed };
+    return changed.length;
+}
+export function restoreWorkingCopy() {
+    if (!applied) return;
+    for (const entry of applied.entries) entry.enabled = true;
+    applied = null;
+}
+
+/** When a loadout becomes active, drop unsaved switch edits for it so its marker's switches are restored. */
+export function onPresetSelected() {
+    const context = switchContext();
+    if (context?.marker && savedOf(context.key)) {
+        delete settings().presetSwitches[context.key];
+        saveSettings();
+    }
+    syncOwners(context);
+    notify();
 }

@@ -1,0 +1,11 @@
+/* Setup, Presets, Cleanup (B18). Reuses the Presets page chips, cards and headings; only the cleanup rows are new. */
+.ri-pc { display: grid; gap: var(--ri-gap, 4px); }
+.ri-pc-card { display: grid; gap: var(--ri-gap, 4px); }
+.ri-pc-row { display: grid; gap: 2px; }
+.ri-pc-names { overflow-wrap: anywhere; }
+.ri-pc-arrow { color: var(--ri-setup, #A3AEC2); }
+.ri-pc-group { border-top: 1px solid var(--ri-line-faint, #1C2433); }
+.ri-pc .ri-row { flex-wrap: wrap; }
+.ri-pc .ri-btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+#ri-cleanup-status:empty { display: none; }
+.ri-pc-row .ri-ps-chip { justify-self: start; }

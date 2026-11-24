@@ -99,7 +99,7 @@ const candidateText = (value, { line = false } = {}) => {
     return firstPersonSubject.test(text) || dialogue ? text : '';
 };
 
-export function parsePlayerChoices(raw, count = choiceCount, general = false) {
+export function parsePlayerChoices(raw, count = choiceCount) {
     const text = String(raw ?? '').trim();
     const start = text.indexOf('['), stop = text.lastIndexOf(']');
     let values = [];
@@ -122,10 +122,118 @@ export function parsePlayerChoices(raw, count = choiceCount, general = false) {
     }
     const line = !values.length;
     if (line) values = [...text.matchAll(/^[ \t]*(?:[-*•]|\d+[.)]|\(\d+\))[ \t]+(\S[^\n]*)/gm)].map(match => match[1]);
-    const clean = general ? value => typeof value === 'string' ? value.trim() : '' : value => candidateText(value, { line });
-    const choices = [...new Set(values.map(clean).filter(Boolean))].slice(0, count);
+    const choices = [...new Set(values.map(value => candidateText(value, { line })).filter(Boolean))].slice(0, count);
     return { choices, partial: repaired || choices.length < count || values.length > choices.length, raw: text };
 }
+
+// Titled options for the composer bar's Options kind (DESIGN.md 4.4). The model returns objects with a
+// title and a body; anything else it sends is read as well as it can be, and nothing that is only a
+// separator or only a title reaches the message box.
+const DASHES = '\\-\u2010-\u2015\u2212';
+const separatorLine = new RegExp(`^[ \\t]*(?:[${DASHES}_*=~#.\u00b7\u2022|][ \\t]*){3,}$`, 'gmu');
+const separatorOnly = new RegExp(`^[\\s${DASHES}_*=~#.\u00b7\u2022|:;,]*$`, 'u');
+const pictograph = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\uFE0F\u200D]/gu;
+const optionTitleKeys = ['title', 'name', 'label', 'heading'];
+const optionTextKeys = ['text', 'body', 'description', 'content', 'option'];
+
+function optionTitle(value) {
+    return String(value ?? '').replace(pictograph, '').replace(/^[\s#>*_"'\u201c\u2018]+|[\s*_"'\u201d\u2019:]+$/gu, '')
+        .replace(/^(?:\d+[.)]|\(\d+\)|option\s+\d+[.:)]?)\s*/iu, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+function optionBody(value, title = '') {
+    let text = String(value ?? '').replace(/\r\n?/g, '\n').replace(separatorLine, '').trim();
+    // A body that repeats its own title as the first line keeps only the body.
+    if (title) {
+        const first = text.split('\n', 1)[0];
+        if (optionTitle(first).toLowerCase() === title.toLowerCase()) text = text.slice(first.length).trim();
+    }
+    text = text.replace(/\n{3,}/g, '\n\n').trim();
+    return separatorOnly.test(text) ? '' : text;
+}
+
+const decodeJsonString = value => {
+    try { return JSON.parse(`"${value.replace(/\\$/, '')}"`); } catch { return value; }
+};
+
+/** Split a plain-text block into a title and a body: "Title: body", "**Title** body" or a short first line. */
+function splitTitled(block) {
+    const text = String(block ?? '').trim().replace(/^(?:[-*\u2022]|\d+[.)]|\(\d+\))[ \t]+/u, '');
+    const bold = text.match(new RegExp(`^\\*\\*([^*\\n]{1,80})\\*\\*[ \\t]*(?:[:${DASHES}][ \\t]*)?([\\s\\S]*)$`, 'u'));
+    if (bold) return { title: bold[1], text: bold[2] };
+    const lines = text.split('\n');
+    if (lines.length > 1 && lines[0].length <= 80 && !/[.!?]["'\u201d)]*$/u.test(lines[0].trim())) {
+        return { title: lines[0], text: lines.slice(1).join('\n') };
+    }
+    const colon = text.match(new RegExp(`^([^:\\n${DASHES.replace('\\-', '')}]{1,60}?)[ \\t]*(?::|[ \\t][\u2013\u2014][ \\t])[ \\t]*(\\S[\\s\\S]*)$`, 'u'));
+    if (colon && colon[1].split(/\s+/).length <= 8) return { title: colon[1], text: colon[2] };
+    return { title: '', text };
+}
+
+function optionFrom(item, cut = false) {
+    if (typeof item === 'string') return optionFrom({ ...splitTitled(item) }, cut);
+    if (!item || typeof item !== 'object') return null;
+    const pick = keys => keys.map(key => item[key]).find(value => typeof value === 'string' && value.trim());
+    const title = optionTitle(pick(optionTitleKeys));
+    const text = optionBody(pick(optionTextKeys), title);
+    if (!title && !text) return null;
+    const ended = /[.!?\u2026]["'\u2019\u201d)\]*_]*$/u.test(text);
+    return { title, text, incomplete: !text || (cut && !ended) };
+}
+
+/**
+ * Read a model's Options answer into titled options. Each option is { title, text, incomplete }:
+ * a title-only leftover keeps its title with empty text and is marked incomplete, and an option cut off
+ * mid-sentence by a truncated answer is marked incomplete. Separator fragments are dropped.
+ */
+export function parseOptions(raw, count = 4) {
+    const text = String(raw ?? '').replace(/```(?:json)?/gi, '').trim();
+    const start = text.indexOf('['), stop = text.lastIndexOf(']');
+    let options = [];
+    let salvaged = false;
+    if (start >= 0 && stop > start) {
+        try {
+            const array = JSON.parse(text.slice(start, stop + 1));
+            if (Array.isArray(array)) options = array.map(item => optionFrom(item));
+        } catch { /* A truncated answer is salvaged below. */ }
+    }
+    if (!options.length && start >= 0) {
+        salvaged = true;
+        const source = text.slice(start + 1);
+        let end = 0;
+        for (const match of source.matchAll(/(?:^|,)\s*("(?:[^"\\]|\\.)*"|\{(?:[^"{}]|"(?:[^"\\]|\\.)*")*\})\s*(?=,|\]|$)/g)) {
+            try { options.push(optionFrom(JSON.parse(match[1]))); end = match.index + match[0].length; } catch { /* Keep the other complete options. */ }
+        }
+        // The object the answer stopped inside: its title, and any text it reached, marked incomplete.
+        const rest = source.slice(end);
+        const field = keys => {
+            for (const key of keys) {
+                const found = rest.match(new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));
+                if (found) return decodeJsonString(found[1]);
+            }
+            return '';
+        };
+        const tail = optionFrom({ title: field(optionTitleKeys), text: field(optionTextKeys) }, true);
+        if (tail) options.push({ ...tail, incomplete: true });
+    }
+    if (!options.length && start < 0) {
+        const blocks = /\n[ \t]*\n|^[ \t]*(?:[-*\u2022]|\d+[.)]|\(\d+\))[ \t]/m.test(text) ?
+            text.replace(separatorLine, '\n\n').split(/\n[ \t]*\n|\n(?=[ \t]*(?:[-*\u2022]|\d+[.)]|\(\d+\))[ \t])/u) : [text];
+        options = blocks.map(block => optionFrom(block));
+    }
+    const seen = new Set();
+    const unique = options.filter(option => {
+        if (!option) return false;
+        const key = (option.text || option.title).toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    }).slice(0, count);
+    return { options: unique, partial: salvaged || unique.length < count || unique.some(option => option.incomplete), raw: text };
+}
+
+/** The format line of an Options request: titled objects, so each option reaches the sheet with a name. */
+export const optionsFormat = count => `Return a JSON array of exactly ${count} distinct objects. Give each object a "title" that names the option in two to six words and a "text" that holds the option itself.`;
 
 function playerRequest(mode, route, context, direction, choice, freshStart) {
     const operation = modelFunctions[mode];
@@ -221,7 +329,7 @@ async function runPlayer(preview, context, options) {
     if (mode === 'expand' && !String(choice ?? '').trim()) throw new Error('Select wording to expand first.');
     const count = suggestions?.count || choiceCount;
     const payload = suggestions ? {
-        instructions:[suggestions.prompt, `Return a JSON array of exactly ${count} distinct suggestions as strings.`],
+        instructions:[suggestions.prompt, optionsFormat(count)],
         user:[context.text,direction].filter(Boolean).join('\n\n'),
     } : playerRequest(mode, preview.nativeDraft ? 'native' : 'helper', context, direction, choice, freshStart);
     const callOptions = { authorization: 'manual', target: preview.target, onReceipt, signal };
@@ -241,10 +349,19 @@ async function runPlayer(preview, context, options) {
         note?.(error.message, false);
         throw Object.assign(error, { receipt });
     }
+    if (suggestions) {
+        const result = parseOptions(raw,count);
+        const usable = result.options.filter(option => option.text).length;
+        const ok = usable > 0;
+        amendExecutionReceipt(receipt, { ...details, result: `${usable} of ${count} options.`,
+            ...(!ok && { outcome: 'failed', partialText: raw }) }, onReceipt);
+        note?.(receipt.result, ok);
+        return { ok, receipt, choices: result.options, partial: result.partial, raw: result.raw };
+    }
     if (mode === 'choices') {
-        const result = parsePlayerChoices(raw,count,!!suggestions);
+        const result = parsePlayerChoices(raw,count);
         const ok = result.choices.length > 0;
-        amendExecutionReceipt(receipt, { ...details, result: `${result.choices.length} of ${count} ${suggestions?'options':'playable choices'}.`,
+        amendExecutionReceipt(receipt, { ...details, result: `${result.choices.length} of ${count} playable choices.`,
             ...(!ok && { outcome: 'failed', partialText: raw }) }, onReceipt);
         note?.(receipt.result, ok);
         return { ok, receipt, ...result };

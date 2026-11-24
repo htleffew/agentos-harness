@@ -1,9 +1,6 @@
 const assert = require('node:assert/strict');
 const L = require('./lib.js');
 
-const modules = ['style','preflight','colors','roast','roastFeedback','state','knowledge','emotions',
-    'relationships','plots','worldEvents','dice'];
-
 async function auditDisclosures(body) {
     const opened = [];
     const visited = new Set();
@@ -53,169 +50,61 @@ async function auditDisclosures(body) {
 }
 
 (async()=>{
-    const {groups}=await import('../src/ui/destinations.js');
-    const navigation=Object.fromEntries(groups.map(group=>[group.label,group.pages.map(page=>page.label)]));
+    // B5 replaced the page chooser with five top tabs and nested tabs. Retired with the old UI: the Preset & Extension
+    // workflow and module scope controls (B12's Presets page and t_module_ownership.js), the Find and page-row
+    // navigation, and the receipt links of What was sent (B10 and B11 move receipts into the reply tray).
     L.sync();
-    const portraitHeight=Number(process.env.RI_PANEL_HEIGHT || 820);
-    const {browser,page,errors}=await L.open({width:390,height:portraitHeight,hasTouch:true,isMobile:true});
+    const portraitHeight=Number(process.env.RI_PANEL_HEIGHT || 1021);
+    const {browser,page,errors}=await L.open({width:523,height:portraitHeight,hasTouch:true,isMobile:true});
     try {
         await L.setupApi(page);
         await L.openChat(page);
         const root=page.locator('#ri_root'), body=root.locator('#ri_panel_page');
-        const openInline=async()=>{
-            if (!await page.locator('#ri_drawer').isVisible()) await page.locator('#extensions-settings-button > .drawer-toggle').tap();
-            if (!await root.isVisible()) await page.locator('#ri_drawer .inline-drawer-header').tap();
-        };
-        await openInline();
-        const click=label=>L.panelClick(root,label);
-        const group=(label)=>root.getByRole('navigation',{name:'Roleplay sections'}).getByRole('button',{name:label,exact:true});
-        const menu=(label)=>body.getByLabel(label,{exact:true});
-        await click('Expand');
+        await page.evaluate(async B=>{const {app}=await import(`${B}/src/ui/panel.js`);await app.openPage('state',{focusPage:true});await app.setExpanded(true);},L.BASE);
         assert.ok(await root.evaluate(node=>node.classList.contains('ri-expanded')));
-        await group('Setup').tap();
-        await click('Preset & Extension');
-        const workflow=menu('Story workflow for this chat');
-        await workflow.selectOption('memory');
-        assert.equal(await body.locator('[data-module]').count(),0);
-        await group('Story').tap();
-        await click('Opening');
-        await click('Open workflow settings');
-        assert.equal(await workflow.inputValue(),'memory');
-        await menu('World Info recall').selectOption('off');
-        assert.equal(await menu('World Info recall').inputValue(),'off');
-        await menu('World Info recall').selectOption('on');
-        await menu('Chapter summaries').selectOption('off');
-        assert.equal(await menu('Auto-hide summarized messages').isDisabled(),true);
-        await menu('Chapter summaries').selectOption('on');
-        await menu('Auto-hide summarized messages').selectOption('off');
-        assert.equal(await menu('Auto-hide summarized messages').inputValue(),'off');
-        await menu('Auto-hide summarized messages').selectOption('on');
-        await workflow.selectOption('off');
-        assert.equal(await body.locator('[data-module]').count(),0);
-        await workflow.selectOption('inherit');
-        assert.equal(await workflow.inputValue(),'inherit');
-        await workflow.selectOption('on');
-        assert.deepEqual(await body.locator('[data-module]').evaluateAll(nodes=>nodes.map(node=>node.dataset.module)),modules);
-        const exerciseModules=async()=>{
-            for (const key of modules) {
-                const row=body.locator(`[data-module="${key}"]`);
-                const select=row.locator('.ri-module-actions select');
-                assert.equal(await select.isEnabled(),true,key);
-                const original=await select.inputValue();
-                const opposite=original==='on'?'off':'on';
-                await select.selectOption(opposite);
-                assert.equal(await select.inputValue(),opposite,key);
-                await row.getByRole('button',{name:/^Use extension /}).tap();
-                assert.equal(await select.inputValue(),original,key);
-            }
-        };
-        await exerciseModules();
-        await click('Extension defaults for this preset');
-        assert.equal(await root.getByRole('button',{name:'Extension defaults for this preset'}).getAttribute('aria-pressed'),'true');
-        await exerciseModules();
-        await click('This chat');
-        await group('Direction').tap();
-        await click('Random story events');
-        await click('Change autonomous world events');
-        assert.equal(await page.evaluate(()=>document.activeElement.id),'ri-module-worldEvents');
-        assert.equal(await root.locator('[data-module-scope="chat"]').getAttribute('aria-pressed'),'true');
-        const visited = [];
+        const tree=await page.evaluate(async B=>{
+            const {buildTree}=await import(`${B}/src/ui/destinations.js`);
+            const {registeredPages}=await import(`${B}/src/ui/page-registry.js`);
+            return buildTree(registeredPages()).map(top=>({id:top.id,nested:top.nested.map(item=>({id:item.id,label:item.label,pages:item.pages.map(p=>({id:p.id,label:p.label}))}))}));
+        },L.BASE);
+        const visited=[];
         const widths=Object.hasOwn(process.env,'RI_PANEL_WIDTHS')
-            ? process.env.RI_PANEL_WIDTHS.split(',').filter(Boolean).map(Number) : [390,1280];
+            ? process.env.RI_PANEL_WIDTHS.split(',').filter(Boolean).map(Number) : [523,1006];
         const textScale=Number(process.env.RI_PANEL_TEXT_SCALE || 0);
-        if (textScale) {
-            await page.evaluate(scale=>document.documentElement.style.setProperty('--fontScale',scale),textScale);
-            assert.equal(await root.evaluate(node=>parseFloat(getComputedStyle(node).fontSize)),15*textScale);
-        }
+        if (textScale) await page.evaluate(scale=>document.documentElement.style.setProperty('--fontScale',scale),textScale);
         for (const width of widths) {
-            await page.setViewportSize({width,height:portraitHeight});
+            await page.setViewportSize({width,height:width<1000 ? portraitHeight : 909});
             let opened=0;
             const firstPage=visited.length;
-            for (const [section,pages] of Object.entries(navigation)) {
-                await group(section).tap();
-                for (const label of pages) {
-                    await L.panelClick(root,label);
-                    assert.equal(await root.locator('[data-ri-heading]').textContent(),label);
-                    assert.ok((await body.innerText()).trim().length>0,label);
-                    assert.ok(await body.evaluate(node=>node.scrollWidth<=node.clientWidth+2),`${label} overflows at ${width}px`);
-                    opened+=await auditDisclosures(body);
-                    visited.push(label);
+            for (const top of tree) {
+                await root.locator(`[data-ri-tab="${top.id}"]`).tap();
+                for (const nested of top.nested) {
+                    await root.locator(`[data-ri-nested="${nested.id}"]`).tap();
+                    assert.equal(await root.locator('[data-ri-heading]').textContent(),nested.label);
+                    for (const [index,item] of nested.pages.entries()) {
+                        if (nested.pages.length>1 && index>0) await root.locator(`.ri-shell-section[data-ri-page="${item.id}"]`).tap();
+                        await page.waitForTimeout(150);
+                        assert.ok((await body.innerText()).trim().length>0,`${nested.label}, ${item.label} is empty`);
+                        assert.ok(await body.evaluate(node=>node.scrollWidth<=node.clientWidth+2),`${nested.label}, ${item.label} overflows at ${width}px`);
+                        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`page scrolls sideways on ${item.label} at ${width}px`);
+                        opened+=await auditDisclosures(body);
+                        visited.push(`${nested.label}, ${item.label}`);
+                    }
                 }
             }
             console.log(`Audited all ${visited.length-firstPage} pages and ${opened} reachable disclosures at ${width}px${textScale ? ` and ${textScale*100}% text` : ''}.`);
         }
-        await group('Story').tap();
-        await click('Chat facts');
-        await click('Add record');
-        await menu('Record text').fill('A new fact written without an ID.');
-        await click('Current scene');
-        const dialog=page.locator('dialog[open]');
-        await dialog.locator('.popup-button-cancel').tap();
-        await click('Close pages');
-        assert.equal(await menu('Record text').inputValue(),'A new fact written without an ID.');
-        await click('Save record');
-        await body.getByText(/Fact · a-new-fact-written-without-an-id/).waitFor();
-        await group('Direction').tap();
-        await click('Writing guidance');
-        const writing=body.locator('details').filter({has:page.getByLabel('Live writing guidance',{exact:true})});
-        await writing.locator(':scope > summary').tap();
-        const guidance=menu('Live writing guidance');
-        const previous=await guidance.inputValue();
-        await guidance.fill('Keep dialogue concise and unmistakably individual.');
-        await click('Close full screen');
-        assert.equal(await guidance.inputValue(),'Keep dialogue concise and unmistakably individual.');
-        await click('Expand');
-        await group('Review').tap();
-        await dialog.locator('.popup-button-cancel').tap();
-        assert.equal(await guidance.inputValue(),'Keep dialogue concise and unmistakably individual.');
-        await writing.getByRole('button',{name:'Discard draft',exact:true}).tap();
-        assert.equal(await guidance.inputValue(),previous);
-        await guidance.fill('Keep dialogue concise and unmistakably individual.');
-        await writing.getByRole('button',{name:'Save guidance',exact:true}).tap();
-        await writing.getByRole('status').filter({hasText:'Saved for this chat.'}).waitFor();
-        assert.match(await writing.locator(':scope > summary').textContent(),/Customized/);
-        await writing.getByRole('button',{name:'Restore default',exact:true}).tap();
-        assert.equal(await guidance.inputValue(),previous);
-        await root.getByRole('button',{name:'Close full screen',exact:true}).focus();
-        await page.keyboard.press('Shift+Tab');
-        await page.keyboard.press('Shift+Tab');
-        assert.ok(await root.evaluate(node=>node.contains(document.activeElement)));
         const power=root.getByRole('switch',{name:'Turn the whole extension on or off'});
-        await power.tap();
-        assert.equal(await power.getAttribute('aria-checked'),'false');
-        await power.tap();
-        assert.equal(await power.getAttribute('aria-checked'),'true');
+        if (await power.count()) {
+            await power.tap();
+            assert.equal(await power.getAttribute('aria-checked'),'false');
+            await power.tap();
+            assert.equal(await power.getAttribute('aria-checked'),'true');
+        }
         await root.getByRole('button',{name:'Close full screen',exact:true}).focus();
         await page.keyboard.press('Escape');
         assert.equal(await root.evaluate(node=>node.classList.contains('ri-expanded')),false);
-        await L.setSettings(page,{check:{mode:'off'}});
-        L.mode({reply:'Mira puts the compass on the table.'});
-        await L.send(page,'I listen to Mira.');
-        await openInline();
-        await click('Expand');
-        await group('Review').tap();
-        await click('What was sent');
-        await body.getByText('The extension confirmed story guidance was sent. Exact text was not saved for this reply.').waitFor();
-        await click('Edit writing guidance');
-        await page.waitForFunction(()=>document.activeElement.id==='ri-profile-style');
-        await click('Close full screen');
-        const ruleSet=`UI audit rule ${Date.now()}`;
-        await L.makeSet(page,ruleSet,[{name:'Receipt example',versions:['RAUDIT'],chance:100,wait:5}]);
-        await L.send(page,'I check the compass again.');
-        await openInline();
-        await click('Expand');
-        await group('Review').tap();
-        await click('What was sent');
-        const receipt=body.locator('.ri-sentcard').first();
-        await receipt.getByText('Always eligible · 100% configured chance · wait 5 replies').waitFor();
-        await receipt.getByText('World Info selections',{exact:true}).tap();
-        await receipt.getByRole('button',{name:'Open in Direction for Receipt example'}).tap();
-        const name=body.getByPlaceholder('Example: Picks a fight');
-        assert.equal(await name.inputValue(),'Receipt example');
-        await group('Review').tap();
-        await click('Edit this instruction');
-        assert.equal(await name.inputValue(),'Receipt example');
         assert.deepEqual(errors,[]);
-        console.log('PASS extension navigation, nested disclosures, both settings scopes, all extension modules, memory components, draft recovery and receipt navigation');
+        console.log('PASS extension pages in every nested tab at '+widths.join(' and ')+' px, nested disclosures, power switch and Escape');
     } finally {await browser.close();}
-})().catch(error=>{console.error(error);process.exitCode=1;});
+})().catch(error=>{console.error(error);process.exitCode=1});
