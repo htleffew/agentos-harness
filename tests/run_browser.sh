@@ -31,8 +31,16 @@ if [ -n "$RI_ST_DATA" ] && [ -f "$RI_ST_DATA/default-user/settings.json" ]; then
   # (the recommended chains start with a desktop and a NanoGPT plan that a test host does not have).
   node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const chains={};for(const job of ['judgment','capture','chapter','tidy','catchUp','catchUpNow','carryOver'])chains[job]=[{route:'main'}];d.extension_settings=d.extension_settings||{};d.extension_settings.roleplay_instructions={routing:{version:1,routes:{},chains}};fs.writeFileSync(process.argv[2],JSON.stringify(d))" "$SETTINGS" "$LOGS/settings.clean.json"
 fi
+# The rest of the user folder (presets, World Info books, chats, saved stacks) is saved once too and put back before
+# every suite, so files one suite leaves behind never reach the next suite or the next sweep (tests/host_reset.cjs).
+USER_DIR=""
+if [ -n "$RI_ST_DATA" ] && [ -d "$RI_ST_DATA/default-user" ]; then
+  USER_DIR="$RI_ST_DATA/default-user"
+  node tests/host_reset.cjs save "$USER_DIR" "$LOGS/user.snapshot" || exit 1
+fi
 FAILED=0
 for suite in $SUITES; do
+  if [ -n "$USER_DIR" ]; then node tests/host_reset.cjs restore "$USER_DIR" "$LOGS/user.snapshot"; fi
   if [ -n "$SETTINGS" ]; then sleep 1; cp "$LOGS/settings.clean.json" "$SETTINGS"; fi
   suite=${suite%.js}
   file=tests/$suite.js

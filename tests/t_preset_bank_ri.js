@@ -150,6 +150,9 @@ test('a card for each wording: the request builder sends both texts, one text, o
     assert.deepEqual(texts(V.variantParts(build, { style: 'clean' })), [clean, 'Fixed line.', 'Records: none.']);
     assert.deepEqual(texts(V.variantParts(build, { style: 'both' })), [clean, stored_, 'Fixed line.', 'Records: none.'], 'clean first, then hers; a line the two share goes once');
     assert.deepEqual(texts(V.variantParts(build, null)), [stored_, 'Fixed line.', 'Records: none.']);
+    assert.deepEqual(texts(V.variantParts(build, { style: 'none' })), ['Fixed line.', 'Records: none.'], 'none: the prompt text goes, fixed lines stay');
+    const mixed = () => [['relationships', `For a relationship use subject and other. ${P.promptText('structuredRelationships')}`]];
+    assert.deepEqual(texts(V.variantParts(mixed, { relationships: 'none' })), ['For a relationship use subject and other.'], 'none keeps the fixed part of a mixed line');
     assert.equal(P.promptText('groundedRealism'), WORDING, 'building the clean pass leaves the stored text readable');
 });
 

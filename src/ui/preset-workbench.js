@@ -1,6 +1,5 @@
 import { h, button, select } from './dom.js';
 import { slot, homeLink } from './homes.js';
-import { conflictSection } from './preset-conflicts.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
 import { ctx } from '../st.js';
@@ -322,7 +321,7 @@ export function presetBlockEditor(preset,app,profile) {
                 button('Add to end of preset',()=>run(async()=>{
                     const id=crypto.randomUUID?.() || 'ri-'+Date.now().toString(36)+Math.random().toString(36).slice(2);
                     await editPresetBlock(preset,id,{type:'add',name:title.value,content:text.value});ui.current=id;ui.query=ui.newName=ui.newText='';
-                },'Added an enabled system block.'))),prefs() && enabledV10() ? riCards() : null,conflictSection({preset}),label('Find a preset block',filter),list].filter(Boolean));
+                },'Added an enabled system block.'))),prefs() && enabledV10() ? riCards() : null,label('Find a preset block',filter),list].filter(Boolean));
         body.inert=!!ui.busy;
     }
     details.append(h('summary',{},`Preset blocks (${presetRows().filter(row=>row.listed && !isHeading(row)).length})`),status,body);

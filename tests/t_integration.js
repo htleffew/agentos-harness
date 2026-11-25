@@ -39,6 +39,11 @@ async function tap(page, selector) {
     await page.waitForTimeout(300);
 }
 
+async function openSwitches(page) {
+    if (!await page.locator('#ri-preset-switches').evaluate(node => node.open)) await tap(page, '#ri-preset-switches > summary');
+    await page.waitForSelector('#ri-switch-dice', { timeout: 10000 });
+}
+
 async function run(browser, tag, viewport) {
     const page = await browser.newPage({ viewport, deviceScaleFactor: 2.0625, hasTouch: true, isMobile: viewport.width < 1000, colorScheme: 'dark' });
     const errors = [];
@@ -148,7 +153,9 @@ async function run(browser, tag, viewport) {
     await page.evaluate(async BASE => { delete (await import(`${BASE}/src/store.js`)).settings().presetSwitches; }, BASE);
     await tap(page, '[data-ri-tab="setup"]');
     await tap(page, '[data-ri-nested="presets"]');
-    await page.waitForSelector('#ri-switch-dice', { timeout: 30000 }).catch(async error => { await shot('fail-presets'); throw error; });
+    // B32: the Ours or Theirs switches sit folded at the foot of the page, retiring, open only while a feature is on Ours.
+    await page.waitForSelector('#ri-switch-dice', { state: 'attached', timeout: 30000 }).catch(async error => { await shot('fail-presets'); throw error; });
+    await openSwitches(page);
     const before = await page.locator('#ri-switch-dice').getAttribute('data-side');
     // B24: a feature nobody has chosen is on Both, and the switch offers three sides.
     assert.equal(before, 'both', 'the default side is Both');
@@ -174,7 +181,15 @@ async function run(browser, tag, viewport) {
     await page.evaluate(async BASE => { const { app } = await import(`${BASE}/src/ui/panel.js`); await app.setExpanded(false); }, BASE);
     if (await page.locator('#extensions-settings-button > .drawer-content.openDrawer').count()) await tap(page, '#extensions-settings-button > .drawer-toggle');
     const fold = async () => {
-        const box = await page.locator('#ri_composer_bar .ri-bar-fold').boundingBox();
+        // The handle moves while the menu drawer closes and the send area settles; tap it once it holds still.
+        const handle = page.locator('#ri_composer_bar .ri-bar-fold');
+        let box = await handle.boundingBox();
+        for (let i = 0; i < 10; i++) {
+            await page.waitForTimeout(150);
+            const next = await handle.boundingBox();
+            if (next.x === box.x && next.y === box.y) break;
+            box = next;
+        }
         await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height - 4);
         await page.waitForTimeout(300);
         return page.evaluate(() => document.querySelector('#ri_composer_bar').dataset.folded);
@@ -216,7 +231,8 @@ async function run(browser, tag, viewport) {
         await tap(page, '[data-ri-tab="setup"]');
         await tap(page, '[data-ri-nested="presets"]');
     }
-    await page.waitForSelector('#ri-switch-dice', { timeout: 15000 });
+    await page.waitForSelector('#ri-switch-dice', { state: 'attached', timeout: 15000 });
+    await openSwitches(page);
     out.checks.afterReload.diceSide = await page.locator('#ri-switch-dice').getAttribute('data-side');
     await page.locator('#ri-switch-dice').scrollIntoViewIfNeeded();
     await shot('12-presets-after-reload');

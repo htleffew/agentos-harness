@@ -126,16 +126,19 @@ export function promptDefinition(id) {
 
 // While a builder runs under the 'clean' variant, promptText reads the shipped default and ignores her stored override (B31:
 // the extension's clean card sends the shipped wording and her version sends the stored one).
+// Under 'blank' every prompt reads as empty, so a builder shows which of its lines are fixed text (B32: a wording card that
+// came in a loadout sends the prompt text itself, and the feature keeps only its fixed lines).
 let variant = 'stored';
 export function withPromptVariant(name, build) {
     const before = variant;
-    variant = name === 'clean' ? 'clean' : 'stored';
+    variant = ['clean', 'blank'].includes(name) ? name : 'stored';
     try { return build(); } finally { variant = before; }
 }
 
 export function promptText(id, values = {}) {
     const def = promptDefinition(id);
     if (!def) throw new Error(`Unknown prompt: ${id}`);
+    if (variant === 'blank') return '';
     const saved = variant === 'clean' ? null : settings().prompts?.[id];
     const template = typeof saved?.text === 'string' && !validatePrompt(id, saved.text) ? saved.text : def.text;
     return template.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (all, key, offset, input) => {

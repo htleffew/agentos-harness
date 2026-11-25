@@ -666,7 +666,8 @@ export function emotionReplyAge(record, chat, type = 'normal') {
 
 // The extension's group of guidance (B31). preset-bank-ri.js registers a reader that gives the order of the extension's cards
 // in the stack and, per feature, which wording the stack sends: 'stored' (the stored prompt, which is the shipped default
-// until she saves her own), 'clean' (the shipped default) or 'both'. Without a reader the old per-chat module order applies.
+// until she saves her own), 'clean' (the shipped default), 'both', or 'none' (her wording card sends it instead). Without a reader
+// the old per-chat module order applies.
 let riGroupReader = null;
 export const setRiGroupReader = fn => { riGroupReader = typeof fn === 'function' ? fn : null; };
 export function riGroup() {
@@ -677,9 +678,16 @@ export function variantParts(build, modes) {
     const stored = build();
     if (!modes || !Object.values(modes).some(mode => mode !== 'stored')) return stored;
     const clean = withPromptVariant('clean', build);
+    const blank = Object.values(modes).includes('none') ? withPromptVariant('blank', build) : [];
     const out = [];
     stored.forEach((part, index) => {
         const mode = modes[part[0]] || 'stored', other = clean[index];
+        // 'none': her wording card sends the prompt text, so the part keeps only its fixed text; a part left as a bare label goes.
+        if (mode === 'none' && typeof part[1] !== 'symbol') {
+            const kept = String(blank[index]?.[1] ?? '').trim();
+            if (kept && !/:$/.test(kept)) out.push([part[0], kept]);
+            return;
+        }
         if (mode === 'stored' || !other || typeof part[1] === 'symbol') out.push(part);
         else if (mode === 'clean') out.push(other);
         else { out.push(other); if (other[1] !== part[1]) out.push(part); }

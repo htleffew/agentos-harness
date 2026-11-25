@@ -14,6 +14,7 @@ import { ensureLibrary, libraryStatus, switchContext, resolvedSwitches, switchSc
     bulkUndoAvailable, undoBulkSwitches, featureBlockIds, blockFeatures, workingCopyOff, applyWorkingCopy, restoreWorkingCopy,
     onPresetSelected, syncOwners, onSwitchChange, editPresetBlock, presetBlockRevision } from '../preset-workbench.js';
 import { installBankHooks } from '../preset-bank.js';
+import { bankAndStack } from './preset-bank.js';
 
 export const PAGE_ID = 'presets';
 const hint = text => h('p', { class: 'ri-help' }, text);
@@ -135,7 +136,7 @@ function switchList(context, rerender) {
     const owners = blockFeatures(context);
     const scope = switchScope(context);
     const { switched, alongside } = context.features;
-    if (context.companion) return h('section', { class: 'ri-ps-switches' }, hint('The Roleplay Instructions companion preset pairs with the extension, so each feature runs once and there is nothing to switch.'));
+    if (context.companion) return h('details', { class: 'ri-ps-fold ri-ps-switches' }, h('summary', {}, 'Ours or Theirs switches'), hint('The Roleplay Instructions companion preset pairs with the extension, so each feature runs once and there is nothing to switch.'));
     const rows = switched.map(item => {
         const side = switches[item.key];
         const theirs = item.blocks.map(block => plainName(block.name)).join(', ');
@@ -166,8 +167,13 @@ function switchList(context, rerender) {
         button(scope === 'chat' ? 'Unpin from this chat' : 'Pin to this chat', () => { pinSwitches(context, scope !== 'chat'); rerender(); }, { kind: 'ghost' }))
         : hint('Open a chat to pin switches to it.');
     const undo = bulkUndoAvailable(context) && button('Undo', () => { undoBulkSwitches(context); state.status = 'Switches restored.'; rerender(); }, { kind: 'ghost' });
-    return h('section', { class: 'ri-ps-switches', id: 'ri-preset-switches' },
-        h('h4', { class: 'ri-ps-heading' }, `Features both sides offer (${switched.length})`),
+    // The stack above replaces these switches (A11 d.1). Until B36 retires them they sit folded at the foot of the page, so a
+    // stored Ours tap, which still switches preset rows off in the working copy, stays visible and can be undone.
+    const anyOurs = switched.some(item => switches[item.key] === 'ours');
+    return h('details', { class: 'ri-ps-fold ri-ps-switches', id: 'ri-preset-switches', open: anyOurs || !!state.switchesOpen,
+        ontoggle: event => { state.switchesOpen = event.target.open; } },
+        h('summary', {}, `Ours or Theirs switches, retiring (${switched.length})`, anyOurs ? chip('Ours takes preset rows out', 'ours') : null),
+        hint('The stack above decides what is sent. An Ours side here still switches that feature’s preset rows off in the working copy until these switches retire.'),
         !enabledV10() && hint('Roleplay Instructions is off for this chat, so the extension supplies nothing and the preset is sent as it is.'),
         scopeLine,
         switched.length ? h('div', { class: 'ri-ps-bulk' },
@@ -261,7 +267,8 @@ export function renderPresetsPage(body, app) {
         return;
     }
     host.append(h('p', { class: 'ri-help', role: 'status', id: 'ri-presets-status' }, state.status),
-        presetCard(context, app, rerender), home('feature-owner', switchList(context, rerender)), presetBlockEditor(preset, app), documentView(context), regexScripts(context), loadoutsSection(rerender));
+        presetCard(context, app, rerender), bankAndStack(app), presetBlockEditor(preset, app), documentView(context), regexScripts(context), loadoutsSection(rerender),
+        home('feature-owner', switchList(context, rerender)));
     body.append(host);
 }
 
@@ -278,8 +285,8 @@ export function mountPresetsPage() {
     mounted = true;
     loadPageStyles();
     registerPage({ id: PAGE_ID, group: 'setup', label: 'Presets', withoutChat: true, order: 0,
-        help: 'Choose Ours, Theirs or Both for each feature the preset also offers, read its blocks and save loadouts.',
-        aliases: 'preset ours theirs switch loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
+        help: 'Build the stack the next request sends from the bank of every preset block, the extension’s cards and your versions; save loadouts.',
+        aliases: 'preset bank stack block version compare ours theirs switch loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
     ensureLibrary();
     installBankHooks();
     on('GENERATION_STARTED', () => { try { applyWorkingCopy(); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });

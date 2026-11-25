@@ -1,7 +1,6 @@
 // B34: the Check conflicts section (A11 c.7). One button, one model call, run only when she taps it. The findings list both
 // blocks with their sources and spans, the reason and the problem. The section has no apply action; Keep both marks a pair as
-// seen until either text changes. B32 mounts it under the stack's check list and passes onOpenCard for the Show block links;
-// until then it sits in Setup, Presets beside the preset blocks.
+// seen until either text changes. B32 mounts it under the stack's check list and passes onOpenCard for the Show block links.
 import { h, button } from './dom.js';
 import { slot } from './homes.js';
 import { functionExecution, executionAction } from './execution.js';

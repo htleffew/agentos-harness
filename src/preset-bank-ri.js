@@ -140,7 +140,7 @@ const FACTORY = () => moduleOrder();
 
 /**
  * What the request reads from the stack's RI group: { order, modes }. order lists the features in group order, or is null when
- * it equals the factory order. modes maps a feature to 'stored', 'clean' or 'both'.
+ * it equals the factory order. modes maps a feature to 'stored', 'clean', 'both' or 'none'.
  */
 export function riGroup(bank, base) {
     let stack;
@@ -158,6 +158,9 @@ export function riGroup(bank, base) {
     const modes = {};
     for (const feature of FEATURE_KEYS) {
         const entry = placed[feature];
+        // Her wording that came in a loadout to a device with no saved wording is a card the stack sends itself; the
+        // feature's own text then goes out only when the clean card is on too, so the guidance is never sent twice.
+        if (entry && entry.wording && customText(feature) === null) { modes[feature] = entry.clean ? 'clean' : 'none'; continue; }
         if (!entry || customText(feature) === null) { modes[feature] = 'stored'; continue; }
         if (entry.clean && entry.wording) modes[feature] = 'both';
         else if (entry.clean && entry.wording !== null) modes[feature] = 'clean';

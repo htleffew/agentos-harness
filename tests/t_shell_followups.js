@@ -1,12 +1,12 @@
 // B25: three follow-ups from the first integration pass, on a real SillyTavern 1.19.0 host with touch input at
 // 523 x 1021 (mobile layout) and 1006 x 909 (desktop layout).
-//   1. The fold handle and Pathweaver's handle each get their own tap, folded or not and with Pathweaver's bar
-//      open or minimized; with nothing under the handle it stays centered where B1 puts it.
+//   1. With nothing under the fold handle it stays centered where B1 puts it. (The check of the handle beside
+//      Pathweaver's left with her ruling of 2026-11-24 that the composer bar replaces Pathweaver.)
 //   2. A chat change leaves the menu on the page it shows, a cross-linked page included, and the reopen rule of
 //      B5 (last page reached through the tabs) still applies when the menu is closed and opened.
 //   3. Restoring a built-in quick action from the Library saves at once: a reload straight after keeps it.
 //
-// Pathweaver (SillyTavern-Pathweaver) must be enabled on the host. Environment:
+// Environment:
 //   RI_HOST_URL      SillyTavern with this checkout installed
 //   RI_PLAYWRIGHT    path to playwright-core (default: require('playwright-core'))
 //   RI_CHROME        Chrome executable
@@ -44,74 +44,35 @@ const setFold = (page, folded) => page.evaluate(async ({ BASE, folded }) => {
     (await import(`${BASE}/src/ui/composer-bar.js`)).renderBar();
 }, { BASE, folded });
 
-const setPathweaver = async (page, minimized) => {
-    // Pathweaver redraws its bar from its own setting, so the test taps its handle instead of editing the class.
-    if (await page.evaluate(() => document.querySelector('.pw_action_bar').classList.contains('minimized')) !== minimized) {
-        const where = await points(page);
-        await page.touchscreen.tap(where.theirs.x, where.theirs.y);
-    }
-    await page.waitForTimeout(600);
-};
-
-/** Where a finger lands on each handle: the lower part of the fold face, the middle of Pathweaver's button. */
-const points = page => page.evaluate(() => {
-    const mine = document.querySelector('#ri_composer_bar .ri-bar-fold').getBoundingClientRect();
-    const theirs = document.querySelector('.pw_minimize_btn').getBoundingClientRect();
-    return { mine: { x: mine.x + mine.width / 2, y: mine.y + mine.height - 6 }, theirs: { x: theirs.x + theirs.width / 2, y: theirs.y + theirs.height / 2 },
-        mineBox: { x: mine.x, y: mine.y, w: mine.width, h: mine.height }, theirsBox: { x: theirs.x, y: theirs.y, w: theirs.width, h: theirs.height } };
+// Where a finger lands on the handle (the lower part of its face), what is on top there, and the bar's fold state.
+const handle = page => page.evaluate(() => {
+    const fold = document.querySelector('#ri_composer_bar .ri-bar-fold'), box = fold.getBoundingClientRect();
+    const bar = document.querySelector('#ri_composer_bar').getBoundingClientRect();
+    const point = { x: box.x + box.width / 2, y: box.y + box.height - 6 };
+    const top = document.elementFromPoint(point.x, point.y);
+    return { point, ours: !!top?.closest('.ri-bar-fold'), top: top ? `${top.tagName}#${top.id}` : '', folded: document.querySelector('#ri_composer_bar').dataset.folded,
+        offCenter: Math.round(Math.abs(box.x + box.width / 2 - (bar.x + bar.width / 2))), shift: fold.style.getPropertyValue('--ri-fold-shift') };
 });
 
-const state = page => page.evaluate(() => ({ folded: document.querySelector('#ri_composer_bar').dataset.folded,
-    pwMinimized: document.querySelector('.pw_action_bar').classList.contains('minimized'),
-    shift: document.querySelector('#ri_composer_bar .ri-bar-fold').style.getPropertyValue('--ri-fold-shift') }));
-
-const owner = (page, point) => page.evaluate(({ x, y }) => {
-    const top = document.elementFromPoint(x, y);
-    return top?.closest('.ri-bar-fold') ? 'ours' : top?.closest('.pw_minimize_btn') ? 'theirs' : (top?.className || top?.tagName || 'nothing').toString();
-}, point);
-
 async function handles(page, out, shot) {
+    // The handle takes its own tap, open or folded. Where SillyTavern's own controls cover its centered spot (the
+    // drawer buttons on the phone layout), clearFoldHandle moves it to a free spot; elsewhere it stays centered.
     out.handles = [];
-    for (const pwMinimized of [false, true]) {
-        for (const folded of [false, true]) {
-            await setPathweaver(page, pwMinimized);
-            await setFold(page, folded);
-            await page.waitForTimeout(500);
-            const label = `pw-${pwMinimized ? 'min' : 'open'}-bar-${folded ? 'folded' : 'open'}`;
-            const where = await points(page);
-            const row = { label, before: await state(page), ours: await owner(page, where.mine), theirs: await owner(page, where.theirs) };
-            await shot(label);
-            assert.equal(row.ours, 'ours', `${label}: a finger on our handle lands on our handle`);
-            assert.equal(row.theirs, 'theirs', `${label}: a finger on Pathweaver's handle lands on Pathweaver's`);
-            // Our handle: the bar folds or opens, Pathweaver stays as it was.
-            await page.touchscreen.tap(where.mine.x, where.mine.y);
-            await page.waitForTimeout(400);
-            row.afterOurs = await state(page);
-            assert.equal(row.afterOurs.folded, String(!folded), `${label}: our tap toggles the bar`);
-            assert.equal(row.afterOurs.pwMinimized, pwMinimized, `${label}: our tap leaves Pathweaver alone`);
-            // Pathweaver's handle: its bar minimizes or opens, ours stays as it was.
-            const again = await points(page);
-            row.theirsOwnerAfterOurs = await owner(page, again.theirs);
-            await page.touchscreen.tap(again.theirs.x, again.theirs.y);
-            await page.waitForTimeout(500);
-            row.afterTheirs = await state(page);
-            assert.equal(row.afterTheirs.pwMinimized, !pwMinimized, `${label}: Pathweaver's tap toggles its bar (${JSON.stringify([where, again, row])})`);
-            assert.equal(row.afterTheirs.folded, row.afterOurs.folded, `${label}: Pathweaver's tap leaves our bar alone`);
-            out.handles.push(row);
-        }
+    for (const folded of [false, true]) {
+        await setFold(page, folded);
+        await page.waitForTimeout(300);
+        await page.evaluate(() => dispatchEvent(new Event('resize')));
+        await page.waitForTimeout(300);
+        const before = await handle(page);
+        await shot(`bar-${folded ? 'folded' : 'open'}`);
+        assert.ok(before.ours, `bar ${folded ? 'folded' : 'open'}: a finger on the handle lands on the handle, not ${before.top}`);
+        assert.ok(before.offCenter < 1 || before.shift, `bar ${folded ? 'folded' : 'open'}: the handle is centered unless it moved to clear a covering control`);
+        await page.touchscreen.tap(before.point.x, before.point.y);
+        await page.waitForTimeout(400);
+        const after = await handle(page);
+        assert.equal(after.folded, String(!folded), `bar ${folded ? 'folded' : 'open'}: the tap toggles the bar`);
+        out.handles.push({ folded, before, after });
     }
-    // Nothing under the handle: it stays centered, where B1 puts it.
-    await page.evaluate(() => document.querySelector('.pw_action_bar')?.remove());
-    await setFold(page, false);
-    await page.waitForTimeout(300);
-    await page.evaluate(() => dispatchEvent(new Event('resize')));
-    await page.waitForTimeout(300);
-    out.alone = await page.evaluate(() => {
-        const fold = document.querySelector('#ri_composer_bar .ri-bar-fold').getBoundingClientRect(), bar = document.querySelector('#ri_composer_bar').getBoundingClientRect();
-        return { offCenter: Math.abs(fold.x + fold.width / 2 - (bar.x + bar.width / 2)), shift: document.querySelector('#ri_composer_bar .ri-bar-fold').style.getPropertyValue('--ri-fold-shift') };
-    });
-    assert.ok(out.alone.offCenter < 1, 'alone, the handle stays centered');
-    await shot('alone');
 }
 
 async function menuStaysOnChatChange(page, out) {
@@ -176,7 +137,6 @@ async function run(browser, tag, viewport) {
     await page.goto(HOST, { waitUntil: 'networkidle' });
     await ready(page);
     await openChat(page);
-    assert.ok(await page.locator('.pw_action_bar').count(), 'Pathweaver is enabled on this host');
     await handles(page, out, shot);
     await menuStaysOnChatChange(page, out);
     await restoreSaves(page, out);

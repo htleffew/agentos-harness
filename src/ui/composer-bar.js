@@ -5,6 +5,8 @@ import { accessibleName, barPins, composerBar, costWords, kindOf, listQuickActio
     QUICK_ACTION_KINDS, setBarFolded } from '../quick-actions.js';
 import { LOOK_DEFAULTS, lookSettings, SCALE_RANGE, saveLook } from './theme/styles.js';
 import { fitBottom } from './generate-sheet.js';
+import { applyWrap, saveInlineSettings, shownWraps } from '../inline-direction.js';
+import { installInlineUi } from './inline-direction.js';
 
 export const HOLD_MS = 450;
 export const SLOP_PX = 10;
@@ -109,7 +111,9 @@ export function setBarNotice(notice, slot = 'main') {
     state.notices ||= new Map();
     if (notice) state.notices.set(slot, notice); else state.notices.delete(slot);
     state.notice = state.notices.get('memory') || state.notices.get('main') || [...state.notices.values()][0] || null;
-    if (!state.notice) closePopover();
+    // Only the notice's own popover closes with it. A background job that clears a notice nobody saw must not shut the
+    // More menu or a pin's options under her finger.
+    if (!state.notice && state.popover?.riAnchor?.classList?.contains('ri-bar-notice')) closePopover();
     renderBar();
 }
 
@@ -220,13 +224,17 @@ function pinButton(action) {
     return control;
 }
 
-/** Tap on release, cancel on move-off, scroll or hold; keyboard activation uses click. */
-function wirePress(control, onTap, onHold) {
+/**
+ * Tap on release, cancel on move-off, scroll or hold; keyboard activation uses click.
+ * `keepFocus` never lets the control take focus from the message box (the wrap buttons, B42).
+ */
+function wirePress(control, onTap, onHold, { keepFocus = false } = {}) {
     const tracker = createPressTracker({ onTap: () => { if (!control.disabled) onTap(); }, onHold });
+    if (keepFocus) control.addEventListener('mousedown', event => event.preventDefault());
     control.addEventListener('pointerdown', event => {
         if (event.button !== 0) return;
         // Keep the message box focused so the keyboard and cursor stay as they were.
-        if (document.activeElement?.id === 'send_textarea') event.preventDefault();
+        if (keepFocus || document.activeElement?.id === 'send_textarea') event.preventDefault();
         tracker.down({ x: event.clientX, y: event.clientY, id: event.pointerId });
     });
     control.addEventListener('pointermove', event => {
@@ -255,6 +263,29 @@ function wirePress(control, onTap, onHold) {
     });
 }
 
+// ---------- The wrap buttons (B42) ----------
+
+function wrapPopover(wrap, anchor) {
+    openPopover(anchor, [
+        h('p', { class: 'ri-bar-pop-title' }, wrap.label),
+        h('p', { class: 'ri-bar-pop-meta' }, wrap.help),
+        h('div', { class: 'ri-bar-pop-actions' },
+            popButton('Hide', () => {
+                saveInlineSettings({ [wrap.id]: false });
+                closePopover();
+                renderBar();
+                announce(`${wrap.label} button hidden. Turn it back on in Direction, Notes inside your message.`);
+            })),
+    ], `${wrap.label} button`);
+}
+
+function wrapButton(wrap) {
+    const control = h('button', { type: 'button', class: 'ri-bar-icon ri-bar-wrap', 'data-ink': wrap.ink, 'data-wrap': wrap.id,
+        'aria-label': `${wrap.name}, ${wrap.label}`, title: wrap.label }, icon(wrap.icon));
+    wirePress(control, () => applyWrap(wrap), () => wrapPopover(wrap, control), { keepFocus: true });
+    return control;
+}
+
 function noticeButton(notice) {
     const full = notice.count > 1 ? `${notice.text} (${notice.count} notes)` : notice.text;
     const control = h('button', { type: 'button', class: 'ri-bar-status-button ri-bar-notice', 'data-tone': notice.tone || 'problem',
@@ -270,11 +301,13 @@ function noticeButton(notice) {
     return control;
 }
 
-function statusSlot() {
+/** The status slot. While it has nothing to say, the wrap buttons (B42) take its reserved width, clear of the middle of the bar. */
+function statusSlot(wraps) {
     const { status } = state;
     const slot = h('div', { class: 'ri-bar-status' });
     if (status.state === 'idle' || status.state === 'done') {
         if (state.notice) slot.append(noticeButton(state.notice));
+        else if (wraps) slot.append(wraps);
         return slot;
     }
     const runner = state.runner;
@@ -319,8 +352,9 @@ function layoutPins(row, pins, more) {
     const gap = parseFloat(styles.columnGap) || 0;
     const padding = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
     const queue = row.querySelector('.ri-bar-queue:not([hidden])')?.offsetWidth || 0;
+    const wraps = row.querySelector(':scope > .ri-bar-wraps');
     const { shown } = fitPins({ width: row.clientWidth - padding, hit: controls[0].offsetWidth, gap,
-        status: row.querySelector('.ri-bar-status').offsetWidth, more: more.offsetWidth, queue, count: controls.length });
+        status: row.querySelector('.ri-bar-status').offsetWidth, more: more.offsetWidth + (wraps ? wraps.offsetWidth + gap : 0), queue, count: controls.length });
     controls.forEach((control, index) => { control.hidden = index >= shown; });
     return pins.slice(shown);
 }
@@ -438,10 +472,14 @@ export function renderBar() {
         if (calls(action) && disabled) control.disabled = true;
         return control;
     });
+    const wraps = shownWraps();
+    const wrapGroup = wraps.length ? h('div', { class: 'ri-bar-wraps', role: 'group', 'aria-label': 'Wrap text' }, wraps.map(wrapButton)) : null;
+    const status = statusSlot(wrapGroup);
     const more = h('button', { type: 'button', class: 'ri-bar-icon ri-bar-more', 'aria-label': 'More quick actions',
         'aria-haspopup': 'dialog', title: 'More quick actions' }, icon('fa-ellipsis'));
     const row = h('div', { class: 'ri-bar-row', id: 'ri_composer_bar_row', role: 'toolbar', 'aria-label': 'Quick actions' },
-        queue, h('div', { class: 'ri-bar-pins' }, controls), statusSlot(), more);
+        queue, h('div', { class: 'ri-bar-pins' }, controls), wrapGroup && !status.contains(wrapGroup) ? wrapGroup : null,
+        status, more);
     root.replaceChildren(h('div', { class: 'ri-bar-handle-row' }, context.enabled && fold), row,
         h('div', { class: 'ri-bar-strip', 'aria-hidden': 'true' }), state.live);
     let overflow = [];
@@ -481,6 +519,7 @@ export function mountComposerBar(runner) {
         document.addEventListener('ri-look-change', () => renderBar());
         watchFoldHandle();
     }
+    installInlineUi();
     placeBar();
     renderBar();
     return state.root;

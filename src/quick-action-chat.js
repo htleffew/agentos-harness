@@ -166,11 +166,11 @@ export function startQuickReply(generation, options) {
     }
 }
 
-export async function bindQuickReply(generation, index) {
+export async function bindQuickReply(generation, index, { rebind = false } = {}) {
     const state = quickChat();
     const chat = ctx().chat;
     const message = chat?.[index];
-    if (!state || generation?.quickChat !== state.owner || !generation.quickDelivery || generation.quickSend || Number(index) !== chat?.length - 1 ||
+    if (!state || generation?.quickChat !== state.owner || !generation.quickDelivery || generation.quickSend || (!rebind && Number(index) !== chat?.length - 1) ||
         !message?.is_user || message.is_system || !message.mes?.trim() || /^[\s(\[<*]*OOC\b/i.test(message.mes) || !state.pending.length) return;
     const surviving = new Set(chat.map(other => other.extra?.[SEND_KEY]?.id).filter(Boolean));
     state.bindings = (state.bindings || []).filter(binding => surviving.has(binding.id));

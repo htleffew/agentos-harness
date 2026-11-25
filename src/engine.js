@@ -1,4 +1,5 @@
 import { freshGuidance, freshHistoryCapability, guidedContext, preserveContinuationPrefix, projectGuidedRequest, validateGuidedTarget } from './guided-context.js';
+import { bindInlineNotes, bindReplayedNotes, takeInlineNotes } from './inline-direction.js';
 import { activeQuickPlan, applyQuickPrompt, applyQuickText, bindQuickReply, failQuickReply, finishQuickReply, hasQuickEvidence, observeQuickTextAnchor, reconcileQuickDelivery, splitQuickEvidence, startQuickReply, stripStoredQuickDirections, stripStoredQuickText } from './quick-action-chat.js';
 import { automaticAllowed, executionPreview, executionScope, runAdditional } from './execution.js';
 import { flaggedNpcNames } from './npc-names.js';
@@ -78,6 +79,18 @@ const keyOf = e => `${e.world}.${e.uid}`;
 /** The set an entry belongs to ('' when it is in no set in the list). A shared lorebook holds several sets. */
 const setOf = e => isGoal(e) ? GOAL_WORLD : isNotes(e) ? NOTES_WORLD : isAsk(e) ? ASK_WORLD : isOrder(e) ? ORDER_WORLD : isPace(e) ? PACE_WORLD : isDice(e) ? DICE_WORLD : setOfEntry(e);
 const isManaged = e => !!setOf(e);
+// The gated items of an event set (hidden subtext, ambient pulse) that roll on their own go out as a copy of the event's entry
+// keyed "<book>.<uid>#gates" (B32).
+const GATES = '#gates';
+const gateEntry = e => ({ ...e, uid: `${e.uid}${GATES}`, comment: `${e.comment || `Instruction ${e.uid}`}: hidden subtext and ambient pulse` });
+/** The managed entry of a key in this scan's sorted entries; a gate key gives the copy of its event's entry. */
+function findEntry(sorted, key) {
+    const text = String(key);
+    const gate = text.endsWith(GATES);
+    const base = canon(gate ? text.slice(0, -GATES.length) : text);
+    const entry = sorted.find(e => keyOf(e) === base && isManaged(e) && !e.disable);
+    return entry && gate ? gateEntry(entry) : entry;
+}
 
 // ---------- sets that were moved ----------
 //
@@ -600,7 +613,7 @@ function reapply(result, args) {
     const sorted = Array.isArray(args.sortedEntries) ? args.sortedEntries : [];
     for (const e of [...map.values()]) { if (isManaged(e)) map.delete(keyOf(e)); }
     for (const [key, text] of result.texts) {
-        const e = sorted.find(x => keyOf(x) === key && isManaged(x));
+        const e = findEntry(sorted, key);
         if (!e) continue;
         e.content = text;
         map.set(key, e);
@@ -646,8 +659,7 @@ function onScanDone(args) {
         const len = scanLength(type);
         const items = [];
         let states = {};
-        const find = key => explicitSources.has(canon(key)) ? undefined
-            : sorted.find(e => keyOf(e) === canon(key) && isManaged(e) && !e.disable);
+        const find = key => explicitSources.has(canon(key)) ? undefined : findEntry(sorted, key);
         reconcile();
         // Swipe, regenerate and continue send the same instructions again. The list comes from the last scan when it
         // was for this same reply, and otherwise from the record kept on the reply itself.
@@ -820,7 +832,10 @@ function onScanDone(args) {
                     const keptText = continuing.includes(e) ? plan.continuing.get(key) : null;
                     const prev = plan.events?.get(key) || null;
                     if (keptText) { items.push(makeItem(e, sentAs, keptText, 0, 'continuing', false, { event: prev, parts: null })); continue; }
-                    const rolled = rollEvent(withPreset(ri, cs.presets?.[setOf(e)]), prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type), blockedTags: blockedEventTags(), reply: replyNumber(type) });
+                    // Gated items switched on from the bank page roll in their own item below, so the event leaves them out here.
+                    const whole = withPreset(ri, cs.presets?.[setOf(e)]);
+                    const recipe = ri.gatesAlone ? { ...whole, categories: (whole.categories || []).filter(cat => !cat.gate) } : whole;
+                    const rolled = rollEvent(recipe, prev, { locks: cs.locks?.[key], burned: was.ids.get(key), scene: sceneNow(type), blockedTags: blockedEventTags(), reply: replyNumber(type) });
                     if (!rolled) {
                         map.delete(key);
                         // Tell the user once per chat when a set's main list is used up.
@@ -839,6 +854,23 @@ function onScanDone(args) {
                 const kept = continuing.includes(e) ? plan.continuing.get(key) : null;
                 const version = kept && versions.includes(kept) ? kept : pickVersion(cs, key, versions);
                 items.push(makeItem(e, sentAs, version, 0, continuing.includes(e) ? 'continuing' : 'new'));
+            }
+
+            // Hidden subtext and ambient pulse switched on from the bank page (B32) roll every reply on their own earliest
+            // reply, die and rest, whether or not their event set rolls. They go out as an item of their own, keyed apart
+            // from the event, so the event's timing, kept text and category state stay as they were.
+            for (const e of sorted) {
+                const ri = e?.extensions?.ri;
+                if (!ri?.gatesAlone || e.disable || !isEvent(e) || !isManaged(e) || explicitSources.has(canon(keyOf(e)))) continue;
+                const recipe = withPreset(ri, cs.presets?.[setOf(e)]);
+                const gates = (recipe.categories || []).filter(cat => cat.gate && cat.on);
+                if (!gates.length) continue;
+                const entry = gateEntry(e);
+                const key = keyOf(entry);
+                const rolled = rollEvent({ ...recipe, categories: gates }, plan.events?.get(key) || null, { blockedTags: blockedEventTags(), reply: replyNumber(type) });
+                if (!rolled?.parts?.length) continue;
+                map.set(key, entry);
+                items.push(makeItem(entry, ri.sentAs === 'ooc' ? 'ooc' : 'system', rolled.text, 0, 'new', false, { event: rolled.state, parts: rolled.parts, noCheck: true, roll: rolled.roll }));
             }
         }
 
@@ -1672,7 +1704,9 @@ export function init() {
         clearReplyProgress();
         if (guided && type === (guided.operation || 'swipe') && guided.chatId === String(ctx().getCurrentChatId?.() || '')) guided.started = true;
         gen = { memory:memoryOnly(), guided: guided?.started && type === (guided.operation || 'swipe') ? guided : null, type: String(type || 'normal'), dryRun: false, skip: type === 'impersonate' || type === 'quiet' || !!opts?.quiet_prompt, handled: false, result: null, started: Date.now() };
+        takeInlineNotes(gen, type, opts);
         startQuickReply(gen, opts);
+        bindReplayedNotes(gen).catch(error => console.warn(LOG, 'bind inline notes', error));
         if (!gen.skip) {
             pending = null;
             if (enabledV10()) gen.check = gen.guided?.check ?? (['swipe','regenerate','continue'].includes(gen.type) ? lastRecord()?.v10Check : prefs()?.check);
@@ -1691,7 +1725,7 @@ export function init() {
         // Let a running check finish first, so an instruction that did not happen can be sent again with this reply.
         await Promise.race([checkPromise, new Promise(r => setTimeout(r, 20000))]);
     });
-    on('MESSAGE_SENT', id => bindQuickReply(gen, Number(id)).catch(error=>console.warn(LOG,'bind next-message direction',error)));
+    on('MESSAGE_SENT', id => bindQuickReply(gen, Number(id)).then(() => bindInlineNotes(gen, id)).catch(error=>console.warn(LOG,'bind next-message direction',error)));
     startCapture({ modules: () => effectiveModules() }).catch(error => console.warn(LOG, 'capture', error));
     on('MESSAGE_RECEIVED', onMessageReceived);
     on('MESSAGE_RECEIVED', rememberStoryTimeline);
@@ -1741,13 +1775,13 @@ export function init() {
     on('GENERATION_STOPPED', () => { failQuickReply(pending?.quickPlan || gen?.quickPlan, 'cancelled'); clearReplyProgress(); const attempt = guided; guided = null; gen = null; pending = null; pickAgain = false; rerollCat = null; if (attempt && !attempt.completed) { pending = null; cancelGuided(attempt).catch(e => console.warn(LOG, 'restore guided swipe', e)); } });
     on('CHAT_COMPLETION_PROMPT_READY', onPromptReady);
     on('GENERATE_BEFORE_COMBINE_PROMPTS', data => {
-        if (gen && !gen.skip && gen.type==='normal' && ctx().mainApi!=='openai') observeQuickTextAnchor(data,pending?.quickPlan);
+        if (gen && !gen.skip && (gen.type==='normal' || gen.inlineReplay) && ctx().mainApi!=='openai') observeQuickTextAnchor(data,pending?.quickPlan);
     });
     on('GENERATE_AFTER_COMBINE_PROMPTS', data => {
         const attempt = gen?.guided;
         if (typeof data?.prompt !== 'string' || ctx().mainApi === 'openai') return;
         data.prompt = stripStoredQuickText(data.prompt);
-        if (!data.dryRun && gen && !gen.skip && gen.type==='normal') {
+        if (!data.dryRun && gen && !gen.skip && (gen.type==='normal' || gen.inlineReplay)) {
             if (pending?.quickPlan?.freshStart) pending.quickPlan.history={mode:'retained',removed:0};
             data.prompt=applyQuickText(data.prompt,pending?.quickPlan);
         }

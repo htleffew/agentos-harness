@@ -14,6 +14,7 @@
 //   companion::<id>   a block of the companion preset
 //   ri::<feature>     the extension's own card for one feature (sent in the fixed RI group at depth 0)
 //   v::<version id>   one of her customized versions
+//   imp:<iid>::<id>   a block read from a preset or plugin file by the option bank import (B37), one source per file
 import { ctx, on } from './st.js';
 import { settings, saveSettings, chatState, saveChatState } from './store.js';
 import { FEATURES, FEATURE_KEYS, blockHash, loadLibrary } from './preset-library.js';
@@ -53,6 +54,8 @@ export function parseKey(key) {
     return at < 0 ? { source: '', id: text } : { source: text.slice(0, at), id: text.slice(at + SEP.length) };
 }
 export const presetSource = sid => `p:${sid}`;
+export const importSource = iid => `imp:${iid}`;
+export const isImportSource = source => /^imp:/.test(String(source));
 export const isPresetSource = source => /^p:/.test(String(source));
 export const sidOf = source => isPresetSource(source) ? String(source).slice(2) : '';
 /** The RI group holds the extension's cards and her versions of them; every other card is in the main group. */
@@ -286,6 +289,17 @@ export function indexBank(input = {}, prev = null) {
         tagSource(result.source, input.library || null, input.nameTags, input.tags, input.tagStamp);
         sources.set(result.source.key, result.source);
     }
+    for (const record of Object.values(input.imports || {})) {
+        if (!record?.id || !Array.isArray(record.blocks)) continue;
+        const key = importSource(record.id);
+        const result = indexSource({ key, kind: 'import', name: record.name || record.file || 'Imported file', data: importData(record) }, prev?.sources?.get(key) || null, context);
+        for (const card of result.source.cards) card.lineage = { file: record.file || '', block: own(record.lineage, card.id) || card.name, at: record.at || 0 };
+        result.source.file = record.file || '';
+        hashed += result.hashed;
+        if (result.hashed) rehashed.push(result.source.name);
+        tagSource(result.source, null, input.nameTags, input.tags, input.tagStamp);
+        sources.set(key, result.source);
+    }
     const ri = riSource(input.ri || [], prev?.sources?.get(SOURCE_RI), context);
     hashed += ri.hashed;
     sources.set(SOURCE_RI, ri.source);
@@ -294,6 +308,11 @@ export function indexBank(input = {}, prev = null) {
     const ms = (globalThis.performance?.now?.() ?? now()) - started;
     return { v: BANK_VERSION, sources, cards, sids, renames, at: context.at,
         removed: [...vanished.keys()], stats: { sources: sources.size, cards: cards.size, hashed, rehashed, ms } };
+}
+
+/** An imported file's blocks in the shape of a preset with no prompt order: every block waits in the bank for her tap. */
+function importData(record) {
+    return { prompts: record.blocks.map(block => ({ identifier: block.id, name: block.name, content: block.text, role: block.role || 'system' })), prompt_order: [] };
 }
 
 function pickCompanion(presets) {
@@ -371,7 +390,7 @@ const riCards = preset => { try { return (riProvider || defaultRiCards)(preset) 
 
 function stores() {
     const st = settings();
-    for (const name of ['bankVersions', 'bankStacks', 'bankTexts', 'bankSources', 'bankTags']) {
+    for (const name of ['bankVersions', 'bankStacks', 'bankTexts', 'bankSources', 'bankTags', 'bankImports']) {
         if (!st[name] || typeof st[name] !== 'object' || Array.isArray(st[name])) st[name] = {};
     }
     return st;
@@ -705,7 +724,13 @@ export function migrateStack(bank, key, base, change) {
     writeStack(bank, stack, base || stack.base);
     return copy(stack);
 }
-const listOf = (stack, key) => parseKey(key).source === SOURCE_RI || groupFromKey(key) === 'ri' ? stack.ri : stack.cards;
+// A card already in the stack stays in the group that holds it: a deleted version of an RI card has no record left to say
+// which group it belongs to, and her taps on it must still reach it (B32).
+const listOf = (stack, key) => {
+    if (parseKey(key).source === SOURCE_RI || stack.ri.some(item => item.key === key)) return stack.ri;
+    if (stack.cards.some(item => item.key === key)) return stack.cards;
+    return groupFromKey(key) === 'ri' ? stack.ri : stack.cards;
+};
 function groupFromKey(key) {
     const { source, id } = parseKey(key);
     if (source === SOURCE_RI) return 'ri';
@@ -845,8 +870,11 @@ export function stackPlan(bank, stack, base = stack?.base || activePreset()) {
     const stored = stores().bankTexts;
     const lastText = hash => own(texts, hash) ?? own(stored, hash);
     const resolve = (item, group) => {
-        const card = bankCard(bank, item.key, base);
+        let card = bankCard(bank, item.key, base);
         const source = parseKey(item.key).source;
+        // A base row the selected copy of the edition lacks is read from the copy of the same edition that holds it.
+        let elsewhere = '';
+        if (!card && source === SOURCE_BASE) { card = copyCard(bank, stack.key, parseKey(item.key).id, base); elsewhere = card?.sourceName || ''; }
         const live = source === SOURCE_RI;
         let status = 'clean', text;
         if (!card) { status = 'removed'; text = lastText(item.hash) ?? ''; }
@@ -861,9 +889,30 @@ export function stackPlan(bank, stack, base = stack?.base || activePreset()) {
             label: base_.label || '', role: base_.role || item.role, placement: base_.placement || item.placement, marker: base_.marker ?? item.marker,
             landmark: source === SOURCE_BASE && !!(base_.landmark ?? (item.marker && LANDMARK.has(item.id))), tags: base_.tags || item.tags || [],
             verdicts: base_.verdicts || {}, tokens: (base_.marker ?? item.marker) ? 0 : cardTokens(text), raw: hasMacros(text),
-            cleanStatus: base_.cleanStatus || '', origin: base_.origin || '', versionOf: base_.versionOf || '', sendId: sendId(item.key, bank, base) };
+            cleanStatus: base_.cleanStatus || '', origin: base_.origin || '', versionOf: base_.versionOf || '', sendId: sendId(item.key, bank, base), elsewhere,
+            lineage: base_.lineage || null };
     };
     return [...companionTwins(stack.cards, base).map(item => resolve(item, 'main')), ...stack.ri.map(item => resolve(item, 'ri'))];
+}
+
+/**
+ * Presets that share one stack key are copies of one edition and share one stored stack (B29, kept by B32). A base row one
+ * copy holds and the selected copy lacks is read from that other copy, so its card shows "In another copy: <name>" in place
+ * of Source removed and sends that copy's text while it is on.
+ */
+const editionKeys = new WeakMap();
+export function copyCard(bank, key, id, base) {
+    if (!bank?.sources || !key) return null;
+    let names = editionKeys.get(bank);
+    if (!names) { names = new Map(); editionKeys.set(bank, names); }
+    for (const source of bank.sources.values()) {
+        if (source.kind !== 'preset' || source.name === base) continue;
+        if (!names.has(source.name)) names.set(source.name, stackKey(source.name, source.data, bank));
+        if (names.get(source.name) !== key) continue;
+        const card = source.byId.get(id);
+        if (card) return card;
+    }
+    return null;
 }
 
 /**
@@ -888,6 +937,7 @@ export function sendId(key, bank, base) {
     if (source === SOURCE_MINE) return `ri-bank-mine-${id}`;
     if (source === SOURCE_COMPANION) return `ri-bank-companion-${id}`;
     if (source === SOURCE_RI) return `ri-bank-ri-${id}`;
+    if (isImportSource(source)) return `ri-bank-imp-${source.slice(4)}-${id}`;
     return `ri-bank-${sidOf(source)}-${id}`;
 }
 
@@ -962,7 +1012,7 @@ function hostInput() {
     const st = stores();
     let presets = [];
     try { presets = listedPresets(ctx().getPresetManager?.('openai')); } catch { presets = []; }
-    return { presets, companion: companionFile ? { name: PRESET, data: companionFile } : null, ri: riCards(activePreset()),
+    return { presets, companion: companionFile ? { name: PRESET, data: companionFile } : null, ri: riCards(activePreset()), imports: st.bankImports,
         sids: st.bankSources, library, nameTags: blockCompanions, tags: st.bankTags, tagStamp: `${library ? 'library' : 'names'}:${tagsVersion}` };
 }
 
@@ -1037,5 +1087,75 @@ export function installBankHooks() {
         fetch(new URL('../presets/Roleplay Instructions V10.json', import.meta.url).href).then(response => response.ok ? response.json() : null)
             .then(data => { if (data?.prompts) { companionFile = data; later('companion'); } }).catch(() => {});
     }
+    return true;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------
+// Blocks read from a file (the option bank import of B37 sends its instruction blocks here)
+
+const slug = text => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'block';
+const fileTitle = file => String(file).replace(/[.][a-z0-9]+$/i, '');
+
+/**
+ * Put the instruction blocks the import read from a preset or plugin file into the bank as a source of their own, one source
+ * per file, each card naming the file and block it came from. Importing the same file again updates that source, so a block
+ * whose text changed shows Changed in source on every stack card taken from it. Nothing goes into a stack: the blocks wait in
+ * the bank for her tap. blocks: [{ name, text, source: { file, block }, chance, wordings, background, origin }].
+ * Returns [{ source, file, added, updated, kept }].
+ */
+export function intakeBlocks(blocks) {
+    const st = stores();
+    const byFile = new Map();
+    for (const block of [].concat(blocks || [])) {
+        const text = typeof block?.text === 'string' ? block.text : '';
+        if (!text.trim()) continue;
+        const file = String(block.source?.file || block.file || 'Imported file');
+        if (!byFile.has(file)) byFile.set(file, []);
+        byFile.get(file).push(block);
+    }
+    const out = [];
+    for (const [file, list] of byFile) {
+        const iid = blockHash(`import:${file}`).slice(0, 10);
+        const old = own(st.bankImports, iid);
+        const previous = new Map((old?.blocks || []).map(block => [block.id, block]));
+        const seen = new Map();
+        const next = [];
+        const lineage = {};
+        let added = 0, updated = 0, kept = 0;
+        for (const block of list) {
+            const name = String(block.name || block.source?.block || 'Imported block');
+            const stem = slug(block.source?.block || name);
+            const count = (seen.get(stem) || 0) + 1;
+            seen.set(stem, count);
+            const id = count > 1 ? `${stem}-${count}` : stem;
+            const record = { id, name, text: block.text, role: ['system', 'user', 'assistant'].includes(block.role) ? block.role : 'system',
+                ...(Number.isFinite(block.chance) ? { chance: block.chance } : {}), ...(Array.isArray(block.wordings) ? { wordings: block.wordings.map(String) } : {}),
+                ...(block.background ? { background: true } : {}) };
+            const was = previous.get(id);
+            if (!was) added++; else if (was.text !== record.text || was.name !== record.name) updated++; else kept++;
+            lineage[id] = String(block.source?.block || name);
+            next.push(record);
+        }
+        // Blocks the file no longer has stay readable for stacks that hold them, marked Source removed by the plan.
+        for (const block of previous.values()) if (!next.some(item => item.id === block.id)) rememberText(st.bankTexts, hashOf(block.text), block.text);
+        put(st.bankImports, iid, { id: iid, file, name: fileTitle(file), at: now(), blocks: next, lineage });
+        out.push({ source: importSource(iid), file, added, updated, kept });
+    }
+    if (out.length) {
+        saveSettings();
+        if (current) { current = indexBank({ ...hostInput(), tags: st.bankTags }, current); notify('import'); }
+    }
+    return out;
+}
+
+/** Take one imported file out of the bank. Stack cards from it keep sending their last text, marked Source removed. */
+export function removeImport(iid) {
+    const st = stores();
+    const record = own(st.bankImports, iid);
+    if (!record) return false;
+    for (const block of record.blocks || []) rememberText(st.bankTexts, hashOf(block.text), block.text);
+    delete st.bankImports[iid];
+    saveSettings();
+    if (current) { current = indexBank({ ...hostInput(), tags: st.bankTags }, current); notify('import'); }
     return true;
 }

@@ -77,6 +77,20 @@
     overflow: hidden;
 }
 
+/* B42: the three wrap buttons. Idle, they fill the status slot's reserved width. While the slot shows a status or
+   a note they sit after the pins instead, set apart by a hairline, and the pins give up the room. */
+.ri-bar-wraps {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: var(--ri-gap);
+    padding-left: var(--ri-gap);
+    border-left: 1px solid var(--ri-line-faint);
+}
+.ri-bar-status .ri-bar-wraps { padding-left: 0; border-left: 0; }
+/* Three Comfortable targets are wider than the slot, so the slot grows to hold them. */
+.ri-bar-status:has(> .ri-bar-wraps) { min-width: calc(3 * var(--ri-hit-size) + 2 * var(--ri-gap)); }
+
 .ri-bar-icon {
     position: relative;
     flex: 0 0 var(--ri-hit-size);

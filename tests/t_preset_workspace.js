@@ -27,7 +27,13 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         await L.setupApi(page);
         await page.evaluate(data=>SillyTavern.getContext().getPresetManager('openai').savePreset(data.name,data),preset);
         await L.usePreset(page,preset.name);await L.setupApi(page,{preset:null});await L.openChat(page);
-        await pageTab('presets');await open(wb);await open(block);
+        // B29 and B30: the stack keeps sending the text a base card was taken with when the preset block changes, until
+        // her tap on Take the new text. Save the stack before the edit so every run starts from the same place.
+        const stackCard=()=>page.evaluate(async B=>{const M=await import(B+'/src/preset-bank.js');const bank=M.refreshBank('test');const stack=M.stackFor(bank);
+            const card=M.stackPlan(bank,stack).find(item=>item.key==='base::review-relationships');return card && {status:card.status,text:card.text,stack:stack.key};},L.BASE);
+        await pageTab('presets');await open(wb);
+        assert.equal((await stackCard()).status,'clean','the stack holds the block before the edit');
+        await open(block);
         await input(block.getByLabel('Preset prompt',{exact:true}),'HOST_EDIT_432');
         await click(block.getByRole('button',{name:'Save preset block',exact:true}));await waitMessage('Preset wording saved');
         assert.match(await block.locator(':scope > summary').textContent(),/Edited/);
@@ -35,8 +41,12 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         const before=await order();await click(block.getByRole('button',{name:'Move up',exact:true}));await waitMessage('Preset order saved');
         assert.equal((await order()).indexOf('review-relationships'),before.indexOf('review-relationships')-1);
         await L.setSettings(page,{check:{mode:'off'}});
+        const changed=await stackCard();
+        assert.equal(changed.status,'changed','the stack card shows Changed in source');
+        assert.match(changed.text,/HOST_REL_432/,'the stack card keeps the text it was taken with');
+        await page.evaluate(async({B,key})=>{const M=await import(B+'/src/preset-bank.js');M.takeNewText(M.currentBank(),key,['base::review-relationships']);},{B:L.BASE,key:changed.stack});
         L.mode({reply:'Mira waits.'}); L.resetLog();await L.send(page,'I wait.');
-        assert.ok(L.text(L.requests()[0]).includes('HOST_EDIT_432'),'the edited block reaches the request');
+        assert.ok(L.text(L.requests()[0]).includes('HOST_EDIT_432'),'the edited block reaches the request after Take the new text');
         await open(block);await click(block.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
         await open(block);assert.equal(await block.getByLabel('Preset prompt',{exact:true}).inputValue(),'HOST_REL_432');
         assert.deepEqual(await order(),before);
@@ -48,7 +58,7 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
         assert.equal(await added.count(),0);
         // B34: the conflict call runs only on her tap and lists what could cause a problem; an empty list reads as none found.
         await pageTab('presets');await open(wb);
-        const conflicts=wb.locator('#ri-conflicts');
+        const conflicts=root.locator('#ri-conflicts');await conflicts.scrollIntoViewIfNeeded();
         L.resetLog();L.mode({reply:'[]'});
         await page.waitForTimeout(300);assert.equal(L.requests().length,0,'opening the page makes no model call');
         await click(conflicts.getByRole('button',{name:/Check conflicts/}));

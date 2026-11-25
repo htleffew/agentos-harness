@@ -144,7 +144,11 @@ test('imported items carry their source and group and are removed as one group; 
     assert.equal(entry.disable, true);
     B.setBankItems(book, dim, entry.extensions.ri.items.filter(i => i.group !== group));
     assert.equal(entry.extensions.ri.items.length, 0);
-    const missing = await I.sendBlocksToBlockBank(out.blocks);
+    // B32 added intakeBlocks to the block bank, so the default path now finds it and the blocks are written.
+    const found = await I.sendBlocksToBlockBank(out.blocks);
+    assert.equal(found.sent, out.blocks.length);
+    assert.equal(found.waiting, 0);
+    const missing = await I.sendBlocksToBlockBank(out.blocks, 'not a function');
     assert.equal(missing.sent, 0);
     assert.equal(missing.waiting, out.blocks.length);
     const taken = [];

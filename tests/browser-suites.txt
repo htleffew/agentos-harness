@@ -2,6 +2,7 @@
 t_50
 t_anywhere
 t_bank_ui
+t_bank_page
 t_book_management
 t_chapter
 t_components
@@ -57,3 +58,5 @@ unit/prompts_ui_v8.cjs
 unit/state_ui.cjs
 t_inject_host
 t_search_host
+t_wrap_buttons
+t_inline_direction_host
