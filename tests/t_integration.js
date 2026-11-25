@@ -39,9 +39,16 @@ async function tap(page, selector) {
     await page.waitForTimeout(300);
 }
 
-async function openSwitches(page) {
-    if (!await page.locator('#ri-preset-switches').evaluate(node => node.open)) await tap(page, '#ri-preset-switches > summary');
-    await page.waitForSelector('#ri-switch-dice', { timeout: 10000 });
+// Who supplies Dice now, read from the stack the way the supplier chip does.
+const supplier = page => page.evaluate(async BASE => {
+    const W = await import(`${BASE}/src/preset-workbench.js`), M = await import(`${BASE}/src/preset-bank.js`);
+    return M.featureState(W.workingPlan(W.switchContext()).plan, 'dice').state;
+}, BASE);
+
+// B36: the By feature view of Setup, Presets, opened the way a supplier chip opens it.
+async function openDiceLane(page) {
+    await page.evaluate(async BASE => (await import(`${BASE}/src/ui/presets-page.js`)).openFeatureLane('dice'), BASE);
+    await page.waitForSelector('#ri-bk-lane-dice', { state: 'attached', timeout: 15000 });
 }
 
 async function run(browser, tag, viewport) {
@@ -153,28 +160,29 @@ async function run(browser, tag, viewport) {
     await page.evaluate(async BASE => { delete (await import(`${BASE}/src/store.js`)).settings().presetSwitches; }, BASE);
     await tap(page, '[data-ri-tab="setup"]');
     await tap(page, '[data-ri-nested="presets"]');
-    // B32: the Ours or Theirs switches sit folded at the foot of the page, retiring, open only while a feature is on Ours.
-    await page.waitForSelector('#ri-switch-dice', { state: 'attached', timeout: 30000 }).catch(async error => { await shot('fail-presets'); throw error; });
-    await openSwitches(page);
-    const before = await page.locator('#ri-switch-dice').getAttribute('data-side');
-    // B24: a feature nobody has chosen is on Both, and the switch offers three sides.
-    assert.equal(before, 'both', 'the default side is Both');
-    assert.deepEqual(await page.locator('#ri-switch-dice .ri-ps-seg').allTextContents(), ['Ours', 'Theirs', 'Both']);
-    await page.locator('#ri-switch-dice').scrollIntoViewIfNeeded();
+    // B36: the Ours or Theirs switches are gone; the stack and its By feature view decide who supplies Dice.
+    await page.waitForSelector('#ri-bank-page', { state: 'attached', timeout: 30000 }).catch(async error => { await shot('fail-presets'); throw error; });
+    assert.equal(await page.locator('#ri-preset-switches, [id^="ri-switch-"], .ri-ps-segmented[aria-label^="Who supplies"]').count(), 0, 'no Ours or Theirs control remains');
+    assert.equal(await page.locator('#ri-preset-workbench').count(), 0, 'no file block editor remains');
+    await openDiceLane(page);
+    const before = await supplier(page);
+    assert.equal(before, 'both', 'the default supplier is Both');
     await shot('8b-presets-both-default');
-    const label = { ours: 'Ours', theirs: 'Theirs', both: 'Both' };
-    const target = before === 'ours' ? 'Theirs' : 'Ours';
-    const seg = page.locator('#ri-switch-dice .ri-ps-seg').filter({ hasText: target });
-    await seg.scrollIntoViewIfNeeded();
-    const segBox = await seg.boundingBox();
-    await page.touchscreen.tap(segBox.x + segBox.width / 2, segBox.y + segBox.height / 2);
-    await page.waitForTimeout(500);
-    const after = await page.locator('#ri-switch-dice').getAttribute('data-side');
+    const lane = page.locator('#ri-bk-lane-dice');
+    await tap(page, '#ri-bk-lane-dice button:text-is("Only RI")');
+    await tap(page, '#ri-bk-lane-dice button:text-is("Apply")');
+    const after = await supplier(page);
     out.checks.presets = { page: await page.evaluate(() => document.querySelector('#ri_panel_page')?.dataset.page), before, after,
         sections: await page.evaluate(() => [...document.querySelectorAll('.ri-shell-section')].map(node => node.textContent)) };
-    await page.locator('#ri-switch-dice').scrollIntoViewIfNeeded();
+    await lane.scrollIntoViewIfNeeded();
     await shot('9-presets-switched');
-    assert.notEqual(after, before);
+    assert.equal(after, 'ri', 'Only RI leaves the extension as the supplier');
+    // The supplier chip reads the same state from the stack and lands on the lane in the By feature view.
+    const chipText = await page.evaluate(async BASE => (await import(`${BASE}/src/ui/presets-page.js`)).supplierChip('dice')?.textContent, BASE);
+    assert.match(chipText, /: RI$/, 'the supplier chip reads RI');
+    await page.evaluate(async BASE => { (await import(`${BASE}/src/ui/presets-page.js`)).supplierChip('dice').click(); }, BASE);
+    await page.waitForSelector('#ri-bk-lane-dice', { state: 'attached', timeout: 15000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'ri-bk-lane-dice', 'tapping the chip lands on the feature lane');
     assert.ok(out.checks.presets.sections.includes('Cleanup'), 'B18 Cleanup sits in the Presets nested tab');
 
     // Close the menu, fold and unfold the bar, then leave it folded for the reload.
@@ -222,27 +230,26 @@ async function run(browser, tag, viewport) {
     assert.ok(out.checks.afterReload.messages >= 3);
     assert.equal(out.checks.afterReload.folded, 'true');
     assert.ok(out.checks.afterReload.tray >= 1);
-    // Reopen the menu on Presets and read the switch the way a player sees it.
+    // Reopen the menu on Presets and read the supplier the way a player sees it.
     await tap(page, '#extensions-settings-button > .drawer-toggle');
     if (!await page.locator('#ri_root').isVisible()) await tap(page, '#ri_drawer .inline-drawer-header');
     await page.waitForTimeout(500);
     out.checks.afterReload.reopenedPage = await page.evaluate(() => document.querySelector('#ri_panel_page')?.dataset.page);
-    if (!await page.locator('#ri-switch-dice').count()) {
+    if (!await page.locator('#ri-bank-page').count()) {
         await tap(page, '[data-ri-tab="setup"]');
         await tap(page, '[data-ri-nested="presets"]');
     }
-    await page.waitForSelector('#ri-switch-dice', { state: 'attached', timeout: 15000 });
-    await openSwitches(page);
-    out.checks.afterReload.diceSide = await page.locator('#ri-switch-dice').getAttribute('data-side');
-    await page.locator('#ri-switch-dice').scrollIntoViewIfNeeded();
+    await page.waitForSelector('#ri-bank-page', { state: 'attached', timeout: 15000 });
+    await openDiceLane(page);
+    out.checks.afterReload.diceSide = await supplier(page);
     await shot('12-presets-after-reload');
-    assert.equal(out.checks.afterReload.diceSide, after, 'the switch survives the reload');
+    assert.equal(out.checks.afterReload.diceSide, after, 'the stack survives the reload');
     assert.equal(out.checks.afterReload.reopenedPage, 'presets', 'the menu reopens where it was');
 
-    // Leave the bar open and the switch where it started for the next width.
-    const flipBack = page.locator('#ri-switch-dice .ri-ps-seg').filter({ hasText: label[before] });
-    const backBox = await flipBack.boundingBox();
-    await page.touchscreen.tap(backBox.x + backBox.width / 2, backBox.y + backBox.height / 2);
+    // Leave the bar open and the stack where it started for the next width.
+    await tap(page, '#ri-bk-lane-dice button:text-is("All")');
+    await tap(page, '#ri-bk-lane-dice button:text-is("Apply")');
+    assert.equal(await supplier(page), before, 'the stack is put back for the next width');
     await page.evaluate(async BASE => { (await import(`${BASE}/src/quick-actions.js`)).setBarFolded(false); }, BASE);
     await page.waitForTimeout(1200);
     out.errors = errors;

@@ -399,8 +399,7 @@ const put = (object, key, value) => Object.defineProperty(object, key, { value, 
 
 /**
  * Bring the bank's stores to the current shape. Malformed version and stack records are dropped, cards with an unknown
- * shape are kept as they are (a stack is never reordered or emptied here), and the Ours or Theirs records stay untouched
- * for one release (legacySwitches reads them).
+ * shape are kept as they are (a stack is never reordered or emptied here), and the stored Ours or Theirs records are left as they are.
  */
 export function migrateBank() {
     const st = stores();
@@ -418,12 +417,6 @@ export function migrateBank() {
     return changed;
 }
 
-/** The stored Ours or Theirs switches of a key, read only. Stacks never start from them. */
-export function legacySwitches(key) {
-    const saved = own(settings().presetSwitches, key) || null;
-    const pin = own(chatState()?.v10?.presetPins, key) || null;
-    return { saved: saved ? copy(saved) : null, pin: pin ? copy(pin) : null };
-}
 
 /** Her own feature tags on a card. Tags label cards and the By feature view; they never change a stack. */
 export function setCardTags(key, tags) {

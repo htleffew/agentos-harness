@@ -1,18 +1,17 @@
-// Setup, Presets (DESIGN.md 7): the preset card, the per-feature Ours, Theirs or Both switch, Works alongside,
-// the preset's blocks, a read-only document view, its regex scripts and saved loadouts.
+// Setup, Presets (DESIGN.md 7): the preset card, the block bank and stack, Works alongside, a read-only document view,
+// its regex scripts and saved loadouts.
 // The page registers through B1's page registry, so it appears in today's panel and in B5's shell alike.
 import { h, button } from './dom.js';
 import { registerPage } from './page-registry.js';
-import { presetBlockEditor } from './preset-workbench.js';
 import { home } from './homes.js';
-import { ctx, on, confirmBox, isChatOpen } from '../st.js';
+import { ctx, on, confirmBox } from '../st.js';
 import { activePreset, enabledV10 } from '../v10.js';
-import { FEATURES, SIDES, plainName, verdictChip, activeProfile } from '../preset-library.js';
+import { FEATURES, plainName, activeProfile } from '../preset-library.js';
 import { profileStatus, profileValues, syncProfile, onProfileChange } from '../preset-profiles.js';
-import { listLoadouts, saveLoadoutFromContext, updateLoadoutFromContext, renameLoadout, deleteLoadout, loadoutConflicts, loadoutName } from '../preset-loadouts.js';
-import { ensureLibrary, libraryStatus, switchContext, resolvedSwitches, switchScope, setSwitches, pinSwitches, bulkSwitches,
-    bulkUndoAvailable, undoBulkSwitches, featureBlockIds, blockFeatures, workingCopyOff, applyWorkingCopy, restoreWorkingCopy,
-    onPresetSelected, syncOwners, onSwitchChange, editPresetBlock, presetBlockRevision } from '../preset-workbench.js';
+import { listLoadouts, saveLoadoutFromContext, updateLoadoutFromContext, renameLoadout, deleteLoadout, loadoutName } from '../preset-loadouts.js';
+import { ensureLibrary, libraryStatus, switchContext, workingPlan, applyWorkingCopy, restoreWorkingCopy,
+    onPresetSelected, syncOwners, onSwitchChange } from '../preset-workbench.js';
+import { featureState } from '../preset-bank.js';
 import { installBankHooks } from '../preset-bank.js';
 import { bankAndStack } from './preset-bank.js';
 
@@ -21,26 +20,38 @@ const hint = text => h('p', { class: 'ri-help' }, text);
 const chip = (text, kind = '') => h('span', { class: `ri-ps-chip${kind ? ' ri-ps-chip-' + kind : ''}` }, text);
 const manager = () => ctx().getPresetManager?.('openai');
 const state = { status: '', loadoutName: '', renaming: null };
-const SIDE_LABEL = { ours: 'Ours', theirs: 'Theirs', both: 'Both' };
-const SIDE_NOTE = { ours: 'the extension supplies it and the preset’s blocks are switched off',
-    theirs: 'the preset supplies it; the extension sends none of its text',
-    both: 'the preset’s blocks stay on and the extension also sends its text' };
+const STATE_LABEL = { ri: 'RI', preset: 'Preset', both: 'Both', off: 'Off' };
+const laneId = key => `ri-bk-lane-${String(key).replace(/[^a-zA-Z0-9_-]+/g, '_')}`;
+const until = async (find, tries = 40) => { for (let i = 0; i < tries; i++) { const node = find(); if (node) return node; await new Promise(done => setTimeout(done, 50)); } return null; };
 
-/** Who supplies a feature now, for a feature page or the Features list; a tap opens the switch. */
-export function supplierChip(key, app) {
-    const context = switchContext();
-    const item = context?.features.switched.find(row => row.key === key);
-    if (!item) return null;
-    const side = resolvedSwitches(context)[key];
-    const text = side === 'theirs' ? `Theirs: ${item.blocks.map(block => plainName(block.name)).join(', ')}` : SIDE_LABEL[side];
-    return h('button', { type: 'button', class: `ri-ps-chip ri-ps-chip-${side}`, title: 'Change who supplies this feature',
-        onclick: () => app?.openPage?.(PAGE_ID, { anchor: `#ri-switch-${key}` }) }, text);
+/** Open Setup, Presets on one feature's lane in the By feature view of the bank. */
+export async function openFeatureLane(key, app) {
+    const view = app || (await import('./panel.js')).app;
+    await view.openPage(PAGE_ID);
+    const press = async selector => {
+        const node = await until(() => document.querySelector(selector));
+        if (node && node.getAttribute('aria-pressed') !== 'true') node.click();
+    };
+    // Narrow, the bank is its own view beside the stack; wide, both show and the toggle is hidden.
+    const bankTab = await until(() => document.querySelector('#ri-bk-view-bank'));
+    if (bankTab?.offsetParent) await press('#ri-bk-view-bank');
+    await press('[data-focus-key="bankview|feature"]');
+    const lane = await until(() => document.getElementById(laneId(key)));
+    if (!lane) return false;
+    lane.tabIndex = -1;
+    lane.scrollIntoView({ block: 'start' });
+    lane.focus({ preventScroll: true });
+    return true;
 }
 
-function segmented(key, side, onPick) {
-    const option = value => h('button', { type: 'button', class: 'ri-ps-seg', 'data-side': value, 'aria-pressed': String(side === value),
-        onclick: () => side !== value && onPick(value) }, SIDE_LABEL[value]);
-    return h('div', { class: 'ri-ps-segmented', role: 'group', 'aria-label': `Who supplies ${FEATURES[key].label}` }, SIDES.map(option));
+/** Who supplies a feature now, read from the stack: RI, Preset, Both or Off. A tap lands on the feature in the By feature view. */
+export function supplierChip(key, app) {
+    const context = switchContext();
+    const plan = context && !context.companion ? workingPlan(context)?.plan : null;
+    if (!plan || !FEATURES[key]) return null;
+    const { state: supplier } = featureState(plan, key);
+    return h('button', { type: 'button', class: `ri-ps-chip ri-ps-chip-${supplier}`, 'data-supplier': supplier, title: `See ${FEATURES[key].label} in the bank, by feature`,
+        onclick: () => { openFeatureLane(key, app); } }, `${FEATURES[key].label}: ${STATE_LABEL[supplier]}`);
 }
 
 const size = value => Number(value).toLocaleString('en-US');
@@ -79,7 +90,6 @@ function presetCard(context, app, rerender) {
     const model = ctx().getChatCompletionModel?.() || '';
     const profile = activeProfile(edition, model);
     const follow = profileStatus();
-    const off = workingCopyOff(context);
     const status = libraryStatus();
     const recognition = marker ? `Loadout of ${marker.base}` : edition ? `${edition.familyLabel}, edition ${edition.label}`
         : status === 'loading' ? 'Reading the preset library' : context.companion ? 'Roleplay Instructions companion preset' : 'Not in the preset library';
@@ -95,10 +105,7 @@ function presetCard(context, app, rerender) {
     const previewText = () => { try { return `Saves as ${loadoutName(marker?.base || context.preset, state.loadoutName)}`; } catch { return 'Saves as <preset> + RI <name>'; } };
     const preview = h('p', { class: 'ri-help' }, previewText());
     const changes = h('details', { class: 'ri-ps-fold' }, h('summary', {}, 'What changes'),
-        marker ? hint('A loadout is sent exactly as saved. The switches below come from its marker.')
-            : off.length ? h('ul', {}, off.map(id => context.blocks.find(block => block.id === id)).filter(Boolean)
-                .map(block => h('li', {}, `${plainName(block.name)}: off in the working copy`))) : hint('The working copy matches the preset; no block is switched off.'),
-        h('ul', {}, context.features.switched.map(item => h('li', {}, `${item.label}: ${SIDE_NOTE[resolvedSwitches(context)[item.key]]}`))));
+        marker ? hint('A loadout is sent exactly as saved.') : hint('The working copy matches the preset; the stack above decides what is sent.'));
     const overrides = edition?.overrides?.length ? h('details', { class: 'ri-ps-fold' }, h('summary', {}, `Overrides (${edition.overrides.length})`),
         edition.overrides.map(item => h('div', { class: 'ri-ps-line' }, h('strong', {}, plainName(item.name)), chip(item.kind === 'customization' ? 'Yours' : item.kind), hint(plainName(item.description))))) : null;
     const profiles = modelProfiles(follow);
@@ -118,79 +125,18 @@ function presetCard(context, app, rerender) {
             name, preview, save));
 }
 
-function conflictFixes(context, conflict, rerender) {
-    return h('div', { class: 'ri-ps-conflict' }, chip('Conflict', 'conflict'),
-        h('span', {}, `${conflict.blocks.map(block => plainName(block.name)).join(', ')} is on again in SillyTavern’s prompt manager.`),
-        button('Turn the block off', async () => {
-            try {
-                for (const block of conflict.blocks) await editPresetBlock(context.preset, block.id, { type: 'enabled', value: false, expected: presetBlockRevision(block.id) });
-                state.status = 'Block turned off in the loadout.';
-            } catch (error) { state.status = error.message || String(error); }
-            rerender();
-        }), button(`Set ${FEATURES[conflict.key].label} to Theirs`, () => { setSwitches(context, { [conflict.key]: 'theirs' }); state.status = `${FEATURES[conflict.key].label} set to Theirs.`; rerender(); }, { kind: 'ghost' }));
-}
-
-function switchList(context, rerender) {
-    const switches = resolvedSwitches(context);
-    const conflicts = new Map(loadoutConflicts(context.marker, switches, context.blocks, featureBlockIds(context)).map(item => [item.key, item]));
-    const owners = blockFeatures(context);
-    const scope = switchScope(context);
-    const { switched, alongside } = context.features;
-    if (context.companion) return h('details', { class: 'ri-ps-fold ri-ps-switches' }, h('summary', {}, 'Ours or Theirs switches'), hint('The Roleplay Instructions companion preset pairs with the extension, so each feature runs once and there is nothing to switch.'));
-    const rows = switched.map(item => {
-        const side = switches[item.key];
-        const theirs = item.blocks.map(block => plainName(block.name)).join(', ');
-        const conflict = conflicts.get(item.key);
-        const blocksOff = context.marker && side === 'theirs' && item.blocks.every(block => !block.enabled);
-        const kept = side === 'ours' && !context.marker ? item.blocks.filter(block => (owners.get(block.id) || []).some(key => switches[key] !== 'ours')) : [];
-        return h('div', { class: 'ri-ps-row', id: `ri-switch-${item.key}`, tabindex: -1, 'data-feature': item.key, 'data-side': side },
-            h('div', { class: 'ri-ps-row-head' }, h('strong', {}, item.label), verdictChip(item.verdict) && chip(verdictChip(item.verdict), item.verdict === 'contradictory' ? 'conflict' : 'tag'),
-                item.matchedBy === 'name' && chip('Matched by block name')),
-            h('div', { class: 'ri-ps-sides' },
-                h('p', { class: 'ri-ps-side' }, h('b', {}, 'Ours: '), FEATURES[item.key].ours),
-                h('p', { class: 'ri-ps-side' }, h('b', {}, 'Theirs: '), theirs),
-                h('p', { class: 'ri-ps-side' }, h('b', {}, 'Both: '), 'Keeps those blocks on and also sends the extension’s text.')),
-            segmented(item.key, side, value => { setSwitches(context, { [item.key]: value }); rerender(); }),
-            item.rule && h('p', { class: 'ri-help' }, item.rule),
-            kept.length ? hint(`Kept on: ${kept.map(block => `${plainName(block.name)} also serves ${(owners.get(block.id) || [])
-                .filter(key => switches[key] !== 'ours').map(key => `${FEATURES[key].label} (${SIDE_LABEL[switches[key]]})`).join(' and ')}`).join('; ')}.`) : null,
-            conflict && conflictFixes(context, conflict, rerender),
-            blocksOff && h('div', { class: 'ri-ps-conflict' }, chip('Blocks off', 'tag'), h('span', {}, 'This loadout keeps the preset’s blocks for it off.'),
-                button('Turn the blocks on', async () => {
-                    try { for (const block of item.blocks) await editPresetBlock(context.preset, block.id, { type: 'enabled', value: true, expected: presetBlockRevision(block.id) }); state.status = 'Blocks turned on in the loadout.'; }
-                    catch (error) { state.status = error.message || String(error); }
-                    rerender();
-                })));
-    });
-    const scopeLine = isChatOpen() ? h('div', { class: 'ri-ps-scope' },
-        h('span', {}, scope === 'chat' ? 'Pinned to this chat.' : context.marker ? `Saved in the loadout ${context.preset}.` : `Saved for ${context.edition ? context.edition.label : context.preset}; every chat on it follows.`),
-        button(scope === 'chat' ? 'Unpin from this chat' : 'Pin to this chat', () => { pinSwitches(context, scope !== 'chat'); rerender(); }, { kind: 'ghost' }))
-        : hint('Open a chat to pin switches to it.');
-    const undo = bulkUndoAvailable(context) && button('Undo', () => { undoBulkSwitches(context); state.status = 'Switches restored.'; rerender(); }, { kind: 'ghost' });
-    // The stack above replaces these switches (A11 d.1). Until B36 retires them they sit folded at the foot of the page, so a
-    // stored Ours tap, which still switches preset rows off in the working copy, stays visible and can be undone.
-    const anyOurs = switched.some(item => switches[item.key] === 'ours');
-    return h('details', { class: 'ri-ps-fold ri-ps-switches', id: 'ri-preset-switches', open: anyOurs || !!state.switchesOpen,
-        ontoggle: event => { state.switchesOpen = event.target.open; } },
-        h('summary', {}, `Ours or Theirs switches, retiring (${switched.length})`, anyOurs ? chip('Ours takes preset rows out', 'ours') : null),
-        hint('The stack above decides what is sent. An Ours side here still switches that feature’s preset rows off in the working copy until these switches retire.'),
+function alongsideList(context) {
+    const { alongside } = context.features;
+    if (context.companion || !alongside.length) return null;
+    return h('details', { class: 'ri-ps-fold', id: 'ri-preset-alongside' }, h('summary', {}, `Works alongside (${alongside.length})`),
         !enabledV10() && hint('Roleplay Instructions is off for this chat, so the extension supplies nothing and the preset is sent as it is.'),
-        scopeLine,
-        switched.length ? h('div', { class: 'ri-ps-bulk' },
-            button('Theirs for everything except memory', () => { bulkSwitches(context, 'theirs'); state.status = 'Theirs for everything except memory.'; rerender(); }, { kind: 'ghost' }),
-            button('Ours for everything', () => { bulkSwitches(context, 'ours'); state.status = 'Ours for everything.'; rerender(); }, { kind: 'ghost' }),
-            button('Both for everything', () => { bulkSwitches(context, 'both'); state.status = 'Both for everything.'; rerender(); }, { kind: 'ghost' }), undo)
-            : hint('This preset offers none of the extension’s features, so the extension supplies them all.'),
-        rows,
-        alongside.length ? h('details', { class: 'ri-ps-fold' }, h('summary', {}, `Works alongside (${alongside.length})`),
-            alongside.map(item => h('div', { class: 'ri-ps-line' }, h('strong', {}, item.label), h('span', {}, ` ${item.blocks.map(block => plainName(block.name)).join(', ')}`), item.rule && hint(item.rule)))) : null);
+        alongside.map(item => h('div', { class: 'ri-ps-line' }, h('strong', {}, item.label), h('span', {}, ` ${item.blocks.map(block => plainName(block.name)).join(', ')}`), item.rule && hint(item.rule))));
 }
 
 function documentView(context) {
-    const off = new Set(workingCopyOff(context));
     const order = context.data.prompt_order?.find?.(group => String(group?.character_id) === '100001')?.order || [];
     const byId = new Map(context.blocks.map(block => [block.id, block]));
-    const parts = order.filter(entry => entry.enabled && !off.has(entry.identifier)).map(entry => byId.get(entry.identifier)).filter(Boolean)
+    const parts = order.filter(entry => entry.enabled).map(entry => byId.get(entry.identifier)).filter(Boolean)
         .map(block => block.marker ? `[${plainName(block.name)}: filled by SillyTavern]` : `## ${plainName(block.name)}\n${block.content}`);
     return h('details', { class: 'ri-ps-fold' }, h('summary', {}, 'Document view of the working copy'),
         hint('Read only. Blocks in their send order with the working copy applied; macros are shown unexpanded.'),
@@ -238,12 +184,12 @@ function loadoutsSection(rerender) {
                         button('Update', async () => {
                             try {
                                 const context = switchContext(selected);
-                                if (item.name !== selected || !context) throw new Error('Select this loadout first; Update writes the switches shown above into it.');
+                                if (item.name !== selected || !context) throw new Error('Select this loadout first; Update writes the stack shown above into it.');
                                 await updateLoadoutFromContext(manager(), item.name, context);
                                 state.status = `Updated ${item.name} from its stack.`;
                             } catch (error) { state.status = error.message || String(error); }
                             rerender();
-                        }, { kind: 'ghost', title: 'Update from the current switches', disabled: item.name !== selected }),
+                        }, { kind: 'ghost', title: 'Update from the current stack', disabled: item.name !== selected }),
                         button('Delete', async () => {
                             if (!await confirmBox(`Delete the preset ${item.name}? SillyTavern removes the file.`)) return;
                             try { await deleteLoadout(manager(), item.name); state.status = `Deleted ${item.name}.`; }
@@ -267,8 +213,7 @@ export function renderPresetsPage(body, app) {
         return;
     }
     host.append(h('p', { class: 'ri-help', role: 'status', id: 'ri-presets-status' }, state.status),
-        presetCard(context, app, rerender), bankAndStack(app), presetBlockEditor(preset, app), documentView(context), regexScripts(context), loadoutsSection(rerender),
-        home('feature-owner', switchList(context, rerender)));
+        presetCard(context, app, rerender), home('feature-owner', bankAndStack(app)), alongsideList(context), documentView(context), regexScripts(context), loadoutsSection(rerender));
     body.append(host);
 }
 
@@ -286,7 +231,7 @@ export function mountPresetsPage() {
     loadPageStyles();
     registerPage({ id: PAGE_ID, group: 'setup', label: 'Presets', withoutChat: true, order: 0,
         help: 'Build the stack the next request sends from the bank of every preset block, the extension’s cards and your versions; save loadouts.',
-        aliases: 'preset bank stack block version compare ours theirs switch loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
+        aliases: 'preset bank stack block version compare feature supplier loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
     ensureLibrary();
     installBankHooks();
     on('GENERATION_STARTED', () => { try { applyWorkingCopy(); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });

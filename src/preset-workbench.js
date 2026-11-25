@@ -1,8 +1,8 @@
 import { ctx } from './st.js';
-import { settings, saveSettings, chatState, saveChatState } from './store.js';
-import { activePreset, prefs, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
-import { FEATURES, FEATURE_KEYS, MEMORY_FEATURES, DEFAULT_SIDE, isSide, startingSwitches, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
-import { readMarker, makeMarker, restoreLoadoutStack } from './preset-loadouts.js';
+import { settings, saveSettings, chatState } from './store.js';
+import { activePreset, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
+import { FEATURE_KEYS, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
+import { readMarker, restoreLoadoutStack } from './preset-loadouts.js';
 import { savedWordingOf } from './preset-bank-ri.js';
 import { currentBank, refreshBank, stackFor, stackPlan, ownersFromStack, useBankLibrary, presetSource, SOURCE_BASE, SOURCE_COMPANION, SOURCE_RI } from './preset-bank.js';
 
@@ -232,8 +232,7 @@ export async function editPresetBlock(preset,id,change) {
         }
     });
 }
-// Per-feature Ours or Theirs switch (DESIGN.md 7). Switches save per preset edition in extension settings;
-// a chat can pin its own copy in its metadata. A loadout's marker supplies its switches when it is selected.
+// The selected preset's context: its edition, blocks and features. (The per-feature Ours or Theirs switch retired in B36.)
 let library = null;
 let libraryState = 'idle';
 const listeners = new Set();
@@ -271,94 +270,9 @@ export function switchContext(name = activePreset()) {
     return { preset: name, data, marker, companion, edition, score: match?.score ?? null, blocks, features, key };
 }
 
-const pinOf = key => { const pins = chatState()?.v10?.presetPins; return pins && Object.hasOwn(pins, key) ? pins[key] : null; };
-const savedOf = key => { const all = settings().presetSwitches; return all && Object.hasOwn(all, key) ? all[key] : null; };
-
-/**
- * The resolved switches for one context: chat pin, then saved edition choices, then the loadout marker, then Both. A side she saved
- * or pinned keeps its value; a feature nobody chose falls to the default, which moved from the old starting sides to Both.
- */
-export function resolvedSwitches(context) {
-    if (!context) return {};
-    const out = { ...startingSwitches(), ...(context.marker?.switches || {}), ...(savedOf(context.key) || {}), ...(pinOf(context.key) || {}) };
-    return Object.fromEntries(FEATURE_KEYS.map(key => [key, isSide(out[key]) ? out[key] : DEFAULT_SIDE]));
-}
-export const switchScope = context => context && pinOf(context.key) ? 'chat' : 'edition';
-
-/** Set one or more switches in the current scope (the chat pin when there is one). */
-export function setSwitches(context, change) {
-    if (!context) return;
-    const clean = Object.fromEntries(Object.entries(change).filter(([key, value]) => Object.hasOwn(FEATURES, key) && isSide(value)));
-    const pin = pinOf(context.key);
-    if (pin) {
-        put(chatState().v10.presetPins, context.key, { ...pin, ...clean });
-        saveChatState();
-    } else {
-        const all = settings().presetSwitches ||= {};
-        put(all, context.key, { ...(savedOf(context.key) || {}), ...clean });
-        saveSettings();
-    }
-    syncOwners();
-    notify();
-}
-
-/** Pin the current switches to this chat, or remove the pin. */
-export function pinSwitches(context, pinned) {
-    const local = prefs();
-    if (!context || !local) return false;
-    const pins = local.presetPins ||= {};
-    if (pinned) put(pins, context.key, resolvedSwitches(context)); else delete pins[context.key];
-    saveChatState();
-    syncOwners();
-    notify();
-    return true;
-}
-
-let undoBulk = null;
-/** "Theirs for everything except memory", "Ours for everything" or "Both for everything"; the previous switches are kept for Undo. */
-export function bulkSwitches(context, mode) {
-    if (!context) return;
-    const listed = context.features.switched.map(item => item.key);
-    undoBulk = { key: context.key, scope: switchScope(context), switches: resolvedSwitches(context) };
-    const side = key => mode === 'ours' || mode === 'both' ? mode : MEMORY_FEATURES.includes(key) ? 'ours' : 'theirs';
-    setSwitches(context, Object.fromEntries(listed.map(key => [key, side(key)])));
-}
-export const bulkUndoAvailable = context => !!context && undoBulk?.key === context.key;
-export function undoBulkSwitches(context) {
-    if (!bulkUndoAvailable(context)) return false;
-    const previous = undoBulk;
-    undoBulk = null;
-    setSwitches(context, previous.switches);
-    return true;
-}
-
 /** Block ids each listed feature owns in the selected preset. */
 export function featureBlockIds(context) {
     return Object.fromEntries((context?.features.switched || []).map(item => [item.key, item.blocks.map(block => block.id)]));
-}
-
-/** Each listed block id with the features that claim it. */
-export function blockFeatures(context) {
-    const owners = new Map();
-    for (const [key, list] of Object.entries(featureBlockIds(context))) for (const id of list) owners.set(id, [...(owners.get(id) || []), key]);
-    return owners;
-}
-
-/**
- * The block ids the working copy switches off: the preset blocks of Ours features, except a block another
- * feature on Theirs or Both also uses, which stays on so that feature keeps its supply. Both switches nothing off.
- * A loadout sends as saved.
- */
-export function workingCopyOff(context, switches = resolvedSwitches(context)) {
-    if (!context || context.marker || context.companion) return [];
-    return oursOnly(context, switches);
-}
-const oursOnly = (context, switches) => [...blockFeatures(context)].filter(([, keys]) => keys.every(key => switches[key] === 'ours')).map(([id]) => id);
-
-/** The marker for saving the current switches as a loadout, or into the selected loadout with Update. */
-export function currentMarker(context) {
-    return makeMarker({ base: context.marker?.base || context.preset, edition: context.edition?.key || null,
-        switches: resolvedSwitches(context), off: context.companion ? [] : oursOnly(context, resolvedSwitches(context)) });
 }
 
 // ----------------------------------------------------------------------------------------------------------------------
@@ -372,8 +286,8 @@ export function currentMarker(context) {
 // A base block she has not tapped in the stack keeps its live state, so a toggle in SillyTavern's prompt manager still
 // applies. The extension's own cards (ri::) are sent by the extension in its fixed group; the stack sets their owners.
 //
-// The interim Ours, Theirs and Both switch keeps its current path until the bank page ships (B32): Both changes nothing,
-// an Ours tap also switches that feature's preset blocks off in the working copy, and a Theirs tap sets the owner 'preset'.
+// A switch she stored before the Ours or Theirs switch retired has no effect: the stack is what is sent, and nothing in it
+// changes without her tap.
 
 /** Inserted prompts carry this flag, so a copy left in the live arrays by a crash is found and removed at the next start. */
 export const INSERT_FLAG = 'ri_bank_insert';
@@ -409,8 +323,7 @@ export function workingPlan(context = switchContext()) {
 /**
  * Mirror the stack into the chat's module owners, which effectiveModules() reads: the extension's card for a feature on in
  * the stack gives 'both', taken out gives 'preset' (the extension sends none of its text and runs none of it). A feature
- * whose card was never in the stack follows its own on or off setting ('both'). A Theirs tap on the interim switch gives
- * 'preset'; a loadout keeps the owners its marker's switches give.
+ * whose card was never in the stack follows its own on or off setting ('both'). A loadout's owners come from its own stack.
  */
 /** The plan of a loadout's own stack (B35), or null when the bank cannot read the loadout. */
 function loadoutPlan(context) {
@@ -421,23 +334,19 @@ function loadoutPlan(context) {
         return stack ? { plan: stackPlan(bank, stack, context.preset) } : null;
     } catch (error) { console.warn('Roleplay Instructions could not read the loadout stack.', error); return null; }
 }
-export const ownerFor = side => side === 'theirs' ? 'preset' : 'both';
 export function syncOwners(context = switchContext(), work = undefined) {
     if (!context || !chatState()) return false;
-    const switches = context.companion ? {} : resolvedSwitches(context);
-    const switched = new Set(context.features.switched.map(item => item.key));
     let wanted;
     // A loadout's owners come from its own stack (restored from the marker, or started from its blocks), not from switches.
     const plan = (context.marker ? loadoutPlan(context) : (work === undefined ? workingPlan(context) : work))?.plan;
-    if (!plan) wanted = Object.fromEntries([...switched].map(key => [key, ownerFor(switches[key])]));
+    if (!plan) wanted = Object.fromEntries(context.features.switched.map(item => [item.key, 'both']));
     else {
         // Her versions of an extension card are sent as inserted blocks; the owner follows the extension's own card.
         // Her saved wording of a feature counts as the feature's card being in the stack (B31).
         const cards = plan.filter(item => item.source === SOURCE_RI || savedWordingOf(item));
         const fromStack = ownersFromStack(cards);
         const placed = new Set(cards.map(item => item.source === SOURCE_RI ? item.id : item.versionOf));
-        wanted = Object.fromEntries(FEATURE_KEYS.map(key => [key,
-            !context.marker && switched.has(key) && switches[key] === 'theirs' ? 'preset' : placed.has(key) ? fromStack[key] : 'both']));
+        wanted = Object.fromEntries(FEATURE_KEYS.map(key => [key, placed.has(key) ? fromStack[key] : 'both']));
         // The companion pairs its own scene checks with the extension's (hostSceneChecks reads an explicit 'both' on
         // preflight as unpaired), so on it a preflight card taken out sets an owner and putting it back clears that owner.
         // Every other feature gets 'both' as on any preset: with no owner, a block the stack sends that matches a feature
@@ -509,7 +418,7 @@ function insertedPrompt(item, identifier) {
  * The live order the stack gives, without touching the live arrays: the entries in send order, the prompts to insert,
  * the flags to set and the texts to swap. Pure over its inputs, so tests and the page can read it.
  */
-export function workingCopyChanges(data, work, off = []) {
+export function workingCopyChanges(data, work) {
     const order = sequence(data);
     const out = { order: [...order], inserts: [], flags: [], texts: [] };
     const live = new Map();
@@ -551,7 +460,6 @@ export function workingCopyChanges(data, work, off = []) {
             const tapped = !card || item.on !== card.shippedOn;
             let want = entry ? entry.enabled === true : false;
             if (tapped) want = item.on;
-            if (off.includes(item.id)) want = false;
             if (!entry) {
                 if (want) { const row = { identifier: item.id, enabled: true }; place(row); out.flags.push({ entry: row, added: true }); }
                 continue;
@@ -567,9 +475,6 @@ export function workingCopyChanges(data, work, off = []) {
         out.inserts.push(prompt);
         place({ identifier, enabled: true });
     }
-    // An Ours tap on the interim switch also covers preset rows the stack does not hold.
-    const flagged = new Set(out.flags.map(flag => flag.entry));
-    for (const entry of order) if (off.includes(entry.identifier) && entry.enabled === true && !flagged.has(entry)) out.flags.push({ entry, value: false });
     // Her versions of the extension's cards go with the RI group, at the placement the card carries (depth 0 at the end).
     // Her saved wording of a feature is part of the extension's own group (B31), so it is not inserted here as well.
     for (const item of work.plan.filter(entry => entry.group === 'ri' && entry.source !== SOURCE_RI && entry.on && !savedWordingOf(entry))) {
@@ -595,8 +500,8 @@ export function applyWorkingCopy() {
     if (!context || context.marker || !enabledV10()) return 0;
     const work = workingPlan(context);
     syncOwners(context, work);
-    // A base the bank cannot read (no preset list on this host) still gets the interim switch's Ours taps.
-    const changes = workingCopyChanges(data, work || { source: { cards: [] }, plan: [] }, workingCopyOff(context));
+    // A base the bank cannot read (no preset list on this host) is sent as it is.
+    const changes = workingCopyChanges(data, work || { source: { cards: [] }, plan: [] });
     const unchanged = !changes.inserts.length && !changes.flags.length && !changes.texts.length && changes.order.every((entry, i) => entry === order[i]);
     if (unchanged) return 0;
     const snapshot = { prompts: data.prompts, order, promptList: [...data.prompts], entries: [...order], flags: [], texts: [] };
@@ -628,15 +533,11 @@ export function restoreWorkingCopy() {
     writeJournal(null);
 }
 
-/** When a loadout becomes active, drop unsaved switch edits for it so its marker's switches are restored. */
+/** When a preset or loadout becomes active: a loadout's saved stack goes back, then the owners follow the stack. */
 export function onPresetSelected() {
     const context = switchContext();
     // Selecting a loadout puts its saved stack back exactly (B35); a stack she edited since is replaced until she updates it.
     if (context?.marker?.stack) restoreLoadoutStack(context.preset, context.data, { force: true });
-    if (context?.marker && savedOf(context.key)) {
-        delete settings().presetSwitches[context.key];
-        saveSettings();
-    }
     syncOwners(context);
     notify();
 }

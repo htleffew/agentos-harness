@@ -3,7 +3,7 @@ import { DEFAULT_STORY_AVOID } from '../defaults.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
 import { executionPreview, executionReceipt, executionScope } from '../execution.js';
 import { presetWorkbench } from './preset-workbench.js';
-import { switchContext } from '../preset-workbench.js';
+import { supplierChip } from './presets-page.js';
 import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
 import { roastVoiceEditor } from './prompts.js';
@@ -533,7 +533,7 @@ function advancedPrompts(preset, app) {
 
 function presetLinks(app) {
     return h('div',{class:'ri-note ri-home-link','data-home-link':'preset'},
-        h('span',{},'The active preset, its blocks, the Ours or Theirs switch for each feature and saved loadouts are in Setup, Presets.'),
+        h('span',{},'The active preset, the block bank and stack, who supplies each feature and saved loadouts are in Setup, Presets.'),
         button('Open Setup, Presets',()=>app.openPage('presets'),{kind:'ghost'}));
 }
 
@@ -558,14 +558,14 @@ function hostOverlap(key, owner, enabled) {
     } else {
         status=active ? 'The host preset has a matching block on. The extension skips this module.'
             : unknown ? 'The host preset is selected. Block status is unavailable. The extension skips this module.'
-                : 'All matching host blocks are off. To use this feature, enable a block in the host Prompt Manager or choose Ours in Setup, Presets.';
+                : 'All matching host blocks are off. To use this feature, enable a block in the host Prompt Manager or put the extension’s card in the stack in Setup, Presets.';
     }
-    // The Presets card owns the choice and rewrites each feature's owner from it at every reply, so this page only links to it.
-    const listed = switchContext()?.features.switched.some(item=>item.key===key);
+    // The stack on Setup, Presets decides who supplies a feature; this page shows the supplier and links to the feature there.
+    const supplier = supplierChip(key);
     return h('details',{id:`${id}-details`,class:'ri-module-overlap',open:owner.blocked},
         h('summary',{},'Instruction source & diagnostics'),
-        homeLink(null,'feature-owner',`Who supplies ${MODULES[key]} is set with the Ours, Theirs or Both switch in Setup, Presets.`,
-            listed ? { anchor:`#ri-switch-${key}` } : undefined),
+        supplier ? h('div',{class:'ri-note ri-home-link','data-home-link':'feature-owner'},h('span',{},`Who supplies ${MODULES[key]} is read from the stack in Setup, Presets.`),supplier)
+            : homeLink(null,'feature-owner',`Who supplies ${MODULES[key]} is set by the stack in Setup, Presets.`),
         h('p',{class:'ri-help',id:`${id}-status`},status),
         h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in host preset`,
             block.blocks.filter(entry=>entry.content).map(entry=>h('pre',{class:'ri-v10-prompt-text'},entry.content))))));

@@ -1,4 +1,4 @@
-// B12 and B30: recognition, the interim per-feature switch, and the block-bank stack applied as the working copy.
+// B12 and B30: recognition, and the block-bank stack applied as the working copy. B36b removed the per-feature switch tests.
 // Run with: node --test tests/t_preset_switch.js
 // A fake SillyTavern context stands in for the host; the request a provider receives is modelled as the enabled
 // blocks of the global prompt order, each with the text of the first live prompt holding its identifier, at the moment
@@ -111,79 +111,6 @@ test('selecting a preset lists the features both sides offer, and the list chang
     const plain = wb.switchContext();
     assert.equal(plain.edition, null);
     assert.deepEqual(plain.features.switched.map(item => [item.key, item.matchedBy]), [['style', 'name'], ['dice', 'name']]);
-});
-
-test('every feature starts on Both (the sides B12 started on are one choice away)', () => {
-    select('Sola');
-    const switches = wb.resolvedSwitches(wb.switchContext());
-    for (const key of lib.FEATURE_KEYS) assert.equal(switches[key], 'both', key);
-});
-
-test('Ours switches the preset blocks off in the working copy only; Theirs sends none of the extension text', () => {
-    select('Sola');
-    const context = wb.switchContext();
-    // The sides B12 started on, chosen explicitly now that the default is Both.
-    wb.setSwitches(context, { state: 'ours', emotions: 'ours', relationships: 'ours', dice: 'ours', colors: 'ours',
-        style: 'theirs', preflight: 'theirs', knowledge: 'theirs', plots: 'theirs', worldEvents: 'theirs', roast: 'theirs', roastFeedback: 'theirs' });
-    const ids = wb.featureBlockIds(context);
-    const before = JSON.stringify(stored.Sola);
-    const live = JSON.stringify(host.chatCompletionSettings);
-    const sent = assemble();
-    const only = (mine, other) => mine.filter(id => !other.includes(id));
-    const shared = ids.state.filter(id => ids.style.includes(id));
-    assert.ok(only(ids.state, ids.style).length && shared.length, 'the fixture needs exclusive and shared blocks');
-    for (const id of only(ids.state, ids.style)) assert.equal(sent.includes(id), false, 'a story state block was sent');
-    for (const id of ids.style) assert.equal(sent.includes(id), true, 'a writing style block was dropped');
-    assert.equal(JSON.stringify(stored.Sola), before, 'the saved preset changed');
-    assert.equal(JSON.stringify(host.chatCompletionSettings), live, 'the live preset kept the working copy');
-    const modules = effectiveModules();
-    assert.equal(modules.style, false, 'Theirs still sends the extension writing guidance');
-    assert.equal(modules.state, true, 'Ours does not run the extension story state');
-    // Flip both and check again.
-    wb.setSwitches(context, { style: 'ours', state: 'theirs' });
-    const flipped = assemble();
-    const switches = wb.resolvedSwitches(wb.switchContext());
-    for (const [id, keys] of wb.blockFeatures(wb.switchContext())) {
-        assert.equal(flipped.includes(id), !keys.every(key => switches[key] === 'ours'), `${id} claimed by ${keys}`);
-    }
-    for (const id of ids.state) assert.equal(flipped.includes(id), true, 'a block of a Theirs feature was dropped');
-    assert.equal(effectiveModules().style, true);
-    assert.equal(effectiveModules().state, false);
-});
-
-test('choices save per edition, other chats follow, and a chat can pin its own', () => {
-    select('Sola');
-    const context = wb.switchContext();
-    assert.equal(wb.switchScope(context), 'edition');
-    assert.equal(host.extensionSettings.roleplay_instructions.presetSwitches['sola/kindling-v2'].style, 'ours');
-    openChat('B');
-    assert.equal(wb.resolvedSwitches(wb.switchContext()).style, 'ours', 'chat B does not follow the edition choice');
-    wb.pinSwitches(wb.switchContext(), true);
-    wb.setSwitches(wb.switchContext(), { style: 'theirs' });
-    assert.equal(wb.switchScope(wb.switchContext()), 'chat');
-    assert.equal(wb.resolvedSwitches(wb.switchContext()).style, 'theirs');
-    openChat('A');
-    assert.equal(wb.resolvedSwitches(wb.switchContext()).style, 'ours', 'the pin in chat B leaked into chat A');
-    openChat('B');
-    wb.pinSwitches(wb.switchContext(), false);
-    assert.equal(wb.resolvedSwitches(wb.switchContext()).style, 'ours');
-    openChat('A');
-});
-
-test('bulk switches have undo', () => {
-    select('Sola');
-    const context = wb.switchContext();
-    const before = wb.resolvedSwitches(context);
-    wb.bulkSwitches(context, 'theirs');
-    const after = wb.resolvedSwitches(wb.switchContext());
-    for (const item of context.features.switched) assert.equal(after[item.key], lib.MEMORY_FEATURES.includes(item.key) ? 'ours' : 'theirs', item.key);
-    assert.equal(wb.bulkUndoAvailable(wb.switchContext()), true);
-    wb.undoBulkSwitches(wb.switchContext());
-    assert.deepEqual(wb.resolvedSwitches(wb.switchContext()), before);
-    wb.bulkSwitches(wb.switchContext(), 'ours');
-    assert.ok(context.features.switched.every(item => wb.resolvedSwitches(wb.switchContext())[item.key] === 'ours'));
-    wb.undoBulkSwitches(wb.switchContext());
-    assert.equal(wb.bulkUndoAvailable(wb.switchContext()), false);
 });
 
 test('with the extension off for a chat, the preset is sent exactly as saved', () => {
@@ -426,24 +353,13 @@ test('nothing is excluded or reordered without her tap: the working copy sends t
     assert.equal(sent.texts.length, onKeys.length, 'the request and the stack hold different cards');
 });
 
-test('an Ours tap switches off a preset row the stack does not hold; the companion gets a preflight owner only for a card taken out', () => {
-    select('Sola');
-    const context = wb.switchContext();
-    const id = wb.featureBlockIds(context).state.find(item => !wb.featureBlockIds(context).style.includes(item));
-    // A row added after the stack was made: the stack does not hold it.
-    const stack = bank.storedStack('sola/kindling-v2');
-    settingsOf().bankStacks['sola/kindling-v2'] = { ...stack, cards: stack.cards.filter(item => item.key !== `base::${id}`) };
-    wb.setSwitches(context, { state: 'ours' });
-    assert.equal(request().rows.some(row => row.id === id), false, 'an Ours row outside the stack was sent');
-    wb.setSwitches(context, { state: 'both' });
-    assert.equal(request().rows.some(row => row.id === id), true);
-    settingsOf().bankStacks['sola/kindling-v2'] = stack;
+test('the companion gets a preflight owner only for a card taken out', () => {
     select('Roleplay Instructions V10');
     const b = bank.refreshBank();
     const key = bank.stackFor(b, 'Roleplay Instructions V10').key;
     request();
     const owners = () => chats.A.roleplay_instructions.v10.moduleOwners?.['Roleplay Instructions V10'] || {};
-    // Both is the default for every feature (DECISIONS 2026-11-24, B24): only preflight is left without an owner on the
+    // Every feature sends both (DECISIONS 2026-11-24, B24): only preflight is left without an owner on the
     // companion, because hostSceneChecks reads an explicit 'both' there as unpaired.
     assert.equal(owners().preflight, undefined, 'the companion got a preflight owner for a card that is on');
     assert.equal(owners().relationships, 'both');
@@ -462,7 +378,7 @@ test('with the extension off for the chat, and with a loadout selected as base, 
     chats.A.roleplay_instructions.v10.enabled = false;
     assert.deepEqual(request().rows.map(row => row.id), asSaved(stored.Sola));
     chats.A.roleplay_instructions.v10.enabled = true;
-    const data = lo.buildLoadout(stored.Sola, wb.currentMarker(wb.switchContext()));
+    const data = lo.buildLoadout(stored.Sola, lo.makeMarker({ base: 'Sola', edition: 'sola/kindling-v2', switches: {}, off: [] }));
     stored['Sola + RI Night'] = data;
     bank.refreshBank();
     select('Sola + RI Night');

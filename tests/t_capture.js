@@ -78,7 +78,7 @@ test('the capture request imports its field list from the card catalog; a field 
     for (const card of K.CARDS) all.mode[card.id] = 'tray';
     const every = K.captureFields(K.normalizeConfig(all));
     const schema = C.captureSchema(every);
-    for (const f of every) {
+    for (const f of C.askedFields(every)) {   // B40: a level gauge's reason replaces the Change field
         const cardSchema = schema.properties.state.properties[f.card];
         const props = [].concat(cardSchema.type).includes('array') ? cardSchema.items.properties : cardSchema.properties;
         assert.ok(props[f.field], `${f.key} in the state schema`);

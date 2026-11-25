@@ -1,7 +1,7 @@
 // Exercise the native preset save path and inspect the request delivered to the local model.
-// B12 moved the block workbench to Setup, Presets and B5's shell has no page chooser: pages open through the shell.
-// The per-block instruction source select is gone (B12's Ours or Theirs switch, t_preset_switch.js, owns that), so
-// the four source combinations are retired; the edited block is checked on the wire once.
+// B36 retired the Presets page block editor and B36b retired adoptOwnEdit with it; the stack, the request and Changed in
+// source are read from the bank and the wire. Controls are driven with Playwright actions on a settled panel: each reply's
+// memory capture ends with a panel redraw, and a value set on a node that redraw replaced never reaches the page.
 const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('node:fs');
 (async()=>{
     L.sync();
@@ -11,91 +11,115 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
     preset.name='Roleplay Instructions V10.432';
     preset.prompts.push({identifier:'review-relationships',name:'Internal States Template',role:'system',content:'HOST_REL_432',system_prompt:false});
     for(const order of preset.prompt_order)order.order.push({identifier:'review-relationships',enabled:true});
-    const root=page.locator('#ri_root'), wb=root.locator('.ri-preset-workbench');
-    const block=wb.locator('[data-preset-block="review-relationships"]');
+    const root=page.locator('#ri_root');
     const click=locator=>locator.click();
-    // Blocks sit inside their heading's fold on the Presets page; open the folds around a block first.
     const open=async locator=>{
-        await locator.evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement) if(p.tagName==='DETAILS' && !p.open) p.open=true;});
-        if(!await locator.evaluate(el=>el.open))await click(locator.locator(':scope > summary'));
+        await locator.evaluate(el=>{for(let p=el;p;p=p.parentElement) if(p.tagName==='DETAILS' && !p.open) p.open=true;});
     };
-    const pageTab=tab=>page.evaluate(async({B,tab})=>{const {app}=await import(`${B}/src/ui/panel.js`);await app.openPage(tab,{focusPage:true});await app.setExpanded(true);},{B:L.BASE,tab});
-    const pick=(locator,value)=>locator.evaluate((el,val)=>{el.value=val;el.dispatchEvent(new Event('change',{bubbles:true}));},value);
-    const input=(locator,value)=>locator.evaluate((el,val)=>{el.value=val;el.dispatchEvent(new Event('input',{bubbles:true}));},value);
-    const waitMessage=msg=>wb.locator(':scope > [role=status]').filter({hasText:msg}).waitFor({state:'attached',timeout:7000});
+    // The panel redraws itself when a background job ends (the capture call after each reply ends with changed('checked')),
+    // so the page is driven only once it has stopped redrawing: no new panel body for 400 ms.
+    const settled=()=>page.evaluate(async()=>{
+        let body=document.querySelector('#ri_panel_page'),since=performance.now();
+        while(performance.now()-since<400){await new Promise(r=>setTimeout(r,50));const now=document.querySelector('#ri_panel_page');if(now!==body){body=now;since=performance.now();}}
+    });
+    const pageTab=async tab=>{await page.evaluate(async({B,tab})=>{const {app}=await import(`${B}/src/ui/panel.js`);await app.openPage(tab,{focusPage:true});await app.setExpanded(true);},{B:L.BASE,tab});await settled();};
+    // A reply is done for this suite once memory has captured it and the panel redraw that follows has landed.
+    const send=async text=>{
+        await L.send(page,text);
+        await page.waitForFunction(async B=>{const C=await import(B+'/src/memory/capture.js'),chat=SillyTavern.getContext().chat;return C.isCaptured(chat[chat.length-1]);},L.BASE,{timeout:15000,polling:100});
+        await settled();
+    };
+    const pick=(locator,value)=>locator.selectOption(value);
+    const input=(locator,value)=>locator.fill(value);
     try {
         await L.setupApi(page);
         await page.evaluate(data=>SillyTavern.getContext().getPresetManager('openai').savePreset(data.name,data),preset);
         await L.usePreset(page,preset.name);await L.setupApi(page,{preset:null});await L.openChat(page);
-        // B29 and B30: the stack keeps sending the text a base card was taken with when the preset block changes, until
-        // her tap on Take the new text. Save the stack before the edit so every run starts from the same place.
+        // Only a change from outside RI shows Changed in source.
+        const sendOnce=async text=>{L.mode({reply:'Mira waits.'});L.resetLog();await send(text);return L.text(L.requests()[0]);};
+        const take=(key)=>page.evaluate(async({B,key})=>{const M=await import(B+'/src/preset-bank.js');M.takeNewText(M.currentBank(),key,['base::review-relationships']);},{B:L.BASE,key});
+        const outside=content=>page.evaluate(async({B,content})=>{
+            const pm=SillyTavern.getContext().getPresetManager('openai');const data=JSON.parse(JSON.stringify(pm.getCompletionPresetByName(pm.getSelectedPresetName())));
+            data.prompts.find(p=>p.identifier==='review-relationships').content=content;await pm.savePreset(pm.getSelectedPresetName(),data);
+            const M=await import(B+'/src/preset-bank.js');M.refreshBank('test');},{B:L.BASE,content});
         const stackCard=()=>page.evaluate(async B=>{const M=await import(B+'/src/preset-bank.js');const bank=M.refreshBank('test');const stack=M.stackFor(bank);
             const card=M.stackPlan(bank,stack).find(item=>item.key==='base::review-relationships');return card && {status:card.status,text:card.text,stack:stack.key};},L.BASE);
-        await pageTab('presets');await open(wb);
-        assert.equal((await stackCard()).status,'clean','the stack holds the block before the edit');
-        await open(block);
-        await input(block.getByLabel('Preset prompt',{exact:true}),'HOST_EDIT_432');
-        await click(block.getByRole('button',{name:'Save preset block',exact:true}));await waitMessage('Preset wording saved');
-        assert.match(await block.locator(':scope > summary').textContent(),/Edited/);
-        const order=()=>page.evaluate(()=>SillyTavern.getContext().chatCompletionSettings.prompt_order.find(g=>g.character_id===100001).order.map(e=>e.identifier));
-        const before=await order();await click(block.getByRole('button',{name:'Move up',exact:true}));await waitMessage('Preset order saved');
-        assert.equal((await order()).indexOf('review-relationships'),before.indexOf('review-relationships')-1);
+        // Her own edit goes through the bank's Edit (a customized version in the stack), so the preset file never changes by her hand.
+        assert.equal((await stackCard()).status,'clean','the stack holds the block before any outside change');
         await L.setSettings(page,{check:{mode:'off'}});
-        const changed=await stackCard();
-        assert.equal(changed.status,'changed','the stack card shows Changed in source');
-        assert.match(changed.text,/HOST_REL_432/,'the stack card keeps the text it was taken with');
-        await page.evaluate(async({B,key})=>{const M=await import(B+'/src/preset-bank.js');M.takeNewText(M.currentBank(),key,['base::review-relationships']);},{B:L.BASE,key:changed.stack});
-        L.mode({reply:'Mira waits.'}); L.resetLog();await L.send(page,'I wait.');
-        assert.ok(L.text(L.requests()[0]).includes('HOST_EDIT_432'),'the edited block reaches the request after Take the new text');
-        await open(block);await click(block.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
-        await open(block);assert.equal(await block.getByLabel('Preset prompt',{exact:true}).inputValue(),'HOST_REL_432');
-        assert.deepEqual(await order(),before);
-        const add=wb.locator('details').filter({has:page.getByText('Add a preset block',{exact:true})}).last();
-        await open(add);await input(add.getByLabel('New block name'),'Live addition');await input(add.getByLabel('New prompt'),'ADDED_432');
-        await click(add.getByRole('button',{name:'Add to end of preset'}));await waitMessage('Added an enabled');
-        const added=wb.locator('details[data-preset-block]').filter({has:page.getByText('Live addition',{exact:true})});
-        await open(added);await click(added.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
-        assert.equal(await added.count(),0);
+        assert.ok((await sendOnce('I wait.')).includes('HOST_REL_432'),'the block reaches the request with no tap');
+        // A change from outside RI (SillyTavern saves the preset) still shows Changed in source and keeps the old text.
+        await outside('HOST_OUTSIDE_432');
+        const external=await stackCard();
+        assert.equal(external.status,'changed','a change from outside RI shows Changed in source');
+        assert.match(external.text,/HOST_REL_432/,'the stack card keeps the text it was taken with');
+        assert.ok((await sendOnce('Still waiting.')).includes('HOST_REL_432'),'the old text is still sent');
+        await take(external.stack);
+        assert.ok((await sendOnce('Now.')).includes('HOST_OUTSIDE_432'),'the outside text is sent after Take the new text');
+        await outside('HOST_REL_432');await take(external.stack);
+        assert.equal((await stackCard()).status,'clean');
         // B34: the conflict call runs only on her tap and lists what could cause a problem; an empty list reads as none found.
-        await pageTab('presets');await open(wb);
-        const conflicts=root.locator('#ri-conflicts');await conflicts.scrollIntoViewIfNeeded();
+        await pageTab('presets');
+        const conflicts=root.locator('#ri-conflicts');await conflicts.waitFor({state:'attached',timeout:10000});await conflicts.scrollIntoViewIfNeeded();
         L.resetLog();L.mode({reply:'[]'});
         await page.waitForTimeout(300);assert.equal(L.requests().length,0,'opening the page makes no model call');
         await click(conflicts.getByRole('button',{name:/Check conflicts/}));
         for(let i=0;i<60 && L.requests().length<1;i++)await page.waitForTimeout(150);
         await conflicts.locator('.ri-conf-status').filter({hasText:/Check finished/}).waitFor({state:'attached',timeout:9000});
         assert.equal(L.requests().length,1);
-        await open(block);
-        const placement=block.locator('details').filter({has:page.getByText('Placement and generation triggers',{exact:true})}).last();
-        await open(placement);await pick(placement.getByLabel('Prompt placement'),'absolute');
-        await input(placement.getByLabel('Messages from the end'),'2');await input(placement.getByLabel('Priority at this depth'),'42');
-        await placement.getByLabel('swipe',{exact:true}).check();
-        await click(block.getByRole('button',{name:'Save preset block',exact:true}));await waitMessage('Preset wording saved');
-        const saved=await page.evaluate(()=>SillyTavern.getContext().chatCompletionSettings.prompts.find(p=>p.identifier==='review-relationships'));
-        assert.equal(saved.injection_depth,2);assert.equal(saved.injection_order,42);assert.deepEqual(saved.injection_trigger,['swipe']);
-        await open(block);await click(block.getByRole('button',{name:'Restore default'}));await waitMessage('restored');
-        // B31: the extension order is the order of the Extension cards in the stack.
-        const extOrder=wb.locator('details').filter({has:page.getByText('Extension cards',{exact:true})}).last();
-        await open(extOrder);
-        const colorSection=extOrder.locator('[data-ri-card="ri::colors"]');
-        await open(colorSection);await click(colorSection.getByRole('button',{name:'Move earlier'}));
-        L.resetLog();L.mode({reply:'Mira studies the compass.'});await L.send(page,'I take out the compass.');
+        // B31: the extension order is the order of the Extension cards in the stack; the bank's own calls move one.
+        const moveCard=delta=>page.evaluate(async({B,delta})=>{
+            const M=await import(B+'/src/preset-bank.js'),R=await import(B+'/src/preset-bank-ri.js'),V=await import(B+'/src/v10.js');
+            const preset=V.activePreset(),bank=M.currentBank()||M.refreshBank('test'),stack=R.riStack(bank,preset);
+            M.stepCard(bank,stack.key,'ri::colors',delta,{base:preset});
+        },{B:L.BASE,delta});
+        await moveCard(-1);
+        L.resetLog();L.mode({reply:'Mira studies the compass.'});await send('I take out the compass.');
         const reordered=L.text(L.requests()[0]);
         assert.ok(reordered.indexOf('Use ordinary quoted dialogue')>=0 && reordered.indexOf('Use ordinary quoted dialogue')<reordered.indexOf('Scene and character checks:'),'extension order changed the request');
-        const moved=extOrder.locator('[data-ri-card="ri::colors"]');
-        await open(moved);await click(moved.getByRole('button',{name:'Move later'}));
+        await moveCard(1);
         await pageTab('v10');
         const voices=root.locator('details').filter({has:page.getByText('Roast commentator voice and feedback',{exact:true})}).last();
         await open(voices);const picker=voices.getByLabel('Commentator voice',{exact:true});
         const previousVoice=await picker.inputValue();await pick(picker,'voiceDetective');
         const voice=voices.locator('.ri-prompt-editor').first();await open(voice);await input(voice.locator('textarea'),'DETECTIVE_TEST_432');
         await click(voice.getByRole('button',{name:'Update',exact:true}));
+        // Update saves and relabels the picker in the same tap.
         assert.match(await picker.locator('option:checked').textContent(),/Customized/);
         await page.evaluate(async base=>{const p=(await import(base+"/src/v10.js")).prefs();(p.modules ||= {}).roast=true;},L.BASE);
-        L.resetLog();await L.send(page,'What happened?');assert.match(L.text(L.requests()[0]),/DETECTIVE_TEST_432/);
+        L.resetLog();await send('What happened?');assert.match(L.text(L.requests()[0]),/DETECTIVE_TEST_432/);
         await pageTab('v10');await open(voices);await open(voice);await click(voice.getByRole('button',{name:'Restore default prompt',exact:true}));
         assert.doesNotMatch(await picker.locator('option:checked').textContent(),/Customized/);
         await pick(picker,previousVoice);
+        // When the stored voice changes outside this picker, the picker and the editor under it move together.
+        const follows=await page.evaluate(async B=>{
+            const P=await import(B+'/src/ui/prompts.js'),S=await import(B+'/src/store.js'),M=await import(B+'/src/ui/prompt-mirror.js');
+            const group=P.roastVoiceEditor([],'z');document.body.append(group);
+            const before=S.settings().roastVoiceId;S.settings().roastVoiceId='voiceGamer';M.announcePromptChange('voiceGamer');
+            const picked=group.querySelector('select').value,editing=group.querySelector('.ri-prompt-editor')?.dataset.riPrompt;
+            if(before===undefined)delete S.settings().roastVoiceId;else S.settings().roastVoiceId=before;group.remove();
+            return {picked,editing};
+        },L.BASE);
+        assert.deepEqual(follows,{picked:'voiceGamer',editing:'voiceGamer'},'the voice editor follows the picker');
+        // B36b: the Roast prompt has one stored value. The bank card's slot and the Roast voice home edit the same stored prompt,
+        // and the card links to the voice home instead of repeating the voice controls.
+        const shared=await page.evaluate(async B=>{
+            const H=await import(B+'/src/ui/homes.js'),P=await import(B+'/src/ui/prompts.js'),S=await import(B+'/src/store.js'),T=await import(B+'/src/prompts.js');
+            const card=H.slot(['structuredRoast'],'',{bare:true}), voice=P.roastVoiceEditor(['structuredRoast','roastFeedback'],'x');
+            const area=node=>[...node.querySelectorAll('textarea')].find(item=>item.closest('[data-prompt-id],.ri-prompt-editor')&&item.value===T.promptText('structuredRoast'));
+            const before=T.promptText('structuredRoast');
+            const cardArea=card.querySelector('textarea');cardArea.value='SHARED_ROAST_432';cardArea.dispatchEvent(new Event('input',{bubbles:true}));
+            const save=[...card.querySelectorAll('button')].find(item=>item.textContent==='Update');save?.click();
+            const stored=T.promptText('structuredRoast');
+            const voiceAreas=[...voice.querySelectorAll('textarea')].map(item=>item.value);
+            const reopened=P.roastVoiceEditor(['structuredRoast'],'y');
+            const sees=[...reopened.querySelectorAll('textarea')].some(item=>item.value==='SHARED_ROAST_432');
+            [...card.querySelectorAll('button')].find(item=>item.textContent==='Restore default prompt')?.click();
+            return {before,stored,sees,restored:T.promptText('structuredRoast')===before,voiceAreas:voiceAreas.length};
+        },L.BASE);
+        assert.equal(shared.stored,'SHARED_ROAST_432','the bank card slot saves the stored Roast prompt');
+        assert.ok(shared.sees,'the Roast voice home shows the same stored prompt');
+        assert.ok(shared.restored,'restoring from the card restores it everywhere');
         // Wait for the host's debounced settings write before switching presets or closing the browser.
         if(process.env.RI_ST_DIR) {
             const settingsPath=require('node:path').join(process.env.RI_ST_DATA || require('node:path').join(process.env.RI_ST_DIR,'data'),'default-user/settings.json');
@@ -114,16 +138,18 @@ const L=require('./lib.js'), assert=require('node:assert/strict'), fs=require('n
                     const pm=SillyTavern.getContext().getPresetManager('openai');
                     return pm.savePreset(name,{...pm.getCompletionPresetByName(pm.getSelectedPresetName()),prompts:reference.prompts,prompt_order:reference.prompt_order});
                 },{name,reference});
-                await L.usePreset(page,name);await pageTab('presets');await open(wb);
-                await wb.locator('[data-preset-block]').first().waitFor({state:'attached'});
-                const visibleIds=await wb.locator('[data-preset-block]').evaluateAll(rows=>rows.map(row=>row.dataset.presetBlock));
+                await L.usePreset(page,name);await pageTab('presets');
+                const visibleIds=await page.evaluate(async({B,name})=>{
+                    const M=await import(B+'/src/preset-bank.js'),bank=M.refreshBank('test'),source=bank.sources.get(M.presetSource(bank.sids[name]));
+                    return source.cards.map(card=>card.id);
+                },{B:L.BASE,name});
                 const ids=new Set(reference.prompts.map(p=>p.identifier));
                 const source=reference.prompt_order.find(g=>String(g.character_id)==='100001').order.map(e=>e.identifier).filter(id=>ids.has(id));
-                assert.deepEqual(visibleIds.slice(0,source.length),source);
+                assert.deepEqual(visibleIds.filter(id=>source.includes(id)).slice(0,source.length),source);
                 for(const id of ids)assert(visibleIds.includes(id),id);
                 console.log(path.basename(file)+': '+source.length+' ordered, '+ids.size+' supplied blocks accounted for.');
             }
         }
-        assert.deepEqual(errors,[]);console.log('PASS: native order, edited text on the wire, add, per-block restore, the conflict call on tap, placement and a customized commentator in a real request.');
+        assert.deepEqual(errors,[]);console.log('PASS: edited text on the wire, per-block restore, outside changes, the conflict call on tap, extension card order and a customized commentator in a real request.');
     }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

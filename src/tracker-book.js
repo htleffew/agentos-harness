@@ -7,18 +7,21 @@
 //   latestTracker(chat)            the tracker values and plan of the newest reply that has them
 //   trackerEntries(latest, view)   the World Info entries for those values (pure)
 //   buildTrackerBook(...)          entries placed inside the cap, the stamp text and the cards the book carries (pure)
-//   createTrackerBook({ host })    write, schedule and read back the size, over any host
+//   trackerVariables(entries)      the chat variables the kept entries publish, as { name: value } (pure)
+//   createTrackerBook({ host })    write, schedule and read back the size, and keep the chat variables in step, over any host
 //   startTrackerBook()             wires capture, swipes, edits, deletes and the request to SillyTavern
 //
 // The values come from capture (MB3): message.extra.roleplay_instructions.tracker on the showing swipe. The book is never
-// read back as a source. It reaches the request through WORLDINFO_ENTRIES_LOADED, so the chat's own World Info slot stays free.
+// read back as a source. The same values are also set as chat variables (B44): ri_<card>_<field> for a one-subject card,
+// ri_<card>_<name>_<field> for a character card, ri_plan for the plan, so a preset block can read {{getvar::ri_scene_place}}.
+// It reaches the request through WORLDINFO_ENTRIES_LOADED, so the chat's own World Info slot stays free.
 import { createBookWriter, markerOf, safeBookName, STAMP_ID } from './memory/book-writer.js';
 import { hostStoryWorld, TRACKER_PREFIX } from './memory/story-world-book.js';
 import { MEMORY } from './memory/fold.js';
 import { TRACKER_CARDS, SIZE_CAPS, placeTracker, tokensOf } from './memory/inject.js';
 import { replyNumber, onCapture, enabledFields } from './memory/capture.js';
 import { cardById, orderedCards, normalizeConfig, fieldOn } from './cards/catalog.js';
-import { KEY, LOG, on } from './st.js';
+import { KEY, LOG, on, setChatVariable } from './st.js';
 
 export const trackerBookName = chatName => safeBookName(`${TRACKER_PREFIX}${chatName}`);
 /** The tray's plan card is the Director's desk of the memory design. */
@@ -70,15 +73,21 @@ const labelOf = (cardId, fieldId) => {
     return fieldId.replace(/_/g, ' ').replace(/^./, letter => letter.toUpperCase());
 };
 
+/** The short name a card goes by in a variable name; the characters card is "character" so it never meets ri_char_they. */
+const VAR_CARD = Object.freeze({ relationships: 'rel', emotions: 'emo', characters: 'character', directorsDesk: 'plan' });
+const varPart = text => String(text).replace(/[^\p{L}\p{N}]+/gu, '_');
+/** The variable name stem of an entry: the card, then the character or pair for the character cards. */
+const varBase = (id, catalogId) => `ri_${VAR_CARD[catalogId] || varPart(catalogId)}${id.length > catalogId.length ? `_${varPart(id.slice(catalogId.length + 1)) || 'x'}` : ''}`;
+
 const slug = text => String(text ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
 
 /** The lines "Label: value" of one object of field values, with only the fields that are on and have a value. */
-function linesOf(cardId, values, enabled, { skip = new Set() } = {}) {
+function linesOf(cardId, values, enabled, { skip = new Set(), fields = null } = {}) {
     const lines = [];
     for (const [fieldId, raw] of Object.entries(values || {})) {
         if (fieldId === 'name' || !enabled.has(`${cardId}.${fieldId}`)) continue;
         const text = valueText(raw);
-        if (text && !skip.has(text.toLowerCase())) lines.push(`${labelOf(cardId, fieldId)}: ${text}`);
+        if (text && !skip.has(text.toLowerCase())) { lines.push(`${labelOf(cardId, fieldId)}: ${text}`); fields?.push([fieldId, text]); }
     }
     return lines;
 }
@@ -99,10 +108,15 @@ export function presentNames(tracker) {
 export function trackerEntries(latest, { enabled = new Set(), theirs = new Set(), config = null } = {}) {
     if (!latest) return [];
     const entries = [];
-    const add = (card, id, comment, key, lines, head = '') => {
+    // fields: [[fieldId, text]] of the values the entry carries; the chat variables are made from these, so the two never differ
+    const add = (card, id, comment, key, lines, fields = [], catalogId = card) => {
         const body = lines.filter(Boolean);
         if (!body.length) return;
-        entries.push({ id, card, record: card, comment, key: key.filter(Boolean), content: [head || comment, ...body].join('\n') });
+        const base = varBase(id, catalogId);
+        entries.push({
+            id, card, record: card, comment, key: key.filter(Boolean), content: [comment, ...body].join('\n'),
+            vars: fields.map(([field, text]) => [field ? `${base}_${varPart(field)}` : base, text]),
+        });
     };
     const feature = card => TRACKER_CARDS[card]?.feature || cardById(CATALOG_CARD[card] || card)?.module || '';
     const present = presentNames(latest.tracker);
@@ -122,16 +136,25 @@ export function trackerEntries(latest, { enabled = new Set(), theirs = new Set()
             }
             for (const item of items) {
                 const name = clean(valueText(item.name));
-                add(card, unique(`${catalogId}:${slug(name)}`), `${label}: ${name}`, [name], linesOf(catalogId, item, enabled, { skip: new Set([name.toLowerCase()]) }));
+                const fields = [];
+                add(card, unique(`${catalogId}:${slug(name)}`), `${label}: ${name}`, [name], linesOf(catalogId, item, enabled, { skip: new Set([name.toLowerCase()]), fields }), fields, catalogId);
             }
         } else if (isObject(values)) {
-            add(card, unique(catalogId), label, [], linesOf(catalogId, values, enabled));
+            const fields = [];
+            add(card, unique(catalogId), label, [], linesOf(catalogId, values, enabled, { fields }), fields, catalogId);
         }
     }
     const planOn = latest.plan && !theirs.has(feature('directorsDesk')) && (!config || fieldOn(config, 'plan', 'plan'));
-    if (planOn) add('directorsDesk', unique('directorsDesk'), "Director's desk", [], [clean(latest.plan)]);
+    if (planOn) add('directorsDesk', unique('directorsDesk'), "Director's desk", [], [clean(latest.plan)], [['', clean(latest.plan)]], 'directorsDesk');
     for (const entry of entries) { entry.comment = clean(entry.comment); entry.content = entry.content.split('\n').map(clean).filter(Boolean).join('\n'); }
     return entries;
+}
+
+/** The chat variables the kept entries publish: { name: value }. A name two entries would share keeps the first. */
+export function trackerVariables(entries) {
+    const out = {};
+    for (const entry of entries || []) for (const [name, value] of entry.vars || []) if (!Object.hasOwn(out, name)) out[name] = value;
+    return out;
 }
 
 /** The text of the first, disabled entry. */
@@ -172,17 +195,43 @@ export const cardOfEntry = entry => String(markerOf(entry)?.record || '');
 export function createTrackerBook({ host, writer = createBookWriter({ loadBook: host.books.load, saveBook: host.books.save, now: host.now }) }) {
     const name = () => trackerBookName(host.chatInfo().name);
     let last = null;
+    let setNames = new Set();
+
+    /**
+     * Set the chat variables of a built book and clear the ones an earlier write set that it no longer carries (a card
+     * switched off, a field emptied, a character gone). The names set are kept in chat data so a reload still clears them.
+     */
+    async function applyVars(built) {
+        const vars = host.vars, meta = host.meta?.();
+        if (!vars) return;
+        const next = trackerVariables(built?.entries);
+        const held = (meta?.[MEMORY]?.trackerVars || []).map(String);
+        for (const old of new Set([...held, ...setNames])) if (!Object.hasOwn(next, old)) vars.del(old);
+        for (const [key, value] of Object.entries(next)) if (String(vars.get(key) ?? '') !== value) vars.set(key, value);
+        setNames = new Set(Object.keys(next));
+        const names = [...setNames];
+        if (meta && JSON.stringify(held) !== JSON.stringify(names)) {
+            (meta[MEMORY] ||= {}).trackerVars = names;
+            await host.saveMeta?.();
+        }
+    }
+
+    /** Bring the chat variables to the values of the showing reply now, without writing the book. No model call. */
+    async function syncVars() { await applyVars(buildTrackerBook(host.chat(), await host.view())); }
+    /** Clear every chat variable the book set (the extension is off, or the chat is not imported). */
+    const clearVars = () => applyVars(null);
 
     async function spec() {
         const info = host.chatInfo();
         const built = buildTrackerBook(host.chat(), await host.view());
+        await applyVars(built);
         const known = host.meta()?.[MEMORY]?.trackerBook;
         // a chat with no tracker values and no book of its own gets none
         if (!built.latest && !(known && known.name === trackerBookName(info.name))) { last = { built, skipped: true }; return null; }
         last = { built };
         return {
             name: trackerBookName(info.name), kind: 'tracker', chat: { id: info.id, name: info.name, avatar: info.avatar || '', group: info.group || '' },
-            stamp: built.stamp, entries: built.entries.map(({ card, ...entry }) => entry), onEdit: 'replace',
+            stamp: built.stamp, entries: built.entries.map(({ card, vars, ...entry }) => entry), onEdit: 'replace',
         };
     }
 
@@ -220,7 +269,7 @@ export function createTrackerBook({ host, writer = createBookWriter({ loadBook: 
     /** The saved book as SillyTavern holds it, or null. */
     const read = () => host.books.load(name());
 
-    return { name, spec, write, schedule, read, built: () => last?.built || null, receipts: () => writer.receipts(), settled: () => writer.settled(name()) };
+    return { name, spec, write, schedule, read, syncVars, clearVars, variables: () => [...setNames], built: () => last?.built || null, receipts: () => writer.receipts(), settled: () => writer.settled(name()) };
 }
 
 // ---------------------------------------------------------------- the request
@@ -257,6 +306,11 @@ export function hostTrackerBook(getContext = () => globalThis.SillyTavern.getCon
     return {
         ...base,
         meta: () => getContext().chatMetadata,
+        vars: {
+            get: name => { try { return getContext().variables.local.get(name); } catch { return undefined; } },
+            set: setChatVariable,
+            del: name => { try { getContext().variables.local.del(name); } catch (error) { console.warn(LOG, 'could not clear variable', name, error); } },
+        },
         refresh: async () => (await import('./st.js')).refreshWorldList(),
         saveMeta: async () => { const c = getContext(); await (c.saveMetadata?.() ?? c.saveChat?.()); },
         async view() {
@@ -291,6 +345,18 @@ export function startTrackerBook() {
     };
     onCapture(event => { if (event.phase === 'done') queue(); });
     for (const event of ['MESSAGE_SWIPED', 'MESSAGE_EDITED', 'MESSAGE_DELETED', 'CHAT_CHANGED']) on(event, queue);
+    // The chat variables follow the showing reply at once, and again as a generation starts (SillyTavern waits for this
+    // handler, and the macros are read after it), so a swipe or delete never leaves the last reply's values in a request.
+    const syncVars = async () => {
+        try {
+            const [{ settings }, c] = [await import('./store.js'), globalThis.SillyTavern.getContext()];
+            if (!c.getCurrentChatId?.()) return;
+            if (settings().enabled === false || !c.chatMetadata?.[MEMORY]?.imported) await trackerBook().clearVars();
+            else await trackerBook().syncVars();
+        } catch (error) { console.warn(LOG, 'tracker variables', error); }
+    };
+    onCapture(event => { if (event.phase === 'done') syncVars(); });
+    for (const event of ['MESSAGE_SWIPED', 'MESSAGE_EDITED', 'MESSAGE_DELETED', 'CHAT_CHANGED', 'GENERATION_STARTED']) on(event, syncVars);
     on('WORLDINFO_ENTRIES_LOADED', async lore => {
         try {
             const c = globalThis.SillyTavern.getContext();

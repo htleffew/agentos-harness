@@ -105,24 +105,6 @@ export function buildLoadout(source, marker, { carrier = 'extensions' } = {}) {
     return data;
 }
 
-/**
- * Ours features whose preset blocks are on in a loadout, named per block (the Conflict chip of DESIGN.md 7).
- * A block another feature on Theirs also uses is meant to stay on and is not a conflict.
- */
-export function loadoutConflicts(marker, switches, blocks, featureBlocks) {
-    if (!marker) return [];
-    const enabled = new Map(blocks.filter(block => block.enabled).map(block => [block.id, block]));
-    const owners = new Map();
-    for (const [key, list] of Object.entries(featureBlocks)) for (const id of list) owners.set(id, [...(owners.get(id) || []), key]);
-    const out = [];
-    for (const [key, list] of Object.entries(featureBlocks)) {
-        if (switches[key] !== 'ours') continue;
-        const on = list.filter(id => enabled.has(id) && owners.get(id).every(owner => switches[owner] === 'ours')).map(id => enabled.get(id));
-        if (on.length) out.push({ key, blocks: on });
-    }
-    return out;
-}
-
 /** Every loadout in a preset list as { name, marker }. */
 export function listLoadouts(manager) {
     const list = manager?.getPresetList?.();
@@ -436,7 +418,7 @@ export async function loadoutInputs(manager, context) {
     if (!marker) {
         const work = wb.workingPlan(context);
         if (!work) throw new Error('This preset has no stack to save yet. Open Setup, Presets once and try again.');
-        return { base: context.preset, source: context.data, work, off: wb.workingCopyOff(context), edition: context.edition?.key || null };
+        return { base: context.preset, source: context.data, work, off: [], edition: context.edition?.key || null };
     }
     let baseName = context.preset, source = context.data;
     if (marker.stack) {

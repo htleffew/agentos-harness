@@ -42,6 +42,7 @@ export const JOBS = Object.freeze({
     judgment: { label: 'Judgment call', tier: 'quick', judgment: true },
     capture: { label: 'Capture', tier: 'quick' },
     statSheets: { label: 'Stat sheets', tier: 'quick', chain: 'capture' },
+    choices: { label: 'Choices', tier: 'quick', chain: 'capture' },
     chapter: { label: 'Chapter close', tier: 'writer' },
     storySoFar: { label: 'Story so far', tier: 'writer', chain: 'chapter' },
     tidy: { label: 'Tidy', tier: 'cleanup' },

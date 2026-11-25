@@ -79,32 +79,29 @@ test('the marker survives save, export and import as JSON, and Update of an exis
     select('Sola');
     const context = wb.switchContext();
     assert.equal(context.edition.key, edition.key);
-    const name = await lo.saveLoadout(manager, { preset: 'Sola', name: 'Noir nights', data: context.data, marker: wb.currentMarker(context) });
+    const marker = lo.makeMarker({ base: 'Sola', edition: edition.key, switches: { style: 'theirs', state: 'ours' }, off: [] });
+    const name = await lo.saveLoadout(manager, { preset: 'Sola', name: 'Noir nights', data: context.data, marker });
     assert.equal(name, 'Sola + RI Noir nights');
     assert.equal(selected, name, 'Save as loadout leaves the loadout selected');
     const exported = JSON.stringify(files[name], null, 4);
     const imported = JSON.parse(exported);
-    assert.deepEqual(lo.readMarker(imported).switches, wb.resolvedSwitches(context));
+    assert.deepEqual(lo.readMarker(imported).switches, marker.switches);
     assert.deepEqual(lo.listLoadouts(manager).map(item => item.name), [name]);
     // Update writes fresh switches into the selected loadout.
-    const loaded = wb.switchContext();
-    wb.setSwitches(loaded, { style: 'ours' });
-    await lo.updateLoadout(manager, name, wb.switchContext().data, wb.currentMarker(wb.switchContext()));
+    const claims = wb.featureBlockIds(context);
+    const styleOnly = claims.style.filter(id => !Object.entries(claims).some(([key, list]) => key !== 'style' && list.includes(id)));
+    await lo.updateLoadout(manager, name, wb.switchContext().data, lo.makeMarker({ base: 'Sola', edition: edition.key, switches: { style: 'ours' }, off: styleOnly }));
     assert.equal(lo.readMarker(files[name]).switches.style, 'ours');
-    await assert.rejects(lo.saveLoadout(manager, { preset: 'Sola', name: 'Noir nights', data: context.data, marker: wb.currentMarker(context) }), /already exists/);
+    await assert.rejects(lo.saveLoadout(manager, { preset: 'Sola', name: 'Noir nights', data: context.data, marker }), /already exists/);
 });
 
-test('selecting a loadout restores its switches and applies no second working copy', () => {
+test('selecting a loadout applies no second working copy', () => {
     select('Sola');
-    wb.setSwitches(wb.switchContext(), { state: 'theirs', dice: 'ours' });
     select('Sola + RI Noir nights');
-    wb.setSwitches(wb.switchContext(), { emotions: 'theirs' });
     wb.onPresetSelected();
     const context = wb.switchContext();
     assert.ok(context.marker);
     assert.equal(context.key, 'loadout:Sola + RI Noir nights');
-    assert.deepEqual(wb.resolvedSwitches(context), lo.readMarker(files['Sola + RI Noir nights']).switches);
-    assert.deepEqual(wb.workingCopyOff(context), [], 'a loadout got a second working copy');
     const before = enabledIds(host.chatCompletionSettings);
     assert.equal(wb.applyWorkingCopy(), 0);
     assert.deepEqual(enabledIds(host.chatCompletionSettings), before, 'the loadout was not sent as saved');
@@ -112,20 +109,6 @@ test('selecting a loadout restores its switches and applies no second working co
     for (const id of lo.readMarker(files['Sola + RI Noir nights']).off) assert.equal(before.includes(id), false, 'an Ours block is on in the loadout');
 });
 
-test('a block turned back on that the marker says Ours supplies shows a Conflict with its feature', async () => {
-    select('Sola + RI Noir nights');
-    const context = wb.switchContext();
-    const switches = wb.resolvedSwitches(context);
-    const off = lo.readMarker(context.data).off;
-    assert.deepEqual(lo.loadoutConflicts(context.marker, switches, context.blocks, wb.featureBlockIds(context)), []);
-    const order = host.chatCompletionSettings.prompt_order[0].order;
-    order.find(entry => entry.identifier === off[0]).enabled = true;
-    const again = wb.switchContext();
-    const conflicts = lo.loadoutConflicts(again.marker, switches, again.blocks, wb.featureBlockIds(again));
-    assert.equal(conflicts.length >= 1, true);
-    assert.ok(conflicts.some(item => switches[item.key] === 'ours' && item.blocks.some(block => block.id === off[0])));
-    order.find(entry => entry.identifier === off[0]).enabled = false;
-});
 
 test('the comment-row fallback carries the marker in a disabled row whose text is a comment macro', () => {
     const marker = lo.makeMarker({ base: 'Sola', edition: edition.key, switches: { state: 'ours', dice: 'ours' }, off: ['x'] });

@@ -15,7 +15,7 @@ export const SHINGLE_WORDS = 3;
 
 export const NOTE_KINDS = Object.freeze(['same-text', 'near-copy', 'verdict', 'pick-one', 'variable-early', 'variable-unread', 'guard-off', 'landmark']);
 
-// The block editor's lock and pick-one name rules (src/ui/preset-workbench.js), kept here so this file needs no DOM.
+// The lock and pick-one name rules, held here once; every reader imports them from this file.
 const LOCK = /\u{1F512}|\block(?:ed)?\b|\bjailbreak\b|\bguard\b|\bdo not (?:edit|touch|remove|disable)\b|\brequired\b|\bmandatory\b/iu;
 const PICK = /\[\s*pick\s*(?:1|one)\s*(?::\s*([^\]]*))?\]/i;
 const RULE_CHARS = /[\u{2550}\u{2501}\u{2500}\u{2014}=_~*#]{3,}|^\s*\/\/|^\s*#{1,6}\s|^\s*[\u{2500}-\u{257F}]/u;

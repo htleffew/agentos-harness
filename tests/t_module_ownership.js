@@ -1,12 +1,9 @@
-// B39: who places the relationships module's rule, read from the real requests in the mock log, for Ours, Theirs and Both.
+// B39, reworked in B36b: who places the relationships module's rule, read from the real requests in the mock log.
 //
-// Since MB3 the reply request carries no update block, so the extension's relationship filing rule ("For a relationship
-// use subject and other") left the reply (memory DESIGN 5.1). The module now reaches the capture request after each reply
-// through the Relationships card's fields (memory DESIGN 5.4 and 7.2). The preset's own block still follows the switch in
-// the reply request. So, per side:
-//   Theirs: the preset's block is in the reply; capture still asks the Relationships fields (memory DESIGN 5.4, MB5).
-//   Ours:   the preset's block is left out of the reply; capture asks the Relationships fields.
-//   Both:   the preset's block is in the reply, and capture asks the Relationships fields.
+// The Ours or Theirs switch retired (DECISIONS 2026-11-24, Presets compose freely), so a stored Ours or Theirs has no effect.
+// With either stored, or none, the preset's block stays in the reply and the extension's Relationships fields reach capture.
+// The reply carries no update block (MB3); the module reaches the capture request after each reply through the Relationships
+// card's fields (memory DESIGN 5.4 and 7.2). The module switched off removes the fields from capture and leaves the preset's block.
 const L = require('./lib.js');
 const fs = require('node:fs');
 const companion = JSON.parse(fs.readFileSync(new URL('../presets/Roleplay%20Instructions%20V10.json', `file://${__filename}`)));
@@ -29,10 +26,11 @@ const count = (text, phrase) => text.split(phrase).length - 1;
     imported.prompts.push(block);
     for (const group of imported.prompt_order) group.order.splice(1, 0, { identifier: block.identifier, enabled: true });
     const savePreset = preset => page.evaluate(preset => SillyTavern.getContext().getPresetManager('openai').savePreset(preset.name, preset), preset);
-    // The Presets card's switch for every shared feature of the selected preset (B12, B24).
+    // What an earlier release stored for every shared feature of the selected preset: it has no effect now.
     const sides = side => ext(async ({ B, value }) => {
-        const wb = await import(`${B}/src/preset-workbench.js`), context = wb.switchContext();
-        wb.setSwitches(context, Object.fromEntries(context.features.switched.map(item => [item.key, value])));
+        const wb = await import(`${B}/src/preset-workbench.js`), S = await import(`${B}/src/store.js`), context = wb.switchContext();
+        (S.settings().presetSwitches ||= {})[context.key] = Object.fromEntries(context.features.switched.map(item => [item.key, value]));
+        wb.syncOwners();
     }, side);
     const owner = () => ext(async ({ B }) => { const v = await import(`${B}/src/v10.js`); const o = v.moduleOwnership().relationships; return { choice: o?.choice, module: v.effectiveModules().relationships }; });
     let turn = 0;
@@ -63,8 +61,8 @@ const count = (text, phrase) => text.split(phrase).length - 1;
         await page.waitForFunction(async ({ B, name }) => (await import(`${B}/src/v10.js`)).activePreset() === name, { B: L.BASE, name: imported.name });
 
         const expected = {
-            theirs: { choice: 'preset', module: false, host: 1, field: true },
-            ours: { choice: 'both', module: true, host: 0, field: true },
+            theirs: { choice: 'both', module: true, host: 1, field: true },
+            ours: { choice: 'both', module: true, host: 1, field: true },
             both: { choice: 'both', module: true, host: 1, field: true },
         };
         for (const [side, want] of Object.entries(expected)) {
@@ -80,12 +78,12 @@ const count = (text, phrase) => text.split(phrase).length - 1;
             assert(capture.includes(FIELD) === want.field, `${side}: the capture request ${want.field ? 'asks' : 'does not ask'} the Relationships fields`);
         }
 
-        // The module switched off in this chat on Ours: neither request carries anything of it.
+        // The module switched off in this chat with an Ours stored: the preset's block stays, and capture carries none of the fields.
         await sides('ours');
         await ext(async ({ B }) => { const v = await import(`${B}/src/v10.js`); const S = await import(`${B}/src/store.js`); (v.prefs().modules ||= {}).relationships = false; S.saveChatState(); });
         const off = await exchange('module off');
         evidence.oursModuleOff = { hostRuleInReply: count(off.reply, HOST_RULE), relationshipFieldInCapture: off.capture.includes(FIELD) };
-        assert(count(off.reply, HOST_RULE) === 0 && !!off.capture && !off.capture.includes(FIELD), 'module off: no preset block in the reply and no Relationships fields in capture');
+        assert(count(off.reply, HOST_RULE) === 1 && !!off.capture && !off.capture.includes(FIELD), 'module off: the preset block stays in the reply and capture has no Relationships fields');
         await ext(async ({ B }) => { const v = await import(`${B}/src/v10.js`); const S = await import(`${B}/src/store.js`); delete v.prefs().modules.relationships; S.saveChatState(); });
 
         if (process.env.RI_EVIDENCE) {
@@ -95,5 +93,5 @@ const count = (text, phrase) => text.split(phrase).length - 1;
         console.log(JSON.stringify(evidence));
         assert(errors.length === 0, 'no page errors: ' + errors.join(' | ').slice(0, 300));
     } finally { await browser.close(); }
-    console.log(failed ? `t_module_ownership: ${failed} failed` : 'PASS t_module_ownership: the relationships rule follows Ours, Theirs and Both in the reply and capture requests');
+    console.log(failed ? `t_module_ownership: ${failed} failed` : 'PASS t_module_ownership: a stored Ours or Theirs changes nothing in the reply and capture requests');
 })().catch(error => { console.error(error); process.exitCode = 1; });

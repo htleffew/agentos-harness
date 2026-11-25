@@ -7,6 +7,7 @@ import { LOOK_DEFAULTS, lookSettings, SCALE_RANGE, saveLook } from './theme/styl
 import { fitBottom } from './generate-sheet.js';
 import { applyWrap, saveInlineSettings, shownWraps } from '../inline-direction.js';
 import { installInlineUi } from './inline-direction.js';
+import { touchLayoutRow } from './touch-layout.js';
 
 export const HOLD_MS = 450;
 export const SLOP_PX = 10;
@@ -562,6 +563,7 @@ export function renderLookPage(body) {
             h('label', {}, 'Height', h('input', { type: 'range', min: SCALE_RANGE.sheetHeight[0], max: SCALE_RANGE.sheetHeight[1], step: 5,
                 value: look.sheetHeight, 'aria-label': 'Results sheet height',
                 oninput: event => { height.textContent = `${event.target.value}%`; saveLook({ sheetHeight: Number(event.target.value) }); } }), height)),
+        touchLayoutRow(rerender),
         h('button', { type: 'button', class: 'ri-bar-btn', onclick: () => { saveLook({ ...LOOK_DEFAULTS }); rerender(); } }, 'Restore Compact defaults'));
     function rerender() {
         const fresh = h('div');

@@ -10,7 +10,7 @@
 // and Bank segmented control, Compare as a partial sheet; at 760 px and wider the bank and the stack side by side, Compare
 // as columns over the bank.
 import { h, button, toggle } from './dom.js';
-import { slot } from './homes.js';
+import { slot, homeLink } from './homes.js';
 import { conflictSection } from './preset-conflicts.js';
 import { fitBottom } from './generate-sheet.js';
 import { confirmBox, isChatOpen } from '../st.js';
@@ -278,7 +278,9 @@ function riEditor(feature) {
     const ids = MODULE_PROMPTS[feature] || [];
     return h('div', { class: 'ri-bk-editor' },
         hint('This edits the stored prompt the Prompts page also shows. Saved wording goes in as its own card, on, and the shipped card turns off, one tap from back on.'),
-        ids.length ? slot(ids, '', { bare: true, onChange: () => queueDraw() }) : hint('This feature has no stored prompt to edit here.'));
+        ids.length ? slot(ids, '', { bare: true, onChange: () => queueDraw() }) : hint('This feature has no stored prompt to edit here.'),
+        // The commentator voice has one home, in Setup, Features; this card edits only the Roast prompt, the same stored prompt that home shows.
+        feature === 'roast' ? homeLink(appRef, 'roast-voice', 'The commentator voice is set in Setup, Features, beside this prompt.') : null);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------

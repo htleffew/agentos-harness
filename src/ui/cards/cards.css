@@ -1,0 +1,42 @@
+/* The parity cards (B20). Card content takes the chat's story style through the --ri-style-* tokens; the buttons keep
+   the terminal look of the tray's own controls (DESIGN 1.12). Every rule wraps at 390 px with no sideways scroll; only
+   the Map's text grid scrolls inside its own box. */
+.ri-tray-panel .ri-c-legend { margin: 0 0 6px; }
+.ri-tray-panel .ri-c-grid { max-width: 100%; white-space: pre; }
+
+.ri-tray-panel .ri-c-actions { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
+.ri-tray-panel .ri-c-action { min-height: var(--ri-hit-size, 32px); padding: 0 8px; gap: 5px; font-size: var(--ri-card-label); }
+.ri-tray-panel .ri-c-action i { font-size: var(--ri-card-label); }
+
+.ri-tray-panel .ri-c-strain { display: inline-flex; align-items: baseline; gap: 5px; color: var(--ri-style-ink); }
+.ri-tray-panel .ri-c-strain i { color: var(--ri-style-accent); }
+
+.ri-tray-panel .ri-c-secret { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ri-tray-panel .ri-c-note { display: block; font-size: var(--ri-card-label); color: var(--ri-style-muted); overflow-wrap: anywhere; }
+.ri-tray-panel .ri-c-note .ri-c-value { color: inherit; }
+.ri-tray-panel .ri-c-data > .ri-c-change { margin: 0 6px 0 4px; }
+.ri-tray-panel .ri-c-item-change i { font-size: var(--ri-card-label); }
+.ri-tray-panel .ri-c-item-change[data-change="gained"] { color: var(--ri-style-accent); border-color: var(--ri-style-accent); }
+
+.ri-tray-panel .ri-c-face > summary { display: block; }
+.ri-tray-panel .ri-c-face > summary .ri-c-person-head { margin: 0; flex-wrap: nowrap; min-width: 0; }
+.ri-tray-panel .ri-c-face > summary .ri-c-doing { min-width: 0; }
+.ri-tray-panel .ri-c-face[open] > .ri-c-rows { margin-top: 4px; }
+
+.ri-tray-panel .ri-c-achievement .ri-c-person-head { justify-content: space-between; }
+.ri-tray-panel .ri-c-branches { padding-left: 20px; list-style: decimal; }
+.ri-tray-panel .ri-c-conditions { display: inline-flex; flex-wrap: wrap; gap: 2px 12px; }
+.ri-tray-panel .ri-c-conditions .ri-c-severity i { color: var(--ri-style-accent); }
+.ri-tray-panel .ri-c-conditions .ri-c-severity[data-level="severe"] i { color: var(--ri-problem); }
+
+.ri-tray-panel .ri-c-choices { list-style: none; margin: 0 0 6px; padding: 0; counter-reset: none; }
+.ri-tray-panel .ri-c-choice { padding: 6px 0; }
+.ri-tray-panel .ri-c-choice + .ri-c-choice { border-top: 1px solid var(--ri-style-rule); }
+.ri-tray-panel .ri-c-choice-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.ri-tray-panel .ri-c-choice-head strong { color: var(--ri-style-accent); font-weight: 600; }
+.ri-tray-panel .ri-c-choice-n { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; border: 1px solid var(--ri-style-rule);
+    border-radius: var(--ri-style-corner); font-family: var(--ri-font); font-size: var(--ri-card-label); color: var(--ri-style-muted); }
+.ri-tray-panel .ri-c-choice .ri-c-text { margin: 2px 0 0; }
+
+.ri-c-cost { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-family: var(--ri-font); font-size: var(--ri-card-label); color: var(--ri-call); }
+.ri-tray-panel .ri-cost-chip { border-color: var(--ri-call); color: var(--ri-call); }

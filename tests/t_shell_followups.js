@@ -1,10 +1,11 @@
 // B25: three follow-ups from the first integration pass, on a real SillyTavern 1.19.0 host with touch input at
-// 523 x 1021 (mobile layout) and 1006 x 909 (desktop layout).
+// 523 x 1021 and 1006 x 909, both in SillyTavern's phone layout on a touch screen (B45).
 //   1. With nothing under the fold handle it stays centered where B1 puts it. (The check of the handle beside
 //      Pathweaver's left with her ruling of 2026-11-24 that the composer bar replaces Pathweaver.)
 //   2. A chat change leaves the menu on the page it shows, a cross-linked page included, and the reopen rule of
 //      B5 (last page reached through the tabs) still applies when the menu is closed and opened.
-//   3. Restoring a built-in quick action from the Library saves at once: a reload straight after keeps it.
+//   3. Restoring a built-in quick action from the Library saves at once: its own save is answered well inside
+//      SillyTavern's delayed save (1000 ms), and a reload straight after that answer keeps it.
 //
 // Environment:
 //   RI_HOST_URL      SillyTavern with this checkout installed
@@ -118,12 +119,26 @@ async function restoreSaves(page, out) {
     await page.waitForSelector('[data-ri-restore]', { timeout: 15000 });
     const edited = await page.evaluate(async ({ BASE, id }) => (await import(`${BASE}/src/quick-actions.js`)).readQuickAction(id).title, { BASE, id });
     assert.equal(edited, `${title} edited`);
+    // A reload issued while the save request is in flight aborts it (net::ERR_ABORTED), and whether the server already
+    // read the body is then a race no page can win, so the reload waits for the save's answer. The time bound keeps
+    // the check honest: a restore that fell back to the delayed save would answer after 1000 ms.
+    const tapped = Date.now();
+    // Only a save sent from the tap on carries the restore; one sent earlier and answered later does not count.
+    const sentAfterTap = new Set();
+    const record = request => { if (request.url().includes('/api/settings/save')) sentAfterTap.add(request); };
+    page.on('request', record);
+    const saved = page.waitForResponse(response => sentAfterTap.has(response.request()), { timeout: 5000 });
     await page.locator('[data-ri-restore]').tap();
+    const response = await saved;
+    page.off('request', record);
+    const msToSave = Date.now() - tapped;
+    assert.ok(response.ok(), 'the restore save succeeded');
+    assert.ok(msToSave < 700, `the restore saved at once, not through the delayed save (${msToSave} ms)`);
     const started = Date.now();
     await page.reload({ waitUntil: 'networkidle' });
     await ready(page);
     const after = await page.evaluate(async ({ BASE, id }) => (await import(`${BASE}/src/quick-actions.js`)).readQuickAction(id).title, { BASE, id });
-    out.restore = { shipped: title, edited, afterReload: after, msBeforeReload: Date.now() - started };
+    out.restore = { shipped: title, edited, afterReload: after, msToSave, msReload: Date.now() - started };
     assert.equal(after, title, 'the restore survived a reload straight after it');
 }
 

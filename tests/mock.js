@@ -10,6 +10,9 @@ const LOG = process.env.RI_MOCK_LOG || '/tmp/mock-requests.jsonl';
 const MODE = process.env.RI_MOCK_MODE || '/tmp/mock-mode.json';
 const DIR = process.env.RI_MOCK_DIR || __dirname;
 const NL = String.fromCharCode(10);
+// The hash of this file as the process loaded it. run_browser.sh compares it with the file on disk, so a mock started
+// before a pull that changed it (and so missing kinds or answers) stops the sweep instead of failing suites oddly.
+const SOURCE = require('crypto').createHash('sha256').update(fs.readFileSync(__filename)).digest('hex');
 function mode() { try { return JSON.parse(fs.readFileSync(MODE, 'utf8')); } catch { return {}; } }
 function txt(name) { try { return fs.readFileSync(path.join(DIR, name), 'utf8').trim(); } catch { return ''; } }
 const NPCS = [
@@ -30,6 +33,7 @@ const KINDS = [
     ['draft', /Return only playable first-person draft prose/],
     ['check', /"done"[\s\S]*quote|quote[\s\S]*"done"/],
     ['writer', /Return only a JSON (list|object)/],
+    ['behavior', /You draft the entries of a behavior book/],
 ];
 const kindOf = text => (KINDS.find(([, pattern]) => pattern.test(text)) || ['reply'])[0];
 let n = 0;
@@ -71,7 +75,12 @@ function answer(body) {
         const evidence = rows.slice(0, 3).map(r => ({ message: r.label, quote: r.text.slice(0, 40) }));
         let summary = rows.map(r => `${r.name} said or did this: ${r.text}`).join(' ').split(/\s+/).slice(0, 190).join(' ');
         while (summary.split(/\s+/).length < 160) summary += ' The exchange continued at the same table.';
-        return JSON.stringify({ evidence, title: `Chapter of ${rows.length} messages`, start_time: '', end_time: '', summary, people: [...new Set(rows.map(r => r.name))], places: [], threads_opened: [], threads_closed: [], importance: 5, secrets: [], final_changes: [], event_seeds: [] });
+        return JSON.stringify({ evidence, title: `Chapter of ${rows.length} messages`, start_time: '', end_time: '', summary, people: [...new Set(rows.map(r => r.name))], places: [], threads_opened: [], threads_closed: [], importance: 5, secrets: [], final_changes: [], event_seeds: m.chapterSeeds || [] });
+    }
+    // MB12: Draft entries from a description. mode.behaviorDraft is the answer; else one event keyed on the first name.
+    if (/You draft the entries of a behavior book/.test(all)) {
+        if (m.behaviorDraft) return JSON.stringify(m.behaviorDraft);
+        return JSON.stringify({ entries: [{ kind: 'event', title: 'Rival courier', content: 'A rival courier from Valen arrives asking for Hale.', people: [], places: ['Valen'], once: false }] });
     }
     if (/Condense these stored chapter records/.test(all)) {
         const parts = [...all.matchAll(/^\[(\S+)\] target (\d+) words\. (.+)$/gm)].map(x => ({ id: x[1], text: x[3].split(/\s+/).slice(0, Number(x[2])).join(' ') }));
@@ -126,6 +135,7 @@ http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Headers', '*');
         if (req.method === 'OPTIONS') { res.end(); return; }
+        if (req.url === '/mock/source') { res.end(SOURCE); return; }
         if (req.url.includes('/models')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ object: 'list', data: [{ id: process.env.RI_MOCK_MODEL || 'mock-model', object: 'model' }] })); return; }
         let body = {};
         try { body = JSON.parse(data || '{}'); } catch { }

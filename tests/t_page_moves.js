@@ -287,8 +287,8 @@ async function run(browser, tag, viewport) {
     assert.deepEqual([afterChat.tab, afterChat.route, afterChat.eroute, afterChat.sroute], ['sets', 'sets', 'list', 'list'], `${tag}: a chat change resets the set routes and lands on the list`);
 
 
-    // B31: the extension's cards are in the stack on Setup, Presets (the old "Extension prompt order" fold is gone); editing one
-    // goes through slot(), shows the stored prompt, and her saved wording is a version equal to that stored text.
+    // B31: the extension's cards are in the stack on Setup, Presets; editing one in the bank page (B36 retired the block editor's
+    // Extension cards fold) goes through slot(), shows the stored prompt, and her saved wording is a version equal to that stored text.
     await page.evaluate(async BASE => {
         const P = await import(`${BASE}/src/prompts.js`);
         P.savePrompt('emotionSensitivity', 'B31 saved wording. Sensitivity: {sensitivity}.');
@@ -297,17 +297,9 @@ async function run(browser, tag, viewport) {
         V.prefs().enabled = true; S.saveChatState();
     }, BASE);
     await open('presets');
-    await page.evaluate(() => { const bench = document.querySelector('#ri-preset-workbench'); bench.open = true; bench.dispatchEvent(new Event('toggle')); });
-    await page.waitForTimeout(500);
-    const folded = await page.evaluate(async BASE => {
-        const fold = [...document.querySelectorAll('#ri-preset-workbench details')].find(item => item.querySelector(':scope > summary')?.textContent.trim() === 'Extension cards');
-        if (!fold) { const V = await import(`${BASE}/src/v10.js`); return { preset: V.activePreset(), enabled: V.enabledV10(), page: document.querySelector('#ri_panel_page')?.dataset.page }; }
-        fold.open = true; fold.dispatchEvent(new Event('toggle'));
-        return true;
-    }, BASE);
-    assert.equal(folded, true, `${tag}: the Extension cards fold is on Setup, Presets (${JSON.stringify(folded)})`);
-    await page.waitForTimeout(400);
-    const cardKeys = await page.evaluate(() => [...document.querySelectorAll('[data-ri-card]')].map(node => node.dataset.riCard));
+    await page.waitForSelector('#ri-bank-page .ri-bk-card[data-where="stack"]', { state: 'attached', timeout: 15000 });
+    assert.equal(await page.locator('#ri-preset-workbench, #ri-preset-switches').count(), 0, `${tag}: the block editor and the switches are retired`);
+    const cardKeys = await page.evaluate(() => [...document.querySelectorAll('#ri-bank-page .ri-bk-card[data-where="stack"]')].map(node => node.dataset.bankCard));
     out.riCards = cardKeys;
     const MP = await page.evaluate(async BASE => (await import(`${BASE}/src/module-layout.js`)).MODULE_PROMPTS, BASE);
     const FT = await page.evaluate(async BASE => Object.keys((await import(`${BASE}/src/preset-library.js`)).FEATURES), BASE);
@@ -318,11 +310,25 @@ async function run(browser, tag, viewport) {
     assert.deepEqual([...ownedCards.bank].sort(), [...FT].sort(), `${tag}: the bank holds one extension card for every feature`);
     for (const feature of FT.filter(item => ownedCards.on[item])) assert.ok(cardKeys.includes(`ri::${feature}`), `${tag}: the stack lists the extension card for ${feature}, which is on`);
     assert.ok(cardKeys.includes('v::ri-emotions'), `${tag}: her saved wording is a card beside the clean card`);
-    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#ri-preset-workbench summary')].map(node => node.textContent.trim()).filter(text => /^Extension prompt order/.test(text))), [],
-        `${tag}: the Extension prompt order fold is retired into the stack`);
-    for (const key of cardKeys) await page.evaluate(card => { const node = document.querySelector(`[data-ri-card="${card}"]`); node.open = true; node.dispatchEvent(new Event('toggle')); }, key);
-    await page.waitForTimeout(500);
-    const riSlots = await snapshot();
+    // Open each extension card's editor in turn (one is open at a time) and read the slots it draws.
+    const pressIn = (key, text) => page.evaluate(({ key, text }) => {
+        const card = [...document.querySelectorAll('#ri-bank-page .ri-bk-card[data-where="stack"]')].find(node => node.dataset.bankCard === key);
+        const control = [...(card?.querySelectorAll('button') || [])].find(node => (text ? node.textContent.trim() === text : node.classList.contains('ri-bk-name')));
+        if (!control || (!text && control.getAttribute('aria-expanded') === 'true')) return false;
+        control.click();
+        return true;
+    }, { key, text });
+    const riSlots = { slots: [], bare: 0, overflow: false };
+    for (const key of cardKeys.filter(item => item.startsWith('ri::') || item === 'v::ri-emotions')) {
+        await pressIn(key, '');
+        await page.waitForTimeout(150);
+        assert.ok(await pressIn(key, 'Edit'), `${tag}: the ${key} card has an Edit tool`);
+        await page.waitForTimeout(250);
+        const seen = await snapshot();
+        riSlots.slots.push(...seen.slots); riSlots.bare += seen.bare; riSlots.overflow ||= seen.overflow;
+        await pressIn(key, 'Edit');
+        await pressIn(key, '');
+    }
     // These slots are checked against the stored text right here, while her saved wording is in place (the generic pass at the end
     // reads the stored prompts after it is restored).
     assert.equal(riSlots.bare, 0, `${tag}: ri-cards draws every prompt editor through slot()`);

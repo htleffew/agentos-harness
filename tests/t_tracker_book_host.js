@@ -34,7 +34,7 @@ const captureState = (place, names, extra = {}) => ({
     state: {
         scene: { place, time: 'Day 3, Thursday, 21:40', weather: 'rain, cold', present: names },
         characters: [{ name: names[0], doing: 'Wiping the same cup', mind: 'Counting exits' }, { name: names[1], doing: 'Reading the ledger', mind: 'Weighing the offer' }, { name: 'Dorn', doing: 'Asleep upstairs', mind: 'Nothing' }],
-        emotions: [{ name: names[0], axes: { tenderness: 2, fury: 1, dread: 4, yearning: 0 }, outward: 'Calm', counterweight: 'Relief' }],
+        emotions: [{ name: names[0], axes: { tenderness: { step: -3, reason: 'he lowered his voice' }, fury: { step: -4, reason: 'he put the blade away' }, dread: { step: -1, reason: 'the door stayed shut' }, yearning: { step: -5, reason: 'she walked out' } }, outward: 'Calm', counterweight: 'Relief' }],
         relationships: [{ name: `${names[0]} and ${names[1]}`, pair: `${names[0]} and ${names[1]}`, level: 3 }],
         ...extra,
     },

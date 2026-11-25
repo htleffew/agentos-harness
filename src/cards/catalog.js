@@ -1,6 +1,6 @@
 // The card catalog (DESIGN.md 6.2 and 6.3): every card, section and field the reply tray can show, as data.
-// It is the single list of fields capture asks for. MB3 reads `captureFields()`; B20 extends this file and
-// flips `owner` rows to built by adding a renderer; B22 draws the Roll and Stats cards.
+// It is the single list of fields capture asks for. MB3 reads `captureFields()`; B20 built its rows (renderers in
+// src/ui/cards/, one module per card) and gives each of them a capture hint (HINTS below); B22 draws the Roll and Stats cards.
 //
 // Saved values (the per-reply tracker values of the memory design, 3.3) live in the reply's own record, one
 // set per swipe, under `rec.tracker`:
@@ -124,7 +124,7 @@ export const CARDS = Object.freeze([
     ], { owner: 'B20', module: 'relationships' }),
 
     c('knowledge', 'Knowledge and secrets', 'fa-eye', 'story', 'Who knows what, secrets with their owners, false beliefs and what each person remembers.', [
-        s('knows', 'Who knows what', [f('knows', 'Who knows what', 'chips', { owner: 'B20', from: [D('Hidden Truths')] })],
+        s('knows', 'Who knows what', [f('knows', 'Who knows what', 'chips', { owner: 'B20', derived: true, from: [D('Hidden Truths')] })],
             { owner: 'B20', today: true, kinds: ['knowledge'] }),
         s('secrets', 'Secrets', [f('secrets', 'Secrets', 'list', { owner: 'B20', from: [D('Hidden Truths'), P('Secrets Tracker')] })], { owner: 'B20' }),
         s('beliefs', 'False beliefs', [f('beliefs', 'False beliefs', 'list', { owner: 'B20', from: [D('Hidden Truths'), P('Secrets Tracker')] })], { owner: 'B20' }),
@@ -138,15 +138,15 @@ export const CARDS = Object.freeze([
     c('plot', 'Plot', 'fa-scroll', 'story', 'Open threads, story lines, what happens elsewhere and what is waiting to pay off.', [
         s('threads', 'Open threads', [f('threads', 'Open threads', 'timeline', { today: true, from: [V('Story notes'), D('Story Threads')] })],
             { today: true, kinds: ['event'] }),
-        s('plotlines', 'Plotlines', [f('plotlines', 'Plotlines', 'timeline', { owner: 'B20', from: [V('Arc'), D('Plotlines')] })],
+        s('plotlines', 'Plotlines', [f('plotlines', 'Plotlines', 'timeline', { owner: 'B20', derived: true, from: [V('Arc'), D('Plotlines')] })],
             { owner: 'B20', today: true, kinds: ['arc'] }),
-        s('tracks', 'Tracks', [f('tracks', 'Tracks', 'timeline', { owner: 'B20', from: [V('Tracks')] })], { owner: 'B20' }),
-        s('elsewhere', 'Elsewhere', [f('elsewhere', 'Elsewhere', 'timeline', { owner: 'B20',
+        s('tracks', 'Tracks', [f('tracks', 'Tracks', 'timeline', { owner: 'B20', derived: true, from: [V('Tracks')] })], { owner: 'B20' }),
+        s('elsewhere', 'Elsewhere', [f('elsewhere', 'Elsewhere', 'timeline', { owner: 'B20', derived: true,
             from: [V('Off-Screen agendas'), S('Continuity Codex: Motives'), D('Meanwhile'), P('Parallel Off-Screen Tracker')] })],
         { owner: 'B20', today: true, kinds: ['agenda'] }),
-        s('details', 'Planted details', [f('details', 'Planted details', 'timeline', { owner: 'B20', from: [V('Chekhov'), S('Continuity Codex: Threads, Seeds')] })],
+        s('details', 'Planted details', [f('details', 'Planted details', 'timeline', { owner: 'B20', derived: true, from: [V('Chekhov'), S('Continuity Codex: Threads, Seeds')] })],
             { owner: 'B20', today: true, kinds: ['seed'] }),
-        s('pending', 'Pending events', [f('pending', 'Pending events', 'timeline', { owner: 'B20', from: [P('Pending Events Tracker')] })], { owner: 'B20' }),
+        s('pending', 'Pending events', [f('pending', 'Pending events', 'timeline', { owner: 'B20', derived: true, from: [P('Pending Events Tracker')] })], { owner: 'B20' }),
     ], { today: true, module: 'plots' }),
 
     c('new_faces', 'New faces', 'fa-id-card', 'story', 'A profile sheet where a named character first appears.', [
@@ -182,7 +182,8 @@ export const CARDS = Object.freeze([
     ], { today: true }),
 
     c('choices', 'Choices', 'fa-list-ol', 'direction', 'Numbered moves for your next message, each with Copy, Insert and Send.', [
-        s('moves', 'Moves', [f('moves', 'Moves', 'list', { owner: 'B20', from: [D('Choices List'), P('CYOA Choices, CYOA Choices with Skill Checks')] })], { owner: 'B20' }),
+        // Filled by the Choices card's own Options call after each reply (DESIGN 6.2), never by capture.
+        s('moves', 'Moves', [f('moves', 'Moves', 'list', { owner: 'B20', derived: true, from: [D('Choices List'), P('CYOA Choices, CYOA Choices with Skill Checks')] })], { owner: 'B20' }),
     ], { owner: 'B20' }),
 
     c('stats', 'Stats', 'fa-chart-simple', 'direction', 'This chat\'s stat sheets with level and growth notes.', [
@@ -224,8 +225,8 @@ export function allFields() {
     return CARDS.flatMap(card => card.sections.flatMap(section => section.fields.map(field => ({ card, section, field, key: fieldKey(card.id, field.id) }))));
 }
 
-/** Whether a card, section or field is built: its owner is B11 (this ticket). B20 and B22 flip theirs on adding a renderer. */
-const built = new Set(['B11']);
+/** Whether a card, section or field is built: its owner is B11 or B20, whose renderers ship. B22 flips its own on adding a renderer. */
+const built = new Set(['B11', 'B20']);
 export function markBuilt(owner) { built.add(owner); }
 export const isBuilt = item => built.has(item.owner);
 
@@ -295,7 +296,22 @@ export function moveCard(config, id, direction) {
 
 /** A new setting with one card, section or field switched. `key` is a fieldKey or sectionKey. */
 export const setOn = (config, key, value) => normalizeConfig({ ...config, on: { ...config?.on, [key]: !!value } });
-export const setMode = (config, id, mode) => normalizeConfig({ ...config, mode: { ...config?.mode, [id]: mode } });
+
+/**
+ * A new setting with one card's mode changed. A card switched on from Off whose built sections are all off gets them
+ * switched on, so a card new with the parity work shows its content once it is on; each section can then be switched
+ * off on its own. A card with a section already on keeps its sections as they are.
+ */
+export function setMode(config, id, mode) {
+    let next = normalizeConfig({ ...config, mode: { ...config?.mode, [id]: mode } });
+    const card = cardById(id);
+    if (!card || mode === 'off' || cardMode(config, id) !== 'off') return next;
+    const sections = card.sections.filter(isBuilt);
+    if (sections.length && !sections.some(section => sectionOn(next, id, section.id))) {
+        for (const section of sections) next = setOn(next, sectionKey(id, section.id), true);
+    }
+    return next;
+}
 
 /**
  * The fields capture asks for: built, not derived, in a card that is not Off and not hidden by its feature,
@@ -305,8 +321,46 @@ export const setMode = (config, id, mode) => normalizeConfig({ ...config, mode: 
 export function captureFields(config, modules = {}) {
     return allFields().filter(({ card, section, field }) => isBuilt(field) && !field.derived
         && !(card.module && modules[card.module] === false) && fieldOn(config, card.id, field.id))
-        .map(({ card, section, field, key }) => ({ key, card: card.id, section: section.id, field: field.id, label: field.label, type: field.type }));
+        .map(({ card, section, field, key }) => ({ key, card: card.id, section: section.id, field: field.id, label: field.label, type: field.type,
+            ...(HINTS[key] ? { hint: HINTS[key] } : {}) }));
 }
+
+/**
+ * What capture writes in a parity field, so the card can draw it: one short instruction per field, in the shape the
+ * card reads (src/ui/cards/). A list or timeline field holds one item per entry; "a | b" separates the parts of one item.
+ */
+export const HINTS = Object.freeze({
+    'scene.detail': 'one concrete detail of the world this reply shows, in one sentence',
+    'map.grid': 'the current room as a text grid of at most 12 lines and 32 columns, one letter per person or object, then one legend line per letter, "H: Hale"',
+    'characters.conditions': 'each condition with its severity, mild, moderate or severe, separated by semicolons: "sprained ankle (moderate); fever (mild)"',
+    'emotions.side': 'the side of the character this moment brings out',
+    'emotions.read': 'how the character reads the moment',
+    'emotions.feeling': 'the feeling the moment stirred',
+    'emotions.acted': 'what the feeling made the character do',
+    'emotions.ends': 'where the character stands at the end of the turn',
+    'relationships.route': 'the route the character is on with the other person',
+    'relationships.stands': 'where they stand with each other now',
+    'relationships.feels': 'what the character feels toward the other',
+    'relationships.trust_want': 'how far the character trusts the other and what they want from them',
+    'relationships.delights': 'what about the other delights and what repels the character',
+    'relationships.moment': 'the shared moment the character keeps',
+    'relationships.next': 'what would move the relationship next',
+    'holding_back.dam': 'one line per pair: "Name to Name | what they show or say | what they hold back | strain low, rising or high"',
+    'knowledge.secrets': 'one item per secret: "the secret | owner: Name | also known by: Name, Name"',
+    'knowledge.beliefs': 'one item per false belief: "Name believes: the belief | truth: what is true"',
+    'knowledge.remembers': 'one item per character: "Name: what they remember from this scene"',
+    'inventory.items': 'one line per item that matters: "Holder: item (gained, lost, used, broken or given) | where it came from or why it counts"',
+    'new_faces.sheet': 'one line per named character who first appears in this reply: "Name (major) | role | look | manner | want | what they know" for a major character, "Name (minor) | who they are" for a minor one; empty when nobody new appears',
+    'reputation.standing': 'one line per group or source: "Group | how they see the player character | rising, falling or steady | why"',
+    'achievements.earned': 'at most one per scene, only when the reply earns it: "Title | rarity 1 to 5 | what earned it"',
+    'plan.course': 'where the next beat heads, in one sentence',
+    'plan.pressure': 'the live conflict or dare pressing on the scene, in one sentence',
+    'plan.branches': 'up to three possible routes for the next beat, one per item',
+    'plan.graded': 'how the last beat landed, in one line',
+    'notebook.narrator': 'reminders and open questions for the narrator, one per item',
+    'notebook.diaries': 'for the two characters closest to the player character, one line each: "Name: a short private diary entry in their own voice"',
+    'roast.panel': 'up to three commentators, one line each: "Name: their comment on this reply"',
+});
 
 /** The built sections and fields of a card that are switched off, so a card can say "Not requested" (6.2). */
 export function notRequested(config, cardId) {

@@ -36,16 +36,23 @@ export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice')
     const group = h('details',{class:'ri-prompt-group'},h('summary',{},title));
     const content = h('div');
     const picker = h('select',{class:'ri-input','aria-label':'Commentator voice'});
-    const refreshLabels = () => {
+    const editors = new Map();
+    let shown = '';
+    // The picker and the editor below it always name the same voice, so an edit never lands on a voice the picker does not show.
+    const showEditor = () => {
+        if (!editors.has(picker.value)) editors.set(picker.value,promptEditor(picker.value,{onChange:refreshLabels}));
+        content.replaceChildren(editors.get(picker.value));
+        shown = picker.value;
+    };
+    function refreshLabels() {
         const current=selectedVoice();
         picker.replaceChildren(...voiceRecords().map(({id,name})=>h('option',{value:id},name+(promptStatus(id).customized ? ' · Customized' : ''))));
         picker.value=current;
-    };
-    const editors = new Map();
+        if (shown && shown!==picker.value) showEditor();
+    }
     function showVoice() {
         refreshLabels();
-        if (!editors.has(picker.value)) editors.set(picker.value,promptEditor(picker.value,{onChange:refreshLabels}));
-        content.replaceChildren(editors.get(picker.value));
+        showEditor();
     }
     picker.onchange = () => {
         settings().roastVoiceId = picker.value;

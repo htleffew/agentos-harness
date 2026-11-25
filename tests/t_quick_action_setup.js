@@ -1,5 +1,6 @@
 // B3 touch pass: Quick actions, Bar and Quick actions, Library on a real SillyTavern 1.19.0 host with touch input at
-// 523 x 1021 (cover screen, mobile layout) and 1006 x 909 (inner screen, desktop layout).
+// 523 x 1021 (cover screen) and 1006 x 909 (inner screen). Both sizes get SillyTavern's phone layout, since B45 gives
+// it to any touch screen (Heather's ruling: mobile first).
 //
 // Environment:
 //   RI_HOST_URL      SillyTavern with this checkout installed (default http://127.0.0.1:8143)
@@ -94,11 +95,13 @@ async function run(browser, width, height, label) {
     assert.ok((await barOrder(page)).includes(target), 'Pin returns it');
     r.singleTapPins = { moveDown: true, moveUp: true, unpin: true, pin: true };
 
-    // ---- Preview agrees with the real bar when many pins overflow
-    await page.evaluate(async BASE => {
+    // ---- Preview agrees with the real bar when many pins overflow. Pin every action there is: the inner screen's
+    // bar holds far more than 16, so a fixed count no longer overflows there.
+    const pinned = await page.evaluate(async BASE => {
         const Q = await import(`${BASE}/src/quick-actions.js`);
-        for (const action of Q.listQuickActions('', { allKinds: true })) if (Q.composerBar().pins.length < 16) Q.pinToBar(action.id, true);
+        for (const action of Q.listQuickActions('', { allKinds: true })) Q.pinToBar(action.id, true);
         (await import(`${BASE}/src/ui/composer-bar.js`)).renderBar();
+        return Q.composerBar().pins.length;
     }, BASE);
     await openPage(page, 'quick-bar');
     await page.waitForTimeout(500);
@@ -110,7 +113,8 @@ async function run(browser, width, height, label) {
     });
     r.previewFit = fit;
     assert.equal(fit.shownPreview, fit.shownBar, 'the preview shows the pins the bar shows');
-    assert.ok(fit.overflowChips > 0, 'pins overflow at this size');
+    assert.ok(fit.shownBar < fit.total, `pins overflow at this size (${fit.shownBar} of ${fit.total} shown, ${pinned} pinned)`);
+    assert.equal(fit.overflowChips, fit.total - fit.shownPreview, 'the preview marks every pin the bar sends to More');
     await s('bar-overflow');
     await page.evaluate(async BASE => {
         const Q = await import(`${BASE}/src/quick-actions.js`);
@@ -307,7 +311,7 @@ async function run(browser, width, height, label) {
     const browser = await chromium.launch({ executablePath: CHROME, headless: true, env: { ...process.env, TEMP: PROFILE, TMP: PROFILE } });
     try {
         results.runs.push(await run(browser, 523, 1021, 'cover screen, mobile layout'));
-        results.runs.push(await run(browser, 1006, 909, 'inner screen, desktop layout'));
+        results.runs.push(await run(browser, 1006, 909, 'inner screen, phone layout'));
     } finally {
         fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify(results, null, 2));
         await browser.close();

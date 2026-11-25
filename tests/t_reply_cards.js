@@ -114,13 +114,18 @@ test('every row of the 6.3 tables has a home in the catalog, owned by the ticket
     assert.ok(checked >= 50, `checked ${checked} rows`);
 });
 
-test('the B20 and B22 rows are in the catalog and marked not yet built', () => {
-    for (const id of ['map', 'holding_back', 'inventory', 'new_faces', 'reputation', 'achievements', 'choices', 'notebook', 'stats', 'roll']) {
+test('the B20 rows are built and start off; the B22 rows are in the catalog and marked not yet built', () => {
+    for (const id of ['map', 'holding_back', 'inventory', 'new_faces', 'reputation', 'achievements', 'choices', 'notebook']) {
+        const card = catalog.cardById(id);
+        assert.ok(catalog.isBuilt(card), `${id} is built (B20)`);
+        assert.equal(catalog.defaultMode(card), 'off');
+    }
+    for (const id of ['stats', 'roll']) {
         const card = catalog.cardById(id);
         assert.ok(!catalog.isBuilt(card), `${id} is not yet built`);
         assert.equal(catalog.defaultMode(card), 'off');
     }
-    assert.ok(!catalog.isBuilt(catalog.cardById('plot').sections.find(section => section.id === 'tracks')));
+    assert.ok(catalog.isBuilt(catalog.cardById('plot').sections.find(section => section.id === 'tracks')));
     assert.ok(catalog.isBuilt(catalog.cardById('scene')) && catalog.isBuilt(catalog.cardById('characters')));
 });
 
@@ -205,7 +210,8 @@ test('Not requested names the switched-off sections and fields of a built card',
     const config = catalog.normalizeConfig(undefined);
     const names = catalog.notRequested(config, 'scene').map(item => item.label);
     assert.ok(names.includes('Observable facts') && names.includes('Known places') && names.includes('Ambient people'));
-    assert.ok(!names.includes('World detail'), 'an unbuilt section is not offered');
+    assert.ok(names.includes('World detail'), 'a built section that starts off is offered (B20)');
+    assert.deepEqual(catalog.notRequested(config, 'roll'), [], 'an unbuilt card offers nothing');
     assert.deepEqual(catalog.notRequested(catalog.setOn(config, 'scene:facts', true), 'scene').map(item => item.label).includes('Observable facts'), false);
     assert.match(settingsUi.switchAnchor('scene:facts'), /^#ri-card-switch-scene-s-facts$/);
     assert.match(settingsUi.switchAnchor('scene.place'), /^#ri-card-switch-scene-f-place$/);

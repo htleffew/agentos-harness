@@ -1,45 +1,29 @@
-/* Setup, Presets (DESIGN.md 7). Setup family ink; Conflict in the problem color, Ours in the selection edge. */
+/* Setup, Presets (DESIGN.md 7). Setup family ink; Conflict in the problem color, RI in the selection edge. */
 .ri-ps { display: grid; gap: var(--ri-gap, 4px); font-family: var(--ri-font, monospace); font-size: var(--ri-type-body, 14px); color: var(--ri-text); }
 .ri-ps .ri-help { font-size: var(--ri-type-help, 13px); color: var(--ri-text-muted); margin: 2px 0; }
-.ri-ps-card, .ri-ps-switches, .ri-ps-loadouts { border: 1px solid var(--ri-setup-line); background: var(--ri-surface); padding: var(--ri-pad, 8px); border-radius: var(--ri-radius, 0); }
+.ri-ps-card, .ri-ps-loadouts { border: 1px solid var(--ri-setup-line); background: var(--ri-surface); padding: var(--ri-pad, 8px); border-radius: var(--ri-radius, 0); }
 .ri-ps-card { border-left: 3px solid var(--ri-setup); }
-.ri-ps-card-head, .ri-ps-row-head, .ri-ps-scope, .ri-ps-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ri-gap, 4px); }
+.ri-ps-card-head, .ri-ps-row-head, .ri-ps-scope { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ri-gap, 4px); }
 .ri-ps-scope { justify-content: space-between; }
 .ri-ps-title, .ri-ps-heading { font-size: var(--ri-type-title, 14px); letter-spacing: var(--ri-track-label, 0.08em); text-transform: uppercase; color: var(--ri-setup); margin: 4px 0; overflow-wrap: anywhere; }
 .ri-ps-meta { font-size: var(--ri-type-data, 13px); color: var(--ri-text-muted); margin: 2px 0; overflow-wrap: anywhere; }
 .ri-ps-chip { display: inline-flex; align-items: center; min-height: 20px; padding: 0 6px; border: 1px solid var(--ri-line); color: var(--ri-text-muted);
     font: inherit; font-size: var(--ri-type-label, 12px); background: transparent; border-radius: var(--ri-radius, 0); white-space: nowrap; }
-.ri-ps-chips { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: 6px; }
 .ri-ps-chip-on, .ri-ps-chip-default { color: var(--ri-story); border-color: var(--ri-story-line); }
 .ri-ps-chip-edited, .ri-ps-chip-tag { color: var(--ri-review); border-color: var(--ri-review-line); }
 .ri-ps-chip-conflict { color: var(--ri-problem); border-color: var(--ri-problem-line); background: var(--ri-problem-tint); }
-.ri-ps-chip-lock { color: var(--ri-call); border-color: var(--ri-call-line); }
-.ri-ps-chip-ours { color: var(--ri-select); border-color: var(--ri-select-line); }
-.ri-ps-chip-both { color: var(--ri-text); border-color: var(--ri-line); }
-.ri-ps-chip-theirs { color: var(--ri-setup); border-color: var(--ri-setup-line); }
+.ri-ps-chip-ours, .ri-ps-chip-ri { color: var(--ri-select); border-color: var(--ri-select-line); }
+.ri-ps-chip-both, .ri-ps-chip-preset { color: var(--ri-text); border-color: var(--ri-line); }
+.ri-ps-chip-off { color: var(--ri-text-dim); border-style: dashed; }
 .ri-ps-chip-distinct { color: var(--ri-focus); border-color: var(--ri-focus-line); }
 button.ri-ps-chip { cursor: pointer; min-height: var(--ri-hit-min, 24px); }
-.ri-ps-row { border-top: 1px solid var(--ri-line-faint); padding: var(--ri-pad, 8px) 0; display: grid; gap: var(--ri-gap, 4px); }
-.ri-ps-row[data-side="ours"] { border-left: 2px solid var(--ri-select); padding-left: 6px; }
-.ri-ps-row:focus { outline: 2px solid var(--ri-focus); outline-offset: 2px; }
-.ri-ps-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.ri-ps-side { margin: 0; font-size: var(--ri-type-help, 13px); color: var(--ri-text-muted); overflow-wrap: anywhere; }
-.ri-ps-side b { color: var(--ri-text); font-weight: 600; }
-@media (max-width: 600px) { .ri-ps-sides { grid-template-columns: 1fr; } }
 .ri-ps-segmented { display: inline-flex; width: max-content; border: 1px solid var(--ri-line); }
 .ri-ps-seg { min-height: var(--ri-hit-size, 32px); min-width: 72px; padding: 0 12px; border: 0; background: transparent; color: var(--ri-text-muted);
     font: inherit; font-size: var(--ri-type-label, 12px); letter-spacing: var(--ri-track-label, 0.08em); text-transform: uppercase; cursor: pointer; }
 .ri-ps-seg + .ri-ps-seg { border-left: 1px solid var(--ri-line); }
 .ri-ps-seg[aria-pressed="true"] { background: var(--ri-setup-tint); color: var(--ri-text); box-shadow: inset 0 -2px 0 var(--ri-select); }
 .ri-ps-seg:focus-visible { outline: 2px solid var(--ri-focus); outline-offset: -2px; }
-.ri-ps-conflict { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; background: var(--ri-problem-tint); font-size: var(--ri-type-help, 13px); }
-.ri-ps-fold > summary, .ri-ps-group > summary { cursor: pointer; min-height: var(--ri-hit-min, 24px); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ri-ps-fold > summary { cursor: pointer; min-height: var(--ri-hit-min, 24px); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ri-ps-line { padding: 4px 0; border-top: 1px solid var(--ri-line-faint); overflow-wrap: anywhere; }
 .ri-ps-doc { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50vh; overflow: auto; font-size: var(--ri-type-data, 13px); background: var(--ri-bg); padding: 6px; border: 1px solid var(--ri-line-faint); }
 .ri-ps-code { display: block; overflow-wrap: anywhere; font-size: var(--ri-type-data, 13px); color: var(--ri-text-dim); }
-.ri-ps-block > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
-.ri-ps-block-name { overflow-wrap: anywhere; }
-.ri-ps-block .ri-ps-meta { flex-basis: 100%; }
-.ri-ps-pick { border: 1px dashed var(--ri-line); margin: 4px 0; padding: 4px 6px; }
-.ri-ps-pick legend { font-size: var(--ri-type-label, 12px); color: var(--ri-setup); text-transform: uppercase; letter-spacing: var(--ri-track-label, 0.08em); }
-.ri-ps-heading-row { opacity: 0.8; }

@@ -20,16 +20,14 @@ const L = require('./lib.js');
             return { tab: app.tab, expanded: app.root.classList.contains('ri-expanded') };
         }, L.BASE);
 
-        // The Presets block editor: the Roast card carries a link row, and its button lands on the Roast voice home.
-        await L.openPanel(page, 'presets');
-        // The cards build when they open, so every fold opens in turn until the link rows are drawn.
-        for (let pass = 0; pass < 4; pass++) {
+        // Setup, Look: the Roast link row lands on the Roast voice home (the Presets block editor that also carried one is retired, B36).
+        await L.openPanel(page, 'display');
+        for (let pass = 0; pass < 3; pass++) {
             await page.evaluate(() => { for (const fold of document.querySelectorAll('#ri_panel_page details')) fold.open = true; });
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(400);
         }
         const roastRow = page.locator('#ri_panel_page [data-home-link="roast-voice"]').first();
         await roastRow.waitFor({ timeout: 10000 });
-        assert.equal(await page.locator('#ri_panel_page [data-home-link="roast-voice"]').count(), 2, 'the Roast and Roast feedback cards each show a link row');
         await roastRow.scrollIntoViewIfNeeded();
         await roastRow.getByRole('button', { name: /^Open Setup/ }).tap();
         await page.waitForSelector('#ri_panel_page [data-control="roast-voice"]', { timeout: 10000 });
@@ -42,7 +40,7 @@ const L = require('./lib.js');
             return box.width > 0 && box.height > 0 && box.top < innerHeight;
         });
         assert.equal(roastVisible, true, 'the Roast voice home is on screen');
-        console.log('PASS Roast link row in the Presets block editor lands on its home');
+        console.log('PASS Roast link row on Setup, Look lands on its home');
 
         // The quick action sheet for Draft my reply: the impersonation prompts have a link row that opens their home.
         await page.evaluate(async B => (await (await import(`${B}/src/ui/panel.js`)).app.setExpanded(false)), L.BASE);

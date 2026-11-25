@@ -16,9 +16,10 @@ export const FLAG_KINDS = Object.freeze({
     entryContradiction: 'entry-contradiction', // two of your entries contradict each other
     recordClash: 'record-clash',       // two records contradict and the story does not show which holds
     locked: 'locked-record',           // a model entry would change a record you locked (raised by the fold)
+    eventSeed: 'event-seed',           // a story event from a chapter waits for a book (MB12, event-seeds.js resolves it)
 });
 export const ACTIONS = Object.freeze(['edit-mine', 'keep-mine', 'story-changed', 'dismiss']);
-export const ACTION_LABELS = Object.freeze({ 'edit-mine': 'Edit my entry', 'keep-mine': 'Keep mine', 'story-changed': 'The story changed', dismiss: 'Dismiss' });
+export const ACTION_LABELS = Object.freeze({ 'edit-mine': 'Edit my entry', 'keep-mine': 'Keep mine', 'story-changed': 'The story changed', dismiss: 'Dismiss', 'add-to-book': 'Add to book' });
 
 /** The id of an entry in a book: "book#uid". */
 export const entryRef = (book, uid) => `${book}#${uid}`;
@@ -121,6 +122,7 @@ export function reviewList(chat, meta, result) {
             const target = result.byId.get(f.target[0]);
             return { entry: f.entry, kind: f.kind, title: target?.subject || f.target[0], mine: { text: target?.text || '', record: f.target[0] }, theirs: { text: r.text || '', quote: f.evidence?.[0]?.quote || '' }, reason: f.reason, actions: ['keep-mine', 'dismiss'] };
         }
+        if (f.kind === FLAG_KINDS.eventSeed) return { entry: f.entry, kind: f.kind, title: r.subject || '', mine: {}, theirs: { text: r.text || '' }, seed: r, reason: f.reason, actions: ['add-to-book', 'dismiss'] };
         return { entry: f.entry, kind: f.kind, pair: r.pair || '', title: r.subject || r.a?.title || '', mine: r.a || {}, theirs: r.b || {}, reason: f.reason, actions: [...ACTIONS] };
     }).reverse();
 }

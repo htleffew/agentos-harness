@@ -33,6 +33,6 @@ export const HOMES = {
     'style-wording':     { page:'sets',    label:'In-chat writing style wording',       links:[] },
     // The three player prompts; the quick action editor shows a link row beside its preview.
     'impersonation-prompts': { page:'v10', label:'Impersonation prompts',               links:[] },
-    // Ours or Theirs for each feature; the module list of Setup, Features shows a link row for every feature it lists.
+    // Who supplies each feature, read from the stack; the bank section of Setup, Presets holds it and every feature's supplier chip lands on its lane.
     'feature-owner':     { page:'presets', label:'Who supplies each feature',           links:[] },
 };

@@ -463,7 +463,8 @@ export async function afterReply({ context, store, force = false } = {}) {
     const chat = c.chat || [];
     const repliesTo = i => chat.slice(0, i + 1).filter(m => m && !m.is_user && !m.is_system).length;
     const flagAt = new Map(everyEntry(chat, meta).map(({ e, index }) => [e.id, index]));
-    const oldest = Math.min(Infinity, ...result.flags.map(f => flagAt.get(f.entry)).filter(Number.isInteger).map(repliesTo));
+    // a story event waiting for a book (MB12) is not a clash for Tidy to rule on
+    const oldest = Math.min(Infinity, ...result.flags.filter(f => f.kind !== 'event-seed').map(f => flagAt.get(f.entry)).filter(Number.isInteger).map(repliesTo));
     const due = tidyDue(state, { reply: repliesTo(chat.length - 1), oldestFlagReply: oldest, force });
     await (c.saveChat?.() ?? c.saveMetadata?.());
     if (due) await queueTidy(c, due);
@@ -549,19 +550,27 @@ export async function restoreRecord(recordId, { store } = {}) {
     return (store || memStore.memoryStore()).restore(recordId);
 }
 
+// One pass at a time: a batch capture ends several replies at once, and two passes must not merge the same pair twice.
+// Behavior book jobs (MB12: story events, one-shot events) run in the same line, so two jobs never load and save one
+// book at once.
+let pass = Promise.resolve();
+/** Run fn after every upkeep pass queued before it. Returns the pass. */
+export function upkeepPass(fn, label = 'upkeep') {
+    pass = pass.then(fn).catch(error => console.warn('[Roleplay Instructions]', label, error));
+    return pass;
+}
+
 let started = false;
 /** Wire upkeep to the host once: level 0 after each capture, the Tidy handler, and take-back on delete, swipe and branch. */
 export async function startUpkeep() {
     if (started) return;
     started = true;
     const { st, queue, capture } = await host();
-    // One pass at a time: a batch capture ends several replies at once, and two passes must not merge the same pair twice.
-    let pass = Promise.resolve();
     capture.onCapture(event => {
         if (event.phase !== 'done') return;
-        pass = pass.then(() => afterReply()).catch(error => console.warn('[Roleplay Instructions] upkeep', error));
+        upkeepPass(() => afterReply());
     });
     queue.desktopQueue().handle('tidy', { run: (job, { signal }) => runTidy({ signal }), commit: async () => {}, saved: () => false });
-    const take = () => reconcileNow().catch(error => console.warn('[Roleplay Instructions] additions', error));
+    const take = () => upkeepPass(() => reconcileNow(), 'additions');
     for (const name of ['MESSAGE_DELETED', 'MESSAGE_SWIPED', 'CHAT_CHANGED']) st.on(name, take);
 }

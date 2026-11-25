@@ -397,3 +397,12 @@ test('the stored conflict call stays small even for a 200-block stack', async ()
     assert.ok(input.user.length < 200000, `input ${input.user.length}`);
     assert.equal(input.blocks.length, 200);
 });
+
+test('B36: no Ours or Theirs control and no file block editor remain in the extension UI; the name rules live in preset-checks only', () => {
+    const files = ['src/ui/presets-page.js', 'src/ui/preset-workbench.js', 'src/ui/home-table.js', 'src/ui/v10.js'];
+    const source = files.map(file => readFileSync(root + file, 'utf8')).join('\n');
+    for (const word of ['presetBlockEditor', "id:'ri-preset-workbench'", 'ri-preset-switches', 'ri-switch-', 'bulkSwitches', 'undoBulkSwitches', 'pinSwitches', 'setSwitches', 'Ours for everything', 'Kept on:', 'Save preset block']) assert.equal(source.includes(word), false, word);
+    assert.equal(source.includes("'data-side'"), false, 'no Ours, Theirs, Both segmented control');
+    for (const file of files) assert.equal(/pick\\s\*\(\?:1\|one\)|\\block\(\?:ed\)\?/.test(readFileSync(root + file, 'utf8')), false, `${file} holds no lock or pick-one regex`);
+    assert.match(readFileSync(root + 'src/preset-checks.js', 'utf8'), /const LOCK = [\s\S]*const PICK = /);
+});

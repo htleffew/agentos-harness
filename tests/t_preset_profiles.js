@@ -169,8 +169,6 @@ test('blocks added to a recognised preset under names the library knows count, a
     assert.equal(context.score, 1);
     assert.deepEqual(context.features.switched.map(item => [item.key, item.matchedBy, item.blocks.map(block => block.id)]),
         [['style', 'name', ['prose-1']], ['dice', 'name', ['dice-1']]]);
-    // Ours switches an added block off in the working copy like any other.
-    assert.deepEqual(wb.workingCopyOff(context, { style: 'ours', dice: 'theirs' }).sort(), ['prose-1']);
 });
 
 test('an unchanged shipped preset gains no row from the name match, and a library module keeps its own row', () => {

@@ -247,7 +247,6 @@ test('stored Ours or Theirs switches do not carry into stacks and stay readable'
     assert.equal(plan.find(item => item.id === 'a-dice').on, true);
     assert.equal(plan.find(item => item.key === 'ri::style').on, true);
     bank.migrateBank();
-    assert.deepEqual(bank.legacySwitches('preset:Alpha'), { saved: switches, pin: { style: 'theirs' } });
     assert.deepEqual(settings().presetSwitches['preset:Alpha'], switches);
 });
 

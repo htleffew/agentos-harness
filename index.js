@@ -14,8 +14,10 @@ import { startRecall } from './src/recall.js';
 import { startTrackerBook } from './src/tracker-book.js';
 import './src/ui/tracker-book.js';
 import { startInject } from './src/memory/inject.js';
+import { startBehaviorBooks } from './src/memory/event-seeds.js';
 import './src/ui/connections-spend.js';
 import { loadShipped, readBankBook } from './src/banks.js';
+import './src/ui/touch-layout.js';
 
 (function start() {
     try {
@@ -36,6 +38,7 @@ import { loadShipped, readBankBook } from './src/banks.js';
         try { startTrackerBook(); } catch (e) { console.warn(LOG, 'tracker book did not start', e); }
         try { startRecall(); } catch (e) { console.warn(LOG, 'recall did not start', e); }
         startInject().catch(e => console.warn(LOG, 'request layout did not start', e));
+        startBehaviorBooks().catch(e => console.warn(LOG, 'behavior books did not start', e));
         console.log(LOG, 'loaded', missing.length ? `missing events: ${missing.join(', ')}` : '');
     } catch (e) {
         console.error(LOG, 'failed to start', e);

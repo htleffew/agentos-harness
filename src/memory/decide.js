@@ -90,6 +90,42 @@ export function actorFromText(text, npcNames = []) {
 
 const stepName = index => STEPS[Math.max(0, Math.min(STEPS.length - 1, index))][0];
 
+// The unsure band (MB15). Jev answers a noul question with the probability that the statement is true. A score at or above
+// the upper cut is yes, at or below the lower cut is no, and a score between them takes the question's default. The default
+// is what code does today on a "no": no roll for an attempt, the message stays in the story, no fact change to write. An
+// unsure score is never handed to another route, so the band adds no calls.
+// Source of the numbers: Statosphere's classifier threshold defaults to 0.7 (src/Stage.tsx:37, :457; audit/A13-statosphere.md
+// rec. 3), and the lower cut is its mirror, 1 - 0.7 = 0.3. Heather's ruling of 25 November 2026 (DECISIONS.md) adopts the band.
+// Measured on the M1g story with d3:4b, in docs/ux-overhaul/tickets/MB15.md.
+export const BAND_UPPER = 0.7;
+export const BAND_LOWER = 0.3;
+export const BANDS = Object.freeze({
+    attempt: Object.freeze({ upper: BAND_UPPER, lower: BAND_LOWER, default: false }),
+    aside: Object.freeze({ upper: BAND_UPPER, lower: BAND_LOWER, default: false }),
+    changed: Object.freeze({ upper: BAND_UPPER, lower: BAND_LOWER, default: false }),
+});
+
+/** Read one noul score against its band: { yes, unsure, score }. A missing or non-numeric score is a no, as before the band. */
+export function readBand(score, band) {
+    const n = Number(score);
+    if (score === undefined || score === null || !Number.isFinite(n)) return { yes: false, unsure: false, score: null };
+    if (n >= band.upper) return { yes: true, unsure: false, score: n };
+    if (n <= band.lower) return { yes: false, unsure: false, score: n };
+    return { yes: !!band.default, unsure: true, score: n };
+}
+
+const bandYes = (answers, key) => readBand(answers?.[key]?.noul, BANDS[key]).yes;
+
+/** The receipt lines for the noul answers that fell in the band: the score and that the default applied. */
+export function unsureReceipts(answers, bands = BANDS) {
+    const lines = [];
+    for (const [key, band] of Object.entries(bands)) {
+        const read = readBand(answers?.[key]?.noul, band);
+        if (read.unsure) lines.push(`${key} scored ${read.score.toFixed(2)}, between ${band.lower} and ${band.upper}, so the default (${band.default ? 'yes' : 'no'}) applied`);
+    }
+    return lines;
+}
+
 /** The dice judgment: one structured answer from the desktop, two one-word items on the phone, a code default. */
 export const DICE = Object.freeze({
     name: 'dice',
@@ -120,6 +156,7 @@ export const DICE = Object.freeze({
         return { attempt: !!screen.attemptWords, actor: actorFromText(input.message, input.npcNames), stat: screen.stat || 'Wits', difficulty: 'Fair', stance: 'neutral' };
     },
     decision: {
+        bands: { attempt: BANDS.attempt },
         state: ({ message, scene = '' }) => ({ message: String(message || ''), ...(scene ? { scene: String(scene) } : {}) }),
         questions: {
             attempt: { type: 'noul', instructions: '`message` holds an attempt whose outcome is uncertain: a fight, a climb, a lie, a search.' },
@@ -132,7 +169,7 @@ export const DICE = Object.freeze({
             stance: { type: 'choice', instructions: 'What is the stance of whoever resists the attempt in `message`?', criteria: {
                 helping: 'the resisting side helps', neutral: 'no one resists or helps', resisting: 'someone works against it' } },
         },
-        fromAnswers: (answers, input) => ({ attempt: Number(answers?.attempt?.noul) >= 0.5, actor: actorFromText(input.message, input.npcNames),
+        fromAnswers: (answers, input) => ({ attempt: bandYes(answers, 'attempt'), actor: actorFromText(input.message, input.npcNames),
             stat: answers?.stat?.choice, difficulty: answers?.difficulty?.choice, stance: answers?.stance?.choice }),
     },
     normalize(value) {
@@ -155,9 +192,10 @@ export const ASIDE = Object.freeze({
     codeDefault: (_input, screen) => ({ aside: !!screen.ooc }),
     normalize: value => typeof value?.aside === 'boolean' ? { aside: value.aside } : null,
     decision: {
+        bands: { aside: BANDS.aside },
         state: ({ message }) => ({ message: String(message || '') }),
         questions: { aside: { type: 'noul', instructions: 'In `message` the player steps out of the story to speak to the narrator or the app, outside their character.' } },
-        fromAnswers: answers => ({ aside: Number(answers?.aside?.noul) >= 0.5 }),
+        fromAnswers: answers => ({ aside: bandYes(answers, 'aside') }),
     },
 });
 
@@ -173,9 +211,10 @@ export const FACT_CHANGED = Object.freeze({
     normalize: value => typeof value?.changed === 'boolean' ? { changed: value.changed } : null,
     screen: () => ({ skip: false }),
     decision: {
+        bands: { changed: BANDS.changed },
         state: ({ reply }) => ({ reply: String(reply || '') }),
         questions: { changed: { type: 'noul', instructions: '`reply` changes a lasting fact of the story: where someone lives, who is alive, what someone owns, a relationship, a promise.' } },
-        fromAnswers: answers => ({ changed: Number(answers?.changed?.noul) >= 0.5 }),
+        fromAnswers: answers => ({ changed: bandYes(answers, 'changed') }),
     },
 });
 
@@ -223,7 +262,9 @@ export async function askJevDecision({ def, input = {}, screen = {}, signal, fet
         const reported = usage.cost !== undefined && usage.cost !== null && Number.isFinite(Number(usage.cost)) ? Number(usage.cost) : null;
         recordSpend({ route: 'openrouter', model: JEV_MODEL, cost: reported ?? catalogCost(JEV_PRICE, tokens.in, tokens.out) ?? estimate,
             basis: reported !== null ? 'usage' : 'catalog', reservation, job: 'judgment', tokens });
-        return { value: def.decision.fromAnswers(data?.answers || {}, input, screen), model: JEV_MODEL };
+        const answers = data?.answers || {};
+        const unsure = unsureReceipts(answers, def.decision.bands);
+        return { value: def.decision.fromAnswers(answers, input, screen), model: JEV_MODEL, ...(unsure.length ? { unsure } : {}) };
     } catch (error) {
         // A call that timed out may still be billed, so it keeps its reservation as spent; any other failure lets it go.
         if (timedOut) recordSpend({ route: 'openrouter', model: JEV_MODEL, cost: estimate, basis: 'reserved', reservation, job: 'judgment' });
@@ -266,7 +307,8 @@ const DEFAULT_DEPS = {
 /**
  * Run one judgment call. def: DICE, ASIDE, FACT_CHANGED, or a definition shaped like them. input: { message, scene,
  * threads, npcNames, reply }. Returns { value, route, model, ms, skipped, attempts }, where route is 'code',
- * 'desktop', 'phone' or 'jev', and attempts lists each route tried with its outcome and time.
+ * 'desktop', 'phone' or 'jev', and attempts lists each route tried with its outcome and time. unsure, when present, holds the
+ * receipt lines of Jev answers that fell in the unsure band and took the question's default.
  */
 export async function judge(def, input = {}, deps = {}) {
     const result = await runJudgment(def, input, deps);
@@ -355,8 +397,9 @@ async function runJudgment(def, input, deps) {
         else {
             const value = def.normalize(res?.value ?? parseJson(res?.text, { object: true }));
             if (value) {
-                attempts.push({ route: 'jev', outcome: 'answered', ms: d.clock() - t0 });
-                return done(value, 'jev', res.model || '');
+                const unsure = Array.isArray(res.unsure) ? res.unsure : [];
+                attempts.push({ route: 'jev', outcome: 'answered', ms: d.clock() - t0, ...(unsure.length ? { reason: unsure.join('; ') } : {}) });
+                return { ...done(value, 'jev', res.model || ''), ...(unsure.length ? { unsure } : {}) };
             }
             attempts.push({ route: 'jev', outcome: 'invalid', ms: d.clock() - t0 });
         }

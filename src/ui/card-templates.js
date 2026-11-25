@@ -60,10 +60,10 @@ export function blockMeter(value, { max = 10, blocks = 10, label = '' } = {}) {
         h('span', { class: 'ri-c-figure', 'aria-hidden': 'true' }, `${n}`));
 }
 
-/** A change chip: the signed change since the last reply, with its reason when there is one. */
+/** A change chip: the step capture reported (-5 to +5) with its reason as captured. A step of 0 shows no chip. */
 export function changeChip(delta, reason = '') {
     const n = Number(delta);
-    if (!Number.isFinite(n) || n === 0) return reason ? h('span', { class: 'ri-c-change', 'data-dir': 'same' }, reason) : null;
+    if (!Number.isFinite(n) || n === 0) return null;
     const up = n > 0;
     return h('span', { class: 'ri-c-change', 'data-dir': up ? 'up' : 'down', title: reason || undefined },
         icon(up ? 'fa-caret-up' : 'fa-caret-down'), h('span', {}, `${up ? '+' : '−'}${Math.abs(n)}${reason ? ` ${reason}` : ''}`));

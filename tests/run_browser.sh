@@ -24,6 +24,10 @@ fi
 # Each suite starts from the same host settings. The settings file is saved once with the extension's own
 # settings removed, and put back before every suite, so one suite's stored state (a customized prompt, a chat
 # with memory on and its background chapter jobs) never reaches the next suite's page or request counts.
+# A mock started before a pull that changed tests/mock.js answers new prompts as plain replies; stop before any suite.
+if [ -n "$RI_MOCK_PORT" ]; then
+  node -e "const c=require('crypto'),fs=require('fs');const want=c.createHash('sha256').update(fs.readFileSync('tests/mock.js')).digest('hex');fetch('http://127.0.0.1:'+process.argv[1]+'/mock/source').then(r=>r.text()).then(got=>{if(got.trim()!==want){console.error('The mock on port '+process.argv[1]+' runs an older tests/mock.js; restart it.');process.exit(1)}},e=>{console.error('No mock answers on port '+process.argv[1]+': '+e.message);process.exit(1)})" "$RI_MOCK_PORT" || exit 1
+fi
 SETTINGS=""
 if [ -n "$RI_ST_DATA" ] && [ -f "$RI_ST_DATA/default-user/settings.json" ]; then
   SETTINGS="$RI_ST_DATA/default-user/settings.json"

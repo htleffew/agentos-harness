@@ -1205,7 +1205,7 @@ function registerBarCommand() {
 export function mountQuickActions() {
     loadStyles();
     registerPage({id:'look',group:'setup',label:'Look',help:'Set text, icon and touch-target sizes.',
-        aliases:'size compact comfortable scale text icons touch targets sheet height',withoutChat:true,render:body=>renderLookPage(body)});
+        aliases:'size compact comfortable scale text icons touch targets sheet height phone layout drawers fold tablet wide screen',withoutChat:true,render:body=>renderLookPage(body)});
     registerBarCommand();
     knownChat=quickChatIdentity();
     attachToHost();

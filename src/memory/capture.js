@@ -15,6 +15,7 @@ import { captureFields, normalizeConfig } from '../cards/catalog.js';
 import { parseSceneHeader, headerMode } from '../scene-header.js';
 import { outcome } from '../dice.js';
 import { sameStoryDay } from '../story-clock.js';
+import { firedForCapture } from './fired-entries.js';
 
 export const BATCH_EVERY = 5;
 export const RECORDS_BUDGET_CHARS = 4000;     // about 1,000 tokens of current records on a local route (DESIGN 7.2)
@@ -60,27 +61,51 @@ export function fieldsByCard(fields) {
     return out;
 }
 
-function fieldSchema(field) {
+// Meters move in steps (B40, her ruling of 25 November): the answer carries how far each emotion axis and relationship
+// level moved, -5 to +5 with 0 the default, and the reason in the reply's own words or a character's action. Code adds
+// the step to the value of the previous reply and holds it between 0 and 10 (applySteps below).
+export const STEP_MIN = -5;
+export const STEP_MAX = 5;
+export const METER_MIN = 0;
+export const METER_MAX = 10;
+export const METER_START = 5;
+export const AXES = Object.freeze(['tenderness', 'fury', 'dread', 'yearning']);
+const STEP_VALUES = Object.freeze(Array.from({ length: STEP_MAX - STEP_MIN + 1 }, (_, i) => STEP_MIN + i));
+
+/** One movement. The provider's form lists the allowed steps; the form code reads with accepts any number and clamps it. */
+const stepSchema = loose => (loose
+    ? { type: ['object', 'integer', 'null'], properties: { step: { type: ['integer', 'number', 'null'] }, reason: { type: ['string', 'null'] } } }
+    : { type: 'object', required: ['step', 'reason'], properties: { step: { type: 'integer', enum: STEP_VALUES }, reason: { type: 'string' } } });
+
+const MOVES = new Set(['meter', 'gauge']);
+/** The fields capture asks for: a change field is dropped when its card has a level gauge, whose step carries the reason. */
+export function askedFields(fields) {
+    const gauged = new Set(fields.filter(f => f.type === 'gauge').map(f => f.card));
+    return fields.filter(f => !(f.type === 'change' && gauged.has(f.card)));
+}
+
+function fieldSchema(field, loose = false) {
     switch (field.type) {
         case 'chips': case 'list': case 'timeline': return { type: 'array', items: { type: 'string' } };
-        case 'meter': return { type: 'object', properties: { tenderness: { type: 'integer' }, fury: { type: 'integer' }, dread: { type: 'integer' }, yearning: { type: 'integer' } } };
-        case 'gauge': case 'faculty': return { type: 'integer' };
+        case 'meter': return { type: 'object', properties: Object.fromEntries(AXES.map(axis => [axis, stepSchema(loose)])) };
+        case 'gauge': return stepSchema(loose);
+        case 'faculty': return { type: 'integer' };
         default: return { type: 'string' };
     }
 }
 
 /** The JSON schema of `state` for the enabled fields. Per-subject cards return a list of objects with a name. */
-export function stateSchema(fields) {
+export function stateSchema(fields, loose = false) {
     const properties = {};
-    for (const [card, list] of Object.entries(fieldsByCard(fields))) {
-        const props = Object.fromEntries(list.map(f => [f.field, fieldSchema(f)]));
+    for (const [card, list] of Object.entries(fieldsByCard(askedFields(fields)))) {
+        const props = Object.fromEntries(list.map(f => [f.field, fieldSchema(f, loose)]));
         if (PER_SUBJECT[card]) properties[card] = { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, ...props }, required: ['name'] } };
         else properties[card] = { type: 'object', properties: props };
     }
     return { type: 'object', properties };
 }
 
-const OP_SCHEMA = {
+const opSchema = loose => ({
     type: 'object',
     required: ['op', 'id', 'target', 'kind', 'subject', 'text', 'quote'],
     properties: {
@@ -96,14 +121,14 @@ const OP_SCHEMA = {
         speaker: { type: 'string' },
         holders: { type: 'array', items: { type: 'string' } },
         believes: { type: 'string' },
-        axes: { type: 'object', properties: { tenderness: { type: 'integer' }, fury: { type: 'integer' }, dread: { type: 'integer' }, yearning: { type: 'integer' } } },
+        axes: { type: 'object', properties: Object.fromEntries(AXES.map(axis => [axis, stepSchema(loose)])) },
         outcome: { type: 'string' },
         importance: { type: 'integer' },
         aliases: { type: 'array', items: { type: 'string' } },
         details: { type: 'array', items: { type: 'object', properties: { field: { type: 'string' }, value: { type: 'string' } }, required: ['field', 'value'] } },
         exchange: { type: 'integer' },
     },
-};
+});
 
 /** The schema of one capture answer. */
 // The story time a reply's events took (lead decision, 24 November): minutes, with the reply's own words that state it.
@@ -113,16 +138,17 @@ const TIME_SCHEMA = { type: 'object', required: ['elapsed', 'cue'], properties: 
 export const captureSchema = (fields, options) => strictSchema(plainCapture(fields, options));
 
 /** The schema code reads an answer with: only decisions and ops are required, so an older or terse answer still files. */
-export const captureReadSchema = (fields, options) => ({ ...plainCapture(fields, options), required: ['decisions', 'ops'] });
+export const captureReadSchema = (fields, options) => ({ ...plainCapture(fields, { ...options, loose: true }), required: ['decisions', 'ops'] });
 
 /** The capture answer's shape. The ops list is capped at 12 by code. */
-function plainCapture(fields, { batch = false, suspects = false } = {}) {
+function plainCapture(fields, { batch = false, suspects = false, loose = false } = {}) {
+    const OP_SCHEMA = opSchema(loose);
     const props = {
         decisions: { type: 'object', required: ['durable_change', 'scene_ended', 'out_of_character'], properties: { durable_change: { type: 'boolean' }, scene_ended: { type: 'boolean' }, out_of_character: { type: 'boolean' } } },
         time: batch ? { type: 'array', items: { type: 'object', required: ['exchange', 'elapsed', 'cue'], properties: { exchange: { type: 'integer' }, ...TIME_SCHEMA.properties } } } : TIME_SCHEMA,
         ops: { type: 'array', items: batch ? { ...OP_SCHEMA, required: [...OP_SCHEMA.required, 'exchange'] } : OP_SCHEMA },
     };
-    if (fields.length) props.state = batch ? { type: 'array', items: { type: 'object', properties: { exchange: { type: 'integer' }, ...stateSchema(fields).properties }, required: ['exchange'] } } : stateSchema(fields);
+    if (fields.length) props.state = batch ? { type: 'array', items: { type: 'object', properties: { exchange: { type: 'integer' }, ...stateSchema(fields, loose).properties }, required: ['exchange'] } } : stateSchema(fields, loose);
     if (suspects) props.rulings = { type: 'array', items: { type: 'object', required: ['id', 'ruling'], properties: { id: { type: 'string' }, ruling: { type: 'string', enum: ['keep', 'drop', 'replaces'] } } } };
     return { type: 'object', required: ['decisions', 'time', 'ops', ...(fields.length ? ['state'] : [])], properties: props };
 }
@@ -185,7 +211,7 @@ export const CAPTURE_RULES = [
     'durable_change is false for: answers to the player\'s questions that repeat stored facts, travel, arrivals, crossings and who is present (the scene keeps those), time passing, weather and scenery, routine actions, small talk, and descriptions of what is already known. Most replies change nothing lasting. When it is false, ops is [].',
     'Step 2, ops: one entry per lasting change, at most 12. op "add" files a new record with a new short lowercase id of words and hyphens. op "revise" gives an existing record a new text and keeps its id. op "supersede" files a new record whose newer state replaces an older one; put the older id in target. op "complete" ends an open thread; put its id in target and say how it ended in outcome. op "retire" says a record no longer holds; put its id in target.',
     'Reuse an existing id when the fact is already filed. Do not file what a stored record already says.',
-    'kind is one of fact, person, trait, place, item, secret, relationship, emotion, reputation, achievement, thread. A thread has thread_type Open, Plotline, Track, Seed, Detail, Pending, Plan or Elsewhere. A secret lists its holders, the characters who know it; a false belief is a secret with believes set to what the holder wrongly believes. An item names its holder and what changed in details. A relationship names the other person in details (field "other"). An emotion gives axes (tenderness, fury, dread, yearning, each 0 to 10).',
+    'kind is one of fact, person, trait, place, item, secret, relationship, emotion, reputation, achievement, thread. A thread has thread_type Open, Plotline, Track, Seed, Detail, Pending, Plan or Elsewhere. A secret lists its holders, the characters who know it; a false belief is a secret with believes set to what the holder wrongly believes. An item names its holder and what changed in details. A relationship names the other person in details (field "other"). An emotion gives axes: for each of tenderness, fury, dread and yearning, a step from -5 to 5 for how far the newest reply moved it (0 when it moved nothing) and a reason, a quote from the reply or an action a character takes in it.',
     'quote: copy the exact words from the newest exchange, 200 characters or fewer, that show the change. text: one plain sentence of 300 characters or fewer.',
     'Write text like an incident report: who did what, when, where, how many, on what terms and with what result. Keep names, numbers, places, distances, deadlines and agreements exact. Leave out emotions, inner thoughts, opinions, motives and mood; a feeling enters only as an action or as a line a character spoke.',
     'A claim made only in a character\'s spoken line, or carried by a messenger, is filed as what that speaker said: set speaker to who said it and write text as "<speaker> said that ...".',
@@ -195,9 +221,10 @@ export const CAPTURE_RULES = [
 
 const STATE_RULE = 'state: the values of the listed fields for the newest reply, as the story stands at its end, each in a few words. Leave out a field the story does not establish. Per-character cards list one object per character present, by name.';
 const HEADER_RULE = 'The reply opens with a scene header line. Copy place, time and who is present from it; report weather from the prose when it changes after the header.';
+const STEP_RULE = 'Meters and levels report movement. Each emotion axis (tenderness, fury, dread, yearning) and each relationship level is { step, reason }: step is a whole number from -5 to 5 for how far the newest reply moved it, 0 when it moved nothing; reason is a quote from the reply or an action a character takes in it. Code keeps the running value.';
 const SUSPECT_RULE = 'rulings: for each suspect listed, "keep" when it is a separate record, "drop" when it repeats the record it resembles, "replaces" when its newer state replaces that record.';
 
-const fieldLine = f => `${f.card}.${f.field} (${f.label}, ${f.type})`;
+const fieldLine = f => `${f.card}.${f.field} (${f.label}, ${f.type})${f.hint ? `: ${f.hint}` : ''}`;
 const recordLine = r => `${r.id} | ${r.kind}${r.threadType ? `/${r.threadType}` : ''} | ${r.subject || '-'} | ${r.status === 'done' ? '(closed) ' : ''}${String(r.text || '').replace(/\s+/g, ' ')}${r.holders?.length ? ` | known by ${r.holders.join(', ')}` : ''}`;
 const normName = s => String(s || '').toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim();
 
@@ -222,10 +249,11 @@ export function recordsFor(text, records, { budget = RECORDS_BUDGET_CHARS, prese
  */
 export function buildCaptureRequest({ exchanges, records = [], fields = [], suspects = [], cast = [], headerReliable = true }) {
     const batch = exchanges.length > 1;
-    const askFields = fields;
+    const askFields = askedFields(fields);
     const system = [
         CAPTURE_RULES,
         askFields.length && STATE_RULE,
+        askFields.some(f => MOVES.has(f.type)) && STEP_RULE,
         askFields.length && headerReliable && askFields.some(f => f.card === 'scene' && SCENE_FROM_HEADER.includes(f.field)) && HEADER_RULE,
         suspects.length && SUSPECT_RULE,
         batch && 'Several exchanges follow, numbered. Give each op the number of the exchange its quote comes from in "exchange", and give state one object per exchange with its number.',
@@ -290,13 +318,152 @@ export function sceneFor({ header = null, captured = {}, previous = {}, headerRe
     return scene;
 }
 
+// ---------------------------------------------------------------- steps that code applies (B40)
+
+const foldName = value => String(value ?? '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const clampMeter = n => Math.max(METER_MIN, Math.min(METER_MAX, n));
+const plain = raw => (raw && typeof raw === 'object' && !Array.isArray(raw) && Object.hasOwn(raw, 'v') ? raw.v : raw);
+const finite = raw => { const n = Number(plain(raw)); return raw === null || raw === undefined || raw === '' || !Number.isFinite(n) ? null : n; };
+
+/** A captured movement as { step, reason, note }: an integer clamped to -5..5 (note says why), a missing step counts as 0. */
+export function readStep(raw) {
+    const entry = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
+    const reason = typeof entry?.reason === 'string' ? entry.reason.trim().slice(0, 200) : '';
+    const n = Number(entry?.step);
+    if (!entry || entry.step === null || entry.step === undefined || entry.step === '' || !Number.isFinite(n)) return { step: 0, reason, note: entry ? 'no step, counted as 0' : (raw === undefined || raw === null ? '' : 'a bare number is not a step, counted as 0') };
+    const whole = Math.round(n);
+    const step = Math.max(STEP_MIN, Math.min(STEP_MAX, whole));
+    return { step, reason, note: step !== n ? `step ${n} clamped to ${step}` : '' };
+}
+
+/**
+ * The value a subject's meter held in the newest reply before `index` that carries it (old chats' absolute numbers read
+ * the same way), or null. Looks at the tracker of each reply's showing swipe.
+ */
+export function previousMeter(chat, index, key, card, name, field, axis = '') {
+    for (let i = index - 1; i > 0; i--) {
+        if (!isReply(chat[i])) continue;
+        const raw = chat[i]?.extra?.[key]?.tracker?.[card];
+        const items = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? [raw] : []);
+        const item = items.find(x => !name || foldName(x?.name) === foldName(name));
+        if (!item) continue;
+        const cell = plain(item[field]);
+        const value = axis ? finite(cell?.[axis]) : finite(cell);
+        if (value !== null) return clampMeter(value);
+    }
+    return null;
+}
+
+/** The chat's starting value for a subject's meter, from chat data (`ri_memory.meterStart[card][name][axis]`), else 5. */
+export function meterStart(meta, card, name, field, axis = '') {
+    const at = meta?.[MEMORY]?.meterStart?.[card]?.[foldName(name)]?.[axis || field];
+    return finite(at) === null ? METER_START : clampMeter(finite(at));
+}
+
+const lockId = (card, name, field, axis) => [card, foldName(name), field, axis].join('|');
+
+/**
+ * Turn a captured state of steps into values: each meter axis and gauge becomes the previous reply's value plus the step,
+ * held between 0 and 10. A value she set by hand on this reply (`own.locks`) stays as she set it. Returns
+ * { state, steps, notes }: `state` holds numbers, `steps` the movements as captured per card and subject, `notes` what
+ * code corrected for the receipt.
+ */
+export function applySteps(state, fields, { chat = [], index = 0, key = '', meta = {}, own = null } = {}) {
+    const out = structuredClone(state || {});
+    const steps = {};
+    const notes = [];
+    const locks = new Set(own?.locks || []);
+    const ownItems = card => { const raw = own?.[card]; return Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? [raw] : []); };
+    for (const f of fields.filter(x => MOVES.has(x.type))) {
+        const raw = out[f.card];
+        const subjects = PER_SUBJECT[f.card] ? (Array.isArray(raw) ? raw : []) : (raw && typeof raw === 'object' ? [raw] : []);
+        for (const item of subjects) {
+            const name = PER_SUBJECT[f.card] ? String(item?.name || '') : '';
+            if (!item || (PER_SUBJECT[f.card] && !name.trim())) continue;
+            const mine = ownItems(f.card).find(x => !name || foldName(x?.name) === foldName(name));
+            const settle = (cell, axis) => {
+                const id = lockId(f.card, name, f.field, axis);
+                const held = locks.has(id) ? finite(axis ? plain(mine?.[f.field])?.[axis] : mine?.[f.field]) : null;
+                const read = readStep(cell);
+                if (read.note) notes.push(`${f.card}.${f.field}${axis ? `.${axis}` : ''}${name ? ` (${name})` : ''}: ${read.note}`);
+                if (held !== null) return { value: clampMeter(held), step: 0, reason: '' };
+                const before = previousMeter(chat, index, key, f.card, name, f.field, axis) ?? meterStart(meta, f.card, name, f.field, axis);
+                return { value: clampMeter(before + read.step), step: read.step, reason: read.reason };
+            };
+            const record = ((steps[f.card] ||= {})[foldName(name)] ||= { name });
+            if (f.type === 'meter') {
+                const cells = item[f.field] && typeof item[f.field] === 'object' ? item[f.field] : {};
+                const values = {}; const moved = {};
+                for (const axis of AXES) { const r = settle(cells[axis], axis); values[axis] = r.value; moved[axis] = { step: r.step, reason: r.reason }; }
+                item[f.field] = values; item[`${f.field}_steps`] = moved; record[f.field] = moved;
+            } else {
+                const r = settle(item[f.field], '');
+                item[f.field] = r.value; item[`${f.field}_steps`] = { step: r.step, reason: r.reason }; record[f.field] = item[`${f.field}_steps`];
+                item.change = { delta: r.step, reason: r.reason };
+            }
+        }
+    }
+    return { state: out, steps, notes };
+}
+
+/**
+ * Emotion records name their axes as steps too: replace each axis step with the value code computes from the record's
+ * latest axes (or the tracker's value for that person, or the chat's start), so validation reads whole 0 to 10 values.
+ */
+export function stepOps(ops, { records = [], chat = [], index = 0, key = '', meta = {} } = {}) {
+    const notes = [];
+    const next = (ops || []).map(op => {
+        if (!op || typeof op !== 'object' || !op.axes || typeof op.axes !== 'object') return op;
+        const before = records.find(r => r.id === op.id && r.axes)
+            || records.find(r => r.kind === 'emotion' && r.axes && foldName(r.subject) === foldName(op.subject) && foldName(r.other || '') === foldName(op.details?.find?.(d => d.field === 'other')?.value || ''));
+        const axes = {};
+        for (const axis of AXES) {
+            if (!Object.hasOwn(op.axes, axis)) continue;
+            const read = readStep(op.axes[axis]);
+            if (read.note) notes.push(`ops.axes.${axis} (${op.subject || op.id}): ${read.note}`);
+            const base = finite(before?.axes?.[axis]) ?? previousMeter(chat, index, key, 'emotions', op.subject, 'axes', axis) ?? meterStart(meta, 'emotions', op.subject, 'axes', axis);
+            axes[axis] = clampMeter(base + read.step);
+        }
+        return { ...op, axes };
+    });
+    return { ops: next, notes };
+}
+
+/**
+ * Set one meter value by hand on a message's showing swipe and lock it: later steps start from her value, and a repeat
+ * capture of this reply keeps it. `field` is the catalog field ('axes' or 'level'); `axis` names the axis for a meter.
+ */
+export function setMeterByHand(message, key, { card, name = '', field, axis = '', value }) {
+    const n = finite(value);
+    if (n === null) return false;
+    const holders = [message.extra ||= {}];
+    const slot = message.swipe_info?.[swipeOf(message)];
+    if (slot && typeof slot === 'object') holders.push(slot.extra ||= {});
+    for (const holder of holders) {
+        const rec = holder[key] && typeof holder[key] === 'object' ? holder[key] : (holder[key] = {});
+        const tracker = rec.tracker ||= {};
+        let item = tracker[card];
+        if (PER_SUBJECT[card]) {
+            item = (Array.isArray(item) ? item : (tracker[card] = []));
+            let hit = item.find(x => foldName(x?.name) === foldName(name));
+            if (!hit) item.push(hit = { name });
+            item = hit;
+        } else item = (tracker[card] ||= {});
+        if (axis) item[field] = { ...(item[field] && typeof item[field] === 'object' ? item[field] : {}), [axis]: clampMeter(Math.round(n)) };
+        else item[field] = clampMeter(Math.round(n));
+        const id = lockId(card, name, field, axis);
+        tracker.locks = [...new Set([...(tracker.locks || []), id])];
+    }
+    return true;
+}
+
 /** The tracker values of a reply in the catalog's shape: single-subject cards as objects, per-subject cards as lists. */
 export function trackerFrom(state, fields, { scene = null } = {}) {
     const byCard = fieldsByCard(fields);
     const out = {};
     for (const [card, list] of Object.entries(byCard)) {
         const value = state?.[card];
-        const keep = new Set(list.map(f => f.field));
+        const keep = new Set(list.flatMap(f => (MOVES.has(f.type) ? [f.field, `${f.field}_steps`, ...(f.type === 'gauge' ? ['change'] : [])] : [f.field])));
         if (PER_SUBJECT[card]) {
             const items = (Array.isArray(value) ? value : []).filter(item => item && String(item.name || '').trim())
                 .map(item => Object.fromEntries(Object.entries(item).filter(([k, v]) => (k === 'name' || keep.has(k)) && v !== undefined && v !== null && v !== '')));
@@ -354,8 +521,8 @@ export function captureStatus(chat, index) {
 }
 
 /** Write a capture stamp and the tracker values on the showing swipe of a message (its extra and its swipe slot). */
-export function stampMessage(message, { hash, at, route = '', model = '', ops = 0, tracker = null, key = '', clock = null }) {
-    const stamp = { hash, at, ...(route ? { route } : {}), ...(model ? { model } : {}), ops };
+export function stampMessage(message, { hash, at, route = '', model = '', ops = 0, tracker = null, notes = [], key = '', clock = null }) {
+    const stamp = { hash, at, ...(route ? { route } : {}), ...(model ? { model } : {}), ops, ...(notes.length ? { notes: notes.slice(0, 20) } : {}) };
     const holders = [message.extra ||= {}];
     const slot = message.swipe_info?.[swipeOf(message)];
     if (slot && typeof slot === 'object') holders.push(slot.extra ||= {});
@@ -442,18 +609,25 @@ export function captureCall(chat, indices, { records, suspects = [], fields = []
  * Commit one checked answer to its reply through the store, with the tracker values and the capture stamp, only while the
  * revision it read still shows. Resolves the store's result plus { inputs, dropped }.
  */
-export async function commitExchange({ store, chat, exchange, answer, foldResult, fields, key, route, model, callId, headerReliable, previousScene = {}, previousReply = 0, baseMinutes = null, now = Date.now() }) {
-    const checked = checkedInputs(answer, exchange, foldResult, { route, model, callId });
+export async function commitExchange({ store, chat, exchange, answer, foldResult, fields, key, route, model, callId, headerReliable, previousScene = {}, previousReply = 0, baseMinutes = null, chatMeta = null, now = Date.now() }) {
+    const meta = chatMeta || {};
+    const existing = chat?.[exchange.index]?.extra?.[key]?.tracker || null;
+    const stepped = stepOps(answer?.ops, { records: foldResult?.records || [], chat, index: exchange.index, key, meta });
+    const checked = checkedInputs({ ...answer, ops: stepped.ops }, exchange, foldResult, { route, model, callId });
+    const applied = applySteps(checked.state, fields, { chat, index: exchange.index, key, meta, own: existing });
+    checked.state = applied.state;
+    const stepNotes = [...stepped.notes, ...applied.notes];
     const header = headerReliable ? exchange.headerFields : null;
     const scene = sceneFor({ header, captured: checked.state?.scene || {}, previous: previousScene, headerReliable, reply: exchange.reply, previousReply });
     const tracker = trackerFrom(checked.state, fields, { scene });
     if (checked.decisions.scene_ended) tracker.sceneEnded = true;
+    if (existing?.locks?.length) tracker.locks = [...existing.locks];
     const job = { chatId: exchange.chatId, index: exchange.index, mark: exchange.mark, swipe: exchange.swipe, hash: exchange.hash };
     const result = await store.commit(job, checked.inputs, {
         reason: 'capture',
-        onMessage: message => stampMessage(message, { hash: exchange.hash, at: now, route, model, ops: checked.inputs.length, tracker, key, clock: { ...elapsedOf(answer?.time, exchange.prose), base: baseMinutes } }),
+        onMessage: message => stampMessage(message, { hash: exchange.hash, at: now, route, model, ops: checked.inputs.length, tracker, notes: stepNotes, key, clock: { ...elapsedOf(answer?.time, exchange.prose), base: baseMinutes } }),
     });
-    return { ...result, inputs: checked.inputs, dropped: checked.dropped, tracker, decisions: checked.decisions };
+    return { ...result, inputs: checked.inputs, dropped: checked.dropped, tracker, decisions: checked.decisions, stepNotes };
 }
 
 /** The scene of the newest captured reply before `index`, with its reply number, for carrying values forward. */
@@ -489,7 +663,7 @@ export async function runCapture(indices, { signal, chain, runChainFn, context, 
     const cast = [...new Set([H.st.names().char, H.st.names().user].filter(Boolean))];
     const call = captureCall(chat, live, {
         records: foldResult.records, suspects: suspectsIn(foldResult, chat), fields, cast, headerReliable: reliable, key,
-        rollOf: rec => rollLine(rec?.v10Check || rec?.roll), firedOf: rec => (rec?.v10Lore || rec?.fired || []).filter(e => e?.behavior || e?.fired).map(e => e.title || e.comment || String(e.uid)).slice(0, 8),
+        rollOf: rec => rollLine(rec?.v10Check || rec?.roll), firedOf: firedForCapture,
     });
     for (const i of live) tell({ index: i, phase: 'capturing' });
     const exchanges = call.exchanges.map(x => ({ ...x, chatId }));
@@ -500,7 +674,7 @@ export async function runCapture(indices, { signal, chain, runChainFn, context, 
     for (const part of splitAnswer(res.value, exchanges)) {
         const prev = previousSceneOf(c.chat || [], part.index, key);
         const baseMinutes = minutesBefore(c.chat || [], part.index, key, c.chatMetadata?.[key]?.v10ClockSeed);
-        const out = await commitExchange({ store: memoryStore, chat, exchange: part.exchange, answer: part.answer, foldResult, fields, key, route: res.route, model: res.model, callId: `${res.route}:${now()}`, headerReliable: reliable, previousScene: prev.scene, previousReply: prev.reply, baseMinutes, now: now() });
+        const out = await commitExchange({ store: memoryStore, chat, exchange: part.exchange, answer: part.answer, foldResult, fields, key, route: res.route, model: res.model, callId: `${res.route}:${now()}`, headerReliable: reliable, previousScene: prev.scene, previousReply: prev.reply, baseMinutes, chatMeta: c.chatMetadata, now: now() });
         commits.push({ index: part.index, ...out });
         tell({ index: part.index, phase: out.committed ? 'done' : 'failed', result: out });
     }
@@ -552,7 +726,7 @@ export async function remainderForChapter(upTo, options = {}) {
             for (const part of splitAnswer(answer, call.exchanges.map(x => ({ ...x, chatId })))) {
                 const prev = previousSceneOf(chat, part.index, H.st.KEY);
                 const baseMinutes = minutesBefore(chat, part.index, H.st.KEY, c.chatMetadata?.[H.st.KEY]?.v10ClockSeed);
-                out.push(await commitExchange({ store, chat, exchange: part.exchange, answer: part.answer, foldResult, fields, key: H.st.KEY, route, model, callId: `chapter:${Date.now()}`, headerReliable: headerMode() !== 'tray', previousScene: prev.scene, previousReply: prev.reply, baseMinutes }));
+                out.push(await commitExchange({ store, chat, exchange: part.exchange, answer: part.answer, foldResult, fields, key: H.st.KEY, route, model, callId: `chapter:${Date.now()}`, headerReliable: headerMode() !== 'tray', previousScene: prev.scene, previousReply: prev.reply, baseMinutes, chatMeta: c.chatMetadata }));
             }
             return out;
         },
