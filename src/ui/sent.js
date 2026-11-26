@@ -31,6 +31,7 @@ import { ctx, KEY, isChatOpen, isReply, loadBook, replyLabels } from '../st.js';
 import { guidedTarget } from '../guided-context.js';
 import { executionScope } from '../execution.js';
 import { rollRecordView, itemSetData } from './roll-record.js';
+import { diagnosticsRow, diagnosticsStamp } from '../diagnostics-log.js';
 
 /** The directions that went with a reply (visible OOC or private), with the evidence for required ones. */
 export function deliveredDirections(receipt) {
@@ -178,6 +179,7 @@ function recordBody(id, rec, isLast, withButtons) {
     return [
         (rec.guided?.execution || rec.quickActions) && executionDetails(rec.guided?.execution || rec.quickActions),
         deliveredDirections(rec.quickActions),
+        diagnosticsRow(ctx().chat[id],id),
         rec.v10Request ? h('details',{class:'ri-sentitem'},h('summary',{},'Story guidance sent'),
             h('pre',{class:'ri-v10-prompt-text'},rec.v10Request)) : null,
         withButtons && rec.v10 && h('div',{class:'ri-note'},
@@ -395,7 +397,7 @@ function trayCardsFor(id, msg, rec, view) {
     const names = strip?.present?.length ? strip.present : people.map(person=>person.name);
     const warnings = [rec.v10Invalid && 'Some structured changes could not be applied.',
         rec.stateOutdated && 'This reply was edited. Its previous state is out of date.',...(rec.cardIssues || [])].filter(Boolean);
-    const sentShown = rec.quickActions || rec.guided?.execution
+    const sentShown = rec.quickActions || rec.guided?.execution || diagnosticsStamp(msg) > 0
         || settings().showUnder==='display' && (rec.items?.length || rec.v10Lore?.length || rec.v10Request || rec.v10Check || rec.v10Offer);
     const extras = {
         lore: lore.length ? {first:`${lore.length} ${lore.length===1 ? 'entry' : 'entries'}: ${lore.map(entry=>entry.title).join(', ')}`,body:()=>replyLoreRows(lore)} : null,
@@ -452,7 +454,7 @@ function refreshV10Replies(chat) {
         const lore=showHeader && local.showLore!==false ? rec.v10Lore || [] : [];
         const responseKey=`${rec.time}:${msg.swipe_id ?? 0}`;
         const stamp=JSON.stringify([responseKey,showConsole,showState,modules,world,manualVersion,memoryVersion,latest,snapshot,people,profiles,records,planning,roast,lore,diagnostics,
-            rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated,rec.items?.map(item=>item.status),msg.mes,look]);
+            diagnosticsStamp(msg),rec.v10Check,rec.v10Offer,rec.v10Plot,rec.v10Invalid,rec.v10Issues,rec.v10Diagnostics,rec.cardIssues,rec.stateOutdated,rec.items?.map(item=>item.status),msg.mes,look]);
         if (old?.dataset.responseKey===responseKey && (old.dataset.stamp===stamp || old.querySelector('.ri-state-editor'))) continue;
         const redraw=()=>{const tray=block.querySelector(':scope > .ri-tray:not(.ri-tray-loading)');if(tray) tray.dataset.stamp='';refreshUnderReplies();};
         const notes = [

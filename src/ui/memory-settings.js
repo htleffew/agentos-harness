@@ -17,7 +17,8 @@ import { spendState } from '../spend.js';
 import { SIZE_CAPS } from '../memory/inject.js';
 import { CLOSE_DEFAULTS } from '../memory/story-so-far.js';
 import { SEARCH_MODEL } from '../memory/embed.js';
-import { fold } from '../memory/fold.js';
+import { fold, chatMemory } from '../memory/fold.js';
+import { retireModelMade, modelMadeIds } from '../memory/catchup.js';
 import { memoryStore, memoryIsOn } from '../memory/store.js';
 import { desktopQueue } from '../memory/queue.js';
 import { recallRuntime } from '../recall.js';
@@ -289,27 +290,64 @@ async function refreshStoryBook() {
     } catch (error) { console.warn('[Roleplay Instructions] story book refresh', error); }
 }
 
-/** Memory on for this chat, and Clear this chat's memory with its one Undo (memory DESIGN 12.1). */
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const heldModel = () => { try { const held = chatMemory(ctx().chatMetadata || {}).clearedModel; return held?.entries?.length ? held : null; } catch { return null; } };
+
+/** Retire what a model made and hold the entry ids, so one Undo reverts them. Records you wrote or edited, locked records and stat sheets stay. */
+async function clearModelMade(store) {
+    const out = await retireModelMade(store, { reason: 'Cleared the records a model made.', type: 'you' });
+    if (!out.count) return out;
+    const mem = chatMemory(ctx().chatMetadata || {});
+    const prior = mem.clearedModel?.entries?.length ? mem.clearedModel : { entries: [], count: 0 };
+    mem.clearedModel = { at: Date.now(), entries: [...prior.entries, out.entry], count: prior.count + out.count };
+    await (ctx().saveChat?.() ?? ctx().saveMetadata?.());
+    return out;
+}
+
+/** Revert every entry of the model-made clear, newest first. The held marker goes when they are back. */
+async function undoModelMade(store) {
+    const mem = chatMemory(ctx().chatMetadata || {});
+    const held = mem.clearedModel;
+    if (!held?.entries?.length) return { restored: false, reason: 'Nothing was cleared.' };
+    for (const id of [...held.entries].reverse()) if (store.entryById(id)) await store.revert(id, 'Undone: the records a model made are back.');
+    delete mem.clearedModel;
+    await (ctx().saveChat?.() ?? ctx().saveMetadata?.());
+    return { restored: true, entries: held.count };
+}
+
+/** Memory on for this chat, and Clear this chat's memory with its one Undo (memory DESIGN 12.1; asks which on tap, 25 November). */
 function chatControls(app) {
     if (!isChatOpen() || !memoryActive()) return null;
     const store = memoryStore();
     const meta = ctx().chatMetadata || {};
     const on = memoryIsOn(meta);
     const held = store.clearedState();
+    const model = held ? null : heldModel();
     const run = async (work, done) => {
         try { const out = await work(); await refreshStoryBook(); toast('success', done(out)); }
         catch (error) { toast('error', error.message); }
         finally { app.render(); }
     };
-    const clearButton = button('Clear this chat\'s memory', () => run(() => store.clear(), out => `Cleared ${out.entries} ${out.entries === 1 ? 'record' : 'records'}. Undo is below.`), { kind: 'ghost' });
+    const modelCount = modelMadeIds(store.view()).length;
+    const choice = h('div', { class: 'ri-card ri-tight', 'data-ri-clear-choice': '', hidden: true },
+        h('p', { class: 'ri-help' }, 'Which records should go? Either one has an Undo.'),
+        h('div', { class: 'ri-row ri-wrap' },
+            button('Model-made only', () => run(() => clearModelMade(store), out => (out.count ? `Cleared ${plural(out.count, 'record', 'records')} a model made. Undo is below.` : 'No model-made records to clear.')), { kind: 'ghost', 'data-ri-clear-model': '' }),
+            button('Everything', () => run(() => store.clear(), out => `Cleared ${plural(out.entries, 'record', 'records')}. Undo is below.`), { kind: 'ghost', 'data-ri-clear-all': '' }),
+            button('Cancel', () => { choice.hidden = true; }, { kind: 'ghost' })),
+        h('p', { class: 'ri-help' }, `Model-made only clears ${plural(modelCount, 'record', 'records')} and keeps the ones you wrote or edited, locked records and stat sheets. Everything clears all of this chat's records.`));
+    const clearButton = button('Clear this chat\'s memory', () => { choice.hidden = !choice.hidden; }, { kind: 'ghost' });
     return h('div', { class: 'ri-memory-chat-controls', 'data-ri-chat-controls': '' },
         h('div', { class: 'ri-row', 'data-ri-memory-on': '' }, h('span', {}, 'Memory on for this chat'),
             toggle(on, value => run(() => store.setOn(value), () => (value ? 'Memory is on for this chat.' : 'Memory is off for this chat. Its records stay.')), 'Memory on for this chat')),
         h('p', { class: 'ri-help' }, on ? 'This chat captures and recalls its story.' : 'Capture and recall are off for this chat only. Its records stay and show where they always do.'),
         h('div', { class: 'ri-row' }, clearButton),
+        choice,
         h('p', { class: 'ri-help' }, 'Removes this chat\'s records and the entries of its generated Story World book. Your own World Info books are not touched.'),
-        held ? h('div', { class: 'ri-row ri-row-tight', 'data-ri-clear-undo': '' }, h('span', {}, `${held.entries} ${held.entries === 1 ? 'record' : 'records'} cleared.`),
-            button('Undo', () => run(() => store.undoClear(), out => (out.restored ? `Restored ${out.entries} ${out.entries === 1 ? 'record' : 'records'}.` : out.reason)), { kind: 'primary' })) : null);
+        held ? h('div', { class: 'ri-row ri-row-tight', 'data-ri-clear-undo': '' }, h('span', {}, `${plural(held.entries, 'record', 'records')} cleared.`),
+            button('Undo', () => run(() => store.undoClear(), out => (out.restored ? `Restored ${plural(out.entries, 'record', 'records')}.` : out.reason)), { kind: 'primary' })) : null,
+        model ? h('div', { class: 'ri-row ri-row-tight', 'data-ri-clear-undo': 'model' }, h('span', {}, `${plural(model.count, 'model-made record', 'model-made records')} cleared.`),
+            button('Undo', () => run(() => undoModelMade(store), out => (out.restored ? `Restored ${plural(out.entries, 'record', 'records')}.` : out.reason)), { kind: 'primary' })) : null);
 }
 
 function thisChatSection(app, legacy) {

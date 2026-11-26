@@ -9,6 +9,7 @@ import { isChatOpen, on, LOG } from './src/st.js';
 import { startDesktopQueue } from './src/memory/queue.js';
 import { startMemory } from './src/memory/import.js';
 import { startChapters } from './src/chapters.js';
+import { startCatchUp } from './src/memory/catchup.js';
 import { installGeneratedBookGuard } from './src/memory/story-world-book.js';
 import { startRecall } from './src/recall.js';
 import { startTrackerBook } from './src/tracker-book.js';
@@ -35,6 +36,7 @@ import './src/ui/touch-layout.js';
         loadShipped().then(readBankBook).catch(e => console.warn(LOG, 'option banks did not load', e));
         try { startMemory(); } catch (e) { console.warn(LOG, 'chat memory did not start', e); }
         try { startChapters(); } catch (e) { console.warn(LOG, 'chapters did not start', e); }
+        startCatchUp().catch(e => console.warn(LOG, 'catch-up did not start', e));
         try { startTrackerBook(); } catch (e) { console.warn(LOG, 'tracker book did not start', e); }
         try { startRecall(); } catch (e) { console.warn(LOG, 'recall did not start', e); }
         startInject().catch(e => console.warn(LOG, 'request layout did not start', e));

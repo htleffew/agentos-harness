@@ -28,12 +28,12 @@ async function memory(page) {
         const {listWorld,chatWorld} = await import(base+'/src/world.js');
         const {loadDurableWorld,loadEffectiveWorld,worldIdle} = await import(base+'/src/worldflow.js');
         const {storyJournalStatus} = await import(base+'/src/memory-journal.js');
-        const {chapterBusy,historyCatchUpStatus} = await import(base+'/src/chapters.js');
+        const {chapterBusy} = await import(base+'/src/chapters.js');
         const {executionReceipt} = await import(base+'/src/execution.js');
         await worldIdle();
         const world = chatWorld(), host = SillyTavern.getContext();
         return {world,physical:listWorld(await loadDurableWorld(world),world),effective:listWorld(await loadEffectiveWorld(world),world),
-            journal:storyJournalStatus(),busy:chapterBusy(),chapter:executionReceipt('chapterSummary'),catchUp:historyCatchUpStatus(),
+            journal:storyJournalStatus(),busy:chapterBusy(),chapter:executionReceipt('chapterSummary'),
             corrections:host.chatMetadata[KEY]?.storyCorrections || [],
             messages:host.chat.map(({mes,send_date,is_user,swipe_id,swipes,extra})=>({mes,send_date,is_user,swipe_id,swipes,rec:extra?.[KEY]}))};
     },L.BASE);

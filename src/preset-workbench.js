@@ -1,6 +1,7 @@
 import { ctx } from './st.js';
 import { settings, saveSettings, chatState } from './store.js';
-import { activePreset, blockCompanions, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
+import { activePreset, blockCompanions, effectiveModules, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
+import { noteStack } from './diagnostics-log.js';
 import { FEATURE_KEYS, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
 import { readMarker, restoreLoadoutStack } from './preset-loadouts.js';
 import { savedWordingOf } from './preset-bank-ri.js';
@@ -500,6 +501,7 @@ export function applyWorkingCopy() {
     if (!context || context.marker || !enabledV10()) return 0;
     const work = workingPlan(context);
     syncOwners(context, work);
+    noteStack(work, effectiveModules());   // B47: the diagnostics log reads the stack plan here
     // A base the bank cannot read (no preset list on this host) is sent as it is.
     const changes = workingCopyChanges(data, work || { source: { cards: [] }, plan: [] });
     const unchanged = !changes.inserts.length && !changes.flags.length && !changes.texts.length && changes.order.every((entry, i) => entry === order[i]);

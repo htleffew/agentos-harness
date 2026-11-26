@@ -18,6 +18,7 @@ import { isPaused, endsWhenOf, setThreadEnds, setThreadPaused } from '../memory/
 import { ctx, KEY, isChatOpen, toast } from '../st.js';
 import { memoryActive } from '../memory/import.js';
 import { gateModelButtons } from './memory-settings.js';
+import { catchUpStatusLine } from './context-dashboard.js';
 import { RECORD_KINDS, canAddRecord, editableRecord, readRecordById } from '../records.js';
 
 // ---------------------------------------------------------------- filters (pure)
@@ -317,7 +318,7 @@ export function renderStoryWorld(body, app, { chapterControl = null, reviewView 
         list.length > 60 && !app.worldAll ? button(`Show all ${list.length}`, () => { app.worldAll = true; app.render(); }, { kind: 'ghost' }) : null);
     records.id = 'ri-world-records';
     body.append(h('p', { class: 'ri-help' }, 'The records of this story, kept in the chat. A swipe or a deleted reply takes back what it filed.'),
-        chips, h('div', { class: 'ri-field' }, search), records, changeLog(app, chat, meta, result),
+        catchUpStatusLine(), chips, h('div', { class: 'ri-field' }, search), records, changeLog(app, chat, meta, result),
         storySoFar(app, result, chapterControl), bookActions(app));
 }
 

@@ -322,7 +322,7 @@ export const importGroup = (file, when = Date.now()) => `import:${String(file).r
  */
 export function listItems(list, group) {
     const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'item';
-    return list.items.map((it, i) => ({ id: `${group}:${slug(list.name)}:${i}:${slug(it.label)}`, label: it.label, text: it.text, on: true, weight: 1, tags: '',
+    return list.items.map((it, i) => ({ id: `${group}:${slug(list.name)}:${i}:${slug(it.label)}`, label: it.label, text: it.text, on: true, tags: '',
         source: { file: list.source?.file || '', block: list.source?.block || list.block || '', imported: true }, group, ...(it.gate ? { gate: it.gate } : {}) }));
 }
 

@@ -15,7 +15,6 @@ export const EXECUTION_OPERATIONS = Object.freeze({
         automatic:'When a filed reply qualifies at an enabled reply count, scene-end or token threshold.', automaticDefault:true },
     chapterCombine: { label:'Combine older chapters',
         automatic:'When a new chapter has been saved and the configured number of older chapters has been exceeded.', automaticDefault:true },
-    historyCatchUp: { label:'Catch up story history' },
     newChapter: { label:'Draft a new chapter' },
     starterWorld: { label:'Fill a starter Story World' },
     storyOpening: { label:'Draft or read an opening' },
@@ -96,7 +95,7 @@ export const automaticAllowed = operation => executionSetting(operation).automat
 
 /** The background job, and so the tier chain, each model function uses. */
 export const OPERATION_JOBS = Object.freeze({
-    factRepair:'tidy', chapterSummary:'chapter', chapterCombine:'storySoFar', historyCatchUp:'catchUp', newChapter:'carryOver',
+    factRepair:'tidy', chapterSummary:'chapter', chapterCombine:'storySoFar', newChapter:'carryOver',
     starterWorld:'behaviorDrafts', storyOpening:'behaviorDrafts', instructionCheck:'capture', writerVersions:'behaviorDrafts',
     writerVersionRewrite:'behaviorDrafts', writerItems:'behaviorDrafts', writerStyle:'behaviorDrafts', writerRewrite:'behaviorDrafts',
     writerGoal:'behaviorDrafts', writerWorld:'behaviorDrafts', bookKeywords:'capture', editedState:'capture', presetParity:'tidy',

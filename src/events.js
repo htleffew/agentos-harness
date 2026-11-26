@@ -4,7 +4,7 @@ import { promptText } from './prompts.js';
 // are on, and one order is sent: an event must happen, built from those parts.
 import { itemFits, fillNeed, NEEDS } from './pacing.js';
 import { SENT_AS, blankEntry, entriesOf, keepTags, toStore, keepToSticky, waitToCooldown, replyNumberToDelay, stickyToKeep, cooldownToWait, delayToReplyNumber, rollInt } from './books.js';
-import { bankItems, bankVersion, seededRandom, pickSeeded, joinValues, gatedRoll, newSeed, DEFAULT_CAP, DEFAULT_GATE_MAX, SEND_RULES } from './banks.js';
+import { bankItems, bankVersion, seededRandom, pickSeeded, itemBias, itemOdds, neverRolled, joinValues, gatedRoll, newSeed, DEFAULT_CAP, DEFAULT_GATE_MAX, SEND_RULES } from './banks.js';
 
 export const MODES = {
     new: { label: 'New pick every time', help: 'Each event gets a fresh pick from this category.' },
@@ -23,7 +23,7 @@ export const newId = () => `${Date.now().toString(36)}${(counter++).toString(36)
 export function newCategory(name, items = [], extra = {}) {
     return { id: newId(), name, on: true, mode: 'new', fixed: '', keepMin: 2, keepMax: 4, count: 1, useAll: true, itemWait: 0, burn: false, neverTags: '', driver: false,
         chance: 100, restAfter: 0, changeChance: 100, after: '', hint: '', locked: false, bank: '', pool: [], send: 'together', gate: '', gateMax: DEFAULT_GATE_MAX,
-        items: items.map(x => Array.isArray(x) ? { id: newId(), text: x[0], on: true, weight: 1, tags: x[1] || '', always: false } : { id: newId(), text: x, on: true, weight: 1, tags: '', always: false }), ...extra };
+        items: items.map(x => Array.isArray(x) ? { id: newId(), text: x[0], on: true, tags: x[1] || '', always: false } : { id: newId(), text: x, on: true, tags: '', always: false }), ...extra };
 }
 
 /** The list a new story event set starts with for what an event puts at stake. Every item works in any setting. */
@@ -158,7 +158,8 @@ export function originOf(it, cat) {
 
 /** One item of a list. need and min: what a story event item asks of the scene. The three "while this pick is in use" lines belong to writing style items. */
 export function normalItem(it) {
-    const out = { id: String(it?.id || newId()), text: String(it?.text ?? ''), on: it?.on !== false, weight: Math.max(1, Math.round(Number(it?.weight) || 1)), tags: String(it?.tags || ''), always: !!it?.always };
+    const out = { id: String(it?.id || newId()), text: String(it?.text ?? ''), on: it?.on !== false, tags: String(it?.tags || ''), always: !!it?.always };
+    if (itemBias(it)) out.bias = itemBias(it);
     if (it?.need && NEEDS[it.need]) out.need = it.need;
     if (it?.from && ORIGINS[it.from]) out.from = it.from;
     const min = Math.max(0, Math.min(20, Math.round(Number(it?.min) || 0)));
@@ -239,7 +240,7 @@ export function readEvent(entry, name) {
  */
 export function usable(cat) {
     const never = new Set(tagList(cat.neverTags));
-    const on = cat.items.filter(it => it.on && it.text.trim() && !tagList(it.tags).some(t => never.has(t)));
+    const on = cat.items.filter(it => it.on && it.text.trim() && !neverRolled(it) && !tagList(it.tags).some(t => never.has(t)));
     const ids = new Set(cat.items.map(it => it.id));
     const pool = new Set((cat.pool || []).filter(id => ids.has(id)));
     return pool.size ? on.filter(it => pool.has(it.id)) : on;
@@ -512,7 +513,7 @@ export function rollEvent(ri, prev, opts = {}) {
                 for (let n = 0; n < need; n++) {
                     const open = options.filter(it => !picks.includes(it.id) && !clash(tagList(it.tags), mine, pairs));
                     if (!open.length) break;
-                    const [it] = pickSeeded(open, x => x.weight, 1, rnd);
+                    const [it] = pickSeeded(open, itemOdds, 1, rnd);
                     picks.push(it.id);
                     for (const t of tagList(it.tags)) mine.add(t);
                 }
@@ -595,7 +596,7 @@ export function rerollCategory(ri, parts, state, catId, blockedTags = [], opts =
     const blocked = new Set(blockedTags.map(t => String(t).trim().toLowerCase()));
     const options = usable(cat).filter(it => !(part.ids || []).includes(it.id) && !tagList(it.tags).some(t => blocked.has(t)));
     if (!options.length) return null;
-    const picked = pickSeeded(options, it => it.weight, Math.min(Math.max(1, (part.ids || []).length), options.length), rnd);
+    const picked = pickSeeded(options, itemOdds, Math.min(Math.max(1, (part.ids || []).length), options.length), rnd);
     const rules = picked.flatMap(it => tagList(it.tags)).filter(t => t.startsWith('rule:'));
     const newParts = parts.map(p => p.catId === catId ? { name: p.name, items: picked.map(it => it.text), after: p.after, catId, ids: picked.map(it => it.id), ...(p.send ? { send: p.send } : {}), ...(rules.length ? { rules } : {}) } : p);
     const newState = structuredClone(state || { cats: {} });

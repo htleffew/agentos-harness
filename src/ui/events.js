@@ -5,7 +5,7 @@ import { h, button, toggle, select, choiceList, numberInput, textInput, textArea
 import { loadSet, editSet, createSet, forgetSet, exportSet, setName, setInfo, wrapText, SENT_AS } from '../books.js';
 import { keptIn, removeText, deleteButton, onForChat } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
-import { bankItems, bankInfo, bankChoices, ensureBankBook, editBankBook, setBankItems, SEND_RULES, BANK_BOOK } from '../banks.js';
+import { itemBias, bankItems, bankInfo, bankChoices, ensureBankBook, editBankBook, setBankItems, SEND_RULES, BANK_BOOK } from '../banks.js';
 import { openPoolSheet, poolSummary, importBox } from './bank-sheets.js';
 import { rollRecordView } from './roll-record.js';
 
@@ -13,13 +13,24 @@ let banksReady = false;
 /** The set as the preview rolls it. */
 const previewData = draft => ({ type: cfg.type, categories: draft.categories, neverTogether: draft.neverTogether, cap: draft.cap });
 
+/** Set the weight (-10 to +10) of one value in "RI Option banks". It is kept on the value itself, where the roll reads it. */
+async function setBankBias(dim, id, n) {
+    try {
+        await editBankBook(book => {
+            const entry = Object.values(book.entries).find(e => e?.extensions?.ri?.dim === dim);
+            if (!entry) throw new Error('That bank is not in the book.');
+            setBankItems(book, dim, entry.extensions.ri.items.map(it => { if (it.id !== id) return it; const next = { ...it }; if (n) next.bias = n; else delete next.bias; return next; }));
+        });
+    } catch (e) { toast('error', `Could not save the weight: ${e.message}`); }
+}
+
 /** Add values to one bank of "RI Option banks", marked as hers. */
 async function addToBank(dim, texts) {
     try {
         await editBankBook(book => {
             const entry = Object.values(book.entries).find(e => e?.extensions?.ri?.dim === dim);
             if (!entry) throw new Error('That bank is not in the book.');
-            setBankItems(book, dim, [...entry.extensions.ri.items, ...texts.map(t => ({ id: `${dim}.mine.${newId()}`, label: t, text: t, on: true, weight: 1, tags: '', source: { author: 'You', work: 'Added in the editor', file: BANK_BOOK, mine: true } }))]);
+            setBankItems(book, dim, [...entry.extensions.ri.items, ...texts.map(t => ({ id: `${dim}.mine.${newId()}`, label: t, text: t, on: true, tags: '', source: { author: 'You', work: 'Added in the editor', file: BANK_BOOK, mine: true } }))]);
         });
         toast('success', `${texts.length} ${texts.length === 1 ? 'value was' : 'values were'} added to the bank.`);
     } catch (e) { toast('error', `Could not add to the bank: ${e.message}`); }
@@ -57,7 +68,8 @@ const itemWriterPrompts = category => slot(cfg.kind === 'style'
     'Customize Write with AI prompts', { contextual: true });
 
 // The list of sets lives on the page 'sets' (set-list.js). These pages draw the editor of one set.
-export const EVENT_KINDS = { events: EVENTS, style: STYLE };
+const BIAS_CHOICES = Array.from({ length: 21 }, (_, i) => { const n = 10 - i; return { value: n, label: n > 0 ? `+${n}` : String(n) }; });
+export const EVENT_KINDS ={ events: EVENTS, style: STYLE };
 export function renderEvents(body, app) { cfg = EVENTS; return renderEdit(body, app); }
 export function renderStyle(body, app) { cfg = STYLE; return renderEdit(body, app); }
 
@@ -173,7 +185,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     // The option bank and the pool: one multi-select over the bank. None ticked draws from every value that is on,
     // one ticked is a fixed value, several limit the draw to those.
     const poolButton = h('button', { type: 'button', class: 'ri-btn ri-pool-btn', 'data-ri-pool': cat.id, 'aria-haspopup': 'dialog',
-        onclick: () => openPoolSheet({ title: `${cat.name || 'Category'}: pool`, items: values, pool: cat.pool, onChange: (pool) => { cat.pool = pool; dirty(); poolButton.textContent = `Pool: ${poolSummary(pool, values)}`; } }) },
+        onclick: () => openPoolSheet({ title: `${cat.name || 'Category'}: pool`, items: values, pool: cat.pool, onChange: (pool) => { cat.pool = pool; dirty(); poolButton.textContent = `Pool: ${poolSummary(pool, values)}`; }, onBias: cat.bank ? (id, n) => setBankBias(cat.bank, id, n) : null }) },
         `Pool: ${poolSummary(cat.pool, values)}`);
     body.push(h('div', { class: 'ri-grid2' },
         field('Option bank', cat.bank ? `Values come from "${bankInfo(cat.bank)?.name || cat.bank}" in the World Info book "${BANK_BOOK}". The pool and pick count are saved with this set.` : 'Its own list: the items below. Pick a bank to draw from a shared list of values instead.',
@@ -240,7 +252,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
                 it.dCheck ? chip(`Question about the reply: ${it.dCheck}`) : null,
                 it.dNext ? chip(`Note for the reply after: ${it.dNext}`) : null) : null,
             h('div', { class: 'ri-row ri-row-tight' },
-                h('label', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Weight'), numberInput(it.weight, { min: 1, max: 20, label:`Weight for ${it.text}` }, (n) => { it.weight = n; dirty(); })),
+                h('label', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Weight'), select(BIAS_CHOICES, itemBias(it), (v) => { const n = Number(v); if (n) it.bias = n; else delete it.bias; dirty(); }, { 'aria-label': `Weight for ${it.text}`, class: 'ri-input ri-input-num', style: { minWidth: '76px' },title: '+10 is about three times as likely, -10 is never rolled' })),
                 h('label', { class: 'ri-num' }, h('span', { class: 'ri-unit' }, 'Tags'), textInput(it.tags, (v) => { it.tags = v; dirty(); }, { 'aria-label':`Tags for ${it.text}`, placeholder: 'none', style: { width: '120px' } })),
                 button(it.always ? 'Always included' : 'Always include', () => { it.always = !it.always; dirty(); redraw(); }, { kind: 'ghost', title: 'An always-included item is in every fresh pick; the dice fill the rest' }),
                 button('Edit', () => { ui.editing = it.id; ui.edit = null; redraw(); }, { kind: 'ghost', title: cfg.kind === 'style' ? 'Change the text, and what this item adds while it is the pick' : 'Change the text, and when the dice may use this item' }),
@@ -249,7 +261,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     if (cat.bank) body.push(h('div', { class: 'ri-help' }, `${values.length} values in the bank, ${usable.length} of them on. Edit the bank in World Info (book "${BANK_BOOK}"), or add a value below; it goes into the bank for every set that uses it.`));
     else {
         if (!cat.items.length) list.appendChild(h('div', { class: 'ri-empty' }, 'No items yet. Type one below, or press "Write items with AI".'));
-        body.push(h('div', { class: 'ri-label' }, 'Items (a higher weight is picked more often)'), list);
+        body.push(h('div', { class: 'ri-label' }, 'Items (weight +10 is about three times as likely, -10 is never rolled)'), list);
     }
     body.push(h('div', { class: 'ri-help' }, `Tags are your own words for grouping items, separated by commas. They are used by "Never use items tagged" and "Never together".${cfg.kind === 'style' ? ' Four tags are also checked against the reply and shown in What Was Sent: rule:no-dialogue, rule:mostly-dialogue, rule:max-sentences-2 and rule:max-words-200 (any number works).' : ''}`));
 
@@ -258,7 +270,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         const t = swapNames(String(ui.adding || '').trim()).text;
         if (!t) { toast('info', 'Type the item first.'); return; }
         if (cat.bank) { ui.adding = ''; addToBank(cat.bank, [t]).then(redraw); return; }
-        cat.items.push({ id: newId(), text: t, on: true, weight: 1, tags: '', always: false });
+        cat.items.push({ id: newId(), text: t, on: true, tags: '', always: false });
         ui.adding = ''; dirty(); redraw();
     };
     addBox.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); addItem(); } });
@@ -371,7 +383,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
             const picked = ai.results.filter(x => x.keep);
             if (!picked.length) { toast('info', 'Tick at least one item to add.'); return; }
             if (cat.bank) { ui.ai = null; addToBank(cat.bank, picked.map(x => x.text)).then(redraw); return; }
-            cat.items.push(...picked.map(x => ({ id: newId(), text: x.text, on: true, weight: 1, tags: '', always: false, ...(x.from ? { from: x.from } : {}) })));
+            cat.items.push(...picked.map(x => ({ id: newId(), text: x.text, on: true, tags: '', always: false, ...(x.from ? { from: x.from } : {}) })));
             ui.ai = null; dirty(); redraw();
         }, { kind: 'primary' }),
         button('Write more', () => { ai.results = null; redraw(); }, { kind: 'ghost' }),

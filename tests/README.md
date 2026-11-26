@@ -30,9 +30,13 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_banks.js` | node | B37 |
 | `t_behavior_books.js` | node (the section 13 row skips without docs/) | MB12 |
 | `t_behavior_books_host.js` | browser (`RI_MB12_TURNS` sets the seeded generations, default 200) | MB12 |
+| `t_broken_reply.js` | browser | B53 |
 | `t_book_management.js` | browser | legacy |
 | `t_capture.js` | node | MB3 |
+| `t_carry_over.js` | node | MB9 |
+| `t_catchup_host.js` | browser (`RI_WIDTH` and `RI_HEIGHT`, default 390 x 780; sets the mock's `delay.txt` while it runs) | MB9 |
 | `t_dialogue_claims.js` | node | MB18 |
+| `t_diagnostics_log.js` | browser | B47 |
 | `t_chapter.js` | browser | MB6 |
 | `t_components.js` | browser | B8 |
 | `t_composer_bar.js` | browser | B1 |
@@ -57,6 +61,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_followups_b26.js` | node | B26 |
 | `t_generated_books.js` | node (skips without docs/) | MB13 |
 | `t_goals.js` | browser | legacy |
+| `t_history_catchup.js` | node | MB9 |
 | `t_guided_chat_ownership.js` | browser | legacy |
 | `t_guided_quick_acceptance.js` | browser | legacy |
 | `t_guided_quick_turns.js` | browser | legacy |
@@ -114,6 +119,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_shots.js` | browser | legacy |
 | `t_spend_ceiling.js` | node | B19 |
 | `t_story_rules.js` | node | B41 |
+| `t_item_weights.js` | node for the odds; also a browser check at 390 x 780 when `RI_HOST_URL` is set | B51 |
 | `t_story_rules_host.js` | browser | B41 |
 | `t_story_so_far.js` | node | MB6 |
 | `t_tracker_book.js` | node | B21 |
@@ -139,7 +145,6 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `unit\fa_icons.mjs` | node | legacy 5.2 |
 | `unit\guided_turns.mjs` | node | legacy |
 | `unit\guided_v7.mjs` | node | legacy |
-| `unit\history_batches.mjs` | node | legacy |
 | `unit\menu_shell.mjs` | node | B5 |
 | `unit\no_emoji.mjs` | node | legacy |
 | `unit\preset_workbench.mjs` | node | legacy |
@@ -218,6 +223,9 @@ The rows below describe the suites by behavior. Navigation in the older browser 
 | `t_anywhere.js` | 5.8: the AI writer's rules for each kind of story event list; the current scene left out; the line in the event order; the stakes list; the works-anywhere mark; the rewrite; the panel |
 | `t_dice.js` | 5.7: dice and stats in code; lists that retire their items running out at different times; the used-up notice and bringing items back; where an event comes from; hiding what a chapter covers and showing it again; counting the messages in the finished prompt; the new chapter button in What Was Sent |
 | `t_parity_cards.js` | B20: the parity cards drawn from a fixture chat of Vexa, Sola, Deus and Pura shaped replies; catalog switches and capture's field list; merged overlaps; the Choices Options call, its moves and its Sent receipt; New faces, stars and severity marks; no emoji or dashes |
+| `t_history_catchup.js` | MB9 (memory DESIGN 8.1, 8.2): a 300-exchange chat caught up on a fake queue with a scripted model: call counts per route class (14 to 17 local, 9 mid, 4 or 5 frontier, plus one Cleanup stage), chunks cut at scene boundaries, the exclusion list and state digest in every call after the first, a restart after any part and a save that fails mid-part (no duplicate record), a repeat that files nothing, the five tests of 8.1 for scripted route states (desktop up or down, allowance near 5 percent, a slow route, phone charging or not, the Setup switch off), Cancel and Resume, Rebuild keeping locked and own records and Undo in one tap, the report register |
+| `t_carry_over.js` | MB9 (memory DESIGN 8.3): the eight-word run check, the carry-over book (Constant synopsis, one entry per main character, keyword entries, secrets with the fixed holder line, stat sheets with locks, the stamp that names the parent), the parent left byte for byte as it was, one Writer call, no new chat when no route answers |
+| `t_catchup_host.js` | MB9 on a real host with the mock: asks first and names the failed test, the Generate sheet before Catch up, the status line, Cancel and Resume, Rebuild and Undo, Continue in a new chat binds a carry-over book that names the parent and shares no eight-word run with it |
 | `t_pace.js` | 5.5: story event items that wait for a thread, a secret, a plan or people in the scene; big events and the calm after them; story phases; a character who has gone silent; what a writing style item adds while it is the pick; the word list; the rules given to the AI writer; the plainer starting lists; the panel |
 | `t_chapter.js` | 5.4: a chapter when a scene ends, after a set number of replies and by hand; finished entries moved into the chapter and back on delete; what the request holds; the Log; what is sent; a scene that ends too soon; delete; older chapters combined; older chapters sent when relevant; a new chapter in a new chat (what is carried, the first message, the old chat unchanged, going back, no story world); a starter world from the card; the panel |
 | `t_shell_followups.js` | B25 at 523 × 1021 and 1006 × 909 with touch: the fold handle takes its own tap open and folded, moving clear of SillyTavern's own controls where they cover it, the menu stays on a cross-linked page across a chat change, and a restored built-in quick action survives a reload straight after it. |

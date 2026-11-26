@@ -1,4 +1,5 @@
 import { freshGuidance, freshHistoryCapability, guidedContext, preserveContinuationPrefix, projectGuidedRequest, validateGuidedTarget } from './guided-context.js';
+import { checkBrokenReply, installBrokenReply } from './broken-reply.js';
 import { bindInlineNotes, bindReplayedNotes, takeInlineNotes } from './inline-direction.js';
 import { takeSceneMarkers } from './scene-markers.js';
 import { activeQuickPlan, applyQuickPrompt, applyQuickText, bindQuickReply, failQuickReply, finishQuickReply, hasQuickEvidence, observeQuickTextAnchor, reconcileQuickDelivery, splitQuickEvidence, startQuickReply, stripStoredQuickDirections, stripStoredQuickText } from './quick-action-chat.js';
@@ -8,6 +9,7 @@ import { acceptProseDiagnostics, confirmProseDiagnostics, extractProseNotes, pre
 import { correctedLoreEntry, characterCorrectionFields, replaceUnique, storyCorrectionPrompt } from './correction-rules.js';
 import { rememberStoryTimeline, refreshAfterReplyEdit, refreshAfterDeletion, flushStoryDeletion, refreshAfterChatOpen } from './story-refresh.js';
 import { beginBookTriggers, bookTriggerSource, scopedBookEntry, scopedTriggerTexts } from './book-triggers.js';
+import { noteScan } from './diagnostics-log.js';
 import { streamUpdate } from './stream-update.js';
 import { filterExcludedBooks, observeHostBooks } from './chat-books.js';
 import { memoryOnly, memoryComponents } from './components.js';
@@ -630,6 +632,7 @@ function onScanDone(args) {
         const st = settings();
         if (!st.enabled || !gen || scanTurn !== gen) return;
         if (Date.now() - gen.started > 15 * 60 * 1000) { gen = null; return; } // a reply that never finished
+        noteScan(args, gen);   // B47: the diagnostics log reads this generation's own scan results
         if (args?.state?.next) return; // more passes follow; work on the final result only
         const map = args?.activated?.entries;
         if (!(map instanceof Map)) return;
@@ -1734,6 +1737,7 @@ export function init() {
     on('MESSAGE_SENT', id => bindQuickReply(gen, Number(id)).then(() => bindInlineNotes(gen, id)).catch(error=>console.warn(LOG,'bind next-message direction',error)));
     startCapture({ modules: () => effectiveModules() }).catch(error => console.warn(LOG, 'capture', error));
     on('MESSAGE_RECEIVED', onMessageReceived);
+    installBrokenReply(); on('MESSAGE_RECEIVED', checkBrokenReply);
     on('MESSAGE_RECEIVED', rememberStoryTimeline);
     on('STREAM_TOKEN_RECEIVED', text => {
         const progress = replyProgress();

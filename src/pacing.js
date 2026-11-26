@@ -180,6 +180,8 @@ export function memoryOffers(list, present, meta) {
 export function itemFits(it, scene) {
     // A story rule holds this item out of rolls until it fires (B41, src/story-rules.js).
     if (ruleHeld(it)) return false;
+    // Weight -10 means never rolled (B51).
+    if (Number(it.bias) <= -10) return false;
     if (!scene) return true;
     if (Number(it.min) > 0 && (scene.count || 0) < Number(it.min)) return false;
     if (it.need === 'thread') return (scene.threads || []).length > 0;

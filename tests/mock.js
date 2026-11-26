@@ -121,7 +121,7 @@ function answer(body) {
         return JSON.stringify(ids.map(id => ({ id, done, quote: done ? 'You look wonderful tonight' : '' })));
     }
     n++;
-    return m.reply || `Reply ${n}. She leans in. "You look wonderful tonight," she says, and she means it.`;
+    return m.reply ?? `Reply ${n}. She leans in. "You look wonderful tonight," she says, and she means it.`;
 }
 function delayMs() {
     const file = Number(txt('delay.txt'));

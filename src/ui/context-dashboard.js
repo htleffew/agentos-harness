@@ -1,9 +1,14 @@
 import { memoryOnly, memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
-import { h, button, field, section, select } from './dom.js';
+import { h, button, field, section, select, toggle } from './dom.js';
 import { settings, saveSettings } from '../store.js';
-import { isChatOpen, hasEvent, toast } from '../st.js';
-import { applyHistoryWindow, catchUpChatHistory, historyCatchUpPreview, historyCatchUpStatus, stopHistoryCatchUp, otherSummaryOn } from '../chapters.js';
+import { isChatOpen, hasEvent, toast, ctx, KEY } from '../st.js';
+import { applyHistoryWindow, otherSummaryOn } from '../chapters.js';
+import { catchUp as catchUpRunner, describe, pending, tapPlan, routeWord } from '../memory/catchup.js';
+import { hostCarryOver } from '../memory/carry-over.js';
+import { memoryActive } from '../memory/import.js';
+import { fold as foldMemory } from '../memory/fold.js';
+import { gateModelButtons } from './memory-settings.js';
 import { refreshUnderReplies } from './sent.js';
 import { home, homeLink, slot } from './homes.js';
 import { chatWorld, filingStatus, refileStory } from '../records.js';
@@ -18,58 +23,118 @@ const number = n => Number(n || 0).toLocaleString();
 const approx = n => `~${number(n)} tokens`;
 const row = (name, value, help = '') => h('div', { class: 'ri-context-metric' }, h('div', { class: 'ri-context-metric-label' }, name), h('strong', {}, value), help ? h('div', { class: 'ri-help' }, help) : null);
 
-/** Catch up or rebuild this chat. Its one home is Setup, Memory ("This chat"). */
+const catchUpPlan = () => { try { return ctx().chatMetadata?.ri_memory?.catchup || null; } catch { return null; } };
+const catchUpWaiting = () => { try { const c = ctx(); return pending(c.chat || [], { result: foldMemory(c.chat || [], c.chatMetadata || {}), key: KEY }).count; } catch { return 0; } };
+
+/**
+ * The catch-up status line ("Catching up on the desktop: part 3 of 9" with Cancel, or the ask card). It repaints itself when the
+ * runner reports a change and stops listening once it leaves the page. Setup, Memory shows it, and the Story World page can too.
+ */
+export function catchUpStatusLine() {
+    const holder = h('div', { class: 'ri-catchup-status', 'data-ri-catchup-line': '' });
+    let off = null;
+    const draw = () => {
+        const plan = catchUpPlan();
+        const view = plan ? describe(plan) : null;
+        holder.replaceChildren(...(view?.text && view.state !== 'declined' ? [h('p', { class: 'ri-note', role: 'status', 'aria-live': 'polite' }, view.text),
+            view.cancel ? button('Cancel', async () => { try { await (await catchUpRunner()).cancel(); } catch (error) { toast('error', error.message); } }, { kind: 'ghost' }) : null] : []));
+    };
+    draw();
+    catchUpRunner().then(runner => { off = runner.onChange(() => { if (!holder.isConnected) off?.(); else draw(); }); draw(); }).catch(() => {});
+    return holder;
+}
+
+/** Catch up, rebuild and continue in a new chat. Its one home is Setup, Memory ("This chat"). */
 function historyTools(app, components) {
-    const status = historyCatchUpStatus();
-    const keep = h('input',{type:'checkbox',checked:true});
-    const redraw = () => { if (app.tab==='memory') app.render(); };
-    const run = async rebuild => {
-        try { await catchUpChatHistory(redraw,{rebuild,keepAuthored:keep.checked}); }
-        catch (error) { toast('error',error.message); }
-        finally { refreshUnderReplies(); redraw(); }
+    const on = isChatOpen() && memoryActive();
+    const memory = () => (settings().memory ||= {});
+    const holder = h('div', { class: 'ri-catchup', 'data-ri-catchup': '' });
+    const run = async (work, done) => {
+        try { const out = await work(); if (done) toast('success', done(out)); }
+        catch (error) { toast('error', error.message); }
+        finally { refreshUnderReplies(); paint(); }
     };
-    const disabled = !components.chapters || !!status?.running;
-    const catchUp = executionAction(button('Catch up this chat',()=>run(false),{kind:'primary',disabled}),'1 model call per batch');
-    const rebuild = executionAction(button('Rebuild from all chat history',()=>run(true),{disabled}),'1 model call per batch');
-    const catchUpBudget = h('div',{class:'ri-help','aria-live':'polite'},'Calculating current batch count…');
-    const rebuildBudget = h('div',{class:'ri-help','aria-live':'polite'},'Calculating current batch count…');
-    const budget = (preview,node,action) => {
-        const count = preview.count;
-        const expected = count>1 ? `up to ${count}` : count;
-        action.disabled = disabled || count===0;
-        executionAction(action,count===1 ? '1 model call' : `Up to ${count} model calls`);
-        node.replaceChildren(count===0 ? h('p',{},'Current coverage has no batches ready for this action.')
-            : functionExecution('historyCatchUp',{expected,trigger:`One model request per batch. Stops on the first failure. ${count} batches are ready.`}));
-    };
-    if (!disabled) historyCatchUpPreview().then(plan=>{
-        budget(plan.catchUp,catchUpBudget,catchUp);
-        budget(plan.rebuild,rebuildBudget,rebuild);
-    }).catch(error=>{
-        catchUpBudget.replaceChildren(h('p',{},error.message));
-        rebuildBudget.replaceChildren(h('p',{},error.message));
-    });
-    const hasWorld = !!chatWorld();
-    const applyWindow = components.hide && hasWorld && button('Apply to saved chapters now',async()=>{
-        applyWindow.disabled=true;
-        try { await applyHistoryWindow();refreshUnderReplies();app.render(); }
-        catch(error) { toast('error',error.message); }
-        finally { applyWindow.disabled=false; }
-    },{kind:'ghost'});
+    const runner = () => catchUpRunner();
+    const catchUpButton = executionAction(button('Catch up this chat', () => run(async () => (await runner()).startTapped(), plan => `Catching up on ${routeWord(plan.route)}. The status line shows each part.`), { kind: 'primary' }), 'Catch-up calls, counted when the route is checked');
+    const rebuildButton = executionAction(button('Rebuild from all chat history', () => run(async () => (await runner()).rebuild(), plan => `Rebuilding on ${routeWord(plan.route)}. Undo is on this page until you start something else.`), { kind: 'ghost' }), 'Rebuild calls, counted when the route is checked');
+    const win = components.hide && !!chatWorld() && button('Apply to saved chapters now', async () => {
+        win.disabled = true;
+        try { await applyHistoryWindow(); refreshUnderReplies(); app.render(); }
+        catch (error) { toast('error', error.message); }
+        finally { win.disabled = false; }
+    }, { kind: 'ghost' });
+
+    function continueForm() {
+        const wish = h('textarea', { class: 'ri-input', rows: 3, placeholder: 'Optional: what the new chat should open on', 'aria-label': 'What the new chat should open on' });
+        const opening = h('input', { type: 'checkbox', 'aria-label': 'Write an opening message too' });
+        const secrets = h('input', { type: 'checkbox', 'aria-label': 'Leave secrets out of the book' });
+        const go = executionAction(button('Write the synopsis and start', () => run(async () => (await hostCarryOver()).start({ opening: opening.checked, wish: wish.value, leaveSecretsOut: secrets.checked }),
+            out => `The new chat is open. The carry-over book "${out.book}" is bound to it, and the old chat is unchanged.`), { kind: 'primary', disabled: !on }), '1 model call (the Writer)');
+        return h('details', { class: 'ri-card ri-tight', 'data-ri-continue': '' }, h('summary', {}, 'Continue in a new chat'),
+            h('p', { class: 'ri-help' }, 'Starts a fresh chat with the same character. The story’s canon and its current state go into a carry-over book bound to the new chat, and the old chat’s habits stay behind: no message text, no example replies. The old chat is not changed. One Writer call.'),
+            wish,
+            h('label', { class: 'ri-row' }, opening, 'Write an opening message too'),
+            h('label', { class: 'ri-row' }, secrets, 'Leave secrets out of the book'),
+            h('p', { class: 'ri-help' }, 'With the extension on, a secret fires only for the characters it names. With it switched off, SillyTavern has no holder rule, so a secret fires by keyword for any character.'),
+            go);
+    }
+
+    function paint() {
+        const plan = catchUpPlan();
+        const view = plan ? describe(plan) : null;
+        const count = on ? catchUpWaiting() : 0;
+        const running = view?.state === 'running';
+        const parts = [];
+        if (!on) parts.push(h('p', { class: 'ri-muted' }, isChatOpen() ? 'This chat has not moved its memory into chat data yet.' : 'Open a chat.'));
+        if (view?.text && view.state !== 'declined') parts.push(h('p', { class: 'ri-note', role: 'status', 'aria-live': 'polite', 'data-ri-catchup-line': '' }, view.text));
+        if (view?.ask) {
+            const ask = view.ask;
+            parts.push(h('div', { class: 'ri-card ri-tight', 'data-ri-catchup-ask': '' },
+                h('p', {}, `Catch-up would use ${routeWord(ask.route)}: ${ask.line}.`),
+                h('div', { class: 'ri-row' },
+                    executionAction(button('Run now', () => run(async () => (await runner()).runNow(), p => `Catching up on ${routeWord(p.route)}.`), { kind: 'primary' }), ask.line),
+                    view.state === 'asking' ? button('Wait for the desktop', () => run(async () => (await runner()).waitForDesktop()), { kind: 'ghost' }) : null,
+                    button('Not now', () => run(async () => (await runner()).notNow()), { kind: 'ghost' }))));
+        }
+        if (running) parts.push(button('Cancel', () => run(async () => (await runner()).cancel(), () => 'Catch-up cancelled. What was filed stays.'), { kind: 'ghost' }));
+        if (view?.resume) parts.push(executionAction(button('Resume', () => run(async () => (await runner()).resume()), { kind: 'primary' }), 'The remaining map calls'));
+        if (view?.undo) parts.push(button('Undo rebuild', () => run(async () => (await runner()).undoRebuild(), out => (out.undone ? `Rebuild undone: ${out.restored} earlier records are back.` : out.reason)), { kind: 'ghost' }));
+        if (!running) {
+            catchUpButton.disabled = !on || count === 0;
+            rebuildButton.disabled = !on || !(ctx().chat || []).some((m, i) => i > 0 && m && !m.is_user && !m.is_system);
+            parts.push(h('div', { class: 'ri-row' }, catchUpButton),
+                h('p', { class: 'ri-help' }, count ? `${count} ${count === 1 ? 'exchange is' : 'exchanges are'} not in memory yet. Catch-up reads them in order, a stretch at a time, and files records and chapters. It resumes if the app closes.` : 'Every reply is in memory.'),
+                h('div', { class: 'ri-row' }, rebuildButton),
+                h('p', { class: 'ri-help' }, 'Retires every record a model made in one entry, then catches up from the first message. Your locked records and your own edits stay. Undo is one tap.'));
+        }
+        parts.push(h('div', { class: 'ri-row', 'data-ri-catchup-free': '' }, h('span', {}, 'Catch up by itself on free routes'), toggle(memory().catchUpFree !== false, value => { memory().catchUpFree = value; saveSettings(); }, 'Catch up by itself on free routes')),
+            h('p', { class: 'ri-help' }, 'On: a chat that opens with 20 or more exchanges not in memory starts catch-up by itself when your desktop, your NanoGPT plan or an on-phone model can do it well. Off, or when none can, it asks first with the route, the calls, the time and the cost.'),
+            form, win || null);
+        holder.replaceChildren(...parts.filter(Boolean));
+        gateModelButtons(holder);
+        refreshCosts();
+    }
+
+    /** Fill the Cost chips from the route check (no model call): calls, time and cost on the route a tap would use. */
+    async function refreshCosts() {
+        if (!on) return;
+        try {
+            const r = await runner();
+            const seen = await r.assess({});
+            catchUpButton.dataset.riModelCost = tapPlan(seen).line;
+            const all = await r.assess({ rebuild: true });
+            rebuildButton.dataset.riModelCost = tapPlan(all).line;
+        } catch { /* the chips keep their placeholder text */ }
+    }
+
+    // the Continue form is built once, so a repaint while you type keeps its text, its checkboxes and whether it is open
+    const form = continueForm();
+    paint();
+    if (on) runner().then(r => { const off = r.onChange(() => { if (!holder.isConnected) off(); else paint(); }); }).catch(() => {});
     return home('catch-up', section('This chat',
-        h('p',{class:'ri-help'},'Read accepted replies in order and write chapters in batches. Each batch uses a model call. Enabled story features file supported details in this chat’s Story World. Auto-hide and the protected message window apply after chapters are saved.'),
-        !components.chapters && h('p',{class:'ri-note'},'Turn on Chapter summaries in Recall above to use these actions.'),
-        status && h('p',{class:'ri-note',role:'status'},status.text),
-        status?.running ? button(status.installing ? 'Saving…' : status.stop ? 'Stopping…' : 'Stop after the current request',()=>{stopHistoryCatchUp();redraw();},{disabled:status.stop || status.installing}) :
-            h('div',{class:'ri-row'},catchUp),
-        !disabled && catchUpBudget,
-        h('p',{class:'ri-help'},'Catch-up fills uncovered history and resumes from saved chapters. A fresh rebuild reads the entire chat and switches to a new managed Story World after all chapters are ready. The previous book stays available as a backup.'),
-        status?.receipts?.length>0 && executionDetails(status.receipts),
-        h('details',{},h('summary',{},'Fresh rebuild options'),
-            h('label',{class:'ri-row'},keep,'Keep my authored entries and state corrections'),
-            rebuild,
-            !disabled && rebuildBudget),
-        applyWindow || null,
-        slot(['chapterSummary','catchUpHistory','systemCatchUp'],'Customize catch-up and rebuild guidance')));
+        h('p', { class: 'ri-help' }, 'Reads the replies memory has not filed yet, in order, and writes records and chapters from them. Chapters then hide the messages they cover, as the Chapters settings say.'),
+        components.chapters ? null : h('p', { class: 'ri-note' }, 'Chapter summaries are off for this chat, so catch-up files records and the chapters it writes do not hide messages until you turn them on.'),
+        holder));
 }
 
 /**

@@ -67,3 +67,7 @@ t_story_rules_host
 t_memory_offers_host
 t_memory_ui
 t_memory_followups
+t_broken_reply
+t_item_weights
+t_diagnostics_log
+t_catchup_host

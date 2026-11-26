@@ -2,7 +2,7 @@
 //   1. Every model-calling button on the memory pages (Tidy now, Catch up, Rebuild, Close the chapter here, Write a chapter
 //      now) opens the Generate sheet first. Opening it and Close make no model request; Generate runs the job.
 //   2. "Memory on for this chat": off stops capture and recall for this chat only and keeps its records; on resumes them.
-//   3. "Clear this chat's memory": removes the records and the generated book's entries; the one Undo restores exactly.
+//   3. "Clear this chat's memory" asks which: Everything removes the records and the generated book's entries, Model-made only keeps her own records; each has one Undo that restores exactly.
 //   4. Open threads rows on the Plot card show the quote that last moved the thread, with no sideways scroll at 390 px.
 // Run with the host variables of tests/README.md. RI_EVIDENCE names the screenshot folder.
 const assert = require('node:assert/strict');
@@ -212,10 +212,24 @@ async function sheetBeforeCall(page, name, label) {
         assert.ok(foldFull > 0 && bookFull > 0, `there is something to clear (${foldFull} records, ${bookFull} book entries)`);
         const clear = named(page.locator('#ri_panel_page'), 'Clear this chat');
         await clear.scrollIntoViewIfNeeded();
+        assert.equal(await page.locator('[data-ri-clear-choice]').isVisible(), false, 'the choice is closed until Clear is tapped');
         await clear.tap();
+        await page.waitForSelector('[data-ri-clear-choice]:not([hidden])', { timeout: 5000 });
+        await page.locator('[data-ri-clear-choice]').scrollIntoViewIfNeeded();
+        const choiceText = await page.locator('[data-ri-clear-choice]').innerText();
+        assert.match(choiceText, /Model-made only/);
+        assert.match(choiceText, /Everything/);
+        assert.equal(await page.locator('[data-ri-clear-undo]').count(), 0, 'tapping Clear removes nothing');
+        assert.equal(await foldCount(page), foldFull, 'tapping Clear alone changes no record');
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'the choice does not scroll sideways');
+        await shot(page, 'clear-choice');
+        const sentBefore = total();
+
+        // Everything: all records go, one Undo restores exactly
+        await named(page.locator('[data-ri-clear-choice]'), 'Everything').tap();
         await page.waitForSelector('[data-ri-clear-undo]', { timeout: 10000 });
-        assert.equal(await foldCount(page), 0, 'Clear removes this chat\'s records');
-        assert.equal(await bookEntries(), 0, 'Clear removes the generated book\'s entries');
+        assert.equal(await foldCount(page), 0, 'Everything removes this chat\'s records');
+        assert.equal(await bookEntries(), 0, 'Everything removes the generated book\'s entries');
         await page.locator('[data-ri-clear-undo]').scrollIntoViewIfNeeded();
         await shot(page, 'cleared-undo');
         await named(page.locator('[data-ri-clear-undo]'), 'Undo').tap();
@@ -223,7 +237,38 @@ async function sheetBeforeCall(page, name, label) {
         assert.equal(await entriesOf(page), recordsFull, 'Undo restores every entry exactly');
         assert.equal(await foldCount(page), foldFull, 'the fold is as before');
         assert.equal(await bookEntries(), bookFull, 'the generated book is as before');
-        out.checks.clear = { foldFull, bookFull };
+
+        // Model-made only: a record of her own, and a locked one, stay; one Undo restores exactly
+        await page.evaluate(async B => {
+            const S = await import(`${B}/src/memory/store.js`);
+            const store = S.memoryStore();
+            await store.record([{ op: 'add', record: { id: 'her-own', kind: 'fact', subject: 'Her own', attribute: 'note', text: 'A note she wrote herself.', status: 'current' }, origin: { type: 'you' } }]);
+        }, B);
+        await openPage(page, 'memory');
+        const recordsWithOwn = await entriesOf(page);
+        const foldWithOwn = await foldCount(page);
+        assert.equal(foldWithOwn, foldFull + 1, 'her own record is in the fold');
+        await named(page.locator('#ri_panel_page'), 'Clear this chat').tap();
+        await page.waitForSelector('[data-ri-clear-choice]:not([hidden])', { timeout: 5000 });
+        await named(page.locator('[data-ri-clear-choice]'), 'Model-made only').tap();
+        await page.waitForSelector('[data-ri-clear-undo="model"]', { timeout: 10000 });
+        const left = await page.evaluate(async B => {
+            const F = await import(`${B}/src/memory/fold.js`);
+            const c = SillyTavern.getContext();
+            return F.fold(c.chat, c.chatMetadata, { cache: false }).current.map(r => r.subject);
+        }, B);
+        assert.ok(left.includes('Her own'), 'her own record stays after Model-made only');
+        assert.ok(left.length < foldWithOwn, `model-made records went (${left.length} of ${foldWithOwn} left)`);
+        out.checks.modelLeft = left;
+        await page.locator('[data-ri-clear-undo="model"]').scrollIntoViewIfNeeded();
+        await shot(page, 'cleared-model-undo');
+        await named(page.locator('[data-ri-clear-undo="model"]'), 'Undo').tap();
+        await page.waitForFunction(() => !document.querySelector('[data-ri-clear-undo]'), null, { timeout: 10000 });
+        assert.equal(await foldCount(page), foldWithOwn, 'Undo brings back every model-made record');
+        assert.equal(await page.evaluate(() => SillyTavern.getContext().chatMetadata.ri_memory.clearedModel), undefined, 'the held marker is gone');
+        assert.equal(total(), sentBefore, 'Clear makes no model call, so no Generate sheet and no request');
+        assert.equal(await sheetCount(page), 0, 'no Generate sheet opened');
+        out.checks.clear = { foldFull, bookFull, recordsWithOwn: recordsWithOwn.length };
 
         // ---- touch pass
         const overflow = [];

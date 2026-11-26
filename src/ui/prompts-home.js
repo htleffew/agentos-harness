@@ -25,7 +25,7 @@ const PAGE_PROMPTS = {
         'entryWriterRules', 'systemWorldEntry', 'starterWorld', 'systemStarter', 'chapterSummary', 'systemChapter', 'chapterCombine', 'systemCombine',
         'newChapterSummary', 'newChapterFirst', 'systemNewChapter', 'chapterOpeningScene'],
     books: ['bookKeywords', 'systemBookKeywords'],
-    context: ['chapterSummary', 'catchUpHistory', 'systemCatchUp'],
+    context: ['chapterSummary'],
     sets: ['instructionOrder', 'overdueOrder', 'finalOrder', 'instructionAgency', 'versionRules', 'modelVersionRules', 'systemVersions',
         'event', 'eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite',
         'style', 'styleWriterRules', 'systemStyleItems'],

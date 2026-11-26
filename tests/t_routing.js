@@ -365,7 +365,7 @@ test('saved per-operation profiles keep routing their operation', async () => {
     // functions that have no tier chain.
     reset();
     host.extensionSettings[KEY].profileId = 'p-nano';
-    assert.equal(resolveChain('historyCatchUp')[0].route, 'desktop');
+    assert.equal(resolveChain('chapterSummary')[0].route, 'desktop');
     assert.equal(host.extensionSettings[KEY].routing?.accepted, undefined, 'no acceptance flag is read or written');
     assert.deepEqual(resolveChain('automaticSwipe'), [{ route: 'main' }]);
 });

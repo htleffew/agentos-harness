@@ -7,7 +7,7 @@ const {
     afterReply, loadEffectiveWorld,
 } = await import('../../src/worldflow.js');
 const { filedThrough } = await import('../../src/memory-journal.js');
-const { catchUpChatHistory, chapterAfterReply, writeChapter } = await import('../../src/chapters.js');
+const { chapterAfterReply, writeChapter } = await import('../../src/chapters.js');
 const { executionReceipt, setExecutionSetting } = await import('../../src/execution.js');
 const { runFactRepair, undoStoryCorrection } = await import('../../src/corrections.js');
 const { listWorld } = await import('../../src/world.js');
@@ -152,25 +152,4 @@ test('historical replacement reconciles dependent filed facts while keeping late
     assert.equal(f.requests.length,0);
 });
 
-test('catch-up stages the newest window and summarizes only filed coverage',async()=>{
-    const f = fixture();
-    await f.accept('A stone pier crosses the bay.');
-    for (let n=2;n<=6;n++) await f.accept('Hale walks onward.');
-    await f.accept('A bell sits beside the open gate.');
-    f.host.generateRaw=async ({prompt})=>{
-        const text = prompt[0].content;
-        f.requests.push({prompt});
-        const first = text.includes('A stone pier crosses the bay.');
-        return JSON.stringify({title:'The harbour',summary:'Hale crossed the harbour.',
-            world:first ? [{line:'place: Pier | A stone pier crosses the bay',evidence:'A stone pier crosses the bay.'}] :
-                [{line:'place: Gate | A bell sits beside the open gate',evidence:'A bell sits beside the open gate.'}]});
-    };
-    await catchUpChatHistory();
-    assert.equal(f.requests.length,2);
-    assert.deepEqual(listWorld(f.book(),f.world).map(row=>row.name).sort(),['Pier','The harbour']);
-    assert.deepEqual(listWorld(await loadEffectiveWorld(f.world),f.world).map(row=>row.name).sort(),['Gate','Pier','The harbour']);
-    assert.equal(f.host.chat.at(-1).extra[KEY].update.pending.changes.length,1);
-    await catchUpChatHistory();
-    assert.equal(f.requests.length,2);
-});
 

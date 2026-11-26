@@ -45,6 +45,9 @@ fi
 FAILED=0
 for suite in $SUITES; do
   if [ -n "$USER_DIR" ]; then node tests/host_reset.cjs restore "$USER_DIR" "$LOGS/user.snapshot"; fi
+  # Install this checkout's extension before every suite, so a suite that does not load tests/lib.js never runs against an
+  # earlier copy (its result would depend on which suite ran before it).
+  if [ -n "$RI_ST_DIR" ] && [ -n "$RI_EXTENSION_SOURCE" ]; then node -e "require('./tests/lib.js').sync()" || exit 1; fi
   if [ -n "$SETTINGS" ]; then sleep 1; cp "$LOGS/settings.clean.json" "$SETTINGS"; fi
   suite=${suite%.js}
   file=tests/$suite.js

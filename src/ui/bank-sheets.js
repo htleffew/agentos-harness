@@ -4,11 +4,13 @@
 // the block bank.
 import { h, button, select, chip } from './dom.js';
 import { readImportFile, importGroup, listItems, sendBlocksToBlockBank } from '../bank-import.js';
-import { editBankBook, banksNow, addBank, setBankItems, BANK_BOOK } from '../banks.js';
+import { editBankBook, banksNow, addBank, setBankItems, itemBias, BANK_BOOK } from '../banks.js';
 import { toast, confirmBox } from '../st.js';
 import { fitBottom } from './generate-sheet.js';
 
 let openSheet = null;
+
+const BIAS_CHOICES = Array.from({ length: 21 }, (_, i) => { const n = 10 - i; return { value: n, label: n > 0 ? `+${n}` : String(n) }; });
 
 /** The text on the closed pool control: the ticked count and the bank size. */
 export function poolSummary(pool, items) {
@@ -24,7 +26,7 @@ const sourceText = it => it.source?.ours ? 'Roleplay Instructions' : [it.source?
  * Open the pool sheet for one category. items: the bank's items. pool: the ticked ids. onChange(pool) runs on every
  * tick and on Clear. The sheet closes on Done, Escape or opening another.
  */
-export function openPoolSheet({ title, items, pool, onChange, onClose }) {
+export function openPoolSheet({ title, items, pool, onChange, onClose, onBias }) {
     openSheet?.close();
     const doc = globalThis.document;
     const ticked = new Set(pool || []);
@@ -50,6 +52,7 @@ export function openPoolSheet({ title, items, pool, onChange, onClose }) {
                 button('Clear', () => { ticked.clear(); changed(); }, { kind: 'ghost', title: 'Untick every item, so a roll draws from the whole bank' }),
                 button('Done', close, { kind: 'primary' }))),
         h('div', { class: 'ri-pool-tools' }, search, groupPick),
+        onBias ? h('p', { class: 'ri-pool-help', style: { margin: '0', color: 'var(--ri-text-muted)', fontSize: 'var(--ri-type-help)' } }, 'Weight on each value: +10 is about three times as likely, -10 is never rolled. It applies everywhere this bank is used.') : null,
         list);
     function render() {
         const q = view.query.trim().toLowerCase();
@@ -58,10 +61,15 @@ export function openPoolSheet({ title, items, pool, onChange, onClose }) {
         list.replaceChildren(...shown.map(it => {
             const box = h('input', { type: 'checkbox', class: 'ri-check', checked: ticked.has(it.id), 'data-ri-pool-item': it.id,
                 onchange: () => { if (box.checked) ticked.add(it.id); else ticked.delete(it.id); changed(); } });
-            return h('label', { class: `ri-pool-row ${it.on ? '' : 'ri-off'}` }, box,
+            const row = h('label', { class: `ri-pool-row ${it.on ? '' : 'ri-off'}`, style: { flex: '1 1 auto', minWidth: '0' } }, box,
                 h('span', { class: 'ri-pool-text' }, h('span', { class: 'ri-pool-label' }, it.label || it.text),
                     it.label && it.label !== it.text ? h('span', { class: 'ri-pool-sub' }, it.text) : null,
                     h('span', { class: 'ri-pool-src' }, `${sourceText(it)}${it.on ? '' : ' (off in the bank)'}${it.new ? ' (new)' : ''}`)));
+            if (!onBias) return row;
+            // The weight of this value in every roll that draws from the bank: -10 never, 0 normal, +10 about three times as likely.
+            const weight = select(BIAS_CHOICES, itemBias(it), v => { const n = Number(v); if (n) it.bias = n; else delete it.bias; onBias(it.id, n); },
+                { 'aria-label': `Weight for ${it.label || it.text}`, class: 'ri-input ri-pool-weight', title: '+10 is about three times as likely, -10 is never rolled', style: { flex: '0 0 auto', minWidth: '76px', minHeight: 'var(--ri-hit-size)', alignSelf: 'center' } });
+            return h('div', { class: 'ri-pool-item', style: { display: 'flex', alignItems: 'center', gap: 'var(--ri-gap)', borderBottom: '1px solid var(--ri-line-faint)' } }, row, weight);
         }), ...(shown.length ? [] : [h('p', { class: 'ri-empty' }, 'No item matches.')]));
     }
     render();

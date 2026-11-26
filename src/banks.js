@@ -58,7 +58,8 @@ export const shippedBanks = () => shipped;
 
 function normalBankItem(it) {
     const out = { id: String(it.id), label: String(it.label ?? it.text ?? ''), text: String(it.text ?? it.label ?? ''), on: it.on !== false,
-        weight: Math.max(1, Math.round(Number(it.weight) || 1)), tags: String(it.tags || '') };
+        tags: String(it.tags || '') };
+    if (itemBias(it)) out.bias = itemBias(it);
     if (it.source) out.source = clone(it.source);
     if (it.gate) out.gate = clone(it.gate);
     if (it.from) out.from = it.from;
@@ -247,12 +248,24 @@ export function seededRandom(seed) {
     return n => (n <= 1 ? 0 : Math.floor(next() * n));
 }
 
-/** Pick up to count different items, each with a chance in proportion to its weight, from a seeded generator. */
+/** The weight of an item, a whole number from -10 to +10. Items with none read 0 (B51). */
+export const itemBias = it => Math.max(-10, Math.min(10, Math.round(Number(it?.bias) || 0)));
+
+/** An item at -10 is never rolled; a rule-held item stays out too (pacing.js itemFits). */
+export const neverRolled = it => itemBias(it) <= -10;
+
+/** The odds of an item: 3 to the power of weight/10, so +10 is three times as likely as 0 and -10 is never rolled. */
+export const itemOdds = it => (neverRolled(it) ? 0 : 3 ** (itemBias(it) / 10));
+
+/** Pick up to count different items, each with a chance in proportion to its weight, from a seeded generator. A weight of 0 is never picked. */
 export function pickSeeded(items, weightOf, count, rnd) {
-    const pool = [...items];
+    const pool = items.filter(x => !(Number(weightOf(x)) <= 0));
     const out = [];
     while (pool.length && out.length < count) {
-        const weights = pool.map(x => Math.max(1, Math.round(Number(weightOf(x)) || 1)));
+        const raw = pool.map(x => { const w = Number(weightOf(x)); return Number.isFinite(w) ? w : 1; });
+        // Whole weights roll exactly as before; fractional ones are scaled so the draw stays an integer.
+        const scale = raw.every(Number.isInteger) ? 1 : 1000;
+        const weights = raw.map(w => Math.max(1, Math.round(w * scale)));
         let r = rnd(weights.reduce((a, b) => a + b, 0));
         let i = 0;
         while (r >= weights[i]) { r -= weights[i]; i++; }
