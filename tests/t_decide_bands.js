@@ -23,16 +23,15 @@ globalThis.fetch = async (url, init) => {
 globalThis.document ??= { createElement: () => ({ getContext: () => ({}) }), documentElement: {}, body: {} };
 globalThis.MutationObserver ??= class { observe() {} };
 const decide = await import('../src/memory/decide.js');
-const { readBand, BANDS, DICE, ASIDE, FACT_CHANGED } = decide;
+const { readBand, BANDS, DICE, ASIDE } = decide;
 
 const downDeps = () => ({ lane: fn => fn(), desktop: async () => { throw new TypeError('Failed to fetch'); }, phoneReady: async () => false });
 const diceAnswers = attempt => ({ attempt: { noul: attempt }, stat: { choice: 'Agility' }, difficulty: { choice: 'Hard' }, stance: { choice: 'neutral' } });
 
 test('each judgment question carries 0.7 and 0.3 cuts and a default of no', () => {
-    for (const key of ['attempt', 'aside', 'changed']) assert.deepEqual({ ...BANDS[key] }, { upper: 0.7, lower: 0.3, default: false });
+    for (const key of ['attempt', 'aside']) assert.deepEqual({ ...BANDS[key] }, { upper: 0.7, lower: 0.3, default: false });
     assert.equal(DICE.decision.bands.attempt, BANDS.attempt);
     assert.equal(ASIDE.decision.bands.aside, BANDS.aside);
-    assert.equal(FACT_CHANGED.decision.bands.changed, BANDS.changed);
 });
 
 test('at or above the upper cut is yes, at or below the lower cut is no, between takes the default', () => {
@@ -46,13 +45,11 @@ test('at or above the upper cut is yes, at or below the lower cut is no, between
     for (const bad of [undefined, null, 'x', NaN]) assert.deepEqual(readBand(bad, b), { yes: false, unsure: false, score: null });
 });
 
-test('fromAnswers uses the band for attempt, aside and changed', () => {
+test('fromAnswers uses the band for attempt and aside', () => {
     assert.equal(DICE.decision.fromAnswers(diceAnswers(0.51), { message: 'I try to climb.' }).attempt, false, '0.51 no longer rolls');
     assert.equal(DICE.decision.fromAnswers(diceAnswers(0.7), { message: 'I try to climb.' }).attempt, true);
     assert.equal(ASIDE.decision.fromAnswers({ aside: { noul: 0.6 } }).aside, false);
     assert.equal(ASIDE.decision.fromAnswers({ aside: { noul: 0.85 } }).aside, true);
-    assert.equal(FACT_CHANGED.decision.fromAnswers({ changed: { noul: 0.45 } }).changed, false);
-    assert.equal(FACT_CHANGED.decision.fromAnswers({ changed: { noul: 0.9 } }).changed, true);
 });
 
 test('the receipt names the score and says the default applied, and a settled score has none', () => {

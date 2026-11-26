@@ -414,7 +414,7 @@ test('with her key saved, the Jev step calls jev-1.13 on OpenRouter\'s decisions
     assert.equal(state.calls[0].job, 'judgment');
 });
 
-test('the Jev step reads aside and fact-change questions as noul answers', async () => {
+test('the Jev step reads the aside question as a noul answer', async () => {
     reset();
     decide.setJevKey(FAKE_KEY);
     decisionPlan = { body: { answers: { aside: { noul: 0.88 } }, usage: { input_tokens: 100, output_tokens: 0 } } };
@@ -422,10 +422,6 @@ test('the Jev step reads aside and fact-change questions as noul answers', async
     assert.deepEqual([aside.route, aside.value], ['jev', { aside: true }]);
     assert.equal(spend.spendState().calls[0].basis, 'catalog', 'with no cost reported the catalog price is used');
     assert.equal(spend.spendState().calls[0].usd, 0.000004);
-    decisionPlan = { body: { answers: { changed: { noul: 0.12 } } } };
-    const fact = await decide.judge(decide.FACT_CHANGED, { reply: 'The gate stayed shut.' }, downDeps());
-    assert.deepEqual([fact.route, fact.value], ['jev', { changed: false }]);
-    assert.equal(decisionCalls.at(-1).body.state.reply, 'The gate stayed shut.');
 });
 
 test('when jev-1.13 fails, the Jev step falls back to jev-router through her saved connection', async () => {

@@ -73,7 +73,8 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_inject.js` | node (the converter row needs RI_ST_DIR) | MB5 |
 | `t_inject_host.js` | browser | MB5 |
 | `t_integration.js` | browser | legacy |
-| `t_loadouts.js` | node | B12 |
+| `t_loadouts.js` | node | B12, B57 |
+| `t_loadout_gates.js` | browser (`RI_WIDTH`, default 390 x 780, touch): a loadout saved from a stack keeps each card role, position, depth and first reply and sends the stack request at replies 1 to 4; the diagnostics log lists the gated cards with the reply they open at; a pre-B57 loadout sends as saved (request recorder) | B57 |
 | `t_log.js` | browser | legacy 4.1.0 |
 | `t_memory_import.js` | node | MB2 |
 | `t_memory_scenarios.js` | node (skips without docs/) | MB11 |
@@ -118,9 +119,14 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_shell_followups.js` | browser | B25 |
 | `t_shots.js` | browser | legacy |
 | `t_spend_ceiling.js` | node | B19 |
+| `t_background_jobs_ui.js` | browser (`RI_WIDTH` and `RI_HEIGHT`, default 390 x 780; set `RI_EVIDENCE` for screenshots) | B55 |
 | `t_story_rules.js` | node | B41 |
+| `t_import_report.js` | node | B46 |
+| `t_import_report_host.js` | browser (390 x 780) | B46 |
+| `t_block_gates.js` | browser (`RI_WIDTH`, default 390 x 780, touch): import keeps gate, depth, reply types and role with no report rows; a notBefore 5 block out of replies 1 to 4 (and a swipe of 4) and in from 5; a depth 2 block two chat messages from the end with its role; the card chips; the Placement editor's change reaching the next request; a pre-B56 record and stack sent as before (request recorder) | B56 |
 | `t_item_weights.js` | node for the odds; also a browser check at 390 x 780 when `RI_HOST_URL` is set | B51 |
 | `t_story_rules_host.js` | browser | B41 |
+| `t_story_outline.js` | node (`node --test`), and browser when run with plain `node` and `RI_HOST_URL` set (`RI_WIDTH`, default 390) | B52 |
 | `t_story_so_far.js` | node | MB6 |
 | `t_tracker_book.js` | node | B21 |
 | `t_tracker_book_host.js` | browser | B21 |
@@ -194,6 +200,7 @@ The rows below describe the suites by behavior. Navigation in the older browser 
 | `t_tracker_book.js` | B21, the Tracker World Info book: entries per enabled card and per present character, Constant at depth 1, size in chat data, swipe, edit, delete and branch rewrites, Theirs and switched-off fields, the disabled first entry and an editor edit replaced, the request guard, no emoji. Runs with `node --test`, no host needed |
 | `t_tracker_book_host.js` | B21 at 390 and 1006 with touch (`RI_WIDTH`): capture fills the book, the Story, World Info and Review, Context sections, the host World Info editor and export, the book entries found once in the mock's final request after the recall block, a swipe, an edit, a delete, an editor edit replaced, Theirs, and a branch with its own book. Set `RI_EVIDENCE` for screenshots |
 | `t_tracker_vars.js` | B44 at 390 and 1006 (`RI_WIDTH`): the Tracker book's values set as chat variables. Names: `ri_scene_<field>` (place, time, weather, present), `ri_character_<name>_<field>`, `ri_emo_<name>_<field>`, `ri_rel_<pair>_<field>` (for example `ri_rel_aria_and_you_level`), `ri_plan`; name and pair are lower case with `_` between words. A preset block with `{{getvar::ri_scene_place}}` sends the place in the real request; swipe, delete and edit reset the values before the next generation; a field or card that is off clears what it set; no model call (request recorder). Set `RI_EVIDENCE` for tracker-vars-<width>.json |
+| `t_story_outline.js` | B52, the long-range story outline. Node rows: the outline job is free-only and every paid step, the phone and a paid Main API drop out of its chain; the run is due every 40 replies and holds back over an edit she keeps or while it waits for a free route; the request carries open threads with their "ends when" lines and leaves paused and closed ones out; the answer makes one line per chapter; the outline sits only in the Director's desk entry, publishes no chat variable and leaves with Theirs. Browser rows (request recorder): Write the outline now opens the Generate sheet and Close makes no call; Generate makes one call on the free Main API with no spend row; the reply request carries the outline once, inside the Director's desk entry, and no background call carries it; her edit reaches the next request; a due run over a kept edit makes no call and with "Rewrites it" reads her text; a failed answer keeps the old outline; a chain of paid routes only waits with no request; Clear takes it out of the book. Set `RI_EVIDENCE` for screenshots and story-outline-<width>.json |
 | `t_dialogue_claims.js` | MB18: a spoken claim files as a plain trait or fact with the speaker as source and the line as evidence, about the speaker or anyone else; no "said that" rule in the request; a later contradiction, spoken or narrated, supersedes and Undo restores; lies and secrets use the secret and false-belief records; a feeling stated aloud files no trait; one request per reply. Runs with `node --test`, no host needed |
 | `t_memory_offers.js` | FIXOFFERS: in a chat whose memory lives in chat data, capture records offered to story event items (`memoryOffers`): open threads with their ends-when line, paused and done threads left out, secrets kept by someone present, plans (agenda records) of people present, an item that needs a thread filled with its text, a story rule's held item still held, imported entries of today's kinds offered as `worldOffers` reads them, and legacy `worldOffers` unchanged. Runs with `node --test`, no host needed |
 | `t_memory_offers_host.js` | FIXOFFERS at 390 and 1006 (`RI_WIDTH`): a memory chat with no Story World book, an open, a paused and a done thread and a kept secret; the item that needs a thread rolls with the open thread text in the request, the secret item waits until the scene lists its holder and then carries the secret, the thread item waits once the thread is done, and each reply makes only the reply and its capture. Set `RI_EVIDENCE` for memory-offers-<width>.json |

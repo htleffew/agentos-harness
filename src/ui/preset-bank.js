@@ -9,7 +9,7 @@
 // The page lays itself out by its own width (a container query on .ri-bk): under 760 px one view at a time behind a Stack
 // and Bank segmented control, Compare as a partial sheet; at 760 px and wider the bank and the stack side by side, Compare
 // as columns over the bank.
-import { h, button, toggle } from './dom.js';
+import { h, button, toggle, select, field } from './dom.js';
 import { slot, homeLink } from './homes.js';
 import { conflictSection } from './preset-conflicts.js';
 import { fitBottom } from './generate-sheet.js';
@@ -20,6 +20,8 @@ import { MODULE_PROMPTS } from '../module-layout.js';
 import { knownSets, editSet, entriesOf, loadSet } from '../books.js';
 import { checkList, summary as noteSummary } from '../preset-checks.js';
 import * as B from '../preset-bank.js';
+import { reportFor } from '../import-report.js';
+import { openImportReport } from './import-report.js';
 import { riStack, savedWordingOf, riFeatureOfVersion } from '../preset-bank-ri.js';
 import { readMarker, loadoutNotes } from '../preset-loadouts.js';
 
@@ -78,12 +80,12 @@ export function sharedSentences(texts) {
 // Page state (kept across redraws while the page stays on one stack)
 
 const ui = { key: '', view: 'stack', bankView: 'source', query: '', open: new Set(), openCards: new Set(), editing: '', diffing: '', selected: new Set(),
-    compare: [], focus: 0, sheet: 40, moving: null, full: false, preview: null, shortcutSteps: 0, status: '', layers: null, layersBusy: false };
+    compare: [], focus: 0, sheet: 40, moving: null, placing: '', full: false, preview: null, shortcutSteps: 0, status: '', layers: null, layersBusy: false };
 let root = null, appRef = null, drawing = false, queued = false, unhook = null, sheetEl = null;
 
 function resetFor(key) {
     if (ui.key === key) return;
-    Object.assign(ui, { key, editing: '', diffing: '', compare: [], focus: 0, moving: null, preview: null, shortcutSteps: 0, status: '' });
+    Object.assign(ui, { key, editing: '', placing: '', diffing: '', compare: [], focus: 0, moving: null, preview: null, shortcutSteps: 0, status: '' });
     ui.selected = new Set(); ui.openCards = new Set();
 }
 
@@ -177,11 +179,69 @@ function cardRow(data, card, item, where, extra = {}) {
         h('div', { class: 'ri-bk-meta' }, sourceChip(show), h('span', { class: 'ri-bk-tok' }, tokenText(show)),
             ...statusChips(item || (card.source === B.SOURCE_MINE ? { ...card, cleanStatus: versionState(data, card) } : null), data),
             where === 'bank' && item && !on ? chip('Left out') : null, where === 'bank' && on ? chip('In the stack', 'on') : null,
-            show.placement?.position === 1 && !show.marker && show.source !== B.SOURCE_RI ? chip(`At depth ${show.placement.depth}`) : null,
+            ...sendingChips(show),
             extra.controls || null),
         open ? cardDetail(data, card, item, where) : null);
     return row;
 }
+// ----------------------------------------------------------------------------------------------------------------------
+// Where a card is sent (B56): the in-chat position and depth, the role and the first reply, shown on the card and set in
+// its Placement editor. The extension's own cards are placed by the extension in its group, so they carry none of this.
+
+const placesItself = card => !card || card.marker || card.source === B.SOURCE_RI;
+const inChat = card => card?.placement?.position === 1;
+const depthOf = card => Number.isInteger(card?.placement?.depth) ? card.placement.depth : 4;
+const ROLE_NAMES = { system: 'System', user: 'User', assistant: 'Assistant' };
+function sendingChips(card) {
+    if (placesItself(card)) return [];
+    return [inChat(card) ? chip(`In the chat, depth ${depthOf(card)}`) : null,
+        card.role && card.role !== 'system' ? chip(`As ${card.role}`) : null,
+        B.gateValue(card.notBefore) > 1 ? chip(`From reply ${card.notBefore}`) : null,
+        card.set ? chip('Placed by you', 'ours') : null].filter(Boolean);
+}
+/** What a placement costs the request: where it lands and what the cache can reuse around it (prompt assembly standard). */
+function placementCost(card) {
+    const depth = depthOf(card);
+    const where = inChat(card)
+        ? `Sent in the chat, ${depth === 0 ? 'after the last message' : `${depth} ${depth === 1 ? 'message' : 'messages'} from the end`}, so its place in the stack is a reading order only. That spot moves with every reply: the cache reuses the request up to this block, and the block${depth ? ` and the ${depth === 1 ? 'message' : `${depth} messages`} after it are` : ' is'} read again each time.`
+        : 'Sent in stack order with the other blocks at the start of the request, where the cache reuses it from one reply to the next while the stack stays the same.';
+    const at = B.gateValue(card.notBefore);
+    const gate = at > 1 ? (inChat(card)
+        ? ` Held back until reply ${at}; it then joins the part of the request that is read again each reply anyway.`
+        : ` Held back until reply ${at}; at that reply the start of the request changes once, so the cache starts over then.`) : '';
+    return where + gate;
+}
+const sourcePlacement = from => `${from?.placement?.position === 1 ? `in the chat at depth ${depthOf(from)}` : 'in stack order'}, as ${from?.role || 'system'}, ${B.gateValue(from?.notBefore) > 1 ? `from reply ${from.notBefore}` : 'from the first reply'}`;
+
+/** The Placement editor of a stack card: her values save on the stack card; the source and the bank card stay as they are. */
+function placementEditor(data, item) {
+    const draft = { position: inChat(item) ? 1 : 0, depth: depthOf(item), role: item.role || 'system', notBefore: B.gateValue(item.notBefore) };
+    const depthBox = h('input', { type: 'number', class: 'ri-input ri-input-num', inputMode: 'numeric', min: 0, max: 9999, value: String(draft.depth),
+        disabled: draft.position !== 1, 'data-placement': 'depth', oninput: () => { draft.depth = Math.max(0, Math.round(Number(depthBox.value) || 0)); } });
+    const where = select([{ value: 0, label: 'In stack order' }, { value: 1, label: 'In the chat' }], draft.position, value => {
+        draft.position = Number(value) === 1 ? 1 : 0; depthBox.disabled = draft.position !== 1;
+    }, { 'data-placement': 'position' });
+    const role = select(B.ROLES.map(value => ({ value, label: ROLE_NAMES[value] })), draft.role, value => { draft.role = value; }, { 'data-placement': 'role' });
+    const first = h('input', { type: 'number', class: 'ri-input ri-input-num', inputMode: 'numeric', min: 0, max: 100000, value: String(draft.notBefore),
+        'data-placement': 'notBefore', oninput: () => { draft.notBefore = Math.max(0, Math.round(Number(first.value) || 0)); } });
+    const save = button('Save placement', () => act(() => {
+        B.setCardSending(data.bank, data.stack.key, item.key, { ...draft, depth: draft.position === 1 ? draft.depth : undefined }, { base: data.preset });
+        ui.placing = '';
+    }, 'Placement saved. The next request sends this card that way.'), { kind: 'primary' });
+    const reset = item.set ? button('Use the source placement', () => act(() => {
+        B.setCardSending(data.bank, data.stack.key, item.key, null, { base: data.preset });
+        ui.placing = '';
+    }, 'This card follows its source placement again.'), { kind: 'ghost' }) : null;
+    return h('div', { class: 'ri-bk-editor ri-bk-placement', 'data-placement-editor': item.key },
+        hint(`Its source sends it ${sourcePlacement(item.from)}. Your placement saves on this stack card only.`),
+        field('Where', '', where),
+        field('Messages from the end', '0 places it after the last message.', depthBox),
+        field('Sent as', '', role),
+        field('First reply', '0 sends it from the first reply.', first),
+        hint(placementCost(item)),
+        h('div', { class: 'ri-row ri-row-tight' }, save, reset, button('Cancel', () => { ui.placing = ''; draw(); }, { kind: 'ghost' })));
+}
+
 const cssId = key => String(key).replace(/[^a-zA-Z0-9_-]+/g, '_');
 const versionState = (data, card) => {
     const record = B.getVersion(card.id);
@@ -220,6 +280,8 @@ function cardDetail(data, card, item, where) {
         tools.push(button('Compare with the new text', () => { ui.diffing = ui.diffing === `new|${item.key}` ? '' : `new|${item.key}`; draw(); }, { kind: 'ghost' }));
         tools.push(button('Take the new text', () => act(() => B.takeNewText(data.bank, data.stack.key, [item.key], { base: data.preset }), 'This card sends the new text from now on.')));
     }
+    // Placement is a stack edit, so the editor opens on a card in the stack (B56).
+    if (item && !placesItself(item)) tools.push(button('Placement', () => { ui.placing = ui.placing === item.key ? '' : item.key; draw(); }, { kind: 'ghost' }));
     const compared = ui.compare.includes(show.key);
     tools.push(button(compared ? 'Leave Compare' : 'Add to Compare', () => {
         ui.compare = compared ? ui.compare.filter(key => key !== show.key) : [...ui.compare, show.key].slice(-3);
@@ -238,8 +300,8 @@ function cardDetail(data, card, item, where) {
         item?.status === 'removed' && item.source !== B.SOURCE_MINE ? hint('Its source is gone, so this card keeps sending the last text the bank read until you take it out.') : null,
         item?.elsewhere ? hint(`The selected preset has no such row. Presets of one edition share one stack, so this row comes from ${plainName(item.elsewhere)} and is sent while it is on.`) : null,
         item?.status === 'changed' ? hint('Its source changed. This card keeps sending the text it was taken with until you tap Take the new text.') : null,
-        show.placement?.position === 1 && !show.marker && show.source !== B.SOURCE_RI ? hint(`Sent at depth ${show.placement.depth} in the chat, so its place in the stack is a reading order only.`) : null,
-        h('div', { class: 'ri-row ri-row-tight ri-bk-tools' }, tools), editor, diff, text,
+        !placesItself(show) && (inChat(show) || B.gateValue(show.notBefore) > 1) ? hint(placementCost(show)) : null,
+        h('div', { class: 'ri-row ri-row-tight ri-bk-tools' }, tools), editor, item && ui.placing === item.key && !placesItself(item) ? placementEditor(data, item) : null, diff, text,
         versions.length ? h('div', { class: 'ri-bk-versions' }, h('strong', {}, `Your versions (${versions.length})`),
             versions.map(version => cardRow(data, B.bankCard(data.bank, B.versionKey(version.id), data.preset), data.byKey.get(B.versionKey(version.id)) || null, 'bank'))) : null);
 }
@@ -498,6 +560,7 @@ function sourceFold(data, group, open) {
             if (!await confirmBox(`Remove ${plainName(source.name)} from the bank? Cards from it that are in a stack keep sending their last text, marked Source removed.`)) return;
             act(() => B.removeImport(source.key.slice(4)), 'File removed from the bank.');
         }, { kind: 'ghost' }));
+        if (group.imported && source.file && reportFor(source.file)) tools.push(button('Import report', () => openImportReport(reportFor(source.file)), { kind: 'ghost' }));
         if (source.file) tools.push(hint(`Read from ${source.file}. Its blocks wait here until you put them in.`));
         fold.append(tools.length ? h('div', { class: 'ri-row ri-row-tight' }, tools) : '',
             ...cards.map(card => cardRow(data, card, data.byKey.get(stackKeyFor(data, card.key)) || null, 'bank')),

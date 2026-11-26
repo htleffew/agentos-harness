@@ -18,6 +18,8 @@ export const MARKER_V1 = 1;
 export const MARKER_V2 = 2;
 const SEP = ' + RI ';
 const INSERT_FLAG = 'ri_bank_insert';
+/** The field a block's first reply travels in, in a preset and in the bank (B56, B57). */
+export const LOADOUT_GATE = 'ri_not_before';
 const STACK_VERSION = 1;
 const own = (object, key) => object && Object.hasOwn(object, key) ? object[key] : undefined;
 const copy = value => structuredClone(value);
@@ -248,7 +250,7 @@ export async function buildStackLoadout(source, work, { base = '', off = [], edi
     const isBase = item => item.source === SOURCE_BASE && live.has(item.id);
     const kept = new Set(work.plan.filter(item => item.group === 'main' && !item.on && !item.marker && !isBase(item)).map(item => item.key));
     const plan = work.plan.map(item => kept.has(item.key) ? { ...item, on: true } : item);
-    const changes = workingCopyChanges(data, { source: work.source, plan }, off);
+    const changes = workingCopyChanges(data, { source: work.source, plan }, {});
     const insertedMain = plan.filter(item => item.group === 'main' && item.on && !item.marker && !isBase(item));
     const insertedRi = plan.filter(item => item.group === 'ri' && item.source !== SOURCE_RI && item.on && !savedWordingOf(item));
     if (changes.inserts.length !== insertedMain.length + insertedRi.length) throw new Error('The stack could not be matched to its blocks.');
@@ -259,6 +261,14 @@ export async function buildStackLoadout(source, work, { base = '', off = [], edi
     [...insertedMain, ...insertedRi].forEach((item, index) => sends.set(item.key, changes.inserts[index].identifier));
     for (const prompt of changes.inserts) delete prompt[INSERT_FLAG];
     data.prompts.push(...changes.inserts);
+    // B57: her role, position and depth on a base row stay on its block, and each card's first reply goes on its block.
+    for (const { prompt, values } of changes.fields) Object.assign(prompt, values);
+    const blockOf = new Map(data.prompts.map(block => [block?.identifier, block]));
+    for (const item of plan) {
+        const block = sends.has(item.key) ? blockOf.get(sends.get(item.key)) : null;
+        if (!block || block.marker) continue;
+        if (Number.isInteger(item.notBefore) && item.notBefore > 1) block[LOADOUT_GATE] = Math.min(item.notBefore, 100000); else delete block[LOADOUT_GATE];
+    }
     order.splice(0, order.length, ...changes.order);
     const entries = new Map(order.map(entry => [entry.identifier, entry]));
     for (const key of kept) { const entry = entries.get(sends.get(key)); if (entry) entry.enabled = false; }

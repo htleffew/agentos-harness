@@ -30,6 +30,7 @@ export const REASONS = {
     chance: 'chance missed',
     cooldown: 'on cooldown',
     delay: 'delayed (too early in the chat)',
+    gate: 'held back until its first reply',
     group: 'lost its inclusion group',
     budget: 'World Info budget reached',
     recursion: 'recursion stopped before it',
@@ -47,7 +48,7 @@ const flat = text => String(text ?? '').replace(/\s+/g, ' ').trim();
  * The blocks the stack plan leaves out: [{ name, why, reason }]. work is workingPlan()'s { plan, source }; modules is the chat's
  * module switches. A card whose feature is off is read from the extension's own cards (their id is the feature key).
  */
-export function stackLeftOut(work, modules = {}) {
+export function stackLeftOut(work, modules = {}, reply = Infinity) {
     const rows = [];
     const plan = Array.isArray(work?.plan) ? work.plan : [];
     const present = new Set(plan.filter(item => item.source === 'base').map(item => item.id));
@@ -56,11 +57,12 @@ export function stackLeftOut(work, modules = {}) {
         const name = clip(item.label ? `${item.name} (${item.label})` : item.name || item.key);
         if (!item.on) rows.push({ name, reason: 'off' });
         else if (item.source === 'ri' && modules && modules[item.id] === false) rows.push({ name, reason: 'feature' });
+        else if (item.notBefore > 1 && Number.isFinite(reply) && reply < item.notBefore) rows.push({ name, reason: 'gate', opensAt: item.notBefore });
     }
     for (const card of work?.source?.cards || []) {
         if (card?.listed && card.shippedOn && !card.marker && !present.has(card.id)) rows.push({ name: clip(card.name || card.id), reason: 'out' });
     }
-    return rows.map(row => ({ ...row, why: REASONS[row.reason] }));
+    return rows.map(({ opensAt, ...row }) => ({ ...row, why: opensAt ? `${REASONS[row.reason]}: opens at reply ${opensAt}` : REASONS[row.reason] }));
 }
 
 /**
@@ -228,9 +230,9 @@ function recentChat() {
 }
 
 /** Hook 1 (preset-workbench.js, applyWorkingCopy): the stack plan the request is built from. */
-export function noteStack(work, modules) {
+export function noteStack(work, modules, reply = Infinity) {
     if (!on()) { turn.stack = null; return; }
-    try { turn.stack = work ? { rows: stackLeftOut(work, modules), work, at: Date.now() } : null; turn.trimmed = []; }
+    try { turn.stack = work ? { rows: stackLeftOut(work, modules, reply), work, at: Date.now() } : null; turn.trimmed = []; }
     catch (error) { console.warn('[Roleplay Instructions] diagnostics log', error); }
 }
 

@@ -7,6 +7,8 @@ import { readImportFile, importGroup, listItems, sendBlocksToBlockBank } from '.
 import { editBankBook, banksNow, addBank, setBankItems, itemBias, BANK_BOOK } from '../banks.js';
 import { toast, confirmBox } from '../st.js';
 import { fitBottom } from './generate-sheet.js';
+import { reportImport, reportFor } from '../import-report.js';
+import { openImportReport } from './import-report.js';
 
 let openSheet = null;
 
@@ -130,8 +132,12 @@ export function importBox(state, type, redraw) {
                     }
                 });
                 const blocks = await sendBlocksToBlockBank(found.blocks);
+                // B46: compare what was read with what was stored; the sheet opens only when something was lost.
+                const now = new Map([...banksNow().values()].flatMap(b => b.items.map(it => [it.id, it])));
+                const report = reportImport({ found, picked, group, sent: blocks, items: now });
+                if (report) openImportReport(report);
                 state.found = null;
-                state.done = `${items} ${items === 1 ? 'item' : 'items'} from ${picked.length} ${picked.length === 1 ? 'list' : 'lists'} went into "${BANK_BOOK}".${found.blocks.length ? blocks.sent ? ` ${blocks.sent} instruction blocks went to the block bank.` : ` ${blocks.waiting} instruction blocks were found; the block bank is not installed yet, so they were not written.` : ''}`;
+                state.done = `${report ? 'Some fields were approximated or left out; see the import report. ' : ''}${items} ${items === 1 ? 'item' : 'items'} from ${picked.length} ${picked.length === 1 ? 'list' : 'lists'} went into "${BANK_BOOK}".${found.blocks.length ? blocks.sent ? ` ${blocks.sent} instruction blocks went to the block bank.` : ` ${blocks.waiting} instruction blocks were found; the block bank is not installed yet, so they were not written.` : ''}`;
                 redraw();
             }, { kind: 'primary' }),
             button('Cancel', () => { state.found = null; redraw(); }, { kind: 'ghost' })));
@@ -143,7 +149,7 @@ export function importBox(state, type, redraw) {
     if (groups.size) {
         box.append(h('div', { class: 'ri-label' }, 'Imported groups'), ...[...groups].map(([g, info]) => h('div', { class: 'ri-version' },
             h('div', { class: 'ri-vbody' }, `${g.split(':')[1] || g}: ${info.n} ${info.n === 1 ? 'item' : 'items'} in ${info.banks.size} ${info.banks.size === 1 ? 'bank' : 'banks'}`),
-            h('div', { class: 'ri-row ri-row-tight' }, button('Remove this group', async () => {
+            h('div', { class: 'ri-row ri-row-tight' }, reportFor(g.split(':')[1] || g) ? button('Import report', () => openImportReport(reportFor(g.split(':')[1] || g)), { kind: 'ghost' }) : null, button('Remove this group', async () => {
                 if (!await confirmBox(`Remove the ${info.n} items of this import from "${BANK_BOOK}"?`)) return;
                 await editBankBook(book => {
                     for (const id of info.banks) {

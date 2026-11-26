@@ -50,6 +50,8 @@ export const JOBS = Object.freeze({
     catchUpNow: { label: 'Catch-up map, run now', tier: 'writer' },
     carryOver: { label: 'Continue in a new chat', tier: 'writer', waiting: true },
     behaviorDrafts: { label: 'Behavior book drafts', tier: 'writer', chain: 'carryOver', waiting: true },
+    // B52: free routes only. story-outline.js drops every paid step of this chain before it runs, so it never spends.
+    outline: { label: 'Story outline', tier: 'writer', chain: 'chapter', freeOnly: true },
 });
 
 const DESKTOP = 'gemma4:12b';

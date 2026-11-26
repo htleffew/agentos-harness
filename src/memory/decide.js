@@ -1,5 +1,5 @@
 // Judgment calls before the reply (memory DESIGN 7.7 and 9.2): a dice attempt with its difficulty and stance, an
-// out-of-character aside that code cannot settle, and whether a reply changed a lasting fact. Each runs in code first;
+// out-of-character aside that code cannot settle. Whether a reply changed a lasting fact is capture's call (MB17). Each runs in code first;
 // code skips the call on a turn with no action by anyone. Every other turn goes to the routes in order:
 //   1. the desktop's resident gemma4:12b over Tailscale, one structured answer, within a 1 s limit;
 //   2. with the desktop unreachable or late, the on-phone Gemma 4 E2B, as one-word items (about 2.6 s each);
@@ -102,7 +102,6 @@ export const BAND_LOWER = 0.3;
 export const BANDS = Object.freeze({
     attempt: Object.freeze({ upper: BAND_UPPER, lower: BAND_LOWER, default: false }),
     aside: Object.freeze({ upper: BAND_UPPER, lower: BAND_LOWER, default: false }),
-    changed: Object.freeze({ upper: BAND_UPPER, lower: BAND_LOWER, default: false }),
 });
 
 /** Read one noul score against its band: { yes, unsure, score }. A missing or non-numeric score is a no, as before the band. */
@@ -199,24 +198,6 @@ export const ASIDE = Object.freeze({
     },
 });
 
-/** Whether a reply changed a lasting fact, asked while capture waits for a route. */
-export const FACT_CHANGED = Object.freeze({
-    name: 'factChanged',
-    schema: { name: 'fact_changed', strict: true, value: { type: 'object', required: ['changed'], properties: { changed: { type: 'boolean' } } } },
-    system: 'Say whether the reply changes a lasting fact of the story: where someone lives, who is alive, what someone owns, a relationship, a promise. Answer with JSON on one line and nothing else.',
-    user: ({ reply }) => `Reply: ${reply}`,
-    phone: [{ key: 'changed', question: ({ reply }) => `Reply: ${reply}\nDoes this reply change a lasting fact of the story? Answer yes or no.`, options: ['yes', 'no'] }],
-    fromPhone: answers => ({ changed: answers.changed === 'yes' }),
-    codeDefault: () => ({ changed: false }),
-    normalize: value => typeof value?.changed === 'boolean' ? { changed: value.changed } : null,
-    screen: () => ({ skip: false }),
-    decision: {
-        bands: { changed: BANDS.changed },
-        state: ({ reply }) => ({ reply: String(reply || '') }),
-        questions: { changed: { type: 'noul', instructions: '`reply` changes a lasting fact of the story: where someone lives, who is alive, what someone owns, a relationship, a promise.' } },
-        fromAnswers: answers => ({ changed: bandYes(answers, 'changed') }),
-    },
-});
 
 let desktopMissUntil = 0;
 
@@ -305,7 +286,7 @@ const DEFAULT_DEPS = {
 };
 
 /**
- * Run one judgment call. def: DICE, ASIDE, FACT_CHANGED, or a definition shaped like them. input: { message, scene,
+ * Run one judgment call. def: DICE, ASIDE, or a definition shaped like them. input: { message, scene,
  * threads, npcNames, reply }. Returns { value, route, model, ms, skipped, attempts }, where route is 'code',
  * 'desktop', 'phone' or 'jev', and attempts lists each route tried with its outcome and time. unsure, when present, holds the
  * receipt lines of Jev answers that fell in the unsure band and took the question's default.

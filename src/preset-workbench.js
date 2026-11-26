@@ -1,11 +1,11 @@
-import { ctx } from './st.js';
+import { ctx, isReply } from './st.js';
 import { settings, saveSettings, chatState } from './store.js';
 import { activePreset, blockCompanions, effectiveModules, enabledV10, isCompanionPreset, setModuleOwner } from './v10.js';
-import { noteStack } from './diagnostics-log.js';
+import { noteStack, diagnosticsOn } from './diagnostics-log.js';
 import { FEATURE_KEYS, loadLibrary, recognize, presetBlocks, presetFeatures } from './preset-library.js';
-import { readMarker, restoreLoadoutStack } from './preset-loadouts.js';
+import { readMarker, restoreLoadoutStack, LOADOUT_GATE } from './preset-loadouts.js';
 import { savedWordingOf } from './preset-bank-ri.js';
-import { currentBank, refreshBank, stackFor, stackPlan, ownersFromStack, useBankLibrary, presetSource, SOURCE_BASE, SOURCE_COMPANION, SOURCE_RI } from './preset-bank.js';
+import { currentBank, refreshBank, stackFor, stackPlan, ownersFromStack, useBankLibrary, presetSource, gateOpen, SOURCE_BASE, SOURCE_COMPANION, SOURCE_RI } from './preset-bank.js';
 
 const own = (obj,key) => obj && Object.hasOwn(obj,key) ? obj[key] : undefined;
 function put(obj,key,value) {
@@ -391,6 +391,10 @@ function clearStale(data, preset) {
             const prompt = prompts.get(text.id);
             if (prompt && prompt.content === text.sent) prompt.content = text.value;
         }
+        for (const field of journal.fields || []) {
+            const prompt = prompts.get(field.id);
+            if (prompt && Object.entries(field.sent || {}).every(([key, value]) => prompt[key] === value)) putFields(prompt, field.had);
+        }
         const ids = journal.order || [];
         const now = order.map(entry => entry.identifier);
         if (ids.length === now.length && new Set(ids).size === ids.length && ids.every(id => entries.has(id)) && ids.some((id, i) => id !== now[i])) {
@@ -409,7 +413,7 @@ function freeId(id, used) {
 }
 function insertedPrompt(item, identifier) {
     const placement = item.placement || {};
-    return { identifier, name: item.label ? `${item.name} (${item.label})` : item.name, role: item.role || 'system', content: item.text,
+    return { identifier, name: item.label ? `${item.name} (${item.label})` : item.name, role: item.role || 'system', content: item.sendText ?? item.text,
         system_prompt: false, marker: false, injection_position: placement.position === 1 ? 1 : 0,
         injection_depth: Number.isInteger(placement.depth) ? placement.depth : 4, injection_order: Number.isInteger(placement.order) ? placement.order : 100,
         injection_trigger: Array.isArray(placement.triggers) ? [...placement.triggers] : [], forbid_overrides: false, [INSERT_FLAG]: true };
@@ -417,11 +421,14 @@ function insertedPrompt(item, identifier) {
 
 /**
  * The live order the stack gives, without touching the live arrays: the entries in send order, the prompts to insert,
- * the flags to set and the texts to swap. Pure over its inputs, so tests and the page can read it.
+ * the flags to set, the texts to swap and the placement fields to change. Pure over its inputs, so tests and the page can
+ * read it. reply is the number of the reply this request writes: a card whose first reply (notBefore) is later is left out
+ * (B56); with no reply number every card is sent as the stack says.
  */
-export function workingCopyChanges(data, work) {
+export function workingCopyChanges(data, work, { reply = Infinity } = {}) {
     const order = sequence(data);
-    const out = { order: [...order], inserts: [], flags: [], texts: [] };
+    const out = { order: [...order], inserts: [], flags: [], texts: [], fields: [] };
+    const open = item => gateOpen(item.notBefore, reply);
     const live = new Map();
     for (const prompt of data.prompts) if (prompt?.identifier && !live.has(prompt.identifier)) live.set(prompt.identifier, prompt);
     const entryOf = new Map();
@@ -461,6 +468,8 @@ export function workingCopyChanges(data, work) {
             const tapped = !card || item.on !== card.shippedOn;
             let want = entry ? entry.enabled === true : false;
             if (tapped) want = item.on;
+            // A first reply she set on a base row holds it back until that reply (B56).
+            if (!open(item)) want = false;
             if (!entry) {
                 if (want) { const row = { identifier: item.id, enabled: true }; place(row); out.flags.push({ entry: row, added: true }); }
                 continue;
@@ -468,9 +477,19 @@ export function workingCopyChanges(data, work) {
             anchor = entry;
             if ((entry.enabled === true) !== want) out.flags.push({ entry, value: want });
             if (item.on && item.status === 'changed' && !prompt.marker && typeof item.text === 'string' && prompt.content !== item.text) out.texts.push({ prompt, value: item.text });
+            // Her role and placement for a base row go on the live prompt for this request; SillyTavern's prompt manager
+            // then places it in the chat at its depth with its role, as it does any preset block.
+            if (want && item.set && !prompt.marker) {
+                const values = {};
+                if (item.set.role && (prompt.role || 'system') !== item.role) values.role = item.role;
+                const position = item.placement?.position === 1 ? 1 : 0, depth = Number.isInteger(item.placement?.depth) ? item.placement.depth : 4;
+                if (item.set.position !== undefined && (prompt.injection_position === 1 ? 1 : 0) !== position) values.injection_position = position;
+                if ((item.set.depth !== undefined || item.set.position === 1) && (prompt.injection_depth ?? 4) !== depth) values.injection_depth = depth;
+                if (Object.keys(values).length) out.fields.push({ prompt, values });
+            }
             continue;
         }
-        if (!item.on || item.marker) continue;
+        if (!item.on || item.marker || !open(item)) continue;
         const identifier = freeId(item.sendId || item.key, used);
         const prompt = insertedPrompt(item, identifier);
         out.inserts.push(prompt);
@@ -478,7 +497,7 @@ export function workingCopyChanges(data, work) {
     }
     // Her versions of the extension's cards go with the RI group, at the placement the card carries (depth 0 at the end).
     // Her saved wording of a feature is part of the extension's own group (B31), so it is not inserted here as well.
-    for (const item of work.plan.filter(entry => entry.group === 'ri' && entry.source !== SOURCE_RI && entry.on && !savedWordingOf(entry))) {
+    for (const item of work.plan.filter(entry => entry.group === 'ri' && entry.source !== SOURCE_RI && entry.on && open(entry) && !savedWordingOf(entry))) {
         const identifier = freeId(item.sendId || item.key, used);
         out.inserts.push(insertedPrompt(item, identifier));
         out.order.push({ identifier, enabled: true });
@@ -486,8 +505,32 @@ export function workingCopyChanges(data, work) {
     return out;
 }
 
+/** A loadout's blocks that carry a first reply (B57): the order entries to switch off until that reply. */
+function loadoutGateChanges(data, reply) {
+    const order = sequence(data) || [];
+    const out = { order: [...order], inserts: [], flags: [], texts: [], fields: [] };
+    const live = new Map(data.prompts.filter(prompt => prompt?.identifier).map(prompt => [prompt.identifier, prompt]));
+    for (const entry of order) {
+        const prompt = live.get(entry?.identifier);
+        if (entry?.enabled === true && prompt && !gateOpen(prompt[LOADOUT_GATE], reply)) out.flags.push({ entry, value: false });
+    }
+    return out;
+}
+
+/**
+ * The number of the reply a generation writes, counted as the event timers count (engine.js): reply 1 is the first reply
+ * after the opening message, a hidden reply still counts, and a swipe or continue rewrites the last reply.
+ */
+export function replyNumber(type = 'normal', chat = ctx().chat || []) {
+    let replies = 0;
+    const end = type === 'swipe' || type === 'continue' ? chat.length - 1 : chat.length;
+    for (let i = 1; i < end; i++) if (isReply(chat[i])) replies++;
+    return replies + 1;
+}
+
 let applied = null;
-export function applyWorkingCopy() {
+/** Apply the stack for one request. type is the generation type SillyTavern reports (normal, swipe, continue and so on). */
+export function applyWorkingCopy(type = 'normal') {
     restoreWorkingCopy();
     const c = ctx();
     if (c.mainApi && c.mainApi !== 'openai') return 0;
@@ -497,16 +540,25 @@ export function applyWorkingCopy() {
     const name = activePreset();
     clearStale(data, name);
     const context = switchContext();
-    // With the extension off for the chat, or a loadout selected, the preset sends as saved.
-    if (!context || context.marker || !enabledV10()) return 0;
-    const work = workingPlan(context);
-    syncOwners(context, work);
-    noteStack(work, effectiveModules());   // B47: the diagnostics log reads the stack plan here
-    // A base the bank cannot read (no preset list on this host) is sent as it is.
-    const changes = workingCopyChanges(data, work || { source: { cards: [] }, plan: [] });
-    const unchanged = !changes.inserts.length && !changes.flags.length && !changes.texts.length && changes.order.every((entry, i) => entry === order[i]);
+    // With the extension off for the chat, a loadout sends as saved, except that a block it holds with a first reply (B57) waits for it.
+    // A loadout is not the companion preset, so a chat that never switched the extension on or off still honours its gates.
+    if (!context || !(enabledV10() || (context.marker && settings().enabled && chatState()?.v10?.enabled !== false))) return 0;
+    const reply = replyNumber(typeof type === 'string' ? type : 'normal', c.chat || []);
+    let changes;
+    if (context.marker) {
+        changes = loadoutGateChanges(data, reply);
+        if (diagnosticsOn()) noteStack(loadoutPlan(context), effectiveModules(), reply);
+    } else {
+        const work = workingPlan(context);
+        syncOwners(context, work);
+        noteStack(work, effectiveModules(), reply);   // B47: the diagnostics log reads the stack plan here
+        // A base the bank cannot read (no preset list on this host) is sent as it is.
+        changes = workingCopyChanges(data, work || { source: { cards: [] }, plan: [] }, { reply });
+    }
+    const unchanged = !changes.inserts.length && !changes.flags.length && !changes.texts.length && !changes.fields.length
+        && changes.order.every((entry, i) => entry === order[i]);
     if (unchanged) return 0;
-    const snapshot = { prompts: data.prompts, order, promptList: [...data.prompts], entries: [...order], flags: [], texts: [] };
+    const snapshot = { prompts: data.prompts, order, promptList: [...data.prompts], entries: [...order], flags: [], texts: [], fields: [] };
     for (const { entry, value, added } of changes.flags) {
         if (added) continue;
         snapshot.flags.push({ entry, had: Object.hasOwn(entry, 'enabled'), value: entry.enabled, sent: value });
@@ -516,13 +568,23 @@ export function applyWorkingCopy() {
         snapshot.texts.push({ prompt, value: prompt.content, sent: value });
         prompt.content = value;
     }
+    for (const { prompt, values } of changes.fields) {
+        snapshot.fields.push({ prompt, had: Object.fromEntries(Object.keys(values).map(field => [field, Object.hasOwn(prompt, field) ? prompt[field] : FIELD_ABSENT])), sent: { ...values } });
+        Object.assign(prompt, values);
+    }
     data.prompts.push(...changes.inserts);
     order.splice(0, order.length, ...changes.order);
     applied = snapshot;
     writeJournal({ preset: name, order: snapshot.entries.map(entry => entry.identifier),
         flags: snapshot.flags.map(flag => ({ id: flag.entry.identifier, had: flag.had, value: flag.value, sent: flag.sent })),
-        texts: snapshot.texts.map(text => ({ id: text.prompt.identifier, value: text.value, sent: text.sent })) });
-    return changes.inserts.length + changes.flags.length + changes.texts.length;
+        texts: snapshot.texts.map(text => ({ id: text.prompt.identifier, value: text.value, sent: text.sent })),
+        fields: snapshot.fields.map(field => ({ id: field.prompt.identifier, had: field.had, sent: field.sent })) });
+    return changes.inserts.length + changes.flags.length + changes.texts.length + changes.fields.length;
+}
+/** A placement field the live prompt did not have; restoring it deletes the field again. */
+const FIELD_ABSENT = '\u0000ri-absent';
+function putFields(prompt, had) {
+    for (const [field, value] of Object.entries(had || {})) { if (value === FIELD_ABSENT) delete prompt[field]; else prompt[field] = value; }
 }
 export function restoreWorkingCopy() {
     if (!applied) return;
@@ -532,6 +594,7 @@ export function restoreWorkingCopy() {
     snapshot.order.splice(0, snapshot.order.length, ...snapshot.entries);
     for (const flag of snapshot.flags) { if (flag.had) flag.entry.enabled = flag.value; else delete flag.entry.enabled; }
     for (const text of snapshot.texts) text.prompt.content = text.value;
+    for (const field of snapshot.fields || []) putFields(field.prompt, field.had);
     writeJournal(null);
 }
 

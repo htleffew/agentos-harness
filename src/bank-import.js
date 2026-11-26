@@ -8,7 +8,10 @@
 //   3. Chance gates: most items empty, a dot or a digit and one real item is a chance on one block.
 //   4. Everything else is an instruction block.
 
+import { sourceLosses } from './import-report.js';
+
 export const MAX_ITEM = 300;
+const PLACEMENT_FIELDS = ['injection_position', 'injection_depth', 'injection_order', 'injection_trigger'];
 const EMOJI = /[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\u20E3]/gu;
 const DECOR = /[─━═┈✧⸝·▸│\u261D]/g;
 const ADULT = /\b(nsfw|explicit|sexual|sex|kink|smut|intimacy|ecchi|hentai|horny|pervert|dead dove|erotic|lewd|porn)/i;
@@ -61,6 +64,9 @@ function itemText(raw) {
     if (vals.length) return vals.sort((a, b) => b.length - a.length)[0];
     return stripMacros(raw).trim();
 }
+
+/** How many items had a macro or comment taken out of their text (B46 reports these as approximated). */
+const strippedCount = (raws, texts) => raws.filter((r, i) => /\{\{/.test(String(r)) && String(r).trim() !== String(texts[i] ?? '').trim()).length;
 
 const shaped = t => t.length <= MAX_ITEM && !/^\s*#/m.test(t) && !/^\s*\d+\.\s/m.test(t) && !/<\/?[a-z_]+>/i.test(t);
 const blankish = t => !String(t).trim() || /^[.\s\d]*$/.test(String(t).trim());
@@ -148,7 +154,7 @@ function readPreset(p, file) {
         for (const r of randomLists(stripComments(c))) {
             const texts = r.items.map(itemText).filter(Boolean);
             const k = classify(texts);
-            if (k.kind === 'list') lists.push({ name: `${plainName(b.name)}: ${r.label || 'sub-list'}`, items: toItems(k.items), pick: 'one', block: plainName(b.name), source: src(b), nested: true, adult: ADULT.test(b.name || '') });
+            if (k.kind === 'list') lists.push({ name: `${plainName(b.name)}: ${r.label || 'sub-list'}`, items: toItems(k.items), pick: 'one', block: plainName(b.name), source: src(b), nested: true, adult: ADULT.test(b.name || ''), stripped: strippedCount(r.items, texts) });
         }
     }
     for (const l of roulettes.values()) if (l.items.length) lists.push(l);
@@ -173,7 +179,7 @@ function readPreset(p, file) {
             const short = items.filter(it => it.text.length <= MAX_ITEM).length;
             if (!/pick|choose/i.test(list[i].name || '') && short < items.length / 2) continue;
             const name = plainName(String(list[i].name).replace(/\(.*$/, '').replace(/[-─]+/g, ' ')) || 'Menu';
-            lists.push({ name, items, pick: pickOf(list[i].name), block: plainName(list[i].name), source: src(list[i]), adult: ADULT.test(list[i].name || '') || opts.some(o => ADULT.test(`${o.name} ${o.content}`)), sharedTag: shared ? wrap[0] : '', ...(outside ? { outside: true } : {}) });
+            lists.push({ name, items, pick: pickOf(list[i].name), block: plainName(list[i].name), source: src(list[i]), stripped: opts.filter(o => /\{\{(?!\/\/)/.test(String(o.content || ''))).length, adult: ADULT.test(list[i].name || '') || opts.some(o => ADULT.test(`${o.name} ${o.content}`)), sharedTag: shared ? wrap[0] : '', ...(outside ? { outside: true } : {}) });
             for (const o of opts) used.add(o);
             used.add(list[i]);
         }
@@ -196,15 +202,17 @@ function readPreset(p, file) {
             if (r.nested && !r.label) continue;
             const texts = r.items.map(itemText);
             const k = classify(texts);
-            if (k.kind === 'list') lists.push({ name: r.label || plainName(b.name), items: toItems(k.items), pick: 'one', block: plainName(b.name), source: src(b), adult: ADULT.test(`${b.name} ${r.label}`) });
+            if (k.kind === 'list') lists.push({ name: r.label || plainName(b.name), items: toItems(k.items), pick: 'one', block: plainName(b.name), source: src(b), adult: ADULT.test(`${b.name} ${r.label}`), stripped: strippedCount(r.items, texts) });
             else if (k.kind === 'chance') gate = { chance: k.chance };
             else if (k.kind === 'wordings') wordings = k.wordings;
         }
         const dice = body.match(/\{\{roll 1d(\d+)\}\}/);
         const after = body.match(/getvar::turn\}\}\s*>=\s*(\d+)/);
         if (!body.trim() || (used.has(b) && !gate && !wordings && !randomLists(body).length)) continue;
-        blocks.push({ name: plainName(b.name || b.identifier), text: content, source: src(b), ...(gate ? { chance: gate.chance } : dice ? { chance: Math.round(100 / Number(dice[1])) } : {}),
-            ...(after ? { notBefore: Number(after[1]) } : {}), ...(wordings ? { wordings } : {}), ...(inOrder.has(b) ? {} : { outside: true }) });
+        blocks.push({ name: plainName(b.name || b.identifier), text: content, source: src(b), ...(['system', 'user', 'assistant'].includes(b.role) ? { role: b.role } : {}), ...(gate ? { chance: gate.chance } : dice ? { chance: Math.round(100 / Number(dice[1])) } : {}),
+            ...(after ? { notBefore: Number(after[1]) } : {}), ...(wordings ? { wordings } : {}), ...(inOrder.has(b) ? {} : { outside: true }),
+            // Where the preset sends it (B56): the block bank keeps the in-chat position, depth, order and reply types.
+            ...Object.fromEntries(PLACEMENT_FIELDS.filter(key => b[key] !== undefined).map(key => [key, b[key]])) });
     }
     return { lists: dedupe(lists), blocks };
 }
@@ -286,7 +294,7 @@ function readWorldBook(book, file) {
         let listed = false;
         for (const r of found) {
             const k = classify(r.items.map(itemText));
-            if (k.kind === 'list') { lists.push({ name: r.label || name, items: toItems(k.items), pick: 'one', block: name, source: { file, block: name }, adult: ADULT.test(name) }); listed = true; }
+            if (k.kind === 'list') { lists.push({ name: r.label || name, items: toItems(k.items), pick: 'one', block: name, source: { file, block: name }, adult: ADULT.test(name), stripped: strippedCount(r.items, r.items.map(itemText)) }); listed = true; }
         }
         if (!listed && String(e.content || '').trim()) blocks.push({ name, text: String(e.content), source: { file, block: name } });
     }
@@ -299,18 +307,19 @@ function readWorldBook(book, file) {
  */
 export function readImportFile(name, text) {
     const file = String(name || 'file');
-    let result; let format;
+    let result; let format; let parsed = null;
     if (/^\s*</.test(text) || /\.html?$/i.test(file)) { format = 'workbench'; result = readWorkbench(String(text), file); }
     else {
         let p;
         try { p = JSON.parse(text); } catch { throw new Error('This file is not JSON or HTML, so nothing could be read from it.'); }
+        parsed = p;
         if (Array.isArray(p?.prompts)) { format = 'preset'; result = readPreset(p, file); }
         else if (p?.entries && (Array.isArray(p.agents) || p.meta?.tag === 'PLUGIN' || p._lorebary)) { format = 'plugin'; result = readPlugin(p, file); }
         else if (p?.entries && typeof p.entries === 'object') { format = 'worldbook'; result = readWorldBook(p, file); }
         else throw new Error('This file is not a Chat Completion preset, a LoreBary plugin, a World Info book or a Writer\'s Workbench page.');
     }
     const lists = result.lists.map((l, i) => ({ ...l, id: `l${i}`, tick: !l.adult && !l.nested && !l.items.some(it => it.adult) }));
-    return { format, file, lists, blocks: result.blocks, data: result.data || [] };
+    return { format, file, lists, blocks: result.blocks, data: result.data || [], losses: sourceLosses(format, parsed ?? String(text), result) };
 }
 
 /** The import group id that marks every item of one import, so they can be filtered and removed together. */
@@ -336,6 +345,6 @@ export async function sendBlocksToBlockBank(blocks, intake = null) {
         try { take = (await import('./preset-bank.js')).intakeBlocks; } catch { take = null; }
     }
     if (typeof take !== 'function') return { sent: 0, waiting: blocks.length, reason: 'The block bank is not installed yet.' };
-    await take(blocks.map(b => ({ ...b, origin: 'import' })));
-    return { sent: blocks.length, waiting: 0 };
+    const stored = await take(blocks.map(b => ({ ...b, origin: 'import' })));
+    return { sent: blocks.length, waiting: 0, stored: Array.isArray(stored) ? stored : [] };
 }

@@ -80,6 +80,24 @@ export function listedPresets(manager) {
 const placementOf = block => ({ position: block?.injection_position === 1 ? 1 : 0, depth: Number.isInteger(block?.injection_depth) ? block.injection_depth : 4,
     order: Number.isInteger(block?.injection_order) ? block.injection_order : 100,
     triggers: Array.isArray(block?.injection_trigger) ? block.injection_trigger.filter(item => typeof item === 'string') : [] });
+export const ROLES = Object.freeze(['system', 'user', 'assistant']);
+const roleOf = role => ROLES.includes(role) ? role : 'system';
+/**
+ * The reply-number gate a preset wrote as one macro around the whole block, {{if {{getvar::turn}} >= N}}...{{/if}}, as
+ * { at: N, body }, or null. A gate inside other text (an init block that counts the turns) is the preset's own macro.
+ */
+const WRAPPED = /^\s*\{\{if\s+\{\{getvar::turn\}\}\s*>=\s*(\d+)\s*\}\}([\s\S]*)\{\{\/if\}\}\s*$/;
+export function wrappedGate(text) {
+    const match = String(text ?? '').match(WRAPPED);
+    if (!match || /\{\{\/?if\b/.test(match[2])) return null;
+    return { at: Number(match[1]), body: match[2] };
+}
+/** A reply number gate: the first reply the block is sent with; 0 and 1 both mean from the first reply. */
+export const gateValue = value => Number.isInteger(value) && value > 0 ? Math.min(value, 100000) : 0;
+/** The field an imported block's reply-number gate travels in from its stored record to its card. */
+const GATE_FIELD = 'ri_not_before';
+/** Whether a card with this gate is sent with the reply numbered reply. */
+export const gateOpen = (notBefore, reply) => !(gateValue(notBefore) > 1 && Number.isFinite(reply) && reply < notBefore);
 const plainText = text => stripPresetComments(text);
 /** The token estimate a card shows: comments stripped, as the block editor does today. */
 export const cardTokens = text => estimateTokens(plainText(text));
@@ -171,11 +189,12 @@ function indexSource({ key, kind, name, data, sid = '' }, prev, context) {
         const flag = count === 1 ? flags.get(block.identifier) : null;
         const card = { key: cardKey(key, id), source: key, kind, sourceName: name, sid, id, name: String(block.name || block.identifier),
             text, hash, marker, landmark: marker && LANDMARK.has(block.identifier), systemPrompt: block.system_prompt === true,
-            role: ['system', 'user', 'assistant'].includes(block.role) ? block.role : 'system', placement: placementOf(block),
+            role: roleOf(block.role), placement: placementOf(block), notBefore: gateValue(block[GATE_FIELD]),
             listed: !!flag, shippedOn: flag?.on === true, index: flag ? flag.index : order.length + cards.length,
             tokens: marker ? 0 : cardTokens(text), raw: hasMacros(text), tags: [], verdicts: {},
             changedAt: old && old.hash !== hash ? context.at : old?.changedAt || 0, previousHash: old && old.hash !== hash ? old.hash : old?.previousHash || '' };
-        if (!old || old.hash !== hash || old.name !== card.name || old.marker !== marker) changed = true;
+        if (!old || old.hash !== hash || old.name !== card.name || old.marker !== marker || old.notBefore !== card.notBefore || old.role !== card.role
+            || JSON.stringify(old.placement) !== JSON.stringify(card.placement)) changed = true;
         cards.push(card);
         byId.set(id, card);
     }
@@ -198,8 +217,8 @@ function sameSource(prev, data, flags, orderLength) {
         const flag = count === 1 ? flags.get(block.identifier) : null;
         const text = typeof block.content === 'string' ? block.content : String(block.content ?? '');
         if (!card || card.text !== text || card.name !== String(block.name || block.identifier) || card.marker !== (block.marker === true)
-            || card.role !== (['system', 'user', 'assistant'].includes(block.role) ? block.role : 'system') || card.listed !== !!flag
-            || card.shippedOn !== (flag?.on === true) || (flag && card.index !== flag.index)
+            || card.role !== (roleOf(block.role)) || card.listed !== !!flag
+            || card.shippedOn !== (flag?.on === true) || (flag && card.index !== flag.index) || card.notBefore !== gateValue(block[GATE_FIELD])
             || JSON.stringify(card.placement) !== JSON.stringify(placementOf(block))) return false;
         n++;
     }
@@ -312,7 +331,14 @@ export function indexBank(input = {}, prev = null) {
 
 /** An imported file's blocks in the shape of a preset with no prompt order: every block waits in the bank for her tap. */
 function importData(record) {
-    return { prompts: record.blocks.map(block => ({ identifier: block.id, name: block.name, content: block.text, role: block.role || 'system' })), prompt_order: [] };
+    return { prompts: record.blocks.map(block => {
+        const placement = block.placement || {};
+        return { identifier: block.id, name: block.name, content: block.text, role: block.role || 'system',
+            ...(placement.position === 1 ? { injection_position: 1 } : {}), ...(Number.isInteger(placement.depth) ? { injection_depth: placement.depth } : {}),
+            ...(Number.isInteger(placement.order) ? { injection_order: placement.order } : {}),
+            ...(Array.isArray(placement.triggers) ? { injection_trigger: placement.triggers } : {}),
+            ...(gateValue(block.notBefore) ? { [GATE_FIELD]: block.notBefore } : {}) };
+    }), prompt_order: [] };
 }
 
 function pickCompanion(presets) {
@@ -431,7 +457,6 @@ export function setCardTags(key, tags) {
 // ----------------------------------------------------------------------------------------------------------------------
 // Customized versions
 
-const VERSION_FIELDS = ['id', 'source', 'sourceName', 'sourceId', 'cleanHash', 'name', 'role', 'placement', 'label', 'text', 'created', 'edited'];
 export const versionKey = id => cardKey(SOURCE_MINE, id);
 export const cleanKeyOf = version => cardKey(version.source, version.sourceId);
 export const listVersions = () => Object.values(stores().bankVersions).map(copy);
@@ -458,7 +483,7 @@ export function createVersion(bank, key, { label = '', text, base = activePreset
         const from = own(st.bankVersions, parsed.id);
         if (!from) throw new Error('That version is no longer saved.');
         clean = bankCard(bank, cleanKeyOf(from), base) || { source: from.source, sourceName: from.sourceName, id: from.sourceId, hash: from.cleanHash,
-            name: from.name, role: from.role, placement: from.placement };
+            name: from.name, role: from.role, placement: from.placement, notBefore: from.notBefore || 0 };
     } else clean = bankCard(bank, key, base);
     if (!clean) throw new Error('That block is no longer in the bank.');
     if (clean.marker) throw new Error('SillyTavern fills this row itself, so it has no text to edit.');
@@ -466,7 +491,7 @@ export function createVersion(bank, key, { label = '', text, base = activePreset
     const id = newVersionId(st.bankVersions);
     const time = now();
     const record = { id, source: clean.source, sourceName: clean.sourceName, sourceId: clean.id, cleanHash: clean.hash || '',
-        name: clean.name, role: clean.role || 'system', placement: copy(clean.placement || placementOf(null)),
+        name: clean.name, role: clean.role || 'system', placement: copy(clean.placement || placementOf(null)), ...(gateValue(clean.notBefore) ? { notBefore: clean.notBefore } : {}),
         label: String(label || '').trim() || `Version ${versionsOf(cardKey(clean.source, clean.id)).length + 1}`, text, created: time, edited: time };
     put(st.bankVersions, id, record);
     saveSettings();
@@ -532,7 +557,7 @@ export function versionStatus(bank, version) {
 function versionCard(record) {
     return { key: versionKey(record.id), source: SOURCE_MINE, kind: 'mine', origin: record.source, sourceName: record.sourceName, sid: sidOf(record.source),
         id: record.id, versionOf: record.sourceId, name: record.name, label: record.label, text: record.text, hash: blockHash(record.text),
-        marker: false, landmark: false, systemPrompt: false, role: record.role, placement: record.placement, listed: false, shippedOn: false,
+        marker: false, landmark: false, systemPrompt: false, role: record.role, placement: record.placement, notBefore: gateValue(record.notBefore), listed: false, shippedOn: false,
         tokens: cardTokens(record.text), raw: hasMacros(record.text), tags: [], verdicts: {}, cleanHash: record.cleanHash };
 }
 
@@ -593,7 +618,7 @@ export function stackKey(name, data, bank) {
 
 function stackCardOf(card, key, on) {
     return { key, on: !!on, hash: card.hash || '', source: parseKey(key).source, id: card.id, name: card.name, sourceName: card.sourceName,
-        role: card.role, placement: copy(card.placement), marker: !!card.marker, tags: [...(card.tags || [])] };
+        role: card.role, placement: copy(card.placement), ...(gateValue(card.notBefore) ? { notBefore: card.notBefore } : {}), marker: !!card.marker, tags: [...(card.tags || [])] };
 }
 
 /**
@@ -816,9 +841,50 @@ export function takeNewText(bank, key, keys, { base = activePreset() } = {}) {
             const card = bankCard(bank, item.key, base);
             if (!card || card.hash === item.hash) continue;
             Object.assign(item, { hash: card.hash, name: card.name, role: card.role, placement: copy(card.placement), sourceName: card.sourceName });
+            if (gateValue(card.notBefore)) item.notBefore = card.notBefore; else delete item.notBefore;
             changed = true;
         }
         return changed;
+    });
+}
+
+/**
+ * Where a stack card is sent (her tap in the card's Placement editor, B56): change { role, position, depth, notBefore },
+ * any of them; position 0 is the stack order and 1 is in the chat at depth messages from the end, and notBefore is the first
+ * reply number it is sent with (0 from the first reply). A value equal to the source's is not kept, so the card follows its
+ * source again; change null takes back every value she set. The bank card and the source stay as they are.
+ */
+export function setCardSending(bank, key, card, change, { base = activePreset() } = {}) {
+    return edit(bank, key, base, stack => {
+        const found = findItem(stack, card);
+        if (found.index < 0) throw new Error('Put the block in the stack to change where it is sent.');
+        const item = found.list[found.index];
+        if (item.marker) throw new Error('SillyTavern places this row itself.');
+        if (parseKey(item.key).source === SOURCE_RI) throw new Error('Roleplay Instructions places its own cards in its group at the end of the request.');
+        const before = JSON.stringify(item.set || null);
+        if (change === null) delete item.set;
+        else {
+            const source = bankCard(bank, item.key, base) || item;
+            const from = { role: roleOf(source.role || item.role), position: (source.placement || item.placement || {}).position === 1 ? 1 : 0,
+                depth: Number.isInteger((source.placement || item.placement || {}).depth) ? (source.placement || item.placement).depth : 4,
+                notBefore: gateValue(source.notBefore ?? item.notBefore) };
+            const next = { ...(item.set || {}) };
+            if (change.role !== undefined) { if (!ROLES.includes(change.role)) throw new Error('A block is sent as system, user or assistant.'); next.role = change.role; }
+            if (change.position !== undefined) next.position = change.position === 1 ? 1 : 0;
+            if (change.depth !== undefined) {
+                const depth = Number(change.depth);
+                if (!Number.isInteger(depth) || depth < 0 || depth > 9999) throw new Error('The depth is a whole number of messages from 0 up.');
+                next.depth = depth;
+            }
+            if (change.notBefore !== undefined) {
+                const at = Number(change.notBefore);
+                if (!Number.isInteger(at) || at < 0 || at > 100000) throw new Error('The first reply is a whole number from 0 up.');
+                next.notBefore = gateValue(at);
+            }
+            for (const field of Object.keys(next)) if (next[field] === from[field]) delete next[field];
+            if (Object.keys(next).length) item.set = next; else delete item.set;
+        }
+        return JSON.stringify(item.set || null) !== before;
     });
 }
 
@@ -877,9 +943,22 @@ export function stackPlan(bank, stack, base = stack?.base || activePreset()) {
         } else if (!live && item.hash && card.hash !== item.hash) { status = 'changed'; text = lastText(item.hash) ?? card.text; }
         else text = card.text;
         const base_ = card || {};
-        return { key: item.key, on: item.on, group, status, text, currentText: card?.text ?? null, hash: item.hash, currentHash: card?.hash ?? null,
+        // Where it is sent: her values from the Placement editor over the source's (B56). A stack saved before B56 holds none.
+        const set = item.set && typeof item.set === 'object' ? item.set : {};
+        const fromRole = base_.role || item.role, fromPlacement = base_.placement || item.placement;
+        const fromGate = gateValue(base_.notBefore ?? item.notBefore);
+        const placement = set.position !== undefined || set.depth !== undefined
+            ? { ...(fromPlacement || placementOf(null)), ...(set.position !== undefined ? { position: set.position } : {}), ...(set.depth !== undefined ? { depth: set.depth } : {}) }
+            : fromPlacement;
+        const notBefore = set.notBefore !== undefined ? gateValue(set.notBefore) : fromGate;
+        // A gate the file wrote as a macro around the whole block is kept by RI, so the body goes out without the macro,
+        // which reads a turn counter only the preset it came from keeps.
+        const wrapped = fromGate ? wrappedGate(text) : null;
+        const sendText = wrapped && wrapped.at === fromGate ? wrapped.body : text;
+        return { key: item.key, on: item.on, group, status, text, sendText, currentText: card?.text ?? null, hash: item.hash, currentHash: card?.hash ?? null,
             source, sourceName: base_.sourceName || item.sourceName, id: base_.id ?? item.id, name: base_.name || item.name,
-            label: base_.label || '', role: base_.role || item.role, placement: base_.placement || item.placement, marker: base_.marker ?? item.marker,
+            label: base_.label || '', role: set.role || fromRole, placement, notBefore, set: Object.keys(set).length ? { ...set } : null,
+            from: { role: fromRole, placement: fromPlacement, notBefore: fromGate }, marker: base_.marker ?? item.marker,
             landmark: source === SOURCE_BASE && !!(base_.landmark ?? (item.marker && LANDMARK.has(item.id))), tags: base_.tags || item.tags || [],
             verdicts: base_.verdicts || {}, tokens: (base_.marker ?? item.marker) ? 0 : cardTokens(text), raw: hasMacros(text),
             cleanStatus: base_.cleanStatus || '', origin: base_.origin || '', versionOf: base_.versionOf || '', sendId: sendId(item.key, bank, base), elsewhere,
@@ -1093,7 +1172,9 @@ const fileTitle = file => String(file).replace(/[.][a-z0-9]+$/i, '');
  * Put the instruction blocks the import read from a preset or plugin file into the bank as a source of their own, one source
  * per file, each card naming the file and block it came from. Importing the same file again updates that source, so a block
  * whose text changed shows Changed in source on every stack card taken from it. Nothing goes into a stack: the blocks wait in
- * the bank for her tap. blocks: [{ name, text, source: { file, block }, chance, wordings, background, origin }].
+ * the bank for her tap. blocks: [{ name, text, source: { file, block }, role, notBefore, injection_position, injection_depth,
+ * injection_order, injection_trigger, chance, wordings, background, origin }]. Each record keeps the role, where the file sends
+ * the block (placement) and its reply-number gate (B56).
  * Returns [{ source, file, added, updated, kept }].
  */
 export function intakeBlocks(blocks) {
@@ -1121,24 +1202,41 @@ export function intakeBlocks(blocks) {
             const count = (seen.get(stem) || 0) + 1;
             seen.set(stem, count);
             const id = count > 1 ? `${stem}-${count}` : stem;
-            const record = { id, name, text: block.text, role: ['system', 'user', 'assistant'].includes(block.role) ? block.role : 'system',
+            const notBefore = intakeGate(block);
+            const record = { id, name, text: block.text, role: roleOf(block.role), placement: placementOf(block),
+                ...(notBefore ? { notBefore } : {}),
                 ...(Number.isFinite(block.chance) ? { chance: block.chance } : {}), ...(Array.isArray(block.wordings) ? { wordings: block.wordings.map(String) } : {}),
                 ...(block.background ? { background: true } : {}) };
             const was = previous.get(id);
-            if (!was) added++; else if (was.text !== record.text || was.name !== record.name) updated++; else kept++;
+            const moved = was && (was.role !== record.role || (was.notBefore || 0) !== notBefore
+                || JSON.stringify(was.placement || placementOf(null)) !== JSON.stringify(record.placement));
+            if (!was) added++; else if (was.text !== record.text || was.name !== record.name || moved) updated++; else kept++;
             lineage[id] = String(block.source?.block || name);
             next.push(record);
         }
         // Blocks the file no longer has stay readable for stacks that hold them, marked Source removed by the plan.
         for (const block of previous.values()) if (!next.some(item => item.id === block.id)) rememberText(st.bankTexts, hashOf(block.text), block.text);
         put(st.bankImports, iid, { id: iid, file, name: fileTitle(file), at: now(), blocks: next, lineage });
-        out.push({ source: importSource(iid), file, added, updated, kept });
+        out.push({ source: importSource(iid), file, added, updated, kept, stored: next });
     }
     if (out.length) {
         saveSettings();
         if (current) { current = indexBank({ ...hostInput(), tags: st.bankTags }, current); notify('import'); }
     }
     return out;
+}
+
+/**
+ * The reply-number gate an imported block keeps (B56). The reader finds a gate wherever the text compares the preset's turn
+ * counter; the bank keeps it when the gate wraps the whole block, so RI sends the block from that reply on. A comparison
+ * inside other text (an init block that counts the turns) stays the preset's own macro, sent from the first reply.
+ */
+function intakeGate(block) {
+    const value = gateValue(block?.notBefore);
+    if (!value) return 0;
+    const text = String(block.text ?? '');
+    if (!/getvar::turn\}\}/.test(text)) return value;
+    return wrappedGate(text)?.at === value ? value : 0;
 }
 
 /** Take one imported file out of the bank. Stack cards from it keep sending their last text, marked Source removed. */

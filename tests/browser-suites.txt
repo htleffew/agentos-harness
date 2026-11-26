@@ -71,3 +71,8 @@ t_broken_reply
 t_item_weights
 t_diagnostics_log
 t_catchup_host
+t_import_report_host
+t_background_jobs_ui
+t_story_outline
+t_block_gates
+t_loadout_gates

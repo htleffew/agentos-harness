@@ -1,0 +1,10 @@
+{
+ "prompt_order": [{ "character_id": 100000, "order": [{ "identifier": "a", "enabled": true }, { "identifier": "b", "enabled": true }, { "identifier": "c", "enabled": true }, { "identifier": "d", "enabled": true }, { "identifier": "e", "enabled": true }] }],
+ "prompts": [
+  { "identifier": "a", "name": "Depth Note", "role": "tool", "injection_position": 1, "injection_depth": 2, "injection_trigger": ["continue"], "content": "Remind the narrator of the weather." },
+  { "identifier": "b", "name": "Late Beat", "content": "{{if {{getvar::turn}} >= 5}}Something stirs in the hall.{{/if}}" },
+  { "identifier": "c", "name": "Moods", "content": "Mood: {{random::calm {{char}} sits::tense, jaw set::eerie quiet settles}}" },
+  { "identifier": "d", "name": "Odd Depth", "injection_position": 1, "injection_depth": "2", "content": "A depth written as text." },
+  { "identifier": "e", "name": "Counted Beat", "content": "Count the turns.{{setvar::turn::1}}{{if {{getvar::turn}} >= 3}} Later the bell rings.{{/if}}" }
+ ]
+}

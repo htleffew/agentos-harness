@@ -234,7 +234,7 @@ export function mountPresetsPage() {
         aliases: 'preset bank stack block version compare feature supplier loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
     ensureLibrary();
     installBankHooks();
-    on('GENERATION_STARTED', () => { try { applyWorkingCopy(); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });
+    on('GENERATION_STARTED', type => { try { applyWorkingCopy(type); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });
     for (const name of ['CHAT_COMPLETION_PROMPT_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED']) on(name, restoreWorkingCopy);
     on('OAI_PRESET_CHANGED_AFTER', () => { state.status = ''; onPresetSelected(); syncProfile('preset'); });
     for (const name of ['CHATCOMPLETION_MODEL_CHANGED', 'CHATCOMPLETION_SOURCE_CHANGED']) on(name, () => syncProfile('model'));

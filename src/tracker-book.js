@@ -22,6 +22,7 @@ import { TRACKER_CARDS, SIZE_CAPS, placeTracker, tokensOf } from './memory/injec
 import { replyNumber, onCapture, enabledFields } from './memory/capture.js';
 import { cardById, orderedCards, normalizeConfig, fieldOn } from './cards/catalog.js';
 import { KEY, LOG, on, setChatVariable } from './st.js';
+import { deskOutline, outlineDeskLines } from './story-outline.js';
 
 export const trackerBookName = chatName => safeBookName(`${TRACKER_PREFIX}${chatName}`);
 /** The tray's plan card is the Director's desk of the memory design. */
@@ -105,8 +106,10 @@ export function presentNames(tracker) {
  * which put nothing in. Returns [{ id, card, comment, key, content, record }] before placement; `card` is the card id the
  * placement rules use and `record` carries it into the entry's marker.
  */
-export function trackerEntries(latest, { enabled = new Set(), theirs = new Set(), config = null } = {}) {
-    if (!latest) return [];
+export function trackerEntries(latest, { enabled = new Set(), theirs = new Set(), config = null, outline = '' } = {}) {
+    const outlineLines = outlineDeskLines(outline);
+    if (!latest && !outlineLines.length) return [];
+    latest ||= { tracker: {}, plan: '' };
     const entries = [];
     // fields: [[fieldId, text]] of the values the entry carries; the chat variables are made from these, so the two never differ
     const add = (card, id, comment, key, lines, fields = [], catalogId = card) => {
@@ -145,7 +148,12 @@ export function trackerEntries(latest, { enabled = new Set(), theirs = new Set()
         }
     }
     const planOn = latest.plan && !theirs.has(feature('directorsDesk')) && (!config || fieldOn(config, 'plan', 'plan'));
-    if (planOn) add('directorsDesk', unique('directorsDesk'), "Director's desk", [], [clean(latest.plan)], [['', clean(latest.plan)]], 'directorsDesk');
+    // B52: the long-range outline reaches the writer only here, as lines after the plan; it publishes no chat variable
+    const deskOutline = theirs.has(feature('directorsDesk')) ? [] : outlineLines;
+    if (planOn || deskOutline.length) {
+        add('directorsDesk', unique('directorsDesk'), "Director's desk", [], [planOn ? clean(latest.plan) : '', ...deskOutline],
+            planOn ? [['', clean(latest.plan)]] : [], 'directorsDesk');
+    }
     for (const entry of entries) { entry.comment = clean(entry.comment); entry.content = entry.content.split('\n').map(clean).filter(Boolean).join('\n'); }
     return entries;
 }
@@ -173,7 +181,7 @@ export function stampText(latest, { dropped = [] } = {}) {
 export function buildTrackerBook(chat, view = {}) {
     const latest = latestTracker(chat);
     const config = view.config || null;
-    const raw = trackerEntries(latest, { enabled: view.enabled || new Set(), theirs: view.theirs || new Set(), config });
+    const raw = trackerEntries(latest, { enabled: view.enabled || new Set(), theirs: view.theirs || new Set(), config, outline: view.outline || '' });
     const trayOrder = [...new Set([...orderedCards(config).map(card => ENTRY_CARD[card.id] || card.id), ...Object.keys(TRACKER_CARDS)])];
     const placed = placeTracker(raw, { cap: view.cap ?? SIZE_CAPS.mid.tracker, trayOrder, theirs: view.theirs || new Set() });
     const cards = [...new Set(placed.kept.map(entry => entry.card).filter(card => TRACKER_CARDS[card]))];
@@ -227,7 +235,7 @@ export function createTrackerBook({ host, writer = createBookWriter({ loadBook: 
         await applyVars(built);
         const known = host.meta()?.[MEMORY]?.trackerBook;
         // a chat with no tracker values and no book of its own gets none
-        if (!built.latest && !(known && known.name === trackerBookName(info.name))) { last = { built, skipped: true }; return null; }
+        if (!built.latest && !built.entries.length && !(known && known.name === trackerBookName(info.name))) { last = { built, skipped: true }; return null; }
         last = { built };
         return {
             name: trackerBookName(info.name), kind: 'tracker', chat: { id: info.id, name: info.name, avatar: info.avatar || '', group: info.group || '' },
@@ -319,7 +327,8 @@ export function hostTrackerBook(getContext = () => globalThis.SillyTavern.getCon
             const theirs = await inject.hostTheirs();
             const fields = enabledFields(settings(), v10.effectiveModules());
             const enabled = new Set(fields.map(item => `${item.card}.${item.field}`));
-            return { config, theirs, enabled, cap: inject.SIZE_CAPS[budget.memorySize().key]?.tracker ?? inject.SIZE_CAPS.mid.tracker };
+            return { config, theirs, enabled, cap: inject.SIZE_CAPS[budget.memorySize().key]?.tracker ?? inject.SIZE_CAPS.mid.tracker,
+                outline: deskOutline(getContext().chatMetadata) };
         },
     };
 }

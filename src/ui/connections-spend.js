@@ -11,6 +11,7 @@ import { JOBS, ROUTES, mainCostClass, onChainResult, routeHealth } from '../rout
 import { DEFAULT_CEILING, DEFAULT_WARNING, monthOf, onSpend, setSpendLimits, spendState } from '../spend.js';
 import { PHONE_MODEL, deletePhoneModel, onPhoneModel, phoneModelStatus, tapDownloadPhoneModel } from '../memory/phone-model.js';
 import { hasJevKey, setJevKey } from '../memory/decide.js';
+import { jobsSection } from './background-jobs.js';
 import { desktopQueue } from '../memory/queue.js';
 
 export const SPEND_PAGE = 'spend';
@@ -398,7 +399,7 @@ function keyForm() {
 /** Setup, Connections, Background jobs. */
 export function renderBackgroundJobsPage(body) {
     const host = h('div', { class: 'ri-spend', id: 'ri-background-jobs' });
-    host.append(h('h4', { class: 'ri-spend-head' }, 'Decision model'), keyForm(),
+    host.append(jobsSection(), h('h4', { class: 'ri-spend-head' }, 'Decision model'), keyForm(),
         h('h4', { class: 'ri-spend-head' }, 'On-phone model'), phoneRow(host),
         hint('The on-phone model answers short judgment items when the desktop does not. It downloads by itself on Wi-Fi; Delete turns that off until you tap Download.'),
         h('h4', { class: 'ri-spend-head' }, 'Desktop'),
@@ -415,8 +416,8 @@ export function mountConnectionsSpend() {
         help: 'This month\'s paid background spend per route against your monthly ceiling, and the health of each route.',
         aliases: 'spend ceiling budget cost money paid routes health fallback warning paused', render: renderSpendPage });
     registerPage({ id: JOBS_PAGE, group: 'setup', tab: 'connections', subgroup: 'Connections', label: 'Background jobs', withoutChat: true, order: 2,
-        help: 'The OpenRouter key for jev-1.13, the on-phone model and the desktop guide.',
-        aliases: 'jev key openrouter on-phone model gemma download delete desktop ollama tailscale guide', render: renderBackgroundJobsPage });
+        help: 'Each background job and the routes it tries in order, with Test per route, the OpenRouter key for jev-1.13, the on-phone model and the desktop guide.',
+        aliases: 'jobs routes chain reorder reset recommended test probe jev key openrouter on-phone model gemma download delete desktop ollama tailscale guide', render: renderBackgroundJobsPage });
     onChainResult(result => recordChainResult(result));
     onSpend(event => spendEvent(event));
     onSpendView(() => { syncBar(); });

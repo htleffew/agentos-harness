@@ -447,3 +447,79 @@ test('building a loadout never changes the source preset, the stack or the setti
     assert.equal(JSON.stringify([files.Base, context.data, bank.storedStack(made.key), settingsOf().bankVersions]), before);
     await assert.rejects(lo.saveLoadoutFromContext(manager, 'Quiet', context), /already exists/);
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// B57: a loadout keeps each card's placement and first reply, and the diagnostics log lists a gated card as left out.
+
+const diag = await import('../src/diagnostics-log.js');
+/** The request at reply number reply: each sent block with where it goes (position, depth, role), read while the working copy is applied. */
+function placedRequest(reply) {
+    host.chat = Array.from({ length: reply }, () => ({ is_user: false, mes: 'x' }));
+    wb.applyWorkingCopy();
+    const live = host.chatCompletionSettings;
+    const prompts = new Map(live.prompts.map(prompt => [prompt.identifier, prompt]));
+    const rows = live.prompt_order[0].order.filter(entry => entry.enabled && prompts.has(entry.identifier)).map(entry => {
+        const prompt = prompts.get(entry.identifier);
+        return { text: prompt.marker ? null : prompt.content, role: prompt.role || 'system', position: prompt.injection_position === 1 ? 1 : 0,
+            depth: prompt.injection_position === 1 ? prompt.injection_depth : null };
+    });
+    wb.restoreWorkingCopy();
+    host.chat = [];
+    return rows;
+}
+
+test('a loadout keeps each card position, depth, role and first reply, and sends the stack request at every reply', async () => {
+    reset();
+    const made = await composeStack();
+    const guard = 'base::guard', other = made.o('o1'), third = `p:${made.sids.Third}::t1`;
+    bank.setCardSending(made.b, made.key, guard, { role: 'assistant', position: 1, depth: 3, notBefore: 3 }, { base: 'Base' });
+    bank.setCardSending(made.b, made.key, other, { role: 'user', position: 1, depth: 2 }, { base: 'Base' });
+    bank.setCardSending(made.b, made.key, third, { notBefore: 5 }, { base: 'Base' });
+    wb.onPresetSelected();
+    const stackRows = [1, 2, 3, 4, 5, 6].map(placedRequest);
+    assert.equal(stackRows[0].some(row => row.text === 'Never speak for the player.'), false, 'the stack sent a gated card early');
+    assert.equal(stackRows[2].filter(row => row.text === 'Never speak for the player.')[0].depth, 3);
+    assert.ok(stackRows[4].some(row => row.text === 'Third one text.') && !stackRows[3].some(row => row.text === 'Third one text.'));
+    const name = await lo.saveLoadoutFromContext(manager, 'Placed', wb.switchContext());
+    const saved = files[name];
+    const byText = text => saved.prompts.find(item => item.content === text);
+    const guarded = byText('Never speak for the player.');
+    assert.deepEqual([guarded.injection_position, guarded.injection_depth, guarded.role, guarded.ri_not_before], [1, 3, 'assistant', 3]);
+    const moved = byText('Other one text.');
+    assert.deepEqual([moved.injection_position, moved.injection_depth, moved.role], [1, 2, 'user']);
+    assert.equal(byText('Third one text.').ri_not_before, 5);
+    assert.equal(byText('Main text.').ri_not_before, undefined, 'an ungated card got a gate');
+    wb.onPresetSelected();
+    assert.ok(wb.switchContext().marker);
+    [1, 2, 3, 4, 5, 6].forEach((reply, i) => assert.deepEqual(placedRequest(reply), stackRows[i], `reply ${reply} differs from the stack`));
+    assert.deepEqual(files.Base, plain(baseBlocks(), ['offblock']), 'the base preset changed');
+});
+
+test('a stack that loses its gate saves a loadout without one', async () => {
+    reset();
+    const made = await composeStack();
+    bank.setCardSending(made.b, made.key, 'base::guard', { notBefore: 4 }, { base: 'Base' });
+    bank.setCardSending(made.b, made.key, 'base::guard', { notBefore: 0 }, { base: 'Base' });
+    wb.onPresetSelected();
+    const name = await lo.saveLoadoutFromContext(manager, 'Plain', wb.switchContext());
+    assert.equal(files[name].prompts.find(item => item.identifier === 'guard').ri_not_before, undefined);
+});
+
+test('a loadout saved before B57 has no gate and sends as saved', async () => {
+    const made = await makeLoadout();
+    assert.equal(files[made.name].prompts.some(item => item.ri_not_before !== undefined), false);
+    wb.onPresetSelected();
+    assert.equal(wb.applyWorkingCopy(), 0);
+});
+
+test('the diagnostics log lists a card held back by its gate as left out, with the reply it opens at', () => {
+    const work = { plan: [
+        { key: 'a', id: 'a', source: 'base', on: true, name: 'Late rule', notBefore: 4, group: 'main' },
+        { key: 'b', id: 'b', source: 'base', on: true, name: 'Always', notBefore: 0, group: 'main' },
+        { key: 'c', id: 'c', source: 'base', on: false, name: 'Off', notBefore: 4, group: 'main' }], source: { cards: [] } };
+    const rows = reply => diag.stackLeftOut(work, {}, reply).map(row => `${row.name}:${row.reason}:${row.why}`);
+    assert.deepEqual(rows(2), ['Late rule:gate:held back until its first reply: opens at reply 4', 'Off:off:switched off in the stack']);
+    assert.deepEqual(rows(4), ['Off:off:switched off in the stack']);
+    assert.deepEqual(rows(Infinity), ['Off:off:switched off in the stack']);
+    assert.deepEqual(diag.stackLeftOut(work).map(row => row.name), ['Off']);
+});

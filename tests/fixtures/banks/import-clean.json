@@ -1,0 +1,7 @@
+{
+ "prompt_order": [{ "character_id": 100000, "order": [{ "identifier": "a", "enabled": true }, { "identifier": "b", "enabled": true }] }],
+ "prompts": [
+  { "identifier": "a", "name": "Voice", "role": "user", "content": "Write in close third person, past tense." },
+  { "identifier": "b", "name": "Tone", "content": "Keep the tone warm and plain." }
+ ]
+}
