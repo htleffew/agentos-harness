@@ -17,6 +17,7 @@ import { trayCardConfig, switchAnchor } from './tray-settings.js';
 import { sceneEditor, stateEditor } from './state.js';
 import { JOB_LABELS, restoreRecord, storyChanges, undoChange } from '../memory/upkeep.js';
 import { installParityCards } from './cards/index.js';
+import { installDiceCards } from './cards/roll.js';
 
 const fold = value => String(value ?? '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const words = value => String(value || '').replace(/[-_]+/g, ' ');
@@ -361,6 +362,8 @@ const CARD_FIELD = { lore: 'entries', sent: 'sent', notes: 'notes' };
 
 // B20: the parity cards and sections (src/ui/cards/), registered after the core cards they extend.
 installParityCards({ register: registerCardRenderer, core: id => RENDERERS.get(id), openSwitch, config: () => trayCardConfig() });
+// B22: Roll, Stats and the dice section of the Sent card (src/ui/cards/roll.js), after the Sent card the parity cards wrap.
+installDiceCards({ register: registerCardRenderer, core: id => RENDERERS.get(id) });
 
 // ---------- the builder ----------
 

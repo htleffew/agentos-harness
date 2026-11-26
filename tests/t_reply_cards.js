@@ -114,7 +114,7 @@ test('every row of the 6.3 tables has a home in the catalog, owned by the ticket
     assert.ok(checked >= 50, `checked ${checked} rows`);
 });
 
-test('the B20 rows are built and start off; the B22 rows are in the catalog and marked not yet built', () => {
+test('the B20 and B22 rows are built and start off', () => {
     for (const id of ['map', 'holding_back', 'inventory', 'new_faces', 'reputation', 'achievements', 'choices', 'notebook']) {
         const card = catalog.cardById(id);
         assert.ok(catalog.isBuilt(card), `${id} is built (B20)`);
@@ -122,7 +122,7 @@ test('the B20 rows are built and start off; the B22 rows are in the catalog and 
     }
     for (const id of ['stats', 'roll']) {
         const card = catalog.cardById(id);
-        assert.ok(!catalog.isBuilt(card), `${id} is not yet built`);
+        assert.ok(catalog.isBuilt(card), `${id} is built (B22 marks it when its renderer registers)`);
         assert.equal(catalog.defaultMode(card), 'off');
     }
     assert.ok(catalog.isBuilt(catalog.cardById('plot').sections.find(section => section.id === 'tracks')));
@@ -211,7 +211,7 @@ test('Not requested names the switched-off sections and fields of a built card',
     const names = catalog.notRequested(config, 'scene').map(item => item.label);
     assert.ok(names.includes('Observable facts') && names.includes('Known places') && names.includes('Ambient people'));
     assert.ok(names.includes('World detail'), 'a built section that starts off is offered (B20)');
-    assert.deepEqual(catalog.notRequested(config, 'roll'), [], 'an unbuilt card offers nothing');
+    assert.deepEqual(catalog.notRequested(catalog.setOn(catalog.setMode(config, 'roll', 'tray'), 'roll:lines', true), 'roll'), [], 'a card in the tray whose one section is on offers nothing (B22)');
     assert.deepEqual(catalog.notRequested(catalog.setOn(config, 'scene:facts', true), 'scene').map(item => item.label).includes('Observable facts'), false);
     assert.match(settingsUi.switchAnchor('scene:facts'), /^#ri-card-switch-scene-s-facts$/);
     assert.match(settingsUi.switchAnchor('scene.place'), /^#ri-card-switch-scene-f-place$/);
@@ -357,10 +357,19 @@ test('a Strip only card keeps its Strip marks and draws no card in Compact or Ex
     assert.deepEqual(shown.filter(card => !card.stripOnly).map(card => card.id), ['characters'], 'the tray draws the rest');
 });
 
-test('Roll and Stats are listed for B22 and draw nothing until a renderer is added', () => {
+test('Roll draws one line per stored roll and nothing for a reply with none (B22)', () => {
+    let config = catalog.setMode(catalog.setMode(catalog.normalizeConfig(undefined), 'roll', 'tray'), 'stats', 'tray');
+    config = catalog.setOn(config, 'roll:lines', true);
     chatOf(reply());
-    const config = catalog.setMode(catalog.setMode(catalog.normalizeConfig(undefined), 'roll', 'tray'), 'stats', 'tray');
-    assert.ok(!buildTrayCards(view(), config).some(card => ['roll', 'stats'].includes(card.id)));
+    assert.ok(!buildTrayCards(view(), config).some(card => card.id === 'roll'), 'no roll, no Roll card');
+    const roll = { actor: 'user', name: 'Mira', attempt: 'persuade the lord', stat: 'Charm', mod: 2, step: 'Very hard', dc: 17, stance: 'resisting', die: 13, total: 15, margin: -2, degree: 'Partial failure', source: 'detected', route: 'desktop' };
+    chatOf(reply({ dice: { swipe: 0, rolls: [roll] } }));
+    const card = buildTrayCards(view(), config).find(item => item.id === 'roll');
+    assert.ok(card, 'the Roll card draws');
+    const lines = [card.body()].flat(3).flatMap(node => node.byClass('ri-c-oneline'));
+    assert.equal(lines.length, 1);
+    assert.match(lines[0].textContent, /Persuade the lord, Charm, Very hard: 15 vs 17, partial failure/);
+    assert.match(lines[0].textContent, /d20 13 \+2$/);
     assert.equal(catalog.cardById('roll').owner, 'B22');
     assert.equal(catalog.cardById('stats').owner, 'B22');
 });

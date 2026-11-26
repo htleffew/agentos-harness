@@ -76,3 +76,4 @@ t_background_jobs_ui
 t_story_outline
 t_block_gates
 t_loadout_gates
+t_themes_host

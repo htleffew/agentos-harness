@@ -34,6 +34,8 @@ const KINDS = [
     ['check', /"done"[\s\S]*quote|quote[\s\S]*"done"/],
     ['writer', /Return only a JSON (list|object)/],
     ['behavior', /You draft the entries of a behavior book/],
+    ['dice', /You set up dice for/],
+    ['sheets', /You set stat modifiers for characters/],
 ];
 const kindOf = text => (KINDS.find(([, pattern]) => pattern.test(text)) || ['reply'])[0];
 let n = 0;
@@ -120,8 +122,11 @@ function answer(body) {
         const done = m.done !== false;
         return JSON.stringify(ids.map(id => ({ id, done, quote: done ? 'You look wonderful tonight' : '' })));
     }
+    // B22: the dice judgment (mode.dice, else no attempt) and the stat sheet call (mode.sheets, else +1 Wits for each named character).
+    if (/You set up dice for/.test(all)) return m.dice ?? JSON.stringify({ attempts: [] });
+    if (/You set stat modifiers for characters/.test(all)) return m.sheets ?? JSON.stringify({ sheets: [...all.matchAll(/^Character "([^"]+)":/gm)].map(x => ({ who: x[1], stats: [{ stat: 'Wits', value: 1, reason: 'mock' }] })) });
     n++;
-    return m.reply ?? `Reply ${n}. She leans in. "You look wonderful tonight," she says, and she means it.`;
+    return m.reply ??`Reply ${n}. She leans in. "You look wonderful tonight," she says, and she means it.`;
 }
 function delayMs() {
     const file = Number(txt('delay.txt'));

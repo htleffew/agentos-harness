@@ -1,0 +1,11 @@
+/* Story style: Noir (DESIGN.md 1.12), smoke black with a typewriter face.
+   tests/unit/tokens_contrast.mjs and tests/t_story_styles.js read this file; keep one declaration per line. */
+.ri-tray[data-ri-story-style="noir"], .ri-style-sample[data-ri-story-style="noir"] {
+    --ri-style-surface: #0F0F10;
+    --ri-style-ink: #E2E2E2;
+    --ri-style-muted: #A3A3A3;
+    --ri-style-accent: #C9B98A;
+    --ri-style-rule: #6E6E6E;
+    --ri-style-face: 'RI Courier Prime', 'Courier New', monospace;
+    --ri-style-corner: 0;
+}

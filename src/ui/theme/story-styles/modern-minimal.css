@@ -1,0 +1,11 @@
+/* Story style: Modern minimal (DESIGN.md 1.12), graphite with the system sans. Also the default in tokens.css.
+   tests/unit/tokens_contrast.mjs and tests/t_story_styles.js read this file; keep one declaration per line. */
+.ri-tray[data-ri-story-style="modern"], .ri-style-sample[data-ri-story-style="modern"] {
+    --ri-style-surface: #141518;
+    --ri-style-ink: #F1F2F4;
+    --ri-style-muted: #A8ACB5;
+    --ri-style-accent: #8FB4FF;
+    --ri-style-rule: #6B707C;
+    --ri-style-face: system-ui, sans-serif;
+    --ri-style-corner: 6px;
+}

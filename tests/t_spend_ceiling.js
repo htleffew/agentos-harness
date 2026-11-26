@@ -424,6 +424,17 @@ test('the Jev step reads the aside question as a noul answer', async () => {
     assert.equal(spend.spendState().calls[0].usd, 0.000004);
 });
 
+test('the aside question never goes to the on-phone model, even when it is ready (MB16)', async () => {
+    reset();
+    decide.setJevKey(FAKE_KEY);
+    decisionPlan = { body: { answers: { aside: { noul: 0.88 } }, usage: { input_tokens: 100, output_tokens: 0 } } };
+    let asked = 0;
+    const aside = await decide.judge(decide.ASIDE, { message: 'Quick question for you, outside the story.' },
+        downDeps({ phoneReady: async () => true, phoneAsk: async () => { asked++; return 'no'; } }));
+    assert.equal(asked, 0);
+    assert.equal(aside.route, 'jev');
+});
+
 test('when jev-1.13 fails, the Jev step falls back to jev-router through her saved connection', async () => {
     reset();
     decide.setJevKey(FAKE_KEY);

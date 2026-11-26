@@ -14,6 +14,7 @@ import { mountComposerBar, placeBar, renderBar, renderLookPage, setBarStatus, se
 import { openGenerateSheet } from './generate-sheet.js';
 import { cachedOptions, clearOptionsRunning, currentOptionsKey, rememberOptions, showOptions, showOptionsRunning } from './results-sheet.js';
 import { openQueueSheet } from './queue-sheet.js';
+import { queueRoll } from '../dice.js';
 import { loadStyles } from './theme/styles.js';
 import { registerPage } from './page-registry.js';
 import { renderQuickActionLibrary, requestQuickActionEdit } from './quick-action-library.js';
@@ -1038,9 +1039,10 @@ const barRunner = {
                 return;
             }
             if (kind === 'check') {
-                const roll = rollQuickActionDie({stat:action.stat || '',who:action.who || 'user',target:action.difficulty});
-                queueDirections([],'',{roll});
-                setBarStatus({state:'done',message:`Action check queued with your next message. ${roll.text}`});
+                // B22: a named roll for the next message; for that attempt it replaces what detection sets (src/dice.js).
+                const dc = Number(action.difficulty);
+                const named = queueRoll({actor:action.who || 'user',attempt:action.text || '',stat:action.stat || '',dc:Number.isInteger(dc) && dc > 0 ? dc : undefined});
+                setBarStatus({state:'done',message:`${action.title} queued: ${[named.stat,named.step].filter(Boolean).join(', ')}. It rolls with your next message.`});
                 return;
             }
             if (kind === 'direction') {

@@ -19,6 +19,8 @@ import { startBehaviorBooks } from './src/memory/event-seeds.js';
 import './src/ui/connections-spend.js';
 import { loadShipped, readBankBook } from './src/banks.js';
 import './src/ui/touch-layout.js';
+import { startDice } from './src/dice-judge.js';
+import './src/ui/stat-sheet.js';
 
 (function start() {
     try {
@@ -41,6 +43,7 @@ import './src/ui/touch-layout.js';
         try { startRecall(); } catch (e) { console.warn(LOG, 'recall did not start', e); }
         startInject().catch(e => console.warn(LOG, 'request layout did not start', e));
         startBehaviorBooks().catch(e => console.warn(LOG, 'behavior books did not start', e));
+        startDice().catch(e => console.warn(LOG, 'dice did not start', e));
         console.log(LOG, 'loaded', missing.length ? `missing events: ${missing.join(', ')}` : '');
     } catch (e) {
         console.error(LOG, 'failed to start', e);

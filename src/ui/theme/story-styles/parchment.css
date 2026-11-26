@@ -1,0 +1,11 @@
+/* Story style: Parchment (DESIGN.md 1.12), a lamplit page in umber and cream.
+   tests/unit/tokens_contrast.mjs and tests/t_story_styles.js read this file; keep one declaration per line. */
+.ri-tray[data-ri-story-style="parchment"], .ri-style-sample[data-ri-story-style="parchment"] {
+    --ri-style-surface: #1B150E;
+    --ri-style-ink: #EADCC2;
+    --ri-style-muted: #B8A688;
+    --ri-style-accent: #D9A95B;
+    --ri-style-rule: #85734F;
+    --ri-style-face: 'RI EB Garamond', Georgia, serif;
+    --ri-style-corner: 2px;
+}

@@ -1,6 +1,6 @@
 import { canonSet, editSet, entriesOf, knownSets, loadSet, readInstruction, rollInt, setInfo, toEdit, writeInstruction } from './books.js';
 import { eventChoices, isEvent, isStyle, newId, readEvent, rollEvent, withPreset, writeEvent } from './events.js';
-import { MOD_MAX, MOD_MIN, outcome, sheet } from './dice.js';
+import { MOD_MAX, MOD_MIN, outcome, sheet, diceOn } from './dice.js';
 import { countPresent, worldOffers } from './pacing.js';
 import { blockedEventTags } from './state.js';
 import { ctx, KEY, names } from './st.js';
@@ -43,6 +43,8 @@ export const BAR_DEFAULT_PINS = Object.freeze(['builtin:options:npc', 'builtin:s
 
 /** The kind of a stored action; older records carry only their family. */
 export const kindOf = action => (action?.kind && QUICK_ACTION_KINDS[action.kind] ? action.kind : kindByFamily[action?.family]) || '';
+// B22: with Dice off, the die button (Action check) leaves the bar and More.
+const diceHidden = action => kindOf(action) === 'check' && !diceOn();
 
 /** Cost words of DESIGN.md 1.8 for a kind, with the connection name when known. */
 export function costWords(kind, connection = '') {
@@ -207,7 +209,7 @@ export function listQuickActions(family = '', { includeHidden = false, allKinds 
     const ids = [...new Set([...library.order, ...builtinById.keys(), ...Object.keys(library.actions)])];
     return ids.map(readQuickAction).filter(action => action && (!family || action.family === family)
         && (allKinds || legacyFamilies.has(action.family) && !action.barOnly)
-        && (includeHidden || (action.enabled && !action.hidden && !action.removed)));
+        && (includeHidden || (action.enabled && !action.hidden && !action.removed && !diceHidden(action))));
 }
 
 export function quickActionOwner(action) {
@@ -863,7 +865,7 @@ function pinsOf(scope) {
 /** Pinned actions that still exist, in bar order. */
 export function barPins(scope) {
     const target = pinsOf(scope);
-    return (target?.pins || []).map(readQuickAction).filter(action => action && action.enabled && !action.hidden && !action.removed);
+    return (target?.pins || []).map(readQuickAction).filter(action => action && action.enabled && !action.hidden && !action.removed && !diceHidden(action));
 }
 
 export function pinToBar(id, pinned = true, scope) {

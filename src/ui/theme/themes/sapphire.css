@@ -1,0 +1,7 @@
+/* Theme: Sapphire (DESIGN.md 1.11). tests/t_themes.js reads this file; keep one declaration per line. */
+:root[data-ri-theme="sapphire"] {
+    --ri-chrome: #6AA8FF;
+    --ri-chrome-line: #4972AD;
+    --ri-chrome-glow: rgba(106, 168, 255, 0.45);
+    --ri-chrome-scan: rgba(106, 168, 255, 0.05);
+}

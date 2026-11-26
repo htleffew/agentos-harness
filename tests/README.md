@@ -5,7 +5,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 ## Host setup
 
 1. Install SillyTavern 1.19.0 and start it on a port of your choice (`node server.js --port 8123`). Give it a user with one character.
-2. Start the mock model: `node tests/mock.js`. It is the one mock every suite uses. `RI_MOCK_PORT` sets the port (default 8124), `RI_MOCK_LOG` the request log, `RI_MOCK_MODE` the JSON file that steers its answers, and `RI_MOCK_DIR` the folder that holds `mode.txt` ("leaks") and `delay.txt` (milliseconds). `RI_MOCK_MODEL` sets the model id it lists and logs. Every logged row carries a `kind` read from the prompt's task line: `reply`, `capture`, `chapter`, `condensed`, `options`, `draft`, `check`, `writer` or `behavior` (Draft entries for a behavior book, MB12). Restart the mock after you pull changes to `tests/mock.js`: `run_browser.sh` asks the mock for the hash of the file it loaded (`GET /mock/source`) and stops before any suite when it differs from the file on disk.
+2. Start the mock model: `node tests/mock.js`. It is the one mock every suite uses. `RI_MOCK_PORT` sets the port (default 8124), `RI_MOCK_LOG` the request log, `RI_MOCK_MODE` the JSON file that steers its answers, and `RI_MOCK_DIR` the folder that holds `mode.txt` ("leaks") and `delay.txt` (milliseconds). `RI_MOCK_MODEL` sets the model id it lists and logs. Every logged row carries a `kind` read from the prompt's task line: `reply`, `capture`, `chapter`, `condensed`, `options`, `draft`, `check`, `writer`, `behavior` (Draft entries for a behavior book, MB12), `dice` (the dice judgment, answered from `mode.dice`, B22) or `sheets` (the stat sheet call, answered from `mode.sheets`, B22). Restart the mock after you pull changes to `tests/mock.js`: `run_browser.sh` asks the mock for the hash of the file it loaded (`GET /mock/source`) and stops before any suite when it differs from the file on disk.
 3. Playwright with Chrome. Set `RI_PLAYWRIGHT` to the path of `playwright-core` (every driver, `h.js` and the two unit drivers `unit/prompts_ui_v8.cjs` and `unit/state_ui.cjs` read it) and `RI_CHROME` to the browser executable. Set `RI_PROFILE` to a Chrome profile folder for the drivers that use a persistent profile.
 4. `lib.js` copies the extension into SillyTavern before a suite runs. Set `RI_ST_DIR` to the SillyTavern directory, `RI_EXTENSION_SOURCE` to this checkout and `RI_ST_DATA` to the data root when it is not `RI_ST_DIR/data`. The copy holds `index.js`, `manifest.json`, `style.css`, `src`, `assets`, `presets` and `vendor` (the folder of vendored libraries that MB4 adds).
 5. `RI_HOST_URL` points the drivers at the host. The host needs SillyTavern's Summarize extension off or empty.
@@ -45,7 +45,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_contextual_writer.js` | browser | legacy |
 | `t_delete_direction.js` | browser | legacy |
 | `t_decide_bands.js` | node | MB15 |
-| `t_dice.js` | browser | legacy 5.7 |
+| `t_dice.js` | browser (`RI_WIDTH` and `RI_HEIGHT`, default 390 x 780 with touch; 523 and 1006 x 909 for the phone screens) | B22, legacy 5.7 |
 | `t_edit.js` | browser | legacy |
 | `t_engine1.js` | browser | legacy |
 | `t_engine2.js` | browser | legacy |
@@ -119,6 +119,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_shell_followups.js` | browser | B25 |
 | `t_shots.js` | browser | legacy |
 | `t_spend_ceiling.js` | node | B19 |
+| `t_stat_sheets.js` | node | B22 |
 | `t_background_jobs_ui.js` | browser (`RI_WIDTH` and `RI_HEIGHT`, default 390 x 780; set `RI_EVIDENCE` for screenshots) | B55 |
 | `t_story_rules.js` | node | B41 |
 | `t_import_report.js` | node | B46 |
@@ -128,6 +129,9 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_story_rules_host.js` | browser | B41 |
 | `t_story_outline.js` | node (`node --test`), and browser when run with plain `node` and `RI_HOST_URL` set (`RI_WIDTH`, default 390) | B52 |
 | `t_story_so_far.js` | node | MB6 |
+| `t_story_styles.js` | node (`node --test`): the four styles carry the colors and ratios of DESIGN 1.12 and no amber or red accent, the bundled faces and licences ship with no network address, a noir, a sci-fi, a fantasy and a plain fixture each get their style (card text and active World Info books, no model or network call), the chat choice, the Setup default and the chip settling | B17 |
+| `t_themes.js` | node (`node --test`): Emerald, Sapphire and Violet pass the contrast pairs on each theme's surfaces, an ink too dim is fitted, Save as, Delete, Export, Import (tokens only, CSS and extra keys refused), Bind to this chat, and the matching SillyTavern theme body and save | B17 |
+| `t_themes_host.js` | browser (`RI_WIDTH`, default 390 x 780, touch; `RI_ST_DATA` for the theme file check): the four fixture cards draw the suggestion chip with the request recorder showing no extra call, the chip, the Expanded header and Setup, Look, Story style change the style, four style screenshots of one reply, Setup, Look, Theme (pick, Save as, Export, Import, Bind), the matching SillyTavern theme saves and the current one stays, no font or style from outside the host | B17 |
 | `t_tracker_book.js` | node | B21 |
 | `t_tracker_book_host.js` | browser | B21 |
 | `t_temperament.js` | node | B48 |
@@ -228,7 +232,7 @@ The rows below describe the suites by behavior. Navigation in the older browser 
 | `t_context.js` | What the AI writer is shown (card, scenario, persona, summary, recent messages); who-does-it choices |
 | `t_goals.js` | Character goals: steps in any order, action waits, re-sends that never give up, swipe, delete, the panel |
 | `t_anywhere.js` | 5.8: the AI writer's rules for each kind of story event list; the current scene left out; the line in the event order; the stakes list; the works-anywhere mark; the rewrite; the panel |
-| `t_dice.js` | 5.7: dice and stats in code; lists that retire their items running out at different times; the used-up notice and bringing items back; where an event comes from; hiding what a chapter covers and showing it again; counting the messages in the finished prompt; the new chapter button in What Was Sent |
+| `t_dice.js` | B22 on a real host with the mock: stat sheets inferred at chat start, the judgment call before the reply (request recorder, kind `dice`), the verdict with no raw roll, the roll stored with its swipe, the Roll card starting Off, the Roll card line, a swipe that judges and rolls again with its own roll, swiping back, a continue that keeps the roll, the Stats card under the latest reply only, Hidden with the Sent card receipt, an NPC roll, a Stats card edit kept through inference, Story, Characters, Stats, the Dice display row, the die button, Dice off; then 5.7: lists that retire their items running out at different times; the used-up notice and bringing items back; where an event comes from; hiding what a chapter covers and showing it again; counting the messages in the finished prompt; the new chapter button in What Was Sent |
 | `t_parity_cards.js` | B20: the parity cards drawn from a fixture chat of Vexa, Sola, Deus and Pura shaped replies; catalog switches and capture's field list; merged overlaps; the Choices Options call, its moves and its Sent receipt; New faces, stars and severity marks; no emoji or dashes |
 | `t_history_catchup.js` | MB9 (memory DESIGN 8.1, 8.2): a 300-exchange chat caught up on a fake queue with a scripted model: call counts per route class (14 to 17 local, 9 mid, 4 or 5 frontier, plus one Cleanup stage), chunks cut at scene boundaries, the exclusion list and state digest in every call after the first, a restart after any part and a save that fails mid-part (no duplicate record), a repeat that files nothing, the five tests of 8.1 for scripted route states (desktop up or down, allowance near 5 percent, a slow route, phone charging or not, the Setup switch off), Cancel and Resume, Rebuild keeping locked and own records and Undo in one tap, the report register |
 | `t_carry_over.js` | MB9 (memory DESIGN 8.3): the eight-word run check, the carry-over book (Constant synopsis, one entry per main character, keyword entries, secrets with the fixed holder line, stat sheets with locks, the stamp that names the parent), the parent left byte for byte as it was, one Writer call, no new chat when no route answers |

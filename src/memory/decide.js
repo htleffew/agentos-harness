@@ -186,8 +186,7 @@ export const ASIDE = Object.freeze({
     schema: { name: 'aside_judgment', strict: true, value: { type: 'object', required: ['aside'], properties: { aside: { type: 'boolean' } } } },
     system: 'Say whether the player steps out of the story to speak to the narrator or the app. Acting or speaking as their character is inside the story. Answer with JSON on one line and nothing else.',
     user: ({ message }) => `Player message: ${message}`,
-    phone: [{ key: 'aside', question: ({ message }) => `Player message: ${message}\nIs the player speaking outside the story? Answer yes or no.`, options: ['yes', 'no'] }],
-    fromPhone: answers => ({ aside: answers.aside === 'yes' }),
+    // No phone items: the on-phone model answered "no" to 11 of 12 real asides (MB16), so the aside goes to the desktop or Jev's slot.
     codeDefault: (_input, screen) => ({ aside: !!screen.ooc }),
     normalize: value => typeof value?.aside === 'boolean' ? { aside: value.aside } : null,
     decision: {
@@ -352,7 +351,8 @@ async function runJudgment(def, input, deps) {
     }
 
     // 2. The phone, one one-word item at a time.
-    if (await d.phoneReady().catch(() => false)) {
+    if (!def.phone) attempts.push({ route: 'phone', outcome: 'skipped', reason: 'this judgment does not use the on-phone model' });
+    else if (await d.phoneReady().catch(() => false)) {
         const t0 = d.clock();
         try {
             const answers = {};

@@ -1,0 +1,8 @@
+/* Theme: Emerald, the default (DESIGN.md 1.11). Same black surfaces and family inks as every theme; only the chrome accent differs.
+   tests/t_themes.js reads this file; keep one declaration per line. */
+:root, :root[data-ri-theme="emerald"] {
+    --ri-chrome: #3FE39B;
+    --ri-chrome-line: #2D986C;
+    --ri-chrome-glow: rgba(63, 227, 155, 0.45);
+    --ri-chrome-scan: rgba(63, 227, 155, 0.05);
+}

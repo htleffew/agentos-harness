@@ -6,6 +6,7 @@ import { h, toggle } from './dom.js';
 import {
     cardMode, FAMILIES, fieldDefault, fieldKey, isBuilt, MODES, moveCard, normalizeConfig, orderedCards, sectionKey, sectionOn, setMode, setOn,
 } from '../cards/catalog.js';
+import { diceDisplayRow } from './stat-sheet.js';
 
 const icon = (name, extra = '') => h('i', { class: `fa-solid ${name} ${extra}`.trim(), 'aria-hidden': 'true' });
 
@@ -83,6 +84,8 @@ export function renderCardSettings(host, rerender = () => {}) {
     host.append(
         h('h3', { class: 'ri-tray-subhead' }, 'Cards'),
         h('p', { class: 'ri-help' }, 'Each card is Off, Strip only (its marks on the Strip, no card) or In the tray. A section or field you switch off is left out of what each reply asks for.'),
+        // B22: the Dice display row (One line or Hidden), drawn by its own module.
+        diceDisplayRow(rerender),
         h('div', { class: 'ri-cardset-list' }, orderedCards(config).map(card => cardRow(card, config, apply))),
         h('button', { type: 'button', class: 'ri-bar-btn', onclick: () => apply({}) }, 'Restore card defaults'));
 }

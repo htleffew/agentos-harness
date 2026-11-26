@@ -63,5 +63,8 @@ for suite in $SUITES; do
   if [ $code -eq 0 ]; then echo "PASS $suite (${seconds}s)"; else echo "FAIL $suite exit $code (${seconds}s) $LOGS/$(basename "$suite").log"; FAILED=$((FAILED + 1)); fi
 done
 [ -n "$RI_MOCK_DIR" ] && rm -f "$RI_MOCK_DIR/delay.txt"
+# Put the user folder back as it was before the first suite (settings.json included), so the state the last suite left
+# never becomes the next run's starting point.
+if [ -n "$USER_DIR" ]; then node tests/host_reset.cjs restore "$USER_DIR" "$LOGS/user.snapshot"; fi
 echo "browser suites failed: $FAILED"
 exit $FAILED

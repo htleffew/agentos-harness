@@ -6,6 +6,8 @@ import { isChatOpen } from '../st.js';
 import { h } from './dom.js';
 import { registerPage } from './page-registry.js';
 import { renderCardSettings } from './tray-settings.js';
+import { dismissSuggestion, effectiveStoryStyle, ensureSuggestion, onStoryStyleChange, pendingSuggestion, setChatStoryStyle, styleLabel } from '../story-style.js';
+import { loadThemeSheets, mountThemes, styleChoices } from './themes.js';
 import { fallbackNote, headerMode, headerSetting, headerState, HEADER_MODES, setHeaderSetting, tryHeaderInReplyAgain } from '../scene-header.js';
 
 export const TRAY_VIEWS = Object.freeze({ strip: 'Strip', compact: 'Compact', expanded: 'Expanded' });
@@ -247,7 +249,30 @@ function viewSwitch(current, choose) {
             onclick: event => { event.stopPropagation(); choose(value); } }, icon(VIEW_ICONS[value]))));
 }
 
-function stripRow(marks, { view, choose, open }) {
+/** The Strip chip for the one-time suggestion (1.12). It opens the choice. */
+function suggestionChip(toggle) {
+    const style = pendingSuggestion();
+    if (!style) return null;
+    const text = `Story style: ${styleLabel(style)}, suggested`;
+    return h('button', { type: 'button', class: 'ri-tray-style-chip', 'aria-label': `${text}. Open the choice.`, title: text, onclick: event => { event.stopPropagation(); toggle(); } }, text);
+}
+
+/** The picker row: the four styles for this chat, with the suggestion marked. */
+function stylePicker(close) {
+    const suggested = pendingSuggestion();
+    return h('div', { class: 'ri-tray-style-picker' },
+        styleChoices(effectiveStoryStyle(), id => { setChatStoryStyle(id); close(); }, { suggested }),
+        suggested ? h('button', { type: 'button', class: 'ri-tray-link', onclick: () => { dismissSuggestion(); close(); } }, 'Keep the default for this chat') : null);
+}
+
+/** The Expanded view's header: the chat's story style and a button that opens the picker. */
+function styleBar(picking, toggle) {
+    return h('div', { class: 'ri-tray-style-bar' },
+        h('button', { type: 'button', class: 'ri-tray-style-open', 'aria-expanded': String(picking), onclick: toggle },
+            icon('fa-feather-pointed'), ` Story style: ${styleLabel(effectiveStoryStyle())}`));
+}
+
+function stripRow(marks, { view, choose, open, chip }) {
     const summary = [
         sceneLine(marks.scene),
         peopleMarks(marks.people),
@@ -259,6 +284,7 @@ function stripRow(marks, { view, choose, open }) {
     return h('div', { class: 'ri-tray-strip' },
         h('button', { type: 'button', class: 'ri-tray-summary', 'aria-label': view === 'strip' ? 'Open the reply tray' : 'Reply tray',
             onclick: open }, summary.length ? summary : h('span', { class: 'ri-tray-empty' }, 'Reply tray')),
+        chip,
         viewSwitch(view, choose));
 }
 
@@ -306,6 +332,8 @@ function expandedPanel(cards, selectedId, select) {
  */
 export function replyTray({ id, latest, cards, modules, previous }) {
     loadTrayStyles();
+    loadThemeSheets();
+    if (latest) ensureSuggestion();
     const shown = visibleCards(cards, modules);
     const marks = stripMarks(shown);
     const drawn = shown.filter(card => !card.stripOnly);
@@ -316,16 +344,22 @@ export function replyTray({ id, latest, cards, modules, previous }) {
     const state = {
         view: previous?.dataset.view && previous.dataset.position === position ? previous.dataset.view : trayView(latest),
         selected: previous?.dataset.selected || '',
+        picking: false,
     };
     const draw = () => {
+        root.dataset.riStoryStyle = effectiveStoryStyle();
         root.dataset.view = state.view;
         root.dataset.position = position;
         root.dataset.selected = state.selected;
         const choose = view => { state.view = view; saveChatTray({ [position]: view }); draw(); };
         const select = card => { state.selected = card; state.view = 'expanded'; draw(); };
         const open = () => { if (state.view === 'strip') { state.view = 'compact'; draw(); } };
+        const togglePicker = () => { state.picking = !state.picking; draw(); };
+        const closePicker = () => { state.picking = false; draw(); };
         root.replaceChildren(...[
-            stripRow(marks, { view: state.view, choose, open }),
+            stripRow(marks, { view: state.view, choose, open, chip: latest ? suggestionChip(togglePicker) : null }),
+            state.view === 'expanded' ? styleBar(state.picking, togglePicker) : null,
+            state.picking ? stylePicker(closePicker) : null,
             latest && headerMode() === 'tray' ? headerNote() : null,
             state.view === 'compact' ? compactLines(drawn, select) : null,
             state.view === 'expanded' ? expandedPanel(drawn, state.selected, select) : null,
@@ -426,6 +460,8 @@ export function renderTraySettings(body) {
 
 export function mountReplyTray() {
     loadTrayStyles();
+    mountThemes();
+    onStoryStyleChange(redraw);
     registerPage({ id: 'reply-tray', group: 'setup', subgroup: 'Look', label: 'Reply tray',
         help: 'Choose the tray view, where it shows, card text and where the scene header lives.',
         aliases: 'strip compact expanded scene header card text tray cards under reply', withoutChat: true, render: body => renderTraySettings(body) });

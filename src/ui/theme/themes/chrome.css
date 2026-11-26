@@ -1,0 +1,58 @@
+/* Theme chrome (DESIGN.md 1.6 and 1.11): the header rule, tight glow, backdrop scanlines and schematic grid, all drawn from
+   the theme's chrome tokens (emerald.css, sapphire.css, violet.css or a saved variation). Family inks never change. */
+
+.ri-shell-head {
+    box-shadow: inset 0 -2px 0 var(--ri-chrome-line), 0 2px 6px -3px var(--ri-chrome-glow);
+}
+.ri-shell-head .ri-shell-title { text-shadow: 0 0 6px var(--ri-chrome-glow); }
+
+/* Scanlines and the faint grid sit behind the content, on the full-screen backdrop only. */
+:root[data-ri-scanlines="on"] .ri-overlay {
+    background-image:
+        repeating-linear-gradient(0deg, var(--ri-chrome-scan) 0, var(--ri-chrome-scan) 1px, transparent 1px, transparent 3px),
+        linear-gradient(var(--ri-chrome-scan) 1px, transparent 1px),
+        linear-gradient(90deg, var(--ri-chrome-scan) 1px, transparent 1px);
+    background-size: auto, 32px 32px, 32px 32px;
+}
+
+/* Icon weight: Font Awesome Solid has one weight, so Heavy thickens the strokes a little. */
+:root[data-ri-icon-weight="heavy"] :is(.ri-shell, .ri-bar, .ri-tray) i.fa-solid { -webkit-text-stroke: 0.6px currentColor; }
+
+/* Density: Comfortable adds the gap and padding that Comfortable touch targets use, without changing target sizes. */
+:root[data-ri-density="comfortable"] { --ri-gap: 8px; --ri-pad: 13px; }
+
+@media (prefers-reduced-motion: reduce), (prefers-contrast: more), (forced-colors: active) {
+    :root[data-ri-scanlines="on"] .ri-overlay { background-image: none; }
+    .ri-shell-head .ri-shell-title { text-shadow: none; }
+}
+
+/* A sample box for the Look page. */
+.ri-theme-swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; background: var(--ri-swatch, var(--ri-chrome)); border: 1px solid var(--ri-line); }
+.ri-theme-note { margin: 4px 0 0; color: var(--ri-call); font-size: var(--ri-type-help); }
+.ri-theme-list { display: flex; flex-wrap: wrap; gap: var(--ri-gap); margin: 0 0 6px; }
+.ri-theme-list .ri-bar-btn[aria-pressed="true"] { border-color: var(--ri-chrome); box-shadow: 0 0 6px var(--ri-chrome-glow); }
+.ri-theme-actions { display: flex; flex-wrap: wrap; gap: var(--ri-gap); margin: 6px 0; }
+.ri-theme-field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0; }
+.ri-theme-field input[type="color"] { width: var(--ri-hit-size); height: var(--ri-hit-size); padding: 0; border: 1px solid var(--ri-line); background: var(--ri-raised); }
+
+.ri-style-grid { display: grid; gap: var(--ri-gap); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 0 0 6px; }
+.ri-style-sample { display: block; padding: 8px; margin: 0; border: 1px solid var(--ri-style-rule); border-radius: var(--ri-style-corner);
+    background: var(--ri-style-surface); color: var(--ri-style-ink); font-family: var(--ri-style-face); font-size: var(--ri-type-body); text-align: left; cursor: pointer; }
+.ri-style-sample .ri-style-name { display: block; font-weight: 700; color: var(--ri-style-accent); }
+.ri-style-sample .ri-style-line { display: block; color: var(--ri-style-muted); font-size: var(--ri-type-help); }
+.ri-style-sample[aria-pressed="true"] { outline: 2px solid var(--ri-select-line); outline-offset: 1px; }
+.ri-style-sample:focus-visible { outline: 2px solid var(--ri-focus); outline-offset: 2px; }
+
+/* Tray: the suggestion chip in the Strip, the style row in the Expanded header and the picker under them. These are controls, so they keep the terminal look. */
+.ri-tray-strip:has(.ri-tray-style-chip) { flex-wrap: wrap; }
+.ri-tray-strip:has(.ri-tray-style-chip) .ri-tray-summary { flex: 1 1 0; }
+.ri-tray-style-chip { order: 3; flex: 1 1 calc(100% - 2 * var(--ri-gap)); min-width: 0; min-height: var(--ri-hit-min); padding: 0 8px; margin: 0 var(--ri-gap) var(--ri-gap); text-align: left; border: 1px solid var(--ri-focus); background: transparent;
+    color: var(--ri-text); font: inherit; font-size: var(--ri-card-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ri-tray-style-chip:focus-visible, .ri-tray-style-open:focus-visible { outline: 2px solid var(--ri-focus); outline-offset: -2px; }
+.ri-tray-style-bar { display: flex; align-items: center; gap: var(--ri-gap); padding: 4px var(--ri-pad); border: 1px solid var(--ri-line-faint); border-top: 0; background: var(--ri-surface); }
+.ri-tray-style-open { min-height: var(--ri-hit-min); padding: 0 8px; margin: 0; border: 1px solid var(--ri-line-faint); background: transparent; color: var(--ri-text);
+    font: inherit; font-size: var(--ri-card-label); cursor: pointer; }
+.ri-tray-style-open[aria-expanded="true"] { border-color: var(--ri-select-line); }
+.ri-tray-style-picker { padding: 6px var(--ri-pad); border: 1px solid var(--ri-line-faint); border-top: 0; background: var(--ri-surface); font-family: var(--ri-font); }
+.ri-tray-style-picker .ri-style-grid { margin: 0; }
+.ri-tray-style-picker .ri-tray-link { margin-top: 4px; }

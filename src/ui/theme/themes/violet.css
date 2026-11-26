@@ -1,0 +1,7 @@
+/* Theme: Violet (DESIGN.md 1.11). Violet stays an accent, never a surface. tests/t_themes.js reads this file; keep one declaration per line. */
+:root[data-ri-theme="violet"] {
+    --ri-chrome: #B98CFF;
+    --ri-chrome-line: #7C60AD;
+    --ri-chrome-glow: rgba(185, 140, 255, 0.45);
+    --ri-chrome-scan: rgba(185, 140, 255, 0.05);
+}

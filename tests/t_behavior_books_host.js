@@ -96,6 +96,9 @@ async function seededRun(page, label) {
     await watchScan(page);
     const t = Date.now();
     for (let i = 0; i < TURNS; i++) {
+        // With the extension on, capture and upkeep from the last reply run in the background. Any Math.random call they
+        // make while a scan awaits a listener takes a draw from the seeded stream, so wait for them before every turn.
+        if (label === 'extension on') await settle(page);
         await L.send(page, lineOf(i));
         if (i % 25 === 24) { console.log(`  ${label}: ${i + 1} turns, ${Math.round((Date.now() - t) / 1000)} s`); await settle(page); }
     }

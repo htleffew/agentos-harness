@@ -1,0 +1,11 @@
+/* Story style: Sci-fi readout (DESIGN.md 1.12), a deep console in IBM Plex Mono, which the menus already bundle.
+   tests/unit/tokens_contrast.mjs and tests/t_story_styles.js read this file; keep one declaration per line. */
+.ri-tray[data-ri-story-style="scifi"], .ri-style-sample[data-ri-story-style="scifi"] {
+    --ri-style-surface: #03100F;
+    --ri-style-ink: #7FF2E1;
+    --ri-style-muted: #4FB3A8;
+    --ri-style-accent: #9CF27F;
+    --ri-style-rule: #2F8077;
+    --ri-style-face: var(--ri-font);
+    --ri-style-corner: 0;
+}
