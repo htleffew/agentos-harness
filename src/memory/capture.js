@@ -16,6 +16,7 @@ import { parseSceneHeader, headerMode } from '../scene-header.js';
 import { outcome } from '../dice.js';
 import { sameStoryDay } from '../story-clock.js';
 import { firedForCapture } from './fired-entries.js';
+import { temperamentMap, speedOf, scaleStep, SPEED_KEYS } from './temperament.js';
 
 export const BATCH_EVERY = 5;
 export const RECORDS_BUDGET_CHARS = 4000;     // about 1,000 tokens of current records on a local route (DESIGN 7.2)
@@ -119,6 +120,9 @@ const opSchema = loose => ({
         text: { type: 'string' },
         quote: { type: 'string' },
         speaker: { type: 'string' },
+        ends_when: { type: 'string' },
+        thread_state: { type: 'string', enum: ['open', 'paused'] },
+        temperament: { type: 'object', properties: Object.fromEntries(SPEED_KEYS.map(k => [k, { type: 'number' }])) },
         holders: { type: 'array', items: { type: 'string' } },
         believes: { type: 'string' },
         axes: { type: 'object', properties: Object.fromEntries(AXES.map(axis => [axis, stepSchema(loose)])) },
@@ -214,18 +218,22 @@ export const CAPTURE_RULES = [
     'kind is one of fact, person, trait, place, item, secret, relationship, emotion, reputation, achievement, thread. A thread has thread_type Open, Plotline, Track, Seed, Detail, Pending, Plan or Elsewhere. A secret lists its holders, the characters who know it; a false belief is a secret with believes set to what the holder wrongly believes. An item names its holder and what changed in details. A relationship names the other person in details (field "other"). An emotion gives axes: for each of tenderness, fury, dread and yearning, a step from -5 to 5 for how far the newest reply moved it (0 when it moved nothing) and a reason, a quote from the reply or an action a character takes in it.',
     'quote: copy the exact words from the newest exchange, 200 characters or fewer, that show the change. text: one plain sentence of 300 characters or fewer.',
     'Write text like an incident report: who did what, when, where, how many, on what terms and with what result. Keep names, numbers, places, distances, deadlines and agreements exact. Leave out emotions, inner thoughts, opinions, motives and mood; a feeling enters only as an action or as a line a character spoke.',
-    'A claim made only in a character\'s spoken line, or carried by a messenger, is filed as what that speaker said: set speaker to who said it and write text as "<speaker> said that ...".',
+    'A claim files the same way whether a character speaks it or the narration states it, about the speaker or about anyone else: a trait or fact on the person or thing it describes, with text stating the claim itself ("Mira dislikes tea"). When a spoken line carries it, set speaker to who said it and quote that line. A claim the story shows to be a lie, and a secret only some characters know, are secret records: holders lists who knows it and believes holds what a deceived character takes as true. When a later line, spoken or narrated, contradicts a stored record, use op supersede with the older id in target. A feeling a character states aloud moves that person\'s emotion axes and files no trait.',
+    'A Plotline or Pending thread carries ends_when: one plain line naming what has to happen for the thread to end ("when Hale learns who sent the letter"). Each stored thread lists its ends when line. When the newest reply makes that line true, use op complete for that thread with a quote from the reply; otherwise the thread stays open. When the story sets an open thread aside, use op revise with thread_state "paused"; when the story returns to a paused thread, use op revise with thread_state "open". A revise repeats the thread\'s text.',
+    'temperament: on an op add that files a person for the first time, rate how fast that person\'s feelings move from how the story introduces them: for each of tenderness, fury, dread, yearning and level (their relationship level) a number from 0.5 (guarded, moves slowly) to 1.5 (volatile, moves fast), 1 for typical. Every other op leaves temperament null.',
     'decisions.scene_ended: true when the reply moves the story to a new time or place or closes the scene. decisions.out_of_character: true when the player message is an aside to the writer outside the story.',
     'time.elapsed: the minutes of story time the reply\'s events took, counting any jump ("an hour later" is 60). time.cue: the reply\'s own words that state that time, copied exactly; null when the reply states no time.',
 ].join('\n');
 
 const STATE_RULE = 'state: the values of the listed fields for the newest reply, as the story stands at its end, each in a few words. Leave out a field the story does not establish. Per-character cards list one object per character present, by name.';
 const HEADER_RULE = 'The reply opens with a scene header line. Copy place, time and who is present from it; report weather from the prose when it changes after the header.';
+const DUE_RULE = 'Pending threads listed as due during the time skip fell due while the story jumped ahead. Use op complete, op revise or no op for each, by what the newest reply shows.';
+const dueOf = rec => { const b = rec?.v10SceneBreak; return b && b.ruled !== true && Array.isArray(b.due) ? b.due.filter(d => d && String(d.text || '').trim()) : []; };
 const STEP_RULE = 'Meters and levels report movement. Each emotion axis (tenderness, fury, dread, yearning) and each relationship level is { step, reason }: step is a whole number from -5 to 5 for how far the newest reply moved it, 0 when it moved nothing; reason is a quote from the reply or an action a character takes in it. Code keeps the running value.';
 const SUSPECT_RULE = 'rulings: for each suspect listed, "keep" when it is a separate record, "drop" when it repeats the record it resembles, "replaces" when its newer state replaces that record.';
 
 const fieldLine = f => `${f.card}.${f.field} (${f.label}, ${f.type})${f.hint ? `: ${f.hint}` : ''}`;
-const recordLine = r => `${r.id} | ${r.kind}${r.threadType ? `/${r.threadType}` : ''} | ${r.subject || '-'} | ${r.status === 'done' ? '(closed) ' : ''}${String(r.text || '').replace(/\s+/g, ' ')}${r.holders?.length ? ` | known by ${r.holders.join(', ')}` : ''}`;
+const recordLine = r => `${r.id} | ${r.kind}${r.threadType ? `/${r.threadType}` : ''} | ${r.subject || '-'} | ${r.status === 'done' ? '(closed) ' : ''}${String(r.text || '').replace(/\s+/g, ' ')}${r.holders?.length ? ` | known by ${r.holders.join(', ')}` : ''}${r.kind === 'thread' && r.endsWhen ? ` | ends when ${r.endsWhen}` : ''}${r.kind === 'thread' && r.paused ? ' | paused' : ''}`;
 const normName = s => String(s || '').toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim();
 
 /** The records whose subject or aliases the exchange names, open threads first, within the budget. */
@@ -234,7 +242,7 @@ export function recordsFor(text, records, { budget = RECORDS_BUDGET_CHARS, prese
     const named = r => [r.subject, ...(r.aliases || [])].filter(Boolean).some(n => { const k = normName(n); return k.length >= 3 && (t.includes(` ${k} `) || k.split(' ').some(w => w.length >= 4 && t.includes(` ${w} `))); });
     const here = new Set(present.map(normName));
     const live = records.filter(r => !['retired', 'replaced', 'merged', 'suspect'].includes(r.status) && !['chapter', 'condensed', 'arc', 'stat sheet', 'scene'].includes(r.kind));
-    const ranked = live.map(r => ({ r, score: (named(r) ? 2 : 0) + (r.kind === 'thread' && r.status !== 'done' ? 1 : 0) + (here.has(normName(r.subject)) ? 1 : 0) })).filter(x => x.score > 0)
+    const ranked = live.map(r => ({ r, score: (named(r) ? 2 : 0) + (r.kind === 'thread' && r.status !== 'done' && !r.paused ? 1 : 0) + (here.has(normName(r.subject)) ? 1 : 0) })).filter(x => x.score > 0)
         .sort((a, b) => b.score - a.score || (b.r.importance || 5) - (a.r.importance || 5));
     const out = [];
     let used = 0;
@@ -256,6 +264,7 @@ export function buildCaptureRequest({ exchanges, records = [], fields = [], susp
         askFields.some(f => MOVES.has(f.type)) && STEP_RULE,
         askFields.length && headerReliable && askFields.some(f => f.card === 'scene' && SCENE_FROM_HEADER.includes(f.field)) && HEADER_RULE,
         suspects.length && SUSPECT_RULE,
+        exchanges.some(x => x.dueSkip?.length) && DUE_RULE,
         batch && 'Several exchanges follow, numbered. Give each op the number of the exchange its quote comes from in "exchange", and give state one object per exchange with its number.',
         askFields.length ? `Fields to fill in state:\n${askFields.map(fieldLine).join('\n')}` : 'No state fields are switched on; return state as {}.',
     ].filter(Boolean).join('\n');
@@ -272,6 +281,7 @@ export function buildCaptureRequest({ exchanges, records = [], fields = [], susp
             `The player wrote:\n${x.player || '(nothing)'}`,
             x.roll ? `Roll for this turn: ${x.roll}` : '',
             x.fired?.length ? `Behavior entries that fired: ${x.fired.join('; ')}` : '',
+            ...(x.dueSkip || []).map(d => `Due during the time skip: ${String(d.text).replace(/\s+/g, ' ').trim()}`),
             `The reply${x.header ? ` (scene header: ${x.header})` : ''}:\n${x.prose}`,
         ].filter(Boolean).join('\n')),
     ];
@@ -368,7 +378,7 @@ const lockId = (card, name, field, axis) => [card, foldName(name), field, axis].
  * { state, steps, notes }: `state` holds numbers, `steps` the movements as captured per card and subject, `notes` what
  * code corrected for the receipt.
  */
-export function applySteps(state, fields, { chat = [], index = 0, key = '', meta = {}, own = null } = {}) {
+export function applySteps(state, fields, { chat = [], index = 0, key = '', meta = {}, own = null, temperaments = null } = {}) {
     const out = structuredClone(state || {});
     const steps = {};
     const notes = [];
@@ -388,7 +398,10 @@ export function applySteps(state, fields, { chat = [], index = 0, key = '', meta
                 if (read.note) notes.push(`${f.card}.${f.field}${axis ? `.${axis}` : ''}${name ? ` (${name})` : ''}: ${read.note}`);
                 if (held !== null) return { value: clampMeter(held), step: 0, reason: '' };
                 const before = previousMeter(chat, index, key, f.card, name, f.field, axis) ?? meterStart(meta, f.card, name, f.field, axis);
-                return { value: clampMeter(before + read.step), step: read.step, reason: read.reason };
+                // B48: the person's temperament scales the step (1 when none is filed); the step kept is the one applied.
+                const speed = name ? speedOf(temperaments, name, axis || 'level') : 1;
+                const step = speed === 1 ? read.step : scaleStep(read.step, speed);
+                return { value: clampMeter(before + step), step, reason: read.reason };
             };
             const record = ((steps[f.card] ||= {})[foldName(name)] ||= { name });
             if (f.type === 'meter') {
@@ -410,7 +423,7 @@ export function applySteps(state, fields, { chat = [], index = 0, key = '', meta
  * Emotion records name their axes as steps too: replace each axis step with the value code computes from the record's
  * latest axes (or the tracker's value for that person, or the chat's start), so validation reads whole 0 to 10 values.
  */
-export function stepOps(ops, { records = [], chat = [], index = 0, key = '', meta = {} } = {}) {
+export function stepOps(ops, { records = [], chat = [], index = 0, key = '', meta = {}, temperaments = null } = {}) {
     const notes = [];
     const next = (ops || []).map(op => {
         if (!op || typeof op !== 'object' || !op.axes || typeof op.axes !== 'object') return op;
@@ -422,7 +435,7 @@ export function stepOps(ops, { records = [], chat = [], index = 0, key = '', met
             const read = readStep(op.axes[axis]);
             if (read.note) notes.push(`ops.axes.${axis} (${op.subject || op.id}): ${read.note}`);
             const base = finite(before?.axes?.[axis]) ?? previousMeter(chat, index, key, 'emotions', op.subject, 'axes', axis) ?? meterStart(meta, 'emotions', op.subject, 'axes', axis);
-            axes[axis] = clampMeter(base + read.step);
+            axes[axis] = clampMeter(base + scaleStep(read.step, speedOf(temperaments, op.subject, axis)));
         }
         return { ...op, axes };
     });
@@ -521,13 +534,15 @@ export function captureStatus(chat, index) {
 }
 
 /** Write a capture stamp and the tracker values on the showing swipe of a message (its extra and its swipe slot). */
-export function stampMessage(message, { hash, at, route = '', model = '', ops = 0, tracker = null, notes = [], key = '', clock = null }) {
+export function stampMessage(message, { hash, at, route = '', model = '', ops = 0, tracker = null, notes = [], key = '', clock = null, ruleDue = false }) {
     const stamp = { hash, at, ...(route ? { route } : {}), ...(model ? { model } : {}), ops, ...(notes.length ? { notes: notes.slice(0, 20) } : {}) };
     const holders = [message.extra ||= {}];
     const slot = message.swipe_info?.[swipeOf(message)];
     if (slot && typeof slot === 'object') holders.push(slot.extra ||= {});
     for (const holder of holders) {
         holder[MEMORY] = { ...(holder[MEMORY] || {}), capture: stamp };
+        // The threads that fell due in a typed time skip were put to this call once; the reply's ops ruled on them.
+        if (ruleDue && key && holder[key]?.v10SceneBreak && typeof holder[key].v10SceneBreak === 'object') holder[key].v10SceneBreak.ruled = true;
         // The story clock moves by the minutes the reply took, unless the reply's own block already set it.
         if (clock && key && !holder[key]?.v10ClockFromReply) {
             const rec = holder[key] && typeof holder[key] === 'object' ? holder[key] : (holder[key] = {});
@@ -600,7 +615,7 @@ export function captureCall(chat, indices, { records, suspects = [], fields = []
         const ex = exchangeOf(chat, index);
         const header = headerReliable ? parseSceneHeader(chat[index]?.mes) : null;
         const rec = key ? chat[index]?.extra?.[key] : null;
-        return { ...ex, reply: replyNumber(chat, index), headerFields: header, header: header ? [header.place, header.time, header.weather, header.present?.join(', ')].filter(Boolean).join(' · ') : '', roll: rollOf(rec, chat[index]), fired: firedOf(rec, chat[index]), cast };
+        return { ...ex, reply: replyNumber(chat, index), headerFields: header, header: header ? [header.place, header.time, header.weather, header.present?.join(', ')].filter(Boolean).join(' · ') : '', roll: rollOf(rec, chat[index]), fired: firedOf(rec, chat[index]), dueSkip: dueOf(rec), cast };
     });
     return { exchanges, ...buildCaptureRequest({ exchanges, records, fields, suspects, cast, headerReliable }) };
 }
@@ -612,9 +627,10 @@ export function captureCall(chat, indices, { records, suspects = [], fields = []
 export async function commitExchange({ store, chat, exchange, answer, foldResult, fields, key, route, model, callId, headerReliable, previousScene = {}, previousReply = 0, baseMinutes = null, chatMeta = null, now = Date.now() }) {
     const meta = chatMeta || {};
     const existing = chat?.[exchange.index]?.extra?.[key]?.tracker || null;
-    const stepped = stepOps(answer?.ops, { records: foldResult?.records || [], chat, index: exchange.index, key, meta });
+    const temperaments = temperamentMap(foldResult?.records || [], answer?.ops);
+    const stepped = stepOps(answer?.ops, { records: foldResult?.records || [], chat, index: exchange.index, key, meta, temperaments });
     const checked = checkedInputs({ ...answer, ops: stepped.ops }, exchange, foldResult, { route, model, callId });
-    const applied = applySteps(checked.state, fields, { chat, index: exchange.index, key, meta, own: existing });
+    const applied = applySteps(checked.state, fields, { chat, index: exchange.index, key, meta, own: existing, temperaments });
     checked.state = applied.state;
     const stepNotes = [...stepped.notes, ...applied.notes];
     const header = headerReliable ? exchange.headerFields : null;
@@ -625,7 +641,7 @@ export async function commitExchange({ store, chat, exchange, answer, foldResult
     const job = { chatId: exchange.chatId, index: exchange.index, mark: exchange.mark, swipe: exchange.swipe, hash: exchange.hash };
     const result = await store.commit(job, checked.inputs, {
         reason: 'capture',
-        onMessage: message => stampMessage(message, { hash: exchange.hash, at: now, route, model, ops: checked.inputs.length, tracker, notes: stepNotes, key, clock: { ...elapsedOf(answer?.time, exchange.prose), base: baseMinutes } }),
+        onMessage: message => stampMessage(message, { hash: exchange.hash, at: now, route, model, ops: checked.inputs.length, tracker, notes: stepNotes, key, ruleDue: dueOf(chat?.[exchange.index]?.extra?.[key]).length > 0, clock: { ...elapsedOf(answer?.time, exchange.prose), base: baseMinutes } }),
     });
     return { ...result, inputs: checked.inputs, dropped: checked.dropped, tracker, decisions: checked.decisions, stepNotes };
 }
@@ -784,6 +800,8 @@ export async function queueCapture({ modules = {}, indices = null } = {}) {
     if (!H.store.settings().enabled) return null;
     // A chat whose first open has not moved its memory into chat data yet has nothing to commit to (MB2).
     if (!c.chatMetadata?.[MEMORY]?.imported) return null;
+    // Memory switched off for this chat (Setup, Memory): nothing is captured and its records stay.
+    if (c.chatMetadata[MEMORY].off === true) return null;
     const fields = enabledFields(H.store.settings(), modules);
     // indices names replies the caller wants captured, such as an opening the extension drafted (message 0).
     const due = indices ? indices.filter(i => isReply(chat[i]) && !isCaptured(chat[i])) : dueNow(chat, { mode: captureEvery(H.store.settings(), fields) });

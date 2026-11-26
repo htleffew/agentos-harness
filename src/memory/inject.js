@@ -330,7 +330,7 @@ export async function startInject() {
     on('GENERATION_STARTED', (type, opts, dryRun) => {
         if (dryRun) return;
         const quiet = type === 'quiet' || !!opts?.quiet_prompt;
-        const memory = H.store.settings().enabled !== false && H.importer.memoryActive();
+        const memory = H.store.settings().enabled !== false && H.importer.memoryActive() && H.st.ctx().chatMetadata?.ri_memory?.off !== true;
         Object.assign(turn, { at: Date.now(), type: String(type || 'normal'), active: !quiet && memory });
         // the instruction stays in place for every request of a chat with memory, so the prefix never changes between turns
         publish(H, INSTRUCTION_KEY, memory ? MEMORY_INSTRUCTION : '', 0, 0);
@@ -340,7 +340,7 @@ export async function startInject() {
     for (const name of ['GENERATION_ENDED', 'GENERATION_STOPPED']) on(name, () => { turn.active = false; });
     on('CHAT_CHANGED', () => {
         turn.active = false; previous = null;
-        const memory = H.store.settings().enabled !== false && H.importer.memoryActive();
+        const memory = H.store.settings().enabled !== false && H.importer.memoryActive() && H.st.ctx().chatMetadata?.ri_memory?.off !== true;
         publish(H, INSTRUCTION_KEY, memory ? MEMORY_INSTRUCTION : '', 0, 0);
         publish(H, REMINDER_KEY, '', 1, 0);
     });

@@ -18,9 +18,9 @@ import { ctx, KEY, LOG, names, isReply, toast } from './st.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { addLog } from './log.js';
 import { rollInt, pickWeighted, setInfo, entriesOf, createSet, freeUid, knownSets } from './books.js';
-import { worldOffers, rememberStory } from './pacing.js';
+import { worldOffers, memoryOffers, rememberStory } from './pacing.js';
 import { showAgain, hideAgain, messageMark } from './hide.js';
-import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, isWorldEntry, readWorldEntry, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall, scenePresence } from './world.js';
+import { WORLD_KINDS, MAX_ACTIVITIES, DONE, HUD_BLOCKS, chapterIsMine, namedIn, listWorld, isWorldEntry, readWorldEntry, newWorldEntry, writeWorldEntry, chatWorld, loadWorld, saveWorld, storyRecall, scenePresence, readScene } from './world.js';
 
 export const ASK_WORLD = 'Roleplay Instructions story update';
 export const ORDER_WORLD = 'Story world';
@@ -581,6 +581,13 @@ export function worldBeforeGeneration(type) {
     return ['swipe','regenerate'].includes(type) && isReply(ctx().chat?.at(-1)) ? ctx().chat.length-1 : Infinity;
 }
 
+/** Who is present for a memory chat's offers: capture files people as person records, not character entries, so the
+ * names the scene itself lists count beside the entries read as present. */
+function memoryPresence(present, type) {
+    const listed = String(readScene(type).present || '').split(/,|;|\band\b/).map(clean).filter(Boolean);
+    return [...new Set([...present, ...listed])];
+}
+
 /**
  * Everything the story world adds to the reply that is about to be written.
  * Returns null when this chat has no world, else { notes, order, id }.
@@ -588,32 +595,44 @@ export function worldBeforeGeneration(type) {
 export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, native = false, opportunities = false, memory = false, components = memoryComponents() } = {}) {
     const id = chatWorld();
     if (quiet) return null;
+    const inData = memoryActive();
     if (!id) {
+        // A chat whose memory lives in chat data keeps capture's records there with or without a Story World book, so a
+        // story event item can still ask for one of its open threads, kept secrets or plans.
+        let offers = null;
+        if (inData) {
+            const list = listWorld(await currentWorldData('',{before:worldBeforeGeneration(type)}),'');
+            const policy = recallPolicy('',type);
+            const found = memoryOffers(list.filter(row=>policy(row).on), memoryPresence([], type), { chat: String(ctx().getCurrentChatId() || ''), n: replyNo });
+            if (found.threads.length || found.secrets.length || found.plans.length) offers = found;
+        }
         // A chat that was started with "New chapter" and has no story world carries its summary in the chat itself.
         const carried = clean(chatState()?.carried);
-        if (!carried || !components.chapters) return null;
+        if (!carried || !components.chapters) return offers ? { id: '', notes: null, order: null, offers } : null;
         const text = memory ? `[Story memory\n${carried}]` : `[The story before this chat. Use the established facts to continue the scene. ${promptText('memoryFacts')}\n${carried}]`;
         rememberStory(carried);
-        return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, order: null };
+        return { id: '', notes: { text, tokens: Math.round(text.length / 4), ids: [], extra: [], present: [], missing: [], place: '', location: '', how: '' }, order: null, ...(offers ? { offers } : {}) };
     }
     // A chat's records come from chat data, the same fold the Story World page reads (MB2, MB3). Only a chat whose first
     // open has not moved it over yet (the settings backup failed) still reads its book.
-    const data = memoryActive() ? await currentWorldData(id,{before:worldBeforeGeneration(type)}) : await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}).catch(() => null);
+    const data = inData ? await currentWorldData(id,{before:worldBeforeGeneration(type)}) : await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)}).catch(() => null);
     if (!data) return null;
     const o = settings().world;
     const list = listWorld(data, id);
     const { rows, notes } = storyRecall(list,type,{memory,components});
-    if (memory) return {id,notes,rows,order:null};
     const policy = recallPolicy(id,type);
     const eligible = list.filter(row=>policy(row).on);
-    const ooc = isOocTurn();
     const meta = { chat: String(ctx().getCurrentChatId() || ''), n: replyNo };
     // Who is present comes from the notes when they go out, and from the scene itself when memory has retired them (MB5).
     const present = notes?.present || scenePresence(list, type);
+    // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene. A chat whose
+    // memory lives in chat data reads capture's records from the same fold recall just read.
+    const offers = inData ? memoryOffers(eligible, memoryPresence(present, type), meta) : worldOffers(eligible, present, meta);
+    if (memory) return {id,notes,rows,order:null,offers};
+    const ooc = isOocTurn();
     const order = ooc || (native && !opportunities) ? null : rollOrder(eligible, present, meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
     if (order) order.text = promptText('worldOrder', { order: order.text });
-    // What a story event item may ask for: an open thread, a kept secret or a plan of someone in the scene.
-    return { id, notes, order, offers: worldOffers(eligible, present, meta) };
+    return { id, notes, order, offers };
 }
 
 // ---------- after the reply ----------

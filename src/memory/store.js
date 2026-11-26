@@ -10,6 +10,18 @@
 import { MEMORY, chatMemory, ensureMarks, fold, forgetFold, historyOf, makeEntry, memoryBytes, revisionOf, storedMark, swipeEntries, swipeOf } from './fold.js';
 
 const JOB_LOG_MAX = 50;
+
+/** False once the user turned memory off for this chat (Setup, Memory, "Memory on for this chat"); its records stay. */
+export const memoryIsOn = meta => meta?.[MEMORY]?.off !== true;
+
+/** The raw entry lists of one reply: the showing slot and every swipe slot, as stored. */
+function replyHolders(message) {
+    const out = [];
+    if (message?.extra?.[MEMORY] && Array.isArray(message.extra[MEMORY].entries)) out.push(message.extra[MEMORY]);
+    for (const info of message?.swipe_info || []) if (info?.extra?.[MEMORY] && Array.isArray(info.extra[MEMORY].entries)) out.push(info.extra[MEMORY]);
+    return out;
+}
+
 const chains = new Map();   // chat id -> the tail of its commit chain
 
 /** Run fn after every earlier commit of the same chat. */
@@ -186,7 +198,78 @@ export function createStore(host) {
         return { committed: false, reason: 'Nothing took this record out of force.' };
     }
 
+    /** Turn this chat's memory on or off. Off stops capture and recall for this chat only and keeps every record. */
+    function setOn(on) {
+        return serial(host.chatId(), async () => {
+            const mem = chatMemory(meta());
+            if (on) delete mem.off; else mem.off = true;
+            await host.save();
+            return { on: !!on };
+        });
+    }
+
+    /** What Undo would bring back: { at, entries } or null. The set-aside records live in the chat, so Undo survives a reload. */
+    function clearedState() {
+        const held = meta()[MEMORY]?.cleared;
+        return held ? { at: held.at, entries: held.count } : null;
+    }
+
+    /**
+     * Clear this chat's records: every entry on every reply and swipe, and the chat log. They are set aside whole in the chat
+     * (a second clear replaces the first), the fold is rebuilt from nothing, and undoClear puts them back exactly.
+     * Marks, capture stamps and settings stay. Resolves { cleared, entries }.
+     */
+    function clear() {
+        return serial(host.chatId(), async () => {
+            marks();
+            const mem = chatMemory(meta());
+            const replies = [];
+            let count = mem.log.length;
+            for (const message of chat()) {
+                const holders = replyHolders(message);
+                const kept = holders.filter(h => h.entries.length).map(h => h.entries);
+                if (!kept.length) continue;
+                const mark = storedMark(message);
+                replies.push({ mark, shown: message.extra?.[MEMORY]?.entries || [], swipes: (message.swipe_info || []).map(i => i?.extra?.[MEMORY]?.entries || []) });
+                count += new Set(kept.flat().map(e => e.id)).size;
+                for (const h of holders) h.entries = [];
+            }
+            const log = mem.log;
+            mem.log = [];
+            mem.cleared = { at: host.now(), count, log, replies };
+            forgetFold(meta());
+            await host.save();
+            return { cleared: true, entries: count };
+        });
+    }
+
+    /** Put the cleared records back exactly. Entries written since the clear stay after them. Resolves { restored, entries, missing }. */
+    function undoClear() {
+        return serial(host.chatId(), async () => {
+            const mem = chatMemory(meta());
+            const held = mem.cleared;
+            if (!held) return { restored: false, reason: 'Nothing was cleared.' };
+            let missing = 0;
+            for (const item of held.replies) {
+                const message = chat().find(m => storedMark(m) === item.mark);
+                if (!message) { missing += 1; continue; }
+                const holder = message.extra?.[MEMORY];
+                if (holder) holder.entries = [...item.shown, ...(holder.entries || [])];
+                (message.swipe_info || []).forEach((info, i) => {
+                    const slot = info?.extra?.[MEMORY];
+                    if (slot && item.swipes[i]) slot.entries = [...item.swipes[i], ...(slot.entries || [])];
+                });
+            }
+            mem.log = [...held.log, ...mem.log];
+            delete mem.cleared;
+            forgetFold(meta());
+            await host.save();
+            return { restored: true, entries: held.count, missing };
+        });
+    }
+
     return {
+        setOn, clear, undoClear, clearedState,
         marks, begin, stillShows, commit, record, recordOnReply, view, revert, lock, unlock, restore, entryById,
         history: recordId => historyOf(chat(), meta(), recordId, view()),
         bytes: () => memoryBytes(chat(), meta()),

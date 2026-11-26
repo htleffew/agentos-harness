@@ -18,6 +18,8 @@ import { characterStateCard, sceneEditor } from './state.js';
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
 import { homeLink } from './homes.js';
+import { WHAT_WAS_SENT_PAGE } from './what-was-sent.js';
+import { firedRulesSection } from './story-rules.js';
 import { recentRecords, statusLabel, sendAgain, undoDone, cancelResend, pickAgainNow, overdueList, checkAgain, clearQueue, rerollPartNow, setLock, isLocked } from '../engine.js';
 import { loadSet, saveSet, entriesOf, canonSet, setName, setInfo, readInstruction, setOfEntry } from '../books.js';
 import { BOOK_TRIGGER_SOURCES } from '../book-triggers.js';
@@ -209,6 +211,7 @@ function recordBody(id, rec, isLast, withButtons) {
         (rec.checkExecution || withButtons && isLast && settings().check.mode !== 'off' && rec.items.some(item=>!item.noCheck)) &&
             functionExecution('instructionCheck',{receipt:rec.checkExecution,target:`${ctx().chat[id]?.name || 'Reply'} · swipe ${Number(ctx().chat[id]?.swipe_id || 0)+1}`}),
         rec.automaticSwipeExecution && executionDetails(rec.automaticSwipeExecution),
+        firedRulesSection(id),
     ];
 }
 
@@ -272,6 +275,11 @@ export function renderSent(body, app) {
             h('span',{class:'ri-sent-sub'},`Version ${version} · ${summaryLine(r.rec)}`),
         ],recordBody(r.id,r.rec,r.isLast,true),{open:exact ? selected.index===r.id : i===0,cls:'ri-sentcard'});
         card.id=`ri-review-reply-${r.id}`;
+        // What the model saw with this reply: the memory blocks saved at send time, in Review, Context (memory DESIGN 11)
+        card.querySelector('.ri-fold-body')?.prepend(h('div',{class:'ri-row ri-row-tight'},button('What the model saw',()=>{
+            app.sentReply=r.id;
+            app.openPage(WHAT_WAS_SENT_PAGE,{anchor:'#ri-what-was-sent'});
+        },{kind:'ghost',title:'The chapter view, recall block, held-out list, sizes and cache line saved when this reply was requested.'})));
         body.append(card);
     });
 }

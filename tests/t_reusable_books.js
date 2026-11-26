@@ -11,6 +11,24 @@ const L = require('./lib.js');
         await L.openChat(page);
         const root = page.locator('#ri_root');
         await L.openPanel(page);
+        // Memory capture after each reply ends with a panel redraw about a second later. The suite drives the panel only
+        // once that reply is captured and no new panel body has appeared for 400 ms, so no click lands on a replaced node.
+        const settled = () => page.evaluate(async () => {
+            let body = document.querySelector('#ri_panel_page'), since = performance.now();
+            while (performance.now() - since < 400) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                const now = document.querySelector('#ri_panel_page');
+                if (now !== body) { body = now; since = performance.now(); }
+            }
+        });
+        const send = async text => {
+            await L.send(page, text);
+            await page.waitForFunction(async base => {
+                const { isCaptured } = await import(`${base}/src/memory/capture.js`);
+                return isCaptured(SillyTavern.getContext().chat.at(-1));
+            }, L.BASE, { timeout: 15000, polling: 100 });
+            await settled();
+        };
         const names = await page.evaluate(async base => {
             const V = await import(`${base}/src/v10.js`);
             const B = await import(`${base}/src/books.js`);
@@ -84,7 +102,22 @@ const L = require('./lib.js');
 
         L.mode({ reply: 'The guide mentioned Modelkey.' });
         L.resetLog();
-        await L.send(page, 'Playerkey, Modelkey and Dockside.');
+        // SillyTavern counts tokens with a dry run (its prompt list does this after many changes). One that loaded its
+        // entries before the reply started and finished its scan after must not decide the reply's receipt or notes.
+        // The dry run is held after loading its entries until the reply starts, the order seen in the intermittent failure.
+        await page.evaluate(() => {
+            const c = SillyTavern.getContext(), types = c.eventTypes;
+            let release;
+            const replyStarted = new Promise(resolve => { release = resolve; });
+            let held = false;
+            const hold = async () => { if (!held) { held = true; await replyStarted; } };
+            const started = (_type, _options, dryRun) => { if (!dryRun) { release(); c.eventSource.removeListener(types.GENERATION_STARTED, started); c.eventSource.removeListener(types.WORLDINFO_ENTRIES_LOADED, hold); } };
+            c.eventSource.on(types.WORLDINFO_ENTRIES_LOADED, hold);
+            c.eventSource.on(types.GENERATION_STARTED, started);
+            c.generate('normal', {}, true).catch(() => {});
+        });
+        await page.waitForTimeout(200);
+        await send('Playerkey, Modelkey and Dockside.');
         let prompt = L.text(L.requests()[0]);
         assert.match(prompt, /USER_NUDGE_MARK/);
         assert.match(prompt, /STICKY_NUDGE_MARK/);
@@ -97,7 +130,7 @@ const L = require('./lib.js');
         assert.ok(receipt.every(entry => entry.title !== 'Random reminder'));
         L.mode({ reply: 'The guide went on.' });
         L.resetLog();
-        await L.send(page, 'Continue.');
+        await send('Continue.');
         prompt = L.text(L.requests()[0]);
         assert.match(prompt, /MODEL_NUDGE_MARK/);
         assert.match(prompt, /STICKY_NUDGE_MARK/);
@@ -119,13 +152,12 @@ const L = require('./lib.js');
             globalThis.jQuery('#world_info_budget').val(100).trigger('input');
         });
         L.resetLog();
-        await L.send(page, 'They cross the Old bridge.');
+        await send('They cross the Old bridge.');
         assert.ok(L.text(L.requests()[0]).includes('BRIDGE_REFERENCE_MARK'));
 
         const bridge = newRow.locator('.ri-book-entry').filter({hasText:'Old bridge'});
-        // A reply can refresh the Reusable Lorebooks page and collapse the book editor.
-        const manager = newRow.locator('.ri-book-entry-editor');
-        if (!await manager.evaluate(element=>element.open)) await newRow.getByText('Edit or delete entries',{exact:true}).click();
+        // The reply's capture redrew the page; the book editor she opened stays open across that redraw.
+        assert.ok(await newRow.locator('.ri-book-entry-editor').evaluate(element=>element.open), 'the open book editor survives the capture redraw');
         await bridge.getByRole('button',{name:'Edit',exact:true}).click();
         await bridge.getByLabel('Activation',{exact:true}).selectOption('vector');
         await bridge.getByRole('button',{name:'Save entry'}).click();
@@ -180,13 +212,13 @@ const L = require('./lib.js');
 
         L.mode({reply:'It landed like a stone.'});
         L.resetLog();
-        await L.send(page,'I used the words landed like.');
+        await send('I used the words landed like.');
         assert.equal(L.requests().length,1);
         assert.doesNotMatch(L.text(L.requests()[0]),/PHRASE_FEEDBACK_MARK/);
 
         L.mode({reply:'She flinched.'});
         L.resetLog();
-        await L.send(page,'And then?');
+        await send('And then?');
         assert.equal(L.requests().length,1);
         assert.match(L.text(L.requests()[0]),/PHRASE_FEEDBACK_MARK/);
 
@@ -203,11 +235,11 @@ const L = require('./lib.js');
         },[L.BASE,dedicated,active]);
         await toggleDedicated(false);
         L.resetLog();
-        await L.send(page,'What happens next?');
+        await send('What happens next?');
         assert.doesNotMatch(L.text(L.requests()[0]),/thing M1/);
         await toggleDedicated(true);
         L.resetLog();
-        await L.send(page,'I step forward.');
+        await send('I step forward.');
         assert.equal((L.text(L.requests()[0]).match(/thing M1/g) || []).length,1);
         const managed = await page.evaluate(() => SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Lore);
         assert.ok(managed.some(entry=>entry.title==='Managed-only instruction' && entry.role==='Random Instructions' && entry.confirmed));

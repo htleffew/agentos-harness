@@ -8,7 +8,7 @@ import { copyGuidelinesToInstructions } from '../books.js';
 import { bookEntryEditor, receiptEntryEditor } from './book-entry-editor.js';
 import { roastVoiceEditor } from './prompts.js';
 import { slot, home, homeLink } from './homes.js';
-import { listRecords, writeRecord, baseEntries, kindsFor } from '../records.js';
+import { listRecords, writeRecord, baseEntries, kindsFor, canAddRecord } from '../records.js';
 import { impersonationInspector } from './impersonation.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
@@ -441,6 +441,27 @@ function editRecord(original, save, cancel, kinds) {
     return root;
 }
 
+/**
+ * The record editor in a holder: record null adds one of kinds, a record edits it. Saving writes through writeRecord (a
+ * memory chat files it as your record in chat data) and calls redraw. Used by the record pages and by Story World.
+ */
+export function recordEditorOpener(editor, kinds, redraw) {
+    const scope=executionScope();
+    const save = async (value,options)=>{
+        if (scope!==executionScope()) throw new Error('The chat changed. Open this record in its own chat.');
+        await writeRecord(value,options);
+        if (scope===executionScope()) redraw();
+    };
+    return async record=>{
+        if (editor.querySelector('[data-ri-dirty]') && !await confirmBox('Discard your unsaved record edits?')) return;
+        if (scope!==executionScope()) return;
+        const form=editRecord(record,save,()=>editor.replaceChildren(),kinds);
+        editor.replaceChildren(form);
+        editor.scrollIntoView({block:'nearest'});
+        editor.querySelector('input,select,textarea')?.focus({preventScroll:true});
+    };
+}
+
 function renderRecords(redraw, title, kinds, app) {
     const list = h('div');
     const editor = h('div');
@@ -453,19 +474,7 @@ function renderRecords(redraw, title, kinds, app) {
         filter();
     },{type:'search','aria-label':`Search ${title.toLowerCase()}`,placeholder:'Search by name, wording or status'});
     let records=[];
-    const save = async (value,options)=>{
-        if (scope!==executionScope()) throw new Error('The chat changed. Open this record in its own chat.');
-        await writeRecord(value,options);
-        if (scope===executionScope()) redraw();
-    };
-    const open = async record=>{
-        if (editor.querySelector('[data-ri-dirty]') && !await confirmBox('Discard your unsaved record edits?')) return;
-        if (scope!==executionScope()) return;
-        const form=editRecord(record,save,()=>editor.replaceChildren(),kinds);
-        editor.replaceChildren(form);
-        editor.scrollIntoView({block:'nearest'});
-        editor.querySelector('input,select,textarea')?.focus({preventScroll:true});
-    };
+    const open = recordEditorOpener(editor,kinds,redraw);
     listRecords(kinds).then(rows=>{
         records=rows;
         filter();
@@ -484,8 +493,7 @@ function renderRecords(redraw, title, kinds, app) {
             button('Edit',()=>open(record))))
             : records.length ? [h('p',{class:'ri-help'},'No records match the search.')] : []));
     }
-    const canAdd = kinds.some(kind=>effectiveModules()[KIND_MODULE[kind]]);
-    return section(title,h('div',{class:'ri-row'},search,canAdd ? button('Add record',()=>open(null),{kind:'primary'}) : null),status,editor,list);
+    return section(title,h('div',{class:'ri-row'},search,canAddRecord(kinds) ? button('Add record',()=>open(null),{kind:'primary'}) : null),status,editor,list);
 
 }
 

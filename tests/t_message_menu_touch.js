@@ -93,7 +93,10 @@ async function run(browser, tag, viewport) {
     const entries = await page.evaluate(() => [...document.querySelectorAll('#chat .mes')].map(node => ({ id: Number(node.getAttribute('mesid')), user: node.getAttribute('is_user') === 'true',
         entries: [...node.querySelectorAll('.extraMesButtons > .ri-mes-button')].map(item => item.dataset.riEntry) })));
     out.checks.entries = { replies: entries.filter(item => !item.user).length, players: entries.filter(item => item.user).length };
-    assert.ok(entries.filter(item => !item.user).every(item => item.entries.join() === 'sent,correct'), 'every AI reply has both entries');
+    // MB10: a chat whose memory lives in chat data also gets Close the chapter here and Memory from this reply
+    const chatMemory = await page.evaluate(() => !!SillyTavern.getContext().chatMetadata?.ri_memory?.imported);
+    const want = chatMemory ? 'sent,correct,close-chapter,memory-reply' : 'sent,correct';
+    assert.ok(entries.filter(item => !item.user).every(item => item.entries.join() === want), `every AI reply has the entries ${want}`);
     assert.ok(entries.filter(item => item.user).every(item => item.entries.length === 0), 'no entry on the player\'s messages');
 
     // 3. An older reply: open SillyTavern's menu by touch and use each entry.
@@ -102,7 +105,7 @@ async function run(browser, tag, viewport) {
     out.checks.olderReply = await page.evaluate(selector => { const node = document.querySelector(selector), hint = node?.querySelector('.extraMesButtonsHint');
         return { display: node && getComputedStyle(node).display, hint: hint && JSON.stringify(hint.getBoundingClientRect()), count: document.querySelectorAll(selector).length }; }, mes);
     await shot('1b-before-menu');
-    for (const [entry, label, wantPage] of [['sent', 'What was sent', 'sent'], ['correct', 'Correct a story fact', 'corrections']]) {
+    for (const [entry, label, wantPage] of [['sent', 'What was sent', 'sent'], ['correct', 'Correct a story fact', 'corrections'], ...(chatMemory ? [['memory-reply', 'Memory from this reply', 'world']] : [])]) {
         // SillyTavern leaves the menu open after the panel closes, so only a closed menu needs its hint tapped.
         if (!await page.locator(`${mes} .ri-mes-button[data-ri-entry="${entry}"]`).isVisible()) await tap(page, `${mes} .extraMesButtonsHint`);
         const button = page.locator(`${mes} .ri-mes-button[data-ri-entry="${entry}"]`);
@@ -115,7 +118,7 @@ async function run(browser, tag, viewport) {
         await page.waitForTimeout(500);
         const landed = await page.evaluate(({ id, entry }) => {
             const target = document.querySelector(`#ri-review-reply-${id}`);
-            return { page: document.querySelector('#ri_panel_page')?.dataset.page, selected: entry === 'sent' ? !!target && target.getBoundingClientRect().height > 0
+            return { page: document.querySelector('#ri_panel_page')?.dataset.page, selected: entry === 'memory-reply' ? !!document.querySelector(`[data-ri-reply-filter="${id}"]`) : entry === 'sent' ? !!target && target.getBoundingClientRect().height > 0
                 : /Reply|swipe|version|\d/.test(document.querySelector('#ri-correction-target')?.textContent || ''),
                 heading: (document.querySelector('#ri-correction-target')?.textContent || '').slice(0, 120), card: target?.textContent.slice(0, 80) };
         }, { id: older.id, entry });

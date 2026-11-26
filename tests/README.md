@@ -32,6 +32,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_behavior_books_host.js` | browser (`RI_MB12_TURNS` sets the seeded generations, default 200) | MB12 |
 | `t_book_management.js` | browser | legacy |
 | `t_capture.js` | node | MB3 |
+| `t_dialogue_claims.js` | node | MB18 |
 | `t_chapter.js` | browser | MB6 |
 | `t_components.js` | browser | B8 |
 | `t_composer_bar.js` | browser | B1 |
@@ -63,6 +64,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_import.js` | browser | legacy |
 | `t_inline_direction.js` | node | B42 |
 | `t_inline_direction_host.js` | browser | B42 |
+| `t_scene_markers.js` | node | B50 |
 | `t_inject.js` | node (the converter row needs RI_ST_DIR) | MB5 |
 | `t_inject_host.js` | browser | MB5 |
 | `t_integration.js` | browser | legacy |
@@ -70,8 +72,12 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_log.js` | browser | legacy 4.1.0 |
 | `t_memory_import.js` | node | MB2 |
 | `t_memory_scenarios.js` | node (skips without docs/) | MB11 |
+| `t_memory_ui.js` | browser (`RI_WIDTH` and `RI_HEIGHT`, default 390 x 780) | MB10 |
+| `t_memory_followups.js` | browser (`RI_WIDTH` and `RI_HEIGHT`, default 390 x 780) | MB19 |
 | `t_memory_store.js` | node (skips without docs/) | MB2 |
 | `t_menu_shell.js` | browser | B5 |
+| `t_memory_offers.js` | node | FIXOFFERS |
+| `t_memory_offers_host.js` | browser | FIXOFFERS |
 | `t_meter_steps.js` | node | B40 |
 | `t_message_menu.js` | node | B4 |
 | `t_message_menu_touch.js` | browser | B4 |
@@ -107,9 +113,13 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_shell_followups.js` | browser | B25 |
 | `t_shots.js` | browser | legacy |
 | `t_spend_ceiling.js` | node | B19 |
+| `t_story_rules.js` | node | B41 |
+| `t_story_rules_host.js` | browser | B41 |
 | `t_story_so_far.js` | node | MB6 |
 | `t_tracker_book.js` | node | B21 |
 | `t_tracker_book_host.js` | browser | B21 |
+| `t_temperament.js` | node | B48 |
+| `t_thread_ends.js` | node | B49 |
 | `t_tracker_vars.js` | browser | B44 |
 | `t_touch_layout.js` | browser | B45 |
 | `t_upkeep.js` | node (fixture tests skip without docs/) | MB7 |
@@ -179,6 +189,12 @@ The rows below describe the suites by behavior. Navigation in the older browser 
 | `t_tracker_book.js` | B21, the Tracker World Info book: entries per enabled card and per present character, Constant at depth 1, size in chat data, swipe, edit, delete and branch rewrites, Theirs and switched-off fields, the disabled first entry and an editor edit replaced, the request guard, no emoji. Runs with `node --test`, no host needed |
 | `t_tracker_book_host.js` | B21 at 390 and 1006 with touch (`RI_WIDTH`): capture fills the book, the Story, World Info and Review, Context sections, the host World Info editor and export, the book entries found once in the mock's final request after the recall block, a swipe, an edit, a delete, an editor edit replaced, Theirs, and a branch with its own book. Set `RI_EVIDENCE` for screenshots |
 | `t_tracker_vars.js` | B44 at 390 and 1006 (`RI_WIDTH`): the Tracker book's values set as chat variables. Names: `ri_scene_<field>` (place, time, weather, present), `ri_character_<name>_<field>`, `ri_emo_<name>_<field>`, `ri_rel_<pair>_<field>` (for example `ri_rel_aria_and_you_level`), `ri_plan`; name and pair are lower case with `_` between words. A preset block with `{{getvar::ri_scene_place}}` sends the place in the real request; swipe, delete and edit reset the values before the next generation; a field or card that is off clears what it set; no model call (request recorder). Set `RI_EVIDENCE` for tracker-vars-<width>.json |
+| `t_dialogue_claims.js` | MB18: a spoken claim files as a plain trait or fact with the speaker as source and the line as evidence, about the speaker or anyone else; no "said that" rule in the request; a later contradiction, spoken or narrated, supersedes and Undo restores; lies and secrets use the secret and false-belief records; a feeling stated aloud files no trait; one request per reply. Runs with `node --test`, no host needed |
+| `t_memory_offers.js` | FIXOFFERS: in a chat whose memory lives in chat data, capture records offered to story event items (`memoryOffers`): open threads with their ends-when line, paused and done threads left out, secrets kept by someone present, plans (agenda records) of people present, an item that needs a thread filled with its text, a story rule's held item still held, imported entries of today's kinds offered as `worldOffers` reads them, and legacy `worldOffers` unchanged. Runs with `node --test`, no host needed |
+| `t_memory_offers_host.js` | FIXOFFERS at 390 and 1006 (`RI_WIDTH`): a memory chat with no Story World book, an open, a paused and a done thread and a kept secret; the item that needs a thread rolls with the open thread text in the request, the secret item waits until the scene lists its holder and then carries the secret, the thread item waits once the thread is done, and each reply makes only the reply and its capture. Set `RI_EVIDENCE` for memory-offers-<width>.json |
+| `t_memory_followups.js` | MB19 at 390 with touch: Tidy now, Catch up, Rebuild, Close the chapter here and Write a chapter now open the Generate sheet and Close or Generate behaves as stated (request recorder); "Memory on for this chat" off stops capture and the memory note and keeps the records, on resumes; Clear removes the records and the generated book entries and Undo restores every entry exactly; an Open threads row shows the last quote; no sideways scroll |
+| `t_thread_ends.js` | B49: the ends-when line written when a thread opens, asked for by the request and shown beside stored threads, completion with the reply as evidence, pause and resume (a repeated text still files), paused threads left out of the pacing pool (`worldOffers`, `itemFits`), her edit setters, one request per reply. Runs with `node --test`, no host needed |
+| `t_temperament.js` | B48: temperament read only on a person's first filing and held between 0.5 and 1.5, steps scaled and clamped for 0.5, 1 and 1.5, per axis and level, no temperament moves at 1, the Emotion record scaled the same, her edit through `setTemperament` sticking through later captures, one request per reply. Runs with `node --test`, no host needed |
 | `t_inline_direction_host.js` | B42 at 390 x 780 (send is a tap) and 1006 x 909 (Enter sends), read from the mock log: a `[[OOC: ]]` note is cut from the saved and shown message and rides the request once as a private direction that keeps OOC:, it shows in the Sent card, a swipe sends it again, an edit of the message cannot bring the marker back, a note alone is refused with no request, several notes keep their order, and Off sends the message as typed. Set `RI_EVIDENCE` for screenshots. |
 | `t_touch_layout.js` | B45 at 820 x 880, 1040 x 1080 and 1280 x 1200 with touch: the rewritten media lists, every top-bar drawer and the character panel full width with a tap reaching a control in each, one drawer at a time, the composer bar, fold handle, reply tray and menu at the wide sizes, the switch on Look (Off restores the desktop layout at once), resizing and rotating across 1000 px with no reload, and a mouse at 1040 x 1080 matching the switch off. Set `RI_EVIDENCE` for screenshots. |
 | `t_wrap_buttons.js` | B42 at 390 x 780 and 1006 x 909 with touch: the three wrap buttons (size, names, icons), the pair at the cursor, a selection wrapped, the cursor after each, no blur on the message box and an input event for SillyTavern, each switch, and press and hold to hide. Set `RI_EVIDENCE` for screenshots. |

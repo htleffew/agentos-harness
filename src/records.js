@@ -6,7 +6,8 @@
 //   Chat records (RECORD_KINDS): fact, profile, knowledge, emotion, relationship, arc, seed, agenda, event.
 //     listRecords(kinds)            -> Promise<record[]>, newest definition of each, portrayal merged with its sources
 //     readRecordById(id, kinds)     -> Promise<record|null>
-//     writeRecord(input, {create})  -> Promise (saves through the story-journal queue, same as before)
+//     writeRecord(input, {create})  -> Promise (a memory chat: your record in chat data; an older chat: the story-journal queue)
+//     editableRecord(foldRecord)    -> record|null  the record screen form of a Story World record, for the editor
 //     recordSource(record)          -> {store, world, origin, quote, atIndex}  where the record came from
 //     recordHistory(record)         -> [{time, type, field, before, after}]    saved changes, oldest first
 //     filingStatus()                -> {filed, pending, uncertain, error, slots}  how current filing is
@@ -27,13 +28,13 @@
 
 import { WORLD_KINDS, KIND_ORDER, isStructuredWorldKind, MAX_ACTIVITIES, chatWorld, loadWorld, saveWorld, listWorld, newWorldEntry, writeWorldEntry, entryFlags, renderEntry, storyRecall, writeWorldEntryWithAI } from './world.js';
 import { loadEffectiveWorld, recordManualWorldChange, saveV10Record, syncWorld } from './worldflow.js';
-import { readRecord, rowsForWorld, portrayalSources, baselineFor, effectivePortrayal, PLOT_KINDS, KIND_MODULE, baseWorld } from './v10.js';
+import { readRecord, rowsForWorld, portrayalSources, baselineFor, effectivePortrayal, PLOT_KINDS, KIND_MODULE, baseWorld, normalizeRecord, recordMap, effectiveModules, enabledV10 } from './v10.js';
 import { reserveStoryUids, storyJournalStatus, editableReplySlots } from './memory-journal.js';
 import { chatState } from './store.js';
-import { ctx } from './st.js';
+import { ctx, KEY } from './st.js';
 import { fold } from './memory/fold.js';
 import { memoryStore } from './memory/store.js';
-import { fileBookEdits, currentWorldData, memoryActive, staleChapters } from './memory/import.js';
+import { fileBookEdits, currentWorldData, memoryActive, staleChapters, recordFromView, viewsFromFold, viewOfRecord } from './memory/import.js';
 import { freeUid } from './books.js';
 
 /** Every chat record kind, the screen that shows it and the feature that switches it on. */
@@ -56,7 +57,8 @@ export const kindLabel = kind => RECORD_KINDS[kind]?.label || kind;
 export { PLOT_KINDS, WORLD_KINDS, KIND_ORDER, isStructuredWorldKind, MAX_ACTIVITIES, chatWorld };
 
 export async function listRecords(kinds) {
-    const rows = await rowsForWorld();
+    // A memory chat with no Story World book lists the fold itself, so the records filed in chat data still show.
+    const rows = memoryActive() && !chatWorld() ? [...viewsFromFold(folded()).values()] : await rowsForWorld();
     let records = rows.map(readRecord).filter(Boolean);
     if (kinds.includes('profile')) {
         const sources = portrayalSources(rows);
@@ -76,11 +78,72 @@ export async function readRecordById(id, kinds = Object.keys(RECORD_KINDS)) {
     return (await listRecords(kinds)).find(record => record.id === id) || null;
 }
 
-/** Save a record as before, then file the change as your edit in chat data. */
+/**
+ * Save a record typed on a record screen. A chat whose memory lives in chat data files it straight into the memory store
+ * as your record (writeYourRecord); an older chat saves it to its Story World book through the story-journal queue.
+ */
 export async function writeRecord(input, options = {}) {
-    const result = await saveV10Record(input, options);
-    if (memoryActive()) await fileBookEdits({ origin: 'you' });
-    return result;
+    if (memoryActive()) return writeYourRecord(input, options);
+    return saveV10Record(input, options);
+}
+
+/** True when a feature that keeps one of these record kinds is on, so Add record has a type to offer. */
+export const canAddRecord = kinds => kinds.some(kind => effectiveModules()[RECORD_KINDS[kind]?.module]);
+
+/** The record screen form of a Story World record (a fact, portrayal, plot record and so on), or null for a kind it has no form for. */
+export function editableRecord(record) {
+    const plain = record ? readRecord(viewOfRecord(record, 0)) : null;
+    // Protect shows the record's lock in chat data, which Lock and Unlock on the record also change.
+    return plain && Object.hasOwn(RECORD_KINDS, plain.kind) ? { ...plain, protected: !!record.locked } : null;
+}
+
+const PLOT_STATUS = { open: 'current', done: 'done', retired: 'retired' };
+
+/**
+ * Your record in chat data: create adds a new record, otherwise the record with input.id is revised. The text is kept as
+ * you typed it, every field the editor offers stays in the record's view (what the request reads), and Protect locks it
+ * against background jobs. Resolves the structured record.
+ */
+export async function writeYourRecord(input, { create = false } = {}) {
+    if (!enabledV10()) throw new Error('Enable the v10 story tools first.');
+    const c = ctx(), chat = c.chat || [];
+    const store = memoryStore();
+    const result = fold(chat, c.chatMetadata || {});
+    const rows = [...viewsFromFold(result).values()];
+    const records = recordMap(rows);
+    const existing = create ? null : memoryRecordOf({ id: input.id }, result);
+    if (!create && !existing) throw new Error('This record is no longer in the chat. Open the current record to retry.');
+    if (create) {
+        if (input.id && records.has(input.id)) throw new Error('That record ID is already used. Choose a different ID.');
+        if (!input.id) {
+            const slug = String(input.subject || input.text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 42).replace(/-$/, '') || input.kind;
+            let id = slug;
+            for (let number = 2; records.has(id); number++) id = `${slug}-${number}`;
+            input = { ...input, id };
+        }
+    }
+    const sceneId = chat.map(message => message.extra?.[KEY]?.v10SceneId).filter(Boolean).at(-1);
+    const record = normalizeRecord(input, { modules: effectiveModules(), rows: records, sceneId, base: baseWorld(), manual: true });
+    if (!record) throw new Error('The record has missing or invalid fields.');
+    record.atIndex = chat.length - 1;
+    record.source = 'user';
+    const bookKind = record.kind === 'seed' ? 'payoff' : record.kind;
+    const prior = existing?.view;
+    const view = { ...(prior ? structuredClone(prior) : { on: true, aliases: [], status: '', show: 'shadow', auto: true, at: null, span: null, rollup: false }), kind: bookKind, name: record.id, fields: { ...(prior?.fields || {}), data: JSON.stringify(record) }, locked: !!record.protected };
+    const shape = recordFromView({ ...view, uid: 0 });
+    const { kind, threadType, attribute, story_time: when } = shape;
+    for (const key of ['id', 'kind', 'threadType', 'attribute', 'story_time', 'status', 'importance']) delete shape[key];
+    const id = existing?.id || `you-${record.id}`;
+    const status = PLOT_KINDS.includes(record.kind) ? PLOT_STATUS[record.status] : undefined;
+    // A new record takes the design kind of its type; an edit keeps the kind, thread type and attribute it has.
+    const filed = { ...shape, id, view, aliases: record.aliases || existing?.aliases || [],
+        ...(existing ? {} : { kind, ...(threadType ? { threadType } : {}), attribute, ...(when ? { story_time: when } : {}), status: 'current', importance: 8 }),
+        ...(existing && status ? { status } : {}) };
+    const inputs = [{ op: create ? 'add' : 'revise', ...(create ? {} : { target: [id] }), record: filed, origin: { type: 'you', route: 'record screen' }, reason: create ? 'Added by you.' : 'Edited by you.' }];
+    if (record.protected && !existing?.locked) inputs.push({ op: 'lock', target: [id], origin: { type: 'you' }, reason: 'Your record is kept as you wrote it.' });
+    await store.record(inputs);
+    if (!record.protected && existing?.locked) await store.unlock(id);
+    return record;
 }
 
 // ---------------------------------------------------------------- memory in chat data (MB2)
@@ -105,8 +168,6 @@ export function recordVersions(record) {
 
 export const revertChange = (entryId, reason) => memoryStore().revert(entryId, reason);
 export async function restoreRecord(record) { const found = memoryRecordOf(record); return found ? memoryStore().restore(found.id) : { committed: false }; }
-export async function lockRecord(record) { const found = memoryRecordOf(record); return found ? memoryStore().lock([found.id]) : { committed: false }; }
-export async function unlockRecord(record) { const found = memoryRecordOf(record); return found ? memoryStore().unlock(found.id) : []; }
 
 /** How this chat's memory stands: where it lives, how much, and what waits. */
 export function memoryStatus() {

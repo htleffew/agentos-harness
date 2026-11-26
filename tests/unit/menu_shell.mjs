@@ -9,13 +9,14 @@ const render = () => {};
 test('five top tabs with the nested tabs of DESIGN.md 3.1, in order',()=>{
     assert.deepEqual(tabs.map(top=>top.label),['Story','Direction','Quick actions','Review','Setup']);
     assert.deepEqual(tabs.map(top=>top.nested.map(item=>item.label)),[
-        ['Scene','Characters','Story World','Facts','Plot','World Info'],
+        ['Scene','Characters','Story World','World Info'],
         ['Random sets','Goal','Writing','Action checks'],
         ['Bar','Library'],
         ['Replies','Context','Request log'],
         ['Features','Presets','Memory','Connections','Look','Prompts'],
     ]);
-    assert.equal(tabs.flatMap(top=>top.nested).length,21);
+    // MB10: Facts and Plot are filters of Story World (UI design 3.5), so 19 pages
+    assert.equal(tabs.flatMap(top=>top.nested).length,19);
     assert.deepEqual(tabs.map(top=>top.family),['story','direction','reply','review','setup']);
     assert.equal(tabs.find(top=>top.id==='quick').short,'Quick');
     for (const top of tabs) for (const item of top.nested) assert.match(item.icon,/^fa-/);

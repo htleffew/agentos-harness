@@ -5,7 +5,7 @@
 // section that card already drew is left to it, so a thread shows once. Tracks (Vexa's parallel story tracks with their
 // last beats) and Pending events (Pura's promises, deadlines and threats with their stakes) come only from here.
 import { timelineRows } from '../card-templates.js';
-import { fold as foldChat } from '../../memory/fold.js';
+import { MEMORY, fold as foldChat, swipeEntries } from '../../memory/fold.js';
 import { ctx } from '../../st.js';
 import { partsOf, section } from './shared.js';
 
@@ -29,7 +29,15 @@ const STATUS = { done: 'done', resolved: 'done', failed: 'failed', retired: 'ret
 export function threadsAt(index, host = ctx()) {
     try {
         const records = foldChat(host.chat || [], host.chatMetadata || {}, { before: index + 1 }).records || [];
-        return records.filter(record => record?.kind === 'thread');
+        const threads = records.filter(record => record?.kind === 'thread');
+        // the quote that last moved each thread (memory DESIGN 12.2): the evidence of its newest counted version
+        const quotes = new Map();
+        for (const message of host.chat || []) for (const e of swipeEntries(message)) if (e?.evidence?.[0]?.quote) quotes.set(e.id, e.evidence[0].quote);
+        for (const e of host.chatMetadata?.[MEMORY]?.log || []) if (e?.evidence?.[0]?.quote) quotes.set(e.id, e.evidence[0].quote);
+        return threads.map(record => {
+            const quote = [...(record.versions || [])].reverse().map(v => quotes.get(v.entry)).find(Boolean);
+            return quote ? { ...record, quote } : record;
+        });
     } catch (error) {
         console.warn('[Roleplay Instructions] plot threads', error);
         return [];
@@ -40,7 +48,8 @@ export function threadsAt(index, host = ctx()) {
 export function threadRow(record) {
     const [text, ...rest] = partsOf(record.text || record.subject || '');
     const due = record.story_time || record.due || '';
-    const note = [record.subject && record.subject !== text ? record.subject : '', ...rest, due && `due ${due}`].filter(Boolean).join(' · ');
+    const quote = record.quote ? `"${record.quote.length > 90 ? `${record.quote.slice(0, 87).trimEnd()}...` : record.quote}"` : '';
+    const note = [record.subject && record.subject !== text ? record.subject : '', ...rest, due && `due ${due}`, quote].filter(Boolean).join(' · ');
     return { text, status: STATUS[record.status], note: note || undefined };
 }
 

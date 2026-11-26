@@ -1,8 +1,8 @@
 // B6: page moves, one home per control, record adapter. A player's pass over every page of the menu at 523 x 1021
 // (mobile layout) and 1006 x 909 (desktop layout) with touch on a real SillyTavern 1.19.0 host and the mock model.
 // It checks that each section is in its new home, that each duplicated control has exactly one home with links
-// elsewhere, that every prompt slot names a stored prompt and shows that prompt's text, that Facts and Plot stay
-// separate tabs, and that no page overflows sideways. Fails on any page error.
+// elsewhere, that every prompt slot names a stored prompt and shows that prompt's text, that Facts and Plot are
+// filters of Story World, and that no page overflows sideways. Fails on any page error.
 //
 // Environment: RI_HOST_URL, RI_PLAYWRIGHT, RI_CHROME, RI_EVIDENCE (screenshots and results.json).
 const fs = require('node:fs');
@@ -21,7 +21,8 @@ const results = { host: HOST, runs: [] };
 const MOVES = {
     state: { has: ['Current story state'], gone: ['Save event limits'] },
     portrayal: { has: ['Pronouns', 'Portrayal & Knowledge'], gone: ['New NPC names to avoid'] },
-    world: { has: ['The story world of this chat', 'The story so far', 'Write a chapter now', 'Start a new chapter in a new chat'],
+    // MB10: a chat whose memory lives in chat data shows the record browser
+    world: { has: ['The story so far', 'Write a chapter now', 'Start a new chapter in a new chat', 'Story World book'],
         gone: ['Jump to section', 'How story notes are sent', 'Keeping the world up to date', 'What would be sent with the next reply', 'Make a new story world'] },
     books: { has: ['Story World', 'World Info books for this chat'], gone: ['Create this chat’s Story World'] },
     facts: { has: ['Chat Facts'], gone: [] },
@@ -81,11 +82,11 @@ async function run(browser, tag, viewport) {
         if (!known.has(id)) out.missing.push(id);
     }
     assert.deepEqual(out.missing, [], `${tag}: pages missing from the tree`);
-    // Facts and Plot stay separate nested tabs.
+    // MB10: Facts and Plot are filters of Story World (UI design 3.5), so the menu lists 19 pages.
     const nestedOf = id => ids.find(item => item.id === id)?.nested;
-    assert.equal(nestedOf('facts'), 'facts');
-    assert.equal(nestedOf('plots'), 'plot');
-    assert.notEqual(nestedOf('facts'), nestedOf('plots'));
+    assert.equal(nestedOf('facts'), 'story-world');
+    assert.equal(nestedOf('plots'), 'story-world');
+    assert.equal(new Set(ids.map(item => item.nested)).size, 19);
     assert.equal(nestedOf('memory'), 'memory');
     assert.equal(nestedOf('set-rules'), 'random-sets');
 
@@ -199,7 +200,8 @@ async function run(browser, tag, viewport) {
     assert.equal(list.buttons.filter(text => text === 'Add set').length, 1, `${tag}: one Add set button`);
     assert.deepEqual(list.buttons.filter(text => /^Add (instruction|story event|writing style) set$/.test(text)), [], `${tag}: no per-kind add buttons`);
     for (const title of ['Instruction sets', 'Story event sets', 'Writing style sets']) assert.ok(list.titles.includes(title), `${tag}: the list has the group "${title}"`);
-    assert.deepEqual(list.sections, ['All sets', 'Sets and pacing'], `${tag}: the sections row lists the list and Sets and pacing only`);
+    // B41 adds Story rules beside the sets
+    assert.deepEqual(list.sections, ['All sets', 'Story rules', 'Sets and pacing'], `${tag}: the sections row lists the list, Story rules and Sets and pacing only`);
     for (const name of ['B27 orders', 'B27 happenings', 'B27 voice']) assert.ok(list.cards.some(card => card.startsWith(name)), `${tag}: the list shows ${name}`);
     for (const key of ['instruction-wording', 'event-wording', 'style-wording']) assert.equal(list.controls.filter(item => item === key).length, 1, `${tag}: ${key} has one home on the list`);
     keep('sets', list);

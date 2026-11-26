@@ -72,7 +72,7 @@ export function viewOfRecord(record, uid) {
         ...(record.attribute ? { attribute: record.attribute } : {}), ...(record.holders ? { holders: record.holders } : {}), ...(record.outcome ? { outcome: record.outcome } : {}),
         ...(record.other ? { other: record.other } : {}), ...(record.axes ? { axes: record.axes } : {}), ...(record.source?.speaker ? { basis: 'reported', reportedBy: record.source.speaker } : {}),
         ...(kind === 'knowledge' ? { private: true, basis: record.source?.speaker ? 'reported' : 'observed' } : {}),
-        ...(['arc', 'agenda', 'event', 'seed'].includes(kind) ? { status: ['done', 'failed'].includes(record.status) ? 'done' : 'open' } : {}),
+        ...(['arc', 'agenda', 'event', 'seed'].includes(kind) ? { status: ['done', 'failed'].includes(record.status) ? 'done' : 'open', ...(record.endsWhen ? { endsWhen: record.endsWhen } : {}), ...(record.paused ? { paused: true } : {}) } : {}),
     };
     const bookKind = kind === 'seed' ? 'payoff' : kind;
     return { uid, kind: bookKind, name: record.id, on: true, aliases: [], fields: { data: JSON.stringify(data) }, status: '', show: 'shadow', auto: true, locked: !!record.locked, at: null, span: null, rollup: false };

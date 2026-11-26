@@ -9,6 +9,7 @@ import { blockMeter, changeChip, chipList, gauge, notRequestedLine, rows, row, s
 import { editableReplySlots, storySlots } from '../memory-journal.js';
 import { ctx, KEY, isReply } from '../st.js';
 import { cardById, fieldOn, notRequested, sectionOn } from '../cards/catalog.js';
+import { threadsAt } from './cards/plot.js';
 
 const knowledgeFields = ['knows', 'believes', 'suspects', 'wrong'];
 const axeLabels = { tenderness: 'Tenderness', fury: 'Fury', dread: 'Dread', yearning: 'Yearning' };
@@ -113,7 +114,7 @@ function knowledgeBlock(record) {
     return personBlock(pairName(record), record.text ? h('p', { class: 'ri-c-text' }, record.text) : null, recordChips(record));
 }
 
-function legacyBlock(entry, view) {
+function legacyBlock(entry, view, quoteOf = () => '') {
     const def = WORLD_KINDS[entry.kind];
     if (!def) return null;
     const state = def.steps?.find(([key]) => key === entry.status)?.[1];
@@ -122,7 +123,8 @@ function legacyBlock(entry, view) {
         if (entry.kind === 'secret' && entry.status !== 'out' && entry.show !== 'full') return key === 'holder' || key === 'shadow';
         return true;
     });
-    const body = rows(selected.map(({ key, label }) => row(label, entry.fields[key])));
+    const quote = entry.kind === 'thread' ? quoteOf(entry) : '';
+    const body = rows([...selected.map(({ key, label }) => row(label, entry.fields[key])), quote ? row('Last moved by', clipQuote(quote)) : null]);
     if (!body && entry.kind !== 'secret') return null;
     return personBlock(entry.name, body || h('p', { class: 'ri-c-text' }, 'A secret is recorded.'),
         [{ text: def.label }, state && { text: state, tone: 'indigo' }, entry.locked && { text: 'Protected', tone: 'mint' }].filter(Boolean));
@@ -146,12 +148,29 @@ function recordDetails(record) {
 
 const PLOT_SECTIONS = [['threads', ['event']], ['plotlines', ['arc']], ['details', ['seed']], ['elsewhere', ['agenda']]];
 
-function plotSection(records, audit) {
+const sameWords = text => String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+const clipQuote = quote => `"${quote.length > 90 ? `${quote.slice(0, 87).trimEnd()}...` : quote}"`;
+
+/**
+ * The quote that last moved each thread as of this reply (memory DESIGN 12.2), found by record id or by wording. A thread
+ * the Story World book shows is titled "Plotline: Reach the ford", so a name that ends in the subject matches too.
+ */
+export function threadQuotes(index) {
+    const found = threadsAt(index).filter(thread => thread.quote);
+    return record => {
+        const names = [record.name, record.text, record.subject].map(sameWords).filter(Boolean);
+        const hit = found.find(thread => thread.id === record.id || names.some(name => [thread.text, thread.subject].map(sameWords).some(word => word && (name === word || name.endsWith(`: ${word}`)))));
+        return hit?.quote || '';
+    };
+}
+
+function plotSection(records, audit, quoteOf = () => '') {
     return timelineRows(records.map(record => {
+        const quote = quoteOf(record);
         const checked = audit.get(record.id);
         const notes = [record.text !== undefined && record.subject ? record.subject : '', checked?.recalled && 'Recalled for this reply',
             checked && (checked.eligible ? 'Eligible' : 'Prerequisites pending'), checked?.offered && 'Offered for this reply',
-            record.schedule && 'Scheduled opportunity', record.protected && 'Protected'].filter(Boolean);
+            record.schedule && 'Scheduled opportunity', record.protected && 'Protected', quote && clipQuote(quote)].filter(Boolean);
         const detail = recordDetails(record);
         return { text: record.text || words(record.id), status: record.status, note: notes.join(' · ') || undefined,
             node: detail ? h('details', { class: 'ri-c-fold' }, h('summary', {}, h('span', { class: 'ri-c-clamp' }, record.text || words(record.id))), detail) : undefined };
@@ -188,14 +207,15 @@ export async function renderWorldCard(cardId, panel, env) {
         } else if (cardId === 'knowledge' && sectionOn(config, cardId, 'knows')) {
             parts.push(...records.map(knowledgeBlock), ...legacy.map(entry => legacyBlock(entry, 'knowledge')));
         } else if (cardId === 'plot') {
+            const quoteOf = threadQuotes(index);
             for (const [sectionId, kinds] of PLOT_SECTIONS) {
                 if (!sectionOn(config, cardId, sectionId)) continue;
                 const section = card.sections.find(item => item.id === sectionId);
                 const inSection = records.filter(record => kinds.includes(record.kind));
                 const legacyRows = sectionId === 'threads' ? legacy.filter(entry => entry.kind === 'thread') : sectionId === 'details' ? legacy.filter(entry => entry.kind === 'seed')
                     : sectionId === 'elsewhere' ? legacy.filter(entry => entry.kind === 'activity') : [];
-                const lines = plotSection(inSection, audit);
-                const old = legacyRows.map(entry => legacyBlock(entry, 'plot')).filter(Boolean);
+                const lines = plotSection(inSection, audit, sectionId === 'threads' ? quoteOf : undefined);
+                const old = legacyRows.map(entry => legacyBlock(entry, 'plot', quoteOf)).filter(Boolean);
                 if (lines || old.length) parts.push(h('section', { class: 'ri-c-section' }, sectionHead(section.label, { count: inSection.length + old.length }), lines, ...old));
             }
         } else if (cardId === 'changes') {

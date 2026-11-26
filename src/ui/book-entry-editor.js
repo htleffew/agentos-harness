@@ -287,7 +287,8 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
     const content = h('div');
     const editor = h('div');
     const count = h('span',{class:'ri-help'});
-    const root = h('details',{class:'ri-book-entry-editor'},h('summary',{},h('strong',{},'Edit or delete entries'),count),
+    // The entry count fills in after the book loads, so the summary text cannot name this fold across a panel redraw.
+    const root = h('details',{class:'ri-book-entry-editor','data-ri-view-key':`book-entries:${name}`},h('summary',{},h('strong',{},'Edit or delete entries'),count),
         h('p',{class:'ri-help'},'This edits the World Info book. Changes apply in every chat that uses it.'),
         h('div',{class:'ri-row'},
             reusable && button('Add entry', () => editEntry(name, { ...blankEntry(0), constant:false, probability:100, content:'' }, editor, refresh, true, true)),

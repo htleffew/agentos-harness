@@ -16,8 +16,6 @@ export const tabs = [
         { id:'scene', label:'Scene', icon:'fa-location-dot', help:'The scene of this chat, its opening and the facts you correct.' },
         { id:'characters', label:'Characters', icon:'fa-masks-theater', help:'How each character is portrayed, what they feel and how their dialogue looks.' },
         { id:'story-world', label:'Story World', icon:'fa-globe', help:'The lasting records of this story and the story so far.' },
-        { id:'facts', label:'Facts', icon:'fa-thumbtack', help:'Facts recorded for this chat.' },
-        { id:'plot', label:'Plot', icon:'fa-timeline', help:'Arcs, planted details, agendas and events.' },
         { id:'world-info', label:'World Info', icon:'fa-book', help:'World Info books for this chat and the books every chat can use.' },
     ] },
     { id:'direction', label:'Direction', short:'Direction', family:'direction', icon:'fa-compass', nested:[
@@ -56,8 +54,9 @@ const PAGES = [
     { id:'emotion', tab:'characters', label:'Emotions & relationships', help:'Review a character or relationship pair.' },
     { id:'speakers', tab:'characters', label:'Dialogue colors', help:'Review or change speaker colors.' },
     { id:'world', tab:'story-world', label:'Story World', help:'The lasting records of this chat, its entries by kind and the story so far.', aliases:'story record storage world info source book story so far chapter new chapter continue in a new chat' },
-    { id:'facts', tab:'facts', label:'Chat facts', help:'Find facts recorded for this chat.', aliases:'edit fact provenance source' },
-    { id:'plots', tab:'plot', label:'Plot records', help:'Review arcs, seeds, agendas and events.' },
+    // Facts and Plot are filters of Story World (UI design 3.5); their ids open it with the filter set (src/ui/story-world.js).
+    { id:'facts', tab:'story-world', sub:true, label:'Facts', help:'The Facts filter of Story World.', aliases:'chat facts edit fact provenance source' },
+    { id:'plots', tab:'story-world', sub:true, label:'Plot', help:'The Plot filter of Story World.', aliases:'plot records arcs threads planted details agendas events' },
     { id:'books', tab:'world-info', label:'World Info books', help:'Assign books to the chat or edit their entries.', aliases:'lorebook world info import source' },
     { id:'sets', tab:'random-sets', label:'All sets', help:'Every instruction, story event and writing style set in one list.', aliases:'random instructions random story events random writing style add set' },
     // The three editors open from the list of sets. They are pages of their own so each keeps its route state, and they stay out of the sections row.

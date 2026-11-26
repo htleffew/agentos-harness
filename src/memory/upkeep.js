@@ -443,7 +443,7 @@ export async function afterReply({ context, store, force = false } = {}) {
     const { st, memStore, settingsMod } = await host();
     const c = context || st.ctx();
     const meta = c.chatMetadata || {};
-    if (!meta[MEMORY]?.imported || !settingsMod.settings().enabled) return { skipped: true };
+    if (!meta[MEMORY]?.imported || meta[MEMORY].off === true || !settingsMod.settings().enabled) return { skipped: true };
     const s = store || memStore.memoryStore();
     const names = [st.names().char, st.names().user].filter(Boolean);
     let result = foldChat(c.chat || [], meta);
@@ -467,7 +467,8 @@ export async function afterReply({ context, store, force = false } = {}) {
     const oldest = Math.min(Infinity, ...result.flags.filter(f => f.kind !== 'event-seed').map(f => flagAt.get(f.entry)).filter(Number.isInteger).map(repliesTo));
     const due = tidyDue(state, { reply: repliesTo(chat.length - 1), oldestFlagReply: oldest, force });
     await (c.saveChat?.() ?? c.saveMetadata?.());
-    if (due) await queueTidy(c, due);
+    // "Tidy automatically" in Setup, Memory: off holds the automatic run; Tidy now (force) still runs
+    if (due && (force || settingsMod.settings().memory?.tidy !== false)) await queueTidy(c, due);
     return { merges: zero.merges.length, queued: state.queue.length, added: added.made.length, due };
 }
 

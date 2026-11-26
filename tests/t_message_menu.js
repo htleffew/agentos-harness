@@ -16,8 +16,19 @@ const reply = { name: 'Hale', is_user: false, mes: 'The gate creaks.' };
 
 test('every AI reply gets What was sent and Correct a story fact', () => {
     assert.deepEqual(entriesFor(reply).map(entry => entry.id), ['sent', 'correct']);
-    assert.deepEqual(MENU_ENTRIES.map(entry => entry.label), ['What was sent', 'Correct a story fact']);
-    assert.deepEqual(MENU_ENTRIES.map(entry => entry.icon), ['fa-receipt', 'fa-pen-to-square']);
+    assert.deepEqual(MENU_ENTRIES.map(entry => entry.label), ['What was sent', 'Correct a story fact', 'Close the chapter here', 'Memory from this reply']);
+    assert.deepEqual(MENU_ENTRIES.map(entry => entry.icon), ['fa-receipt', 'fa-pen-to-square', 'fa-flag-checkered', 'fa-database']);
+});
+
+test('MB10: a chat whose memory lives in chat data also gets Close the chapter here and Memory from this reply', () => {
+    assert.deepEqual(entriesFor(reply, { chatMemory: true }).map(entry => entry.id), ['sent', 'correct', 'close-chapter', 'memory-reply']);
+    assert.deepEqual(entriesFor(reply, { memory: true, chatMemory: true }).map(entry => entry.id), ['sent', 'close-chapter', 'memory-reply']);
+    const memory = MENU_ENTRIES.find(entry => entry.id === 'memory-reply');
+    const app = {};
+    memory.prepare(app, 5);
+    assert.deepEqual(app.worldFilter, { filter: 'all', query: '', reply: 5 });
+    assert.equal(memory.page, 'world');
+    assert.equal(typeof MENU_ENTRIES.find(entry => entry.id === 'close-chapter').run, 'function');
 });
 
 test('the player\'s messages, system notes and an extension that is off get none', () => {

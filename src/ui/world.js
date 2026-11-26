@@ -13,14 +13,52 @@ import { contextField } from './context.js';
 import { keptIn } from './sets.js';
 import { draftNewChapter, startNewChapter, draftStarterWorld, addStarterWorld, otherSummaryOn, writeChapterNow, chapterBusy } from '../chapters.js';
 import { burnedSoFar } from '../engine.js';
+import { memoryActive } from '../memory/import.js';
+import { renderStoryWorld } from './story-world.js';
+import { reviewListView } from './memory-settings.js';
+import { registerPage } from './page-registry.js';
+import { isRecallManaged, setRecallManages, bookTraits } from '../book-triggers.js';
+import { bookKind, behaviorSettings, setBookKind, receiveBookOf, setReceiveBook, createBehaviorBook, draftEntries, saveDrafts, exportBook as exportBehaviorBook, DRAFT_KINDS, DRAFT_LABELS } from '../memory/behavior-books.js';
+import { LEVELS, LEVEL_LABELS, levelOf } from '../memory/additions.js';
+import { savedLevels, setBookLevel } from '../memory/upkeep.js';
+import { bookMarkerOf } from '../memory/book-writer.js';
+import { isGeneratedName, hostGeneratedBooks, STORY_WORLD_PREFIX, TRACKER_PREFIX } from '../memory/story-world-book.js';
+import { chatBooks } from '../chat-books.js';
+import { ctx, worldNames, loadBook, inputBox } from '../st.js';
 
 const go = (app, route) => { app.wroute = route; app.resetScroll = true; app.render(); app.root?.scrollIntoView?.({ block: 'start' }); };
 
 export function renderWorld(body, app) {
     if (!app.wroute) app.wroute = { view: 'list' };
     if (!isChatOpen()) { body.appendChild(h('div', { class: 'ri-empty' }, 'Open a chat to choose or make its story world.')); return; }
+    // A chat whose memory lives in chat data gets the record browser (memory DESIGN 12.2); the old book editor stays for
+    // a chat that has not moved yet.
+    if (memoryActive()) {
+        if (app.wroute.sheet) { body.appendChild(chapterSheet(app)); return; }
+        const components = memoryComponents();
+        renderStoryWorld(body, app, { reviewView: reviewListView,
+            chapterControl: h('div', {}, components.chapters ? writeChapterControl(() => app.render()) : null, newChapterBlock(app), homeLink(app, 'catch-up', 'Catch up and rebuild a chat in Setup, Memory.')) });
+        // the records are this page's Story World entries (one home, linked from Story, World Info)
+        const records = body.querySelector('#ri-world-records');
+        if (records) home('world-entries', records);
+        // where the settings this page used to hold live now (one home each, UI design 3.4)
+        body.append(section('Related settings',
+            homeLink(app, 'next-preview', 'What the next request will carry is shown in Review, Context.'),
+            homeLink(app, ['world-budget', 'world-update'], 'The memory budgets and keeping the records up to date are set in Setup, Memory.'),
+            homeLink(app, ['world-create', 'world-export', 'world-delete'], 'The book this chat keeps its records in is created, exported or deleted in Story, World Info.'),
+            homeLink(app, 'world-orders', 'World orders are set in Direction, Random sets.')));
+        return;
+    }
     if (app.wroute.view === 'edit') return renderEdit(body, app);
     return renderList(body, app);
+}
+
+/** Continue in a new chat. Its one home is Story, Story World, The story so far. */
+function newChapterBlock(app) {
+    return home('new-chapter', h('div', { id: 'ri-new-chapter' },
+        h('div', { class: 'ri-label' }, 'Continue in a new chat'),
+        h('div', { class: 'ri-help' }, 'When a chat has grown long, carry the story into a brand new chat. One AI request writes a very detailed summary and a first message, which you can change. The new chat has its own Story World book with the approved summary and a copy of this world’s records. The active reusable books, sets, goal and pronouns carry forward.'),
+        h('div', { class: 'ri-row' }, executionAction(button('Start a new chapter in a new chat', () => { app.wroute.sheet = { kind: 'chapter', wish: '', busy: false, error: '', draft: null }; app.render(); }, { kind: 'primary' })))));
 }
 
 // ---------- the world of this chat ----------
@@ -72,10 +110,7 @@ function summarySection(app, id) {
         homeLink(app, 'catch-up', 'Catch up and rebuild a chat in Setup, Memory.'),
         id ? components.chapters && writeChapterControl(() => app.render())
             : h('div', { class: 'ri-muted' }, 'Choose or create a Story World to store chapters.'),
-        home('new-chapter', h('div', { id: 'ri-new-chapter' },
-            h('div', { class: 'ri-label' }, 'Continue in a new chat'),
-            h('div', { class: 'ri-help' }, 'When a chat has grown long, carry the story into a brand new chat. One AI request writes a very detailed summary and a first message, which you can change. The new chat has its own Story World book with the approved summary and a copy of this world’s records. The active reusable books, sets, goal and pronouns carry forward.'),
-            h('div', { class: 'ri-row' }, button('Start a new chapter in a new chat', () => { app.wroute.sheet = { kind: 'chapter', wish: '', busy: false, error: '', draft: null }; app.render(); }, { kind: 'primary' })))));
+        newChapterBlock(app));
     section_.id = 'ri-story-so-far';
     return section_;
 }
@@ -448,5 +483,136 @@ function aiBox(app, draft, ui, redraw, dirty) {
         button('Cancel', () => { ui.ai = null; redraw(); }, { kind: 'ghost', disabled: ai.busy })));
     return box;
 }
+// ---------- Story, World Info: every book with its kind and two switches (memory DESIGN 12.2, 2.2, 7.4, 7.6) ----------
+
+export const BOOK_KIND_LABELS = Object.freeze({ reference: 'Reference', behavior: 'Behavior', generated: 'Generated', 'carry-over': 'Carry-over' });
+
+/**
+ * The kind a book shows: Generated for the Story World and Tracker books the extension writes, Carry-over for the book
+ * Continue in a new chat makes, Behavior for a book whose entries roll chance, use inclusion groups or timing (or that
+ * you set to Behavior), Reference otherwise. Recall may manage only a Reference or Carry-over book.
+ */
+export function bookRow(name, data, { kinds = {}, managed = () => false, saved = {}, roles = [] } = {}) {
+    const marker = bookMarkerOf(data);
+    const kind = marker?.kind === 'carry-over' ? 'carry-over' : marker || isGeneratedName(name) ? 'generated' : bookKind(name, data, kinds);
+    const recallAllowed = kind === 'reference' || kind === 'carry-over';
+    return { name, kind, label: BOOK_KIND_LABELS[kind], traits: bookTraits(Object.values(data?.entries || {})), recall: recallAllowed && managed(name), recallAllowed,
+        level: kind === 'generated' ? 'off' : levelOf(name, { saved, roles }), levelAllowed: kind !== 'generated', set: !!kinds[name] };
+}
+
+function behaviorTools(app, books) {
+    const ui = (app.behaviorUi ||= { book: '', kind: 'event', description: '', busy: false, result: null, keep: [], error: '' });
+    const behavior = books.filter(b => b.kind === 'behavior');
+    const meta = ctx().chatMetadata || {};
+    const receive = receiveBookOf(meta);
+    const options = [{ value: '', label: 'No book receives story events' }, ...behavior.map(b => ({ value: b.name, label: b.name }))];
+    const receiveField = field('Receive story events', 'One behavior book per chat takes the story events chapters suggest. Each one waits on the review list in Setup, Memory first.',
+        select(options, receive, async v => { await setReceiveBook(v); app.render(); }, { 'aria-label': 'Receive story events', disabled: !isChatOpen() }));
+    const create = button('New behavior book', async () => {
+        const name = await inputBox('Name for the new behavior book:', `${ctx().name2 || 'Story'} events`);
+        if (!name) return;
+        try { const made = await createBehaviorBook(name); toast('success', `"${made}" was made${receiveBookOf(ctx().chatMetadata) === made ? ' and receives story events in this chat' : ''}.`); }
+        catch (error) { toast('error', error.message); }
+        app.render();
+    });
+    const target = ui.book || receive || behavior[0]?.name || '';
+    const draft = executionAction(button(ui.busy ? 'Drafting...' : 'Draft entries', async () => {
+        if (ui.busy) return;
+        ui.busy = true; ui.error = ''; app.render();
+        try {
+            const res = await draftEntries(ui.description, { kind: ui.kind });
+            if (!res.ok) ui.error = res.reason || 'No draft came back.';
+            else { ui.result = res; ui.keep = res.items.map(() => true); }
+        } catch (error) { ui.error = error.message; }
+        ui.busy = false; app.render();
+    }, { kind: 'primary', disabled: ui.busy || !target }), '1 model call');
+    const review = ui.result && h('div', { class: 'ri-card ri-tight', 'data-ri-drafts': '' },
+        h('div', { class: 'ri-label' }, `Draft entries for "${target}"`),
+        h('ul', { class: 'ri-chat-books' }, ui.result.items.map((item, i) => {
+            const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: ui.keep[i], onchange: () => { ui.keep[i] = tick.checked; } });
+            const p = ui.result.preview[i] || {};
+            return h('li', {}, h('label', { class: 'ri-row ri-row-tight' }, tick, h('strong', {}, item.title || p.comment || `Entry ${i + 1}`)),
+                h('div', { class: 'ri-world-line' }, item.content || p.content || ''),
+                h('div', { class: 'ri-chips' }, chip(DRAFT_LABELS[item.kind] || item.kind), p.probability < 100 ? chip(`${p.probability} percent`) : null, p.group ? chip(`Group ${p.group}`) : null, item.once ? chip('Plays once') : null));
+        })),
+        ui.result.problems?.length ? h('p', { class: 'ri-note ri-note-warn' }, ui.result.problems.join(' ')) : null,
+        h('div', { class: 'ri-row' },
+            button('Add the ticked entries', async () => {
+                try { const uids = await saveDrafts(target, ui.result.items.filter((_, i) => ui.keep[i])); toast('success', `${uids.length} ${uids.length === 1 ? 'entry was' : 'entries were'} added to "${target}".`); ui.result = null; }
+                catch (error) { toast('error', error.message); }
+                app.render();
+            }, { kind: 'primary' }),
+            button('Drop the draft', () => { ui.result = null; app.render(); }, { kind: 'ghost' })));
+    return h('div', { id: 'ri-behavior-books' },
+        receiveField,
+        h('div', { class: 'ri-row' }, create),
+        h('details', { class: 'ri-card ri-tight', open: !!ui.result || !!ui.error },
+            h('summary', {}, 'Draft entries from a description'),
+            field('Book', '', select(behavior.map(b => ({ value: b.name, label: b.name })), target, v => { ui.book = v; }, { 'aria-label': 'Book for the drafts' })),
+            field('Kind', '', select(DRAFT_KINDS.map(k => ({ value: k, label: DRAFT_LABELS[k] })), ui.kind, v => { ui.kind = v; }, { 'aria-label': 'Kind of entries' })),
+            field('What the entries should do', 'For example: "rival smugglers turn up at the docks now and then".', textArea(ui.description, v => { ui.description = v; }, { rows: 3, 'aria-label': 'What the entries should do' })),
+            ui.error ? h('p', { class: 'ri-note ri-note-warn' }, ui.error) : null,
+            h('div', { class: 'ri-row' }, draft),
+            review || null));
+}
+
+function bookCard(app, row, refresh) {
+    const recall = toggle(row.recall, v => { setRecallManages(row.name, v); refresh(); }, `Recall manages ${row.name}`);
+    if (!row.recallAllowed) recall.disabled = true;
+    const level = select(LEVELS.map(l => ({ value: l, label: LEVEL_LABELS[l] })), row.level, async v => { await setBookLevel(row.name, v); refresh(); }, { 'aria-label': `Story may add to ${row.name}`, disabled: !row.levelAllowed });
+    const kindSwitch = row.kind === 'reference' || row.kind === 'behavior'
+        ? select([{ value: 'reference', label: 'Reference' }, { value: 'behavior', label: 'Behavior' }], row.kind, async v => { await setBookKind(row.name, v); refresh(); }, { 'aria-label': `Kind of ${row.name}` }) : chip(row.label);
+    const t = row.traits;
+    return h('li', { class: 'ri-card ri-tight', 'data-ri-book': row.name, 'data-ri-book-kind': row.kind },
+        h('div', { class: 'ri-card-top' }, h('strong', {}, row.name), chip(row.label, row.kind === 'behavior' ? 'ri-chip-group' : '')),
+        h('div', { class: 'ri-help' }, `${t.entries} ${t.entries === 1 ? 'entry' : 'entries'}${t.chance ? `, ${t.chance} roll a chance` : ''}${t.groups ? `, ${t.groups} in groups` : ''}${t.timing ? `, ${t.timing} timed` : ''}${t.constant ? `, ${t.constant} constant` : ''}.`),
+        field('Kind', '', kindSwitch),
+        h('label', { class: 'ri-row ri-row-tight' }, recall, h('span', {}, 'Recall manages this book')),
+        !row.recallAllowed ? h('p', { class: 'ri-help' }, row.kind === 'behavior' ? 'Behavior entries keep their chance, groups and timing with SillyTavern.' : 'Recall already weighs every record this book holds.') : null,
+        field('Story may add to this book', row.levelAllowed ? '' : 'The extension writes this book from the records.', level),
+        h('div', { class: 'ri-row' }, button('Export', async () => {
+            try { await exportBehaviorBook(row.name); } catch (error) { toast('error', error.message); }
+        }, { kind: 'ghost', title: 'Download the book as a standard World Info file.' })));
+}
+
+/** Story, World Info, Books and memory: every World Info book, its kind and both switches, behavior books, generated books. */
+export function renderWorldInfoMemory(body, app) {
+    const holder = h('div', { 'data-ri-books-memory': '' }, h('p', { class: 'ri-muted' }, 'Reading the books...'));
+    const generated = h('div', { id: 'ri-generated-books' });
+    body.append(h('p', { class: 'ri-help' }, 'Each book with its kind. Recall manages a Reference book by sending the entries that fire inside the recall block. Story may add keywords, lines or entries to a book of yours; each addition is logged with Undo.'),
+        holder, section('Generated books', h('p', { class: 'ri-help' }, `The extension writes the Story World book ("${STORY_WORLD_PREFIX}" and the chat name) and the Tracker book ("${TRACKER_PREFIX}" and the chat name) of each chat from the records. A book whose chat is gone can be deleted here.`), generated));
+    const refresh = () => app.render();
+    (async () => {
+        const kinds = (await behaviorSettings()).kinds;
+        const saved = await savedLevels();
+        const roles = new Map((isChatOpen() ? chatBooks() : []).map(b => [b.name, b.roles]));
+        const rows = [];
+        for (const name of worldNames()) {
+            const data = await loadBook(name).catch(() => null);
+            if (!data?.entries) continue;
+            rows.push(bookRow(name, data, { kinds, managed: isRecallManaged, saved, roles: roles.get(name) || [] }));
+        }
+        const order = { reference: 0, 'carry-over': 1, behavior: 2, generated: 3 };
+        rows.sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name));
+        holder.replaceChildren(
+            section(`Books (${rows.length})`, rows.length ? h('ul', { class: 'ri-chat-books ri-book-kinds' }, rows.map(row => bookCard(app, row, refresh))) : h('p', { class: 'ri-muted' }, 'No World Info books yet.')),
+            section('Behavior books', behaviorTools(app, rows)));
+        const list = await hostGeneratedBooks().list().catch(() => []);
+        generated.replaceChildren(list.length ? h('ul', { class: 'ri-chat-books' }, list.map(b => h('li', { class: 'ri-row ri-row-tight', 'data-ri-generated': b.name },
+            h('span', {}, b.name), chip(b.kind === 'tracker' ? 'Tracker book' : 'Story World'), b.chatGone ? chip('Its chat is gone', 'ri-chip-warn') : null,
+            b.chatGone ? button('Delete', async () => {
+                if (!await confirmBox(`Delete "${b.name}"? Its chat is gone. This cannot be undone.`)) return;
+                const out = await hostGeneratedBooks().remove(b.name);
+                toast(out.deleted ? 'success' : 'error', out.deleted ? `"${b.name}" was deleted.` : out.reason);
+                refresh();
+            }, { kind: 'danger' }) : null))) : h('p', { class: 'ri-muted' }, 'No generated books yet.'));
+    })().catch(error => holder.replaceChildren(h('p', { class: 'ri-note ri-note-warn' }, `The books could not be read: ${error.message}`)));
+}
+
+registerPage({ id: 'books-memory', group: 'story', tab: 'world-info', subgroup: 'World Info', label: 'Books and memory', withoutChat: true, order: 0,
+    help: 'Every World Info book with its kind, "Recall manages this book", "Story may add to this book", behavior books and generated books.',
+    aliases: 'recall manages story may add behavior book reference generated carry-over receive story events draft entries export',
+    render: (body, app) => renderWorldInfoMemory(body, app) });
+
 import { executionAction, functionExecution } from './execution.js';
 import { executionReceipt } from '../execution.js';

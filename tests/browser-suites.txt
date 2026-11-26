@@ -63,3 +63,7 @@ t_wrap_buttons
 t_inline_direction_host
 t_touch_layout
 t_tracker_vars
+t_story_rules_host
+t_memory_offers_host
+t_memory_ui
+t_memory_followups

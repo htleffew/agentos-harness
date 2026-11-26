@@ -174,12 +174,12 @@ test('replies with no change file nothing: the call\'s answer and the restatemen
     assert.match(repeat.dropped[0].why, /repeats the record/);
 });
 
-test('dialogue-only claims file with the speaker as source', () => {
+test('a spoken claim files as its plain text with the speaker as source (MB18)', () => {
     const prose = '"Darius had the Saltmar road watched," Hale said, and shrugged. Heather looked at the candle.';
     const res = V.checkCapture({ decisions: { durable_change: true }, ops: [op({ op: 'add', id: 'saltmar-watch', subject: 'Darius', text: 'Darius had the Saltmar road watched.', quote: 'Darius had the Saltmar road watched' })] }, { prose, mark: 'm', swipe: 0 }, { records: [] });
     const rec = res.inputs[0].record;
     assert.deepEqual(rec.source, { speaker: 'Hale' });
-    assert.equal(rec.text, 'Hale said that Darius had the Saltmar road watched.');
+    assert.equal(rec.text, 'Darius had the Saltmar road watched.');
     const narrated = V.checkCapture({ decisions: { durable_change: true }, ops: [op({ op: 'add', id: 'candle', subject: 'Heather', text: 'Heather looked at the candle.', quote: 'Heather looked at the candle' })] }, { prose, mark: 'm', swipe: 0 }, { records: [] });
     assert.equal(narrated.inputs[0].record.source, undefined);
     out.dialogue = { text: rec.text, source: rec.source };

@@ -7,9 +7,11 @@
 //   4. An entry aimed at a locked record becomes a review flag.
 //   5. An add identical to a current record is dropped; one that only resembles one is held as a suspect.
 // Then the no-change filter: an answer that says nothing lasting changed files nothing, and an op that only repeats what a
-// record already holds is dropped. A claim found only inside a character's spoken line is filed as that speaker's statement.
+// record already holds is dropped. A claim files the same way spoken or narrated; a spoken one keeps its speaker as the source.
 // Every record this writes keeps the report register (DECISIONS, 23 November): an op whose text carries mood language outside
 // a quoted line is dropped, except on the Emotion and Relationship kinds, which hold that state by design.
+
+import { isFirstFiling, readTemperament } from './temperament.js';
 
 export const KINDS = Object.freeze(['fact', 'person', 'trait', 'place', 'item', 'secret', 'relationship', 'emotion', 'reputation', 'achievement', 'thread']);
 export const THREAD_TYPES = Object.freeze(['Open', 'Plotline', 'Track', 'Seed', 'Detail', 'Pending', 'Plan', 'Elsewhere']);
@@ -146,7 +148,7 @@ const MOOD = ['terrified', 'terror', 'afraid', 'fear', 'feared', 'fearful', 'dre
     'heart', 'tears', 'tearful', 'wept', 'sobbed', 'longing', 'yearned', 'yearning', 'ached', 'aching', 'felt', 'feeling', 'feelings', 'hoped', 'hopeful', 'wished',
     'loved', 'adored', 'cherished', 'hated', 'despair', 'desperate', 'desperately', 'grief', 'grieved', 'sorrow', 'sorrowful', 'joy', 'joyful', 'happy', 'sad', 'sadly', 'bitterly',
     'angry', 'furious', 'rage', 'resentful', 'resentment', 'jealous', 'ashamed', 'shame', 'guilt', 'guilty', 'lonely', 'loneliness', 'miserable', 'anguish', 'anguished', 'haunted',
-    'trembling', 'trembled', 'shuddered', 'wondered', 'thought', 'believed', 'sensed', 'suspected', 'realized', 'dreamed', 'imagined', 'inwardly', 'mood', 'atmosphere', 'ominous', 'foreboding', 'uneasy', 'uneasily', 'bittersweet'];
+    'scared', 'frightened', 'upset', 'excited', 'embarrassed', 'trembling', 'trembled', 'shuddered', 'wondered', 'thought', 'believed', 'sensed', 'suspected', 'realized', 'dreamed', 'imagined', 'inwardly', 'mood', 'atmosphere', 'ominous', 'foreboding', 'uneasy', 'uneasily', 'bittersweet'];
 const MOOD_RE = new RegExp(`\\b(${MOOD.join('|')})\\b`, 'i');
 const unquoted = text => String(text ?? '').replace(/"[^"]*"/g, ' ').replace(/“[^”]*”/g, ' ');
 /** Mood words outside quotation marks, or ''. */
@@ -189,19 +191,31 @@ export function numbersNew(text, texts) {
 
 const clip = (text, max) => { const v = String(text ?? '').replace(/\s+/g, ' ').trim(); return v.length <= max ? v : (v.slice(0, max).replace(/\s+\S*$/, '') || v.slice(0, max)); };
 const slug = text => bare(text).split(' ').filter(Boolean).slice(0, 6).join('-').slice(0, 60) || 'record';
-// Lower the first letter only when the sentence opens with a common word, so a name keeps its capital.
-const lcFirst = text => text && /^(?:The|A|An|He|She|They|It|There|This|That|His|Her|Their|Its|We|You|Every|No|One|Two|Three)\b/.test(text) ? text[0].toLowerCase() + text.slice(1) : text;
 const inForce = rec => rec && !['retired', 'replaced', 'merged', 'suspect'].includes(rec.status);
 const sameRecord = (a, b) => fold(a.kind) === fold(b.kind) && fold(a.subject) === fold(b.subject) && fold(a.attribute || '') === fold(b.attribute || '') && bare(a.text) === bare(b.text);
 const resembles = (a, b) => fold(a.kind) === fold(b.kind) && fold(a.subject) === fold(b.subject)
     && ((a.attribute && fold(a.attribute) === fold(b.attribute || '')) || dice(a.text, b.text) >= diceNearDuplicate);
 
 /** The record an op carries, in the shape of DESIGN 3.2 and the kinds of 3.3. */
-export function recordOf(op, { id }) {
+export function recordOf(op, { id, base = null }) {
     const kind = KINDS.includes(op.kind) ? op.kind : 'fact';
     const rec = { id, kind, subject: clip(op.subject, 120), text: clip(op.text, TEXT_MAX), status: 'current', importance: Math.max(1, Math.min(10, Math.round(Number(op.importance) || 5))) };
     if (op.attribute) rec.attribute = clip(op.attribute, 60);
-    if (kind === 'thread') { rec.threadType = THREAD_TYPES.includes(op.thread_type) ? op.thread_type : 'Open'; if (op.status === 'done' || op.status === 'failed') rec.status = op.status; }
+    if (kind === 'thread') {
+        rec.threadType = THREAD_TYPES.includes(op.thread_type) ? op.thread_type : (THREAD_TYPES.includes(base?.threadType) ? base.threadType : 'Open');
+        if (op.status === 'done' || op.status === 'failed') rec.status = op.status;
+        // B49: the line that ends the thread, and whether the story has set it aside. A revise keeps what it does not name.
+        const ends = clip(op.ends_when ?? op.endsWhen ?? base?.endsWhen ?? '', 160);
+        if (ends) rec.endsWhen = ends;
+        if (op.thread_state === 'paused') rec.paused = true;
+        else if (op.thread_state === 'open') { if (base?.paused) rec.paused = false; }
+        else if (base?.paused) rec.paused = true;
+    }
+    // B48: a person's temperament is read on the first filing only; a revise or supersede carries the filed one forward.
+    if (kind === 'person') {
+        const filed = readTemperament(base?.temperament) || (op.firstFiling ? readTemperament(op.temperament) : null);
+        if (filed) rec.temperament = filed;
+    }
     if (Array.isArray(op.holders) && op.holders.length) rec.holders = op.holders.map(h => clip(h, 80)).filter(Boolean).slice(0, 8);
     if (Array.isArray(op.aliases) && op.aliases.length) rec.aliases = op.aliases.map(a => clip(a, 80)).filter(Boolean).slice(0, 8);
     if (op.outcome) rec.outcome = clip(op.outcome, TEXT_MAX);
@@ -248,14 +262,10 @@ export function checkCapture(answer, exchange, { records = [], route = '', model
         // Register: no mood outside a quoted line, except where the kind holds feelings by design.
         const mood = !FEELING_KINDS.has(op.kind) && moodWord(op.text);
         if (mood) { dropped.push({ op, why: `mood language in a record ("${mood}")` }); continue; }
-        // A claim made only in a spoken line is filed as what that speaker said.
+        // MB18: a claim files the same way spoken or narrated; the speaker stays as the source beside the line (the quote).
         const claim = clip(op.text, TEXT_MAX);
-        let text = claim;
-        let speaker = '';
-        if (loc.spoken && !['emotion', 'relationship', 'person'].includes(op.kind)) {
-            speaker = clip(op.speaker || loc.speaker, 80);
-            if (speaker && !new RegExp(`^${speaker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^.]{0,40}\\b(said|says|told|reported|claimed|stated|asked)\\b`, 'i').test(text)) text = clip(`${speaker} said that ${lcFirst(text.replace(/\.$/, ''))}.`, TEXT_MAX);
-        }
+        const text = claim;
+        const speaker = loc.spoken && !['emotion', 'relationship', 'person'].includes(op.kind) ? clip(op.speaker || loc.speaker, 80) : '';
         const targets = [].concat(op.target || []).map(String).filter(Boolean);
         // A complete or retire that names its record only in `id` acts on that record.
         if (!targets.length && ['retire', 'complete'].includes(op.op) && inForce(byId.get(String(op.id || '')))) targets.push(String(op.id));
@@ -279,7 +289,8 @@ export function checkCapture(answer, exchange, { records = [], route = '', model
             } else if (missing.length) { dropped.push({ op, why: `its target is not in force (${missing.join(', ')})` }); continue; }
         }
         const id = op.op === 'add' ? uniqueId(op.id || slug(`${op.subject} ${op.text}`), taken) : String(op.op === 'revise' ? (targets[0] || op.id) : op.id || slug(`${op.subject} ${op.text}`));
-        const record = op.op === 'retire' ? null : recordOf({ ...op, text }, { id });
+        const base = ['revise', 'supersede'].includes(op.op) ? byId.get(op.op === 'revise' ? id : targets[0]) : null;
+        const record = op.op === 'retire' ? null : recordOf({ ...op, text, firstFiling: isFirstFiling(op, records) }, { id, base });
         if (record && speaker) record.source = { speaker };
         const target = op.op === 'revise' ? [id] : op.op === 'add' ? [] : targets;
         // 4. Locks.
@@ -291,7 +302,9 @@ export function checkCapture(answer, exchange, { records = [], route = '', model
         // The no-change filter: a revise or complete that only repeats its record, and an add that repeats a current record.
         if (op.op === 'revise') {
             const old = byId.get(id);
-            if (old && restates(claim, [old.text || ''])) { dropped.push({ op, why: 'it repeats the record it revises' }); continue; }
+            // A thread whose "ends when" line or paused state changes is a change even when its text repeats.
+            const threadChange = old?.kind === 'thread' && (record.endsWhen !== old.endsWhen || !!record.paused !== !!old.paused);
+            if (old && !threadChange && restates(claim, [old.text || ''])) { dropped.push({ op, why: 'it repeats the record it revises' }); continue; }
         }
         if (op.op === 'add') {
             // 5. Identical adds are dropped; resemblance makes a suspect, held out of recall until the next call rules.

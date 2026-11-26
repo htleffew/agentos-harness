@@ -3,6 +3,8 @@
 import { ctx, KEY, names, isReply } from './st.js';
 import { settings } from './store.js';
 import { DEFAULT_WRITER_RULES, DEFAULT_WORDS } from './defaults.js';
+import { isPaused, endsWhenOf } from './memory/thread-state.js';
+import { ruleHeld } from './story-rules.js';
 
 export { DEFAULT_WRITER_RULES, DEFAULT_WORDS };
 
@@ -137,7 +139,7 @@ const short = (t, max = 220) => { const s = clean(t).replace(/[.]+$/, ''); retur
 export function worldOffers(list, present, meta) {
     const here = present.map(n => clean(n).toLowerCase()).filter(Boolean);
     const isHere = t => { const s = clean(t).toLowerCase(); return !!s && here.some(n => s.includes(n) || n.includes(s)); };
-    const on = list.filter(w => w.on);
+    const on = list.filter(w => w.on && !isPaused(w));
     const age = w => (!w.at || w.at.chat !== meta.chat ? Infinity : meta.n - w.at.n);
     const threads = on.filter(w => w.kind === 'thread' && w.status !== 'done').sort((a, b) => age(b) - age(a) || a.uid - b.uid)
         .map(w => ({ uid: w.uid, name: w.name, text: `the open matter "${w.name}"${clean(w.fields.open) ? ` (${short(w.fields.open)})` : ''}` }));
@@ -148,8 +150,36 @@ export function worldOffers(list, present, meta) {
     return { threads, secrets, plans };
 }
 
+const MEMORY_THREADS = ['arc', 'agenda', 'event', 'payoff'];
+const dataOf = w => { try { return JSON.parse(w?.fields?.data || 'null') || {}; } catch { return {}; } };
+
+/**
+ * worldOffers for a chat whose memory lives in chat data. list: the Story World views of the records in force, the same
+ * rows recall reads (src/memory/import.js viewOfRecord). Imported entries keep today's kinds and are read as worldOffers
+ * reads them; capture's records are read from their data: threads as arc, agenda, event and payoff (seed), secrets as
+ * private knowledge with holders, plans as agenda records of someone present.
+ */
+export function memoryOffers(list, present, meta) {
+    const legacy = worldOffers(list, present, meta);
+    const here = present.map(n => clean(n).toLowerCase()).filter(Boolean);
+    const isHere = t => { const s = clean(t).toLowerCase(); return !!s && here.some(n => s.includes(n) || n.includes(s)); };
+    const rows = list.filter(w => w.on && !isPaused(w) && (MEMORY_THREADS.includes(w.kind) || w.kind === 'knowledge')).map(w => ({ w, d: dataOf(w) }))
+        .filter(({ d }) => clean(d.text) && d.status !== 'done');
+    const label = ({ w, d }) => clean(d.subject) || w.name;
+    const threads = rows.filter(({ w }) => MEMORY_THREADS.includes(w.kind)).sort((a, b) => a.w.uid - b.w.uid).map(r => {
+        const ends = endsWhenOf(r.w);
+        return { uid: r.w.uid, name: label(r), text: `the open matter (${short(r.d.text)}${ends ? `; it ends when ${ends.replace(/^when\s+/i, '')}` : ''})` };
+    });
+    const secrets = rows.filter(({ w, d }) => w.kind === 'knowledge' && d.private !== false).map(r => ({ r, holder: [].concat(r.d.holders || r.d.subject || []).map(clean).find(isHere) }))
+        .filter(x => x.holder).map(({ r, holder }) => ({ uid: r.w.uid, name: label(r), text: `${holder}'s secret (${short(r.d.text)})` }));
+    const plans = rows.filter(({ w, d }) => w.kind === 'agenda' && isHere(d.subject)).map(r => ({ uid: r.w.uid, name: label(r), text: `${clean(r.d.subject)}'s plan (${short(r.d.text)})` }));
+    return { threads: [...legacy.threads, ...threads], secrets: [...legacy.secrets, ...secrets], plans: [...legacy.plans, ...plans] };
+}
+
 /** Can this item be used now? scene: { count, threads, secrets, plans }. */
 export function itemFits(it, scene) {
+    // A story rule holds this item out of rolls until it fires (B41, src/story-rules.js).
+    if (ruleHeld(it)) return false;
     if (!scene) return true;
     if (Number(it.min) > 0 && (scene.count || 0) < Number(it.min)) return false;
     if (it.need === 'thread') return (scene.threads || []).length > 0;

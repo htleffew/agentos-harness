@@ -1107,6 +1107,9 @@ function closeRules() {
         ceilingShare: Number(o.ceilingShare) > 0 && Number(o.ceilingShare) < 1 ? Number(o.ceilingShare) : SF.CLOSE_DEFAULTS.ceilingShare };
 }
 
+/** Newest chapters sent in full (memory DESIGN 12.1): 1, 2 or 3, set in Setup, Memory; 2 by default. */
+export const fullChapters = () => ([1, 2, 3].includes(Number(settings().summary?.fullChapters)) ? Number(settings().summary.fullChapters) : 2);
+
 /** The chat model's size class (5.3): your choice in Setup, Memory, or the context length SillyTavern is set to. */
 export function chapterSize() {
     const manual = settings().summary?.size;
@@ -1159,13 +1162,13 @@ export function chapterState({ forRequest = '' } = {}) {
     if (/^(swipe|regenerate)$/.test(forRequest)) chapters = chapters.map(ch => (ch.last >= chat.length - 1 ? { ...ch, valid: false } : ch));
     const size = chapterSize();
     const condensed = result.byId.get('condensed') || null;
-    const view = SF.chapterView(chapters, { condensed: condensed && !['retired', 'replaced', 'merged'].includes(condensed.status) ? condensed : null, cap: size.view });
+    const view = SF.chapterView(chapters, { condensed: condensed && !['retired', 'replaced', 'merged'].includes(condensed.status) ? condensed : null, cap: size.view, full: fullChapters() });
     return { chat, result, chapters, covered: SF.coverage(chapters), view, size, condensed, failures: [...(metaMemory()?.chapterFailures || [])] };
 }
 
 /** The generate interceptor's view of this chat, or null when chapters do not apply. */
 function assemblyFor({ type }) {
-    if (!memoryActive() || !memoryComponents().chapters) return null;
+    if (!memoryActive() || !memoryComponents().chapters || metaMemory()?.off === true) return null;
     const state = chapterState({ forRequest: String(type || '') });
     if (!state.view.text && !state.covered.size) return null;
     return { covered: state.covered, view: state.view.text, chapters: state.view.ids, hide: memoryComponents().hide, apply: SF.leaveOut };

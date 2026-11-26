@@ -1,5 +1,6 @@
 import { freshGuidance, freshHistoryCapability, guidedContext, preserveContinuationPrefix, projectGuidedRequest, validateGuidedTarget } from './guided-context.js';
 import { bindInlineNotes, bindReplayedNotes, takeInlineNotes } from './inline-direction.js';
+import { takeSceneMarkers } from './scene-markers.js';
 import { activeQuickPlan, applyQuickPrompt, applyQuickText, bindQuickReply, failQuickReply, finishQuickReply, hasQuickEvidence, observeQuickTextAnchor, reconcileQuickDelivery, splitQuickEvidence, startQuickReply, stripStoredQuickDirections, stripStoredQuickText } from './quick-action-chat.js';
 import { automaticAllowed, executionPreview, executionScope, runAdditional } from './execution.js';
 import { flaggedNpcNames } from './npc-names.js';
@@ -59,6 +60,9 @@ function sayUserLineOnce(items) {
 }
 
 let gen = null;            // the generation in progress: { type, dryRun, skip, handled }
+// The generation in progress when SillyTavern last loaded World Info entries for a scan. A token-counting dry run that
+// loaded its entries before a reply started can finish its scan after the reply has begun; that scan is not the reply's.
+let scanTurn = null;
 let pending = null;        // what was sent for the reply being written: { items, type }
 let guided = null;         // one in-flight guided swipe, never a standing prompt
 let guidedPreparing = false;
@@ -263,6 +267,7 @@ async function loadMemory(lore, arrays, isCurrent) {
 }
 
 async function onEntriesLoaded(lore) {
+    scanTurn = gen;
     try {
         const st = settings();
         if (!st.enabled || !lore) return;
@@ -623,7 +628,7 @@ function reapply(result, args) {
 function onScanDone(args) {
     try {
         const st = settings();
-        if (!st.enabled || !gen) return;
+        if (!st.enabled || !gen || scanTurn !== gen) return;
         if (Date.now() - gen.started > 15 * 60 * 1000) { gen = null; return; } // a reply that never finished
         if (args?.state?.next) return; // more passes follow; work on the final result only
         const map = args?.activated?.entries;
@@ -1711,6 +1716,7 @@ export function init() {
             pending = null;
             if (enabledV10()) gen.check = gen.guided?.check ?? (['swipe','regenerate','continue'].includes(gen.type) ? lastRecord()?.v10Check : prefs()?.check);
         }
+        return takeSceneMarkers(gen, type, opts);
     });
     on('GENERATION_AFTER_COMMANDS', async (_type, _opts, dryRun) => {
         if (dryRun || !settings().enabled) return;

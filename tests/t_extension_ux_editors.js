@@ -76,16 +76,21 @@ const L = require('./lib.js');
 
         await scope('Story');
         await click('Chat facts');
+        // Story, Facts is the Facts filter of Story World in a chat whose memory lives in chat data (fixadd): Add record
+        // files her record there, with the same form the old Chat Facts page had.
+        await body.locator('[data-ri-filter="facts"][aria-pressed="true"]').waitFor();
         await click('Add record',body);
+        await body.getByText('This chat · Saves to the current story records.').waitFor();
         await body.getByLabel('Record text').fill('The eastern gate is locked.');
         await click('Save record',body);
-        await body.getByText(/^Fact · the-eastern-gate-is-locked/i).waitFor();
-        const finder=body.getByRole('searchbox',{name:'Search chat facts'});
+        const gate=body.locator('[data-ri-records="facts"] [data-ri-record]').filter({hasText:'The eastern gate is locked.'});
+        await gate.waitFor();
+        assert.match(await gate.innerText(),/Locked/i);
+        const finder=body.getByRole('searchbox',{name:'Search the records'});
         await finder.fill('purple hat');
-        await body.getByText('No records match the search.').waitFor();
+        await body.getByText('No record matches the search.').waitFor();
         await finder.fill('eastern gate');
-        await body.getByText(/^Fact · the-eastern-gate-is-locked/i).tap();
-        await body.getByText('This chat', {exact:false}).first().waitFor();
+        await gate.waitFor();
         evidence.push({case:'local record creation and filtering',filter:'eastern gate'});
 
         await page.evaluate(async base=>{

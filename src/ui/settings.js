@@ -12,9 +12,9 @@ import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '.
 import { refreshUnderReplies } from './sent.js';
 import { enabledV10 } from '../v10.js';
 import { registerPage } from './page-registry.js';
-import { renderMemory } from './context-dashboard.js';
 import { worldOrdersSection } from './world.js';
 import { eventTagsSection } from './state.js';
+import { sceneMarkersSection } from './scene-markers.js';
 
 /** Pronouns. Their one home is Story, Characters (top). */
 export function pronounsSection(app) {
@@ -307,11 +307,6 @@ setTreeHints({ openingFirst: () => isChatOpen() && (ctx().chat || []).length <= 
 const fold = (title, node, { id, open = false } = {}) => h('details', { class: 'ri-card ri-tight', id, open },
     h('summary', {}, title), ...[...node.children].slice(1));
 
-registerPage({ id: 'memory', group: 'setup', tab: 'memory', label: 'Memory', withoutChat: true,
-    help: 'How story memory is kept, recalled and budgeted.',
-    aliases: 'budget recall chapter summary catch up rebuild upkeep story notes editable replies',
-    render: (body, app) => renderMemory(body, app) });
-
 registerPage({ id: 'set-rules', group: 'direction', tab: 'random-sets', label: 'Sets and pacing', withoutChat: true,
     help: 'How often new things start, where sets are kept, follow-through checks, world orders and tags to skip.',
     aliases: 'pacing storage where sets are kept follow-through check world orders tags to skip one new thing per reply phases',
@@ -319,6 +314,7 @@ registerPage({ id: 'set-rules', group: 'direction', tab: 'random-sets', label: '
         body.append(section('New things in one reply', perReplyControl(app)),
             home('set-storage', fold('Where your sets are kept', whereSection(app), { id: 'ri-set-storage' })),
             home('pacing', fold('Pacing', paceSection(app), { id: 'ri-pacing' })),
+            sceneMarkersSection(),
             home('follow-through', fold('Follow-through checks', followThroughSection(app), { id: 'ri-follow-through' })),
             worldOrdersSection(app),
             eventTagsSection(() => app.render()));
