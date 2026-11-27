@@ -1,4 +1,4 @@
-import { memoryOnly, memoryComponents } from '../components.js';
+import { memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
 import { h, button, field, section, select, toggle } from './dom.js';
 import { settings, saveSettings } from '../store.js';
@@ -143,7 +143,7 @@ function historyTools(app, components) {
  */
 export function renderMemory(body, app) {
     const st = settings(), o = st.summary;
-    const memory = memoryOnly(), components = memoryComponents();
+    const components = memoryComponents();
     const save = () => { saveSettings(); setTimeout(() => app.render(), 0); };
     const choose = (value, set) => select([{value:'on', label:'On'}, {value:'off', label:'Off'}], value ? 'on' : 'off', v => { set(v === 'on'); save(); });
     const numeric = (label, value, min, max, unit, changed, help) => {
@@ -177,7 +177,7 @@ export function renderMemory(body, app) {
 
     const recall = section('Recall',
         h('p',{class:'ri-help'},'Memory switches apply to this chat; thresholds, history windows and budgets are extension-wide defaults.'),
-        isChatOpen() && !chatWorld() && !memory && h('div',{class:'ri-note ri-note-warn'},
+        isChatOpen() && !chatWorld() && h('div',{class:'ri-note ri-note-warn'},
             'Chapter settings are saved. Automatic summaries and hiding are paused until this chat has a Story World.',
             button('Open Story World, World Info',()=>app.openPage('books',{anchor:'#ri-world-create'}),{kind:'ghost'})),
         otherSummaryOn() && components.chapters && h('p',{class:'ri-note ri-note-warn'},'SillyTavern’s own Summarize also adds a summary. Choose the summary source in Setup.'),
@@ -206,14 +206,14 @@ export function renderMemory(body, app) {
     const upkeep = section('Upkeep',
         ...worldUpkeepFields(app),
         worldUpdatePrompts(),
-        !memory && field('Earlier replies kept editable',
+        field('Earlier replies kept editable',
             editableReplySlots() ? `The current reply is kept separately · ${editableReplySlots()} total editable slots. The Story World book holds filed facts. Recent changes appear in reply cards and extension recall.`
                 : 'Automatic Story World changes file as soon as a reply is accepted.',
             select([{value:'-1',label:'File immediately'},...Array.from({length:21},(_,n)=>({value:String(n),label:String(n)}))],
                 String(editableReplySlots()-1), value=>{st.world.editableReplies=Number(value);save();},
                 {'aria-label':'Earlier replies kept editable'})),
         h('details',{class:'ri-card ri-tight'},h('summary',{},'Chapter organization'),
-            !memory && field('Move finished records into chapters','Keeps completed threads and events with the chapter that covers them.',
+            field('Move finished records into chapters','Keeps completed threads and events with the chapter that covers them.',
                 choose(o.retire!==false,value=>{o.retire=value;})),
             numeric('Recent chapters eligible for full recall',o.keep,1,10,'chapters',n=>{o.keep=n;},'The chapter budget also limits recall.'),
             numeric('Combine older chapters when there are more than',o.roll,2,50,'chapters',n=>{o.roll=n;},'Combining follows the saved automatic request setting.')),
@@ -221,8 +221,8 @@ export function renderMemory(body, app) {
             button('Chapter summary connection & automatic requests',()=>app.openSetting('settings','ri-operation-chapterSummary'),{kind:'ghost'}),
             button('Chapter combine connection & automatic requests',()=>app.openSetting('settings','ri-operation-chapterCombine'),{kind:'ghost'})),
         h('div', {class:'ri-grid2'},
-            !memory && field('Write a chapter when the scene ends', 'Requires Story World updates and at least the minimum number of replies.', choose(o.onSceneEnd !== false, v => {o.onSceneEnd=v;})),
-            !memory && numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),
+            field('Write a chapter when the scene ends', 'Requires Story World updates and at least the minimum number of replies.', choose(o.onSceneEnd !== false, v => {o.onSceneEnd=v;})),
+            numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),
             numeric('Write a chapter at least every', o.every, 0, 200, 'replies', n => {o.every=n;}, 'Set 0 to disable the reply-count threshold.'),
             numeric('Summarize at estimated tokens',o.everyTokens || 0,0,1000000,'tokens',n=>{o.everyTokens=n;},
                 'After an accepted reply, write a chapter when unsummarized text reaches this estimate. Whichever enabled threshold is reached first starts the chapter. Set 0 to disable the token threshold.')),

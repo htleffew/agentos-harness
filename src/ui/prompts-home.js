@@ -13,7 +13,7 @@ export const PROMPTS_PAGE_ID = 'prompts';
 // The pages that hold a prompt today, by the page ids of destinations.js, and the stored prompts each uses.
 // A prompt listed under two pages shows once, under the first one, and the foot row of both pages counts it.
 const PAGE_PROMPTS = {
-    state: ['rebuild', 'timingUpdate'],
+    state: ['timingUpdate'],
     opening: ['systemOpening', 'readGreeting', 'openingPlayerThoughts', 'sceneOpening'],
     corrections: ['traceCorrection', 'correctionSwipe', 'correctionCanon'],
     portrayal: ['structuredPortrayal', 'structuredKnowledge', 'checkKnowledge'],
@@ -21,7 +21,7 @@ const PAGE_PROMPTS = {
     speakers: ['speakerGuidance'],
     facts: ['structuredFacts', 'structuredRepair'],
     plots: ['autonomousEvent', 'optionalOpportunity', 'structuredSchedule', 'structuredOutcomes', 'lockedPayoff', 'checkPlot'],
-    world: ['memoryFacts', 'worldUpdate', 'storyNotes', 'worldOrder', 'silentCharacter', 'threadOrder', 'seedOrder', 'activityOrder', 'secretOrder',
+    world: ['memoryFacts', 'storyNotes', 'worldOrder', 'silentCharacter', 'threadOrder', 'seedOrder', 'activityOrder', 'secretOrder',
         'entryWriterRules', 'systemWorldEntry', 'starterWorld', 'systemStarter', 'chapterSummary', 'systemChapter', 'chapterCombine', 'systemCombine',
         'newChapterSummary', 'newChapterFirst', 'systemNewChapter', 'chapterOpeningScene'],
     books: ['bookKeywords', 'systemBookKeywords'],
@@ -32,22 +32,22 @@ const PAGE_PROMPTS = {
     goals: ['goalOrder', 'goalOngoing', 'goalWriterRules', 'systemGoal'],
     writing: ['proseReview', 'groundedRealism', 'heightenedRealism', 'sceneSolo', 'sceneEnsemble', 'sceneUnknown', 'sceneContinue',
         'checkPhysical', 'checkSocial', 'checkCraft', 'checkContinuity'],
-    checks: ['resolvedActionGuidance', 'dice'],
-    v10: ['playerDraft', 'playerChoices', 'playerExpansion', 'planGuidance', 'proseFirst', 'conflictCheck'],
+    v10: ['playerDraft', 'playerChoices', 'playerExpansion', 'planGuidance', 'proseFirst', 'conflictCheck', 'resolvedActionGuidance'],
     display: ['structuredRoast', 'roastFeedback', ...Object.keys(VOICES)],
-    settings: ['guided', 'guidedContinue', 'historicalSwipe', 'historicalContinue', 'freshStart', 'checker', 'systemCheck', 'scene', 'profile', 'stateContext', 'dice'],
+    settings: ['guided', 'guidedContinue', 'historicalSwipe', 'historicalContinue', 'freshStart', 'checker', 'systemCheck'],
+    memory: ['stateContext'],
 };
 
 // Families follow the five colors of DESIGN.md 1.2; Reply holds what writes the reply now.
 export const FAMILIES = [
     { id: 'story', label: 'Story', pages: ['state', 'opening', 'corrections', 'portrayal', 'emotion', 'speakers', 'facts', 'plots', 'world', 'books', 'context'] },
-    { id: 'direction', label: 'Direction', pages: ['sets', 'goals', 'writing', 'checks'] },
+    { id: 'direction', label: 'Direction', pages: ['sets', 'goals', 'writing'] },
     { id: 'reply', label: 'Reply', pages: ['v10', 'display'] },
     { id: 'setup', label: 'Setup', pages: ['settings'] },
 ];
 // A prompt that sits on a page of one family but belongs to another by what it does.
-const FAMILY_OVERRIDE = { dice: 'direction', guided: 'reply', guidedContinue: 'reply', historicalSwipe: 'reply', historicalContinue: 'reply', freshStart: 'reply',
-    scene: 'story', profile: 'story', stateContext: 'story' };
+const FAMILY_OVERRIDE = { guided: 'reply', guidedContinue: 'reply', historicalSwipe: 'reply', historicalContinue: 'reply', freshStart: 'reply',
+    stateContext: 'story' };
 
 /** The page ids that use a stored prompt, first page first. */
 export function promptPages(id) {

@@ -113,12 +113,12 @@ test('selecting a preset lists the features both sides offer, and the list chang
     assert.deepEqual(plain.features.switched.map(item => [item.key, item.matchedBy]), [['style', 'name'], ['dice', 'name']]);
 });
 
-test('with the extension off for a chat, the preset is sent exactly as saved', () => {
+test('with the extension off, the preset is sent exactly as saved', () => {
     select('Sola');
-    chats.A.roleplay_instructions.v10.enabled = false;
+    host.extensionSettings.roleplay_instructions.enabled = false;
     const order = host.chatCompletionSettings.prompt_order[0].order.filter(entry => entry.enabled).map(entry => entry.identifier);
     assert.deepEqual(assemble(), order);
-    chats.A.roleplay_instructions.v10.enabled = true;
+    host.extensionSettings.roleplay_instructions.enabled = true;
 });
 
 test('the companion preset lists nothing to switch', () => {
@@ -372,12 +372,12 @@ test('the companion gets a preflight owner only for a card taken out', () => {
     select('Sola');
 });
 
-test('with the extension off for the chat, and with a loadout selected as base, the preset sends as saved', async () => {
+test('with the extension off, and with a loadout selected as base, the preset sends as saved', async () => {
     select('Sola');
     const asSaved = data => data.prompt_order[0].order.filter(entry => entry.enabled).map(entry => entry.identifier);
-    chats.A.roleplay_instructions.v10.enabled = false;
+    host.extensionSettings.roleplay_instructions.enabled = false;
     assert.deepEqual(request().rows.map(row => row.id), asSaved(stored.Sola));
-    chats.A.roleplay_instructions.v10.enabled = true;
+    host.extensionSettings.roleplay_instructions.enabled = true;
     const data = lo.buildLoadout(stored.Sola, lo.makeMarker({ base: 'Sola', edition: 'sola/kindling-v2', switches: {}, off: [] }));
     stored['Sola + RI Night'] = data;
     bank.refreshBank();

@@ -332,7 +332,7 @@ export function worldOrdersSection(app) {
 }
 
 /** The update prompts sit beside the update switch in Setup, Memory. */
-export const worldUpdatePrompts = () => slot(['memoryFacts', 'worldUpdate', 'storyNotes'], 'Customize world-update instructions');
+export const worldUpdatePrompts = () => slot(['memoryFacts', 'storyNotes'], 'Customize story memory wording');
 
 /** What would be sent with the next reply. Its one home is Review, Context. */
 export async function nextReplyPreview(id) {

@@ -3,7 +3,7 @@ import { chatState, settings, saveSettings, saveChatState } from './store.js';
 import { ctx, KEY, worldNames, deleteBook, isGenerating, loadBook } from './st.js';
 import { recallOffered, isRecallManaged } from './book-triggers.js';
 import { chatWorld, setChatWorld } from './world.js';
-import { memoryComponents, memoryOnly } from './components.js';
+import { memoryComponents } from './components.js';
 import { enabledV10, reusableAssignments, reusableBookRoles, pinBase, unassignReusableBook } from './v10.js';
 import { restoreChapterHistory } from './hide.js';
 import { enqueue } from './worldflow.js';
@@ -93,16 +93,16 @@ export function chatBooks() {
         const info = setInfo(world);
         add(info.book,info.shared ? `Story World · ${info.name}` : 'Story World');
         if (components.chapters) add(info.book,'Chapter summaries');
-        if (components.world) add(info.book,memoryOnly() ? 'Chat facts and setting' : 'Chat facts and plot records');
+        if (components.world) add(info.book,'Chat facts and plot records');
     }
     for (const id of new Set([local.worldFrom,local.branchPendingWorld,...(local.previousStoryWorlds || [])])) {
         if (id && id!==world) add(setInfo(id).book,'Earlier or source Story World');
     }
-    if (local.v10?.base) add(local.v10.base.name,components.world && (enabledV10() || memoryOnly()) ? 'Pinned Base World' : 'Pinned Base World · paused');
+    if (local.v10?.base) add(local.v10.base.name,components.world && enabledV10() ? 'Pinned Base World' : 'Pinned Base World · paused');
     const assignments = reusableAssignments(local.v10);
     for (const book of assignments) {
         const active = book.on !== false && (book.role === 'guidelines'
-            ? enabledV10() : components.world && (enabledV10() || memoryOnly()));
+            ? enabledV10() : components.world && enabledV10());
         add(book.name, reusableBookRoles[book.role] + (active ? '' : ' · paused'));
     }
     for (const name of local.reusableBookHistory || []) {
@@ -113,7 +113,7 @@ export function chatBooks() {
         if (!Object.hasOwn(settings().sets,id)) continue;
         const {book,kind,group} = setInfo(id);
         if (kind==='world') continue;
-        add(book,[labels[kind],group,memoryOnly() || !settings().enabled ? 'paused' : 'enabled for this chat'].filter(Boolean).join(' · '));
+        add(book,[labels[kind],group,!settings().enabled ? 'paused' : 'enabled for this chat'].filter(Boolean).join(' · '));
     }
     add(c.chatMetadata?.world_info,'Host chat attachment');
     add(c.characters?.[c.characterId]?.data?.extensions?.world,'Host character attachment');

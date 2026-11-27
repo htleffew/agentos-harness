@@ -117,14 +117,14 @@ const part = text => String(text).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-')
         await page.evaluate(async B => { const { trackerBook } = await import(`${B}/src/tracker-book.js`); await trackerBook().syncVars(); }, B);
         v = await vars(page);
         check('a field switched off clears its variable', !Object.keys(v).some(k => k.endsWith('_level')) && !!v.ri_scene_place, Object.keys(v).join(' '));
-        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); V.setModuleOwner(V.activePreset(), 'state', 'preset'); const { trackerBook } = await import(`${B}/src/tracker-book.js`); await trackerBook().write(); }, B);
+        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); const K = await import(`${B}/src/preset-bank.js`); const bank = K.refreshBank(); const key = K.stackFor(bank, V.activePreset()).key; K.excludeCards(bank, key, ["ri::state"], { base: V.activePreset() }); (await import(`${B}/src/preset-workbench.js`)).syncOwners(); const { trackerBook } = await import(`${B}/src/tracker-book.js`); await trackerBook().write(); }, B);
         v = await vars(page);
         check('Story state on Theirs clears the Scene and character variables and keeps the others', !Object.keys(v).some(k => /^ri_(scene|character)_/.test(k)) && Object.keys(v).some(k => k.startsWith('ri_emo_')), Object.keys(v).join(' '));
         L.resetLog();
         await turn(page, 'I look around.');
         all = chatRequest().messages.map(textOf).join('\n');
         check('a preset block reading a cleared variable gets nothing', !/PROBE_PLACE\[The/.test(all), (all.match(/PROBE_PLACE\[[^\]]*\]/) || ['none'])[0]);
-        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); V.setModuleOwner(V.activePreset(), 'state', undefined); const { trackerBook } = await import(`${B}/src/tracker-book.js`); await trackerBook().write(); }, B);
+        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); const K = await import(`${B}/src/preset-bank.js`); const bank = K.refreshBank(); const key = K.stackFor(bank, V.activePreset()).key; K.includeCards(bank, key, ["ri::state"], { base: V.activePreset() }); (await import(`${B}/src/preset-workbench.js`)).syncOwners(); const { trackerBook } = await import(`${B}/src/tracker-book.js`); await trackerBook().write(); }, B);
         v = await vars(page);
         check('turning the card back on sets them again', !!v.ri_scene_place, v.ri_scene_place);
         out.errors = errors.slice(0, 10);

@@ -26,7 +26,7 @@ import { executionScope } from '../execution.js';
 import { guidedTarget } from '../guided-context.js';
 import { activePreset, effectiveModules, enabledV10 } from '../v10.js';
 
-const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','portrayal','emotion','speakers','writing','checks']);
+const V10_PAGES = new Set(['v10','display','opening','books','facts','plots','portrayal','emotion','speakers','writing']);
 
 const editorRoutes = {instructions:'route',events:'eroute',style:'sroute',world:'wroute'};
 const rootRoutes = {route:{view:'sets'},eroute:{view:'list'},sroute:{view:'list'},wroute:{view:'list'}};
@@ -528,7 +528,7 @@ function renderPromptsBridge(body, view) {
 
 // ---------- Page header, status and breadcrumbs ----------
 
-const MODULE_OF = {facts:'state',plots:'plots',portrayal:'knowledge',emotion:'emotions',speakers:'colors',checks:'dice',writing:'style'};
+const MODULE_OF = {facts:'state',plots:'plots',portrayal:'knowledge',emotion:'emotions',speakers:'colors',writing:'style'};
 
 function statusFor(page, nested) {
     const st=settings();
@@ -542,7 +542,7 @@ function statusFor(page, nested) {
     const modules=effectiveModules();
     if (nested.id==='features') {
         const on=Object.values(modules).filter(Boolean).length;
-        return enabledV10() ? {text:`${on} ON`} : {text:'LEGACY'};
+        return {text:`${on} ON`};
     }
     const module=MODULE_OF[page.id];
     if (module && V10_PAGES.has(page.id) && page.id!=='writing' && !enabledV10()) return {text:'OFF',tone:'off'};

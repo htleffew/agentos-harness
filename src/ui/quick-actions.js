@@ -1,7 +1,6 @@
 import { ctx, heldGroupContinuationComposer, isChatOpen, isGenerating, KEY, on, readComposer, toast, triggerContinuation, triggerSwipe, writeComposer } from '../st.js';
 import { canonSet, knownSets } from '../books.js';
 import { chatState, saveChatState, saveSettings, settings } from '../store.js';
-import { memoryOnly } from '../components.js';
 import { app } from './panel.js';
 import { taskLabels } from './destinations.js';
 import { button, field, h, select, textArea, textInput, captureView, restoreView } from './dom.js';
@@ -428,7 +427,7 @@ async function openPanel(page, reply = null, anchor = '') {
 
 function previewFor(edit, mode = 'draft') {
     if (edit.family === 'steer') {
-        const reason = memoryOnly() ? 'Directions need the full extension workflow in this chat.' : queueCapability();
+        const reason = queueCapability();
         return {available:!reason, reason, history:freshHistoryCapability(),
             stages:[executionPreview('steer',{stage:'reply',label:'Queued directions',trigger:'The reply to your next player message.'})]};
     }

@@ -1,6 +1,6 @@
 import { ctx, KEY } from './st.js';
 import { chatState, settings } from './store.js';
-import { memoryComponents, memoryOnly } from './components.js';
+import { memoryComponents } from './components.js';
 import { enabledV10 } from './v10.js';
 import { historySourceMark } from './history-source.js';
 import { chatWorld } from './world.js';
@@ -10,7 +10,7 @@ let observed;
 let deletionTimer;
 let deletion;
 
-const active = () => settings().enabled && !chatState()?.worldDetached && (!memoryOnly() && memoryComponents().world &&
+const active = () => settings().enabled && !chatState()?.worldDetached && (memoryComponents().world &&
     (enabledV10() || chatWorld() && settings().world.update!=='off') || memoryComponents().chapters);
 const identity = message => message.send_date || message.extra?.[KEY]?.time || message;
 const chatKey = () => ctx().getCurrentChatId?.();

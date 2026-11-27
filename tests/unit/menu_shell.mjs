@@ -10,13 +10,13 @@ test('five top tabs with the nested tabs of DESIGN.md 3.1, in order',()=>{
     assert.deepEqual(tabs.map(top=>top.label),['Story','Direction','Quick actions','Review','Setup']);
     assert.deepEqual(tabs.map(top=>top.nested.map(item=>item.label)),[
         ['Scene','Characters','Story World','World Info'],
-        ['Random sets','Goal','Writing','Action checks'],
+        ['Random sets','Goal','Writing'],
         ['Bar','Library'],
         ['Replies','Context','Request log'],
         ['Features','Presets','Memory','Connections','Look','Prompts'],
     ]);
-    // MB10: Facts and Plot are filters of Story World (UI design 3.5), so 19 pages
-    assert.equal(tabs.flatMap(top=>top.nested).length,19);
+    // MB10: Facts and Plot are filters of Story World (UI design 3.5), so 19 pages; B13 retired Action checks, so 18
+    assert.equal(tabs.flatMap(top=>top.nested).length,18);
     assert.deepEqual(tabs.map(top=>top.family),['story','direction','reply','review','setup']);
     assert.equal(tabs.find(top=>top.id==='quick').short,'Quick');
     for (const top of tabs) for (const item of top.nested) assert.match(item.icon,/^fa-/);
@@ -113,5 +113,5 @@ test('queries split into SillyTavern terms and plain words',()=>{
     assert.deepEqual(terms.map(term=>term.label).sort(),['Author’s Note','Budget','Impersonate']);
     assert.deepEqual(words,['where','is']);
     for (const term of SILLYTAVERN_TERMS) for (const target of term.targets)
-        assert(pages.some(page=>page.id===target.page) || ['look','memory','prompts'].includes(target.page),`${term.label} points at ${target.page}`);
+        assert(pages.some(page=>page.id===target.page) || ['look','memory','prompts','stat-sheets'].includes(target.page),`${term.label} points at ${target.page}`);
 });

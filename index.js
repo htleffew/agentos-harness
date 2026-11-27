@@ -21,6 +21,8 @@ import { loadShipped, readBankBook } from './src/banks.js';
 import './src/ui/touch-layout.js';
 import { startDice } from './src/dice-judge.js';
 import './src/ui/stat-sheet.js';
+import './src/voice/ui.js';
+import { startLegacyRetirement } from './src/legacy-retire.js';
 
 (function start() {
     try {
@@ -36,6 +38,7 @@ import './src/ui/stat-sheet.js';
         installGeneratedBookGuard().catch(e => console.warn(LOG, 'generated book guard did not start', e));
         // Option banks: the shipped lists, then her book when it exists. Rolls read both from memory.
         loadShipped().then(readBankBook).catch(e => console.warn(LOG, 'option banks did not load', e));
+        try { startLegacyRetirement(); } catch (e) { console.warn(LOG, 'Legacy retirement did not start', e); }
         try { startMemory(); } catch (e) { console.warn(LOG, 'chat memory did not start', e); }
         try { startChapters(); } catch (e) { console.warn(LOG, 'chapters did not start', e); }
         startCatchUp().catch(e => console.warn(LOG, 'catch-up did not start', e));

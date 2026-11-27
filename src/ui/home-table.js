@@ -3,7 +3,6 @@
 export const HOMES = {
     'world-budget':      { page:'memory',  label:'Room for story notes',                links:['world'] },
     'state-budget':      { page:'memory',  label:'Current state prompt budget',         links:['settings'] },
-    'scene-card':        { page:'display', label:'Story state under replies',           links:[] },
     'write-chapter':     { page:'world',   label:'Write a chapter now',                 links:['context'] },
     'new-chapter':       { page:'world',   label:'Start a new chapter in a new chat',   links:['sent'] },
     'world-create':      { page:'books',   label:'Create a Story World',                links:['world'] },
@@ -16,7 +15,7 @@ export const HOMES = {
     'roast-voice':       { page:'v10',     label:'Roast commentator voice',             links:['display'] },
     'roast-switches':    { page:'v10',     label:'Roast on or off',                     links:['display'] },
     'module-switches':   { page:'v10',     label:'Extension features',                  links:[] },
-    'dice-stats':        { page:'checks',  label:'Stats',                               links:['settings'] },
+    'dice-stats':        { page:'stat-sheets', label:'Stats in use',                    links:['settings'] },
     'pronouns':          { page:'portrayal', label:'Pronouns',                          links:['settings'] },
     'set-storage':       { page:'set-rules', label:'Where your sets are kept',          links:['settings'] },
     'pacing':            { page:'set-rules', label:'Pacing',                            links:['settings'] },

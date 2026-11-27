@@ -8,6 +8,10 @@ import { createEmbedder, modelCache, ollamaBooster } from './memory/embed.js';
 import { RECALL_TOKEN_CAP, SEARCH, aliasGroups, holderAllows, renderBlock } from './memory/search.js';
 import { RECALL_PROMPT_KEY, dropOverridden, heldOut, hostTheirs, trackerCarries, trackerCardsOf } from './memory/inject.js';
 import { memorySize } from './context-budget.js';
+import { leaveOutRecords } from './v10.js';
+
+/** The records the request sends once, in the memory block and nowhere else: those the block carries, and those it held out. */
+const onceIds = (items, heldIds) => new Set([...(items || []).filter(i => i.type === 'record').map(i => i.rec?.id), ...heldIds].filter(Boolean));
 
 export const ACTIVATION_MODES = ['default','always','triggered','window','off'];
 export const RECALL_SOURCES = {...BOOK_TRIGGER_SOURCES,chat:'Recent visible conversation'};
@@ -188,7 +192,9 @@ export async function runRecallTurn({ lore = {}, host, parts = null, values = re
     });
     const sceneLine = settings().recall?.sceneLine !== false && !tracker.sceneLine && !theirs.has('state');
     const block = renderBlock(search.items, { scene, sceneLine });
-    return { search, block, scene, sources, sceneLine };
+    // a pinned record is never held out, so the list keeps it unless the block carries it
+    const heldIds = [...held.repeats, ...held.outside].filter(id => !pinnedIds.has(id));
+    return { search, block, scene, sources, sceneLine, heldIds };
 }
 
 function publish(text) {
@@ -208,7 +214,9 @@ async function onEntriesLoaded(lore) {
         const theirs = await hostTheirs().catch(() => new Set());
         const done = await runRecallTurn({ lore, host: { chat: c.chat || [], meta: c.chatMetadata || {}, pov: c.name2 || '', type: turn.type, theirs } });
         turn.result = done;
+        turn.lore = lore;
         publish(done.block);
+        leaveOutRecords(lore, onceIds(done.search.items, done.heldIds));
         last = summary('turn', done.search, done.block);
     } catch (error) {
         console.warn(LOG, 'recall search', error);
@@ -226,6 +234,7 @@ function onScanDone(args) {
     const block = renderBlock(again.items, { scene: turn.result.scene, sceneLine: turn.result.sceneLine });
     turn.result.block = block;
     publish(block);
+    leaveOutRecords(turn.lore, onceIds(again.items, turn.result.heldIds));
     last = summary('turn', turn.result.search, block, { fired: [...turn.fired.keys()] });
 }
 

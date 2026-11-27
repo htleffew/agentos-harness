@@ -1,16 +1,15 @@
 import { slot, home, homeLink } from './homes.js';
 import { executionSettings } from './execution.js';
 // Settings tab.
-import { h, select, numberInput, textInput, textArea, field, section, button, foldCard } from './dom.js';
+import { h, select, numberInput, textInput, textArea, field, section, button, foldCard, download } from './dom.js';
+import { BACKUP_KEY, backupFile, restoreBackup } from '../legacy-retire.js';
 import { DEFAULT_WORDS, DEFAULT_WRITER_RULES, wordList } from '../pacing.js';
-import { statNames, sheet, setStat, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../dice.js';
 import { settings, saveSettings, chatPronouns, setPronouns, PRONOUN_LABELS, FORMS, HOME_BOOK } from '../store.js';
-import { ctx, names, isChatOpen, hasEvent, toast, inputBox } from '../st.js';
+import { ctx, names, isChatOpen, hasEvent, toast, inputBox, confirmBox } from '../st.js';
 import { setTreeHints } from './destinations.js';
 import { ensureRegexScript, setsMoved } from '../engine.js';
 import { knownSets, setInfo, sharedBooks, moveSet, cleanSetName, KINDS } from '../books.js';
 import { refreshUnderReplies } from './sent.js';
-import { enabledV10 } from '../v10.js';
 import { registerPage } from './page-registry.js';
 import { worldOrdersSection } from './world.js';
 import { eventTagsSection } from './state.js';
@@ -107,66 +106,6 @@ export function whereSection(app) {
 
 const onOff = (v, set) => select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], v ? 'on' : 'off', (x) => set(x === 'on'));
 
-/** Story state under replies. Its one home is Setup, Look. */
-export function sceneCardControl(app, save = () => { saveSettings(); refreshUnderReplies(); app.render(); }) {
-    const o = settings().scene || (settings().scene = { track: true, card: 'auto' });
-    return home('scene-card', field('Story state under replies', { auto: 'Shown under a reply that has no scene tracker of its own. With a preset that draws its own HUD (such as Sola V6 Slim) it stays hidden, so nothing is shown twice.', always: 'Separate Scene, character and Roast cards are shown under replies where data is available. Each starts collapsed.', off: 'Not shown. The lines are still kept and used.' }[o.card || 'auto'],
-        select([{ value: 'auto', label: 'Auto' }, { value: 'always', label: 'Always' }, { value: 'off', label: 'Off' }], o.card || 'auto', (v) => { o.card = v; save(); }, { 'aria-label': 'Story state under replies' })));
-}
-
-function sceneSection(app) {
-    const o = settings().scene || (settings().scene = { track: true, card: 'auto' });
-    const save = () => { saveSettings(); refreshUnderReplies(); app.render(); };
-    return section('Scene',
-        field('Keep track of who is present, where and when', o.track !== false ? 'On: every reply is asked for who is present, where and when; continuing environmental conditions are updated when they change. The extension takes them out of the reply and keeps them, so the story notes, story events and dice know who is present under any preset. This adds no model call.' : 'Off: who is present is read from a scene header, a HUD or a "Present:" line written by the preset, or from names in the last messages.',
-            onOff(o.track !== false, (v) => { o.track = v; save(); })),
-        o.track !== false ? sceneCardControl(app, save) : null);
-}
-
-function cardsSection(app) {
-    const o = settings().cards;
-    const save = () => { saveSettings(); refreshUnderReplies(); };
-    const ch = names().char;
-    return section('Character cards',
-        field('Character state tracking', o.on ? 'On: the current Mind, Heart, Body and Psyche state is kept with the chat and sent with future replies. Changes are requested in the normal reply, without an extra AI call.' : 'Off: character state is not requested or sent.',
-            onOff(o.on, (v) => { o.on = v; save(); app.render(); })),
-        o.on ? [
-            homeLink(app, 'state-budget', 'The current state prompt budget is set in Setup, Memory, Budgets.'),
-            field('Profiles in one reply, at most', `${ch} always gets one. 2 lets one other character have a card when they mattered in the reply.`,
-                select([{ value: '1', label: `1: only ${ch}` }, { value: '2', label: '2' }, { value: '3', label: '3' }], String(o.most || 2), (v) => { o.most = Number(v); save(); })),
-            field('The roast', o.roast !== false ? "On: every reply also gets one reaction from the commentator, a separate personality who only reacts to the reply and writes none of the story. It is drawn at the bottom of the cards. You can separately include the previous roast in the next request." : 'Off: no roast is asked for or drawn.',
-                onOff(o.roast !== false, (v) => { o.roast = v; save(); app.render(); })),
-            o.roast !== false ? field('Include the previous roast in the next request','Optional continuity for the commentator. This uses prompt tokens.',
-                onOff(o.previousRoast===true,v=>{o.previousRoast=v;save();})) : null,
-        ] : null);
-}
-
-export function diceSection(app) {
-    const d = settings().dice;
-    const save = () => { saveSettings(); };
-    const nm = names();
-    const grid = (who, label) => {
-        const sh = sheet(who);
-        return h('div', { class: 'ri-card ri-inscard' },
-            h('div', { class: 'ri-label' }, label),
-            h('div', { class: 'ri-grid3' }, statNames().map(stat => field(stat, '', numberInput(Number(sh[stat]) || 0, { min: MOD_MIN, max: MOD_MAX, unit: '' }, (n) => { setStat(who, stat, n); })))));
-    };
-    return section('Dice',
-        field('Roll dice in the extension', d.on ? 'On: before every reply the extension rolls a d20 in code for each side below, adds the stat modifiers and works out the outcome for every stat. The AI is told the results, uses one only when someone attempts something with real stakes and a real chance of failing, and picks the stat that fits. It never rolls or adds. A swipe keeps the same roll. "Pick again and write a new reply" in What Was Sent rolls again.' : 'Off: no dice are rolled or sent.',
-            onOff(d.on, (v) => { d.on = v; save(); app.render(); })),
-        d.on ? [
-            h('div', { class: 'ri-grid3' },
-                field('Roll for {{user}}', 'For what you attempt in your message.', onOff(d.user !== false, (v) => { d.user = v; save(); })),
-                field('Roll for {{char}}', '', onOff(d.char !== false, (v) => { d.char = v; save(); })),
-                field('Roll for other characters', 'One roll, with no stats, shared by any other character who attempts something.', onOff(d.others !== false, (v) => { d.others = v; save(); }))),
-            h('div', { class: 'ri-help' }, 'The total (the d20 plus the stat) alone decides: 2 or less fails badly, 3 to 7 fails, 8 to 11 partly succeeds, 12 to 16 succeeds, 17 to 21 succeeds well, 22 or more succeeds brilliantly.'),
-            home('dice-stats', field('Stats', `Separate them with commas. Each stat is a whole number from ${MOD_MIN} to +${MOD_MAX} that is added to the d20 roll. 0 is average. +1 to +5 is ordinary skill, and more is for someone exceptional at that one thing. At +20 the lowest total is 21, so every attempt succeeds well or brilliantly; at -20 the highest total is 0, so every attempt fails badly.`,
-                textInput((d.stats || DEFAULT_STATS).join(', '), (v) => { d.stats = v.split(',').map(x => x.trim()).filter(Boolean); save(); }, { placeholder: DEFAULT_STATS.join(', '), 'aria-label': 'Stats' }))),
-            h('div', { class: 'ri-row ri-row-tight' }, button('Show the stat boxes for this list', () => app.render(), { kind: 'ghost' })),
-            isChatOpen() ? [grid('char', `Stats for ${nm.char} (kept with this character card)`), grid('user', `Stats for ${nm.user} (kept with this persona)`)] : h('div', { class: 'ri-muted' }, 'Open a chat to set the stats of its character and of your persona.'),
-        ] : null);
-}
-
 export function paceSection(app) {
     const st = settings();
     const o = st.pace;
@@ -214,10 +153,8 @@ function writerSection(app) {
         ] : null);
 }
 
-export function renderReplyDisplayOptions(body, app, { legacy=false } = {}) {
+export function renderReplyDisplayOptions(body, app) {
     const st=settings(), save=()=>saveSettings();
-    if (legacy) body.append(sceneSection(app),cardsSection(app),
-        slot(['scene','profile'],'Customize legacy scene and character prompts'));
     const underHelp = {
         off: 'Nothing is added to the chat screen. What was sent is always in the What Was Sent tab.',
         display: 'A closed section is drawn under each reply that was sent an instruction. The message text is unchanged and the AI never sees it. It is gone if the extension is turned off.',
@@ -262,6 +199,33 @@ export function perReplyControl(app) {
         numberInput(st.perReply, { min: 0, max: 5, unit: 'per reply', label: 'New things in one reply' }, (n) => { st.perReply = n; saveSettings(); })));
 }
 
+/** The settings backup: every extension setting and custom prompt in one file, and reading one back in. */
+function backupSection(app) {
+    const saved = settings()[BACKUP_KEY];
+    const picker = h('input', { type: 'file', accept: '.json,application/json', hidden: true, 'aria-label': 'Settings backup file to restore',
+        onchange: async event => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (!file) return;
+            try {
+                const text = await file.text();
+                if (!await confirmBox(`Replace every Roleplay Instructions setting with the ones in "${file.name}"? Your chats and World Info books stay as they are.`)) return;
+                const result = restoreBackup(text);
+                toast('success', `Settings restored from the backup${result.created ? ` of ${result.created.slice(0, 10)}` : ''}, with ${result.prompts} custom ${result.prompts === 1 ? 'prompt' : 'prompts'}.`);
+                app.render();
+            } catch (error) { toast('error', error.message || String(error)); }
+        } });
+    return section('Settings backup',
+        h('p', { class: 'ri-help', id: 'ri-legacy-backup' }, saved?.name
+            ? `A backup of your settings was saved during this update, as ${saved.name} in SillyTavern's user files (${String(saved.created || '').slice(0, 10)}).`
+            : 'A backup is saved in SillyTavern\'s user files the first time the extension starts after this update.'),
+        h('div', { class: 'ri-row' }, button('Save a backup file', () => {
+            const file = backupFile('Saved from Setup, Connections.');
+            if (!download(file.name, file.text)) toast('info', 'The download did not start here.');
+        }, { kind: 'ghost' }), button('Restore from a backup file', () => picker.click(), { kind: 'ghost' }), picker),
+        h('p', { class: 'ri-help' }, 'Restoring replaces every setting and custom prompt with the ones in the file. Your chats and World Info books stay as they are.'));
+}
+
 /** Setup, Connections: which connection each job uses and what the AI writes for you. */
 export function renderSettings(body, app) {
     const st = settings();
@@ -276,6 +240,7 @@ export function renderSettings(body, app) {
 
     const writer=writerSection(app);
     body.appendChild(section('What the AI writes for you', ...[...writer.children].slice(1)));
+    body.appendChild(backupSection(app));
 
     body.appendChild(section('Settings that moved',
         h('p', { class: 'ri-help' }, 'Each of these has one home. The links open it.'),
@@ -283,7 +248,7 @@ export function renderSettings(body, app) {
         homeLink(app, 'set-storage', 'Where your sets are kept is set in Direction, Random sets.'),
         homeLink(app, ['pacing','per-reply'], 'Pacing and the number of new things in one reply are set in Direction, Random sets.'),
         homeLink(app, 'follow-through', 'Follow-through checks are set in Direction, Random sets.'),
-        homeLink(app, 'dice-stats', 'Dice stats are set in Direction, Action checks.'),
+        homeLink(app, 'dice-stats', 'Dice stats are set in Story, Characters, Stats.'),
         homeLink(app, 'state-budget', 'The current state prompt budget is set in Setup, Memory.')));
 }
 

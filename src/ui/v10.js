@@ -13,23 +13,20 @@ import { impersonationInspector } from './impersonation.js';
 import { promptComparison, variationEditor } from './prompt-variations.js';
 import { promptOwner } from '../prompt-variations.js';
 import { renderChatBooks, storyWorldSection } from './chat-books.js';
-import { renderReplyDisplayOptions, sceneCardControl, pronounsSection, diceSection, versionLine } from './settings.js';
-import { memoryOnly, memoryComponents } from '../components.js';
+import { renderReplyDisplayOptions, pronounsSection, versionLine } from './settings.js';
 import { dialogueAttributions, thoughtAttributions } from '../dialogue.js';
 import { h, button, select, section, field, textArea, textInput } from './dom.js';
 import { ctx, KEY, isChatOpen, toast, isGenerating, confirmBox } from '../st.js';
 import { settings, chatState, saveSettings, saveChatState } from '../store.js';
-import { acceptV10Opening, guideSwipe } from '../engine.js';
-import { statNames } from '../dice.js';
+import { acceptV10Opening } from '../engine.js';
 import {
     MODULES, DEFAULT_MODULES, KIND_MODULE, PLOT_KINDS, AXES, defaultWritingGuidance, OPENING, PREFLIGHT, WRITING_PROFILES, writingProfileText, SCENE_CHECKS, sceneCheckId, hostSceneChecks, avoidPhrases,
-    isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook, queueCheck, checkText,
+    isCompanionPreset, activePreset, activeHostPrompts, presetDefaults, savePresetDefault, moduleOwnership, prefs, enabledV10, effectiveModules, pinBase, reusableAssignments, reusableBookRoles, assignReusableBook, unassignReusableBook, reusableBookNames, uploadBaseBook, uploadReusableBook, createReusableBook,
     greetings, draftOpening, setSpeakerColor, chooseAutomaticSpeakerColor, displayColor, baseWorld,
 } from '../v10.js';
 
 const options = names => names.map(name => ({ value:name, label:name }));
 const choices = [{value:'inherit',label:'Inherit preset'}, {value:'on',label:'On'}, {value:'off',label:'Off'}];
-const mode = value => value === undefined ? 'inherit' : value ? 'on' : 'off';
 const problem = error => toast('error', error.message || String(error));
 const entryLabel = kind => ({fact:'Fact',profile:'Portrayal',knowledge:'Knowledge',emotion:'Emotion',relationship:'Relationship',arc:'Arc milestone',seed:'Seed',agenda:'Agenda',event:'Event'})[kind];
 const scoped = (label, control) => h('label',{class:'ri-field'},h('span',{class:'ri-label'},label),control);
@@ -188,20 +185,6 @@ function renderOpening(local, redraw) {
         slot(['systemOpening','readGreeting','openingPlayerThoughts','sceneOpening'],'Customize opening and greeting prompts'));
 }
 
-function renderDice(local, redraw) {
-    const actor = select([{value:'user',label:ctx().name1 || 'Player'}, {value:'char',label:ctx().name2 || 'Character'}], 'user',()=>{}, {'aria-label':'Actor'});
-    const stat = select(options(statNames()), statNames()[0],()=>{}, {'aria-label':'Stat'});
-    const action = textInput('',()=>{}, {placeholder:'What are they attempting?', 'aria-label':'Action to check'});
-    const difficulty = h('input',{type:'number',min:1,max:40,value:12,'aria-label':'Difficulty'});
-    const receipt = h('p',{class:'ri-help','role':'status'},checkText(local.check) || 'No check queued.');
-    const last = ctx().chat?.at(-1)?.extra?.[KEY]?.v10Check;
-    return section('Action check', h('p',{class:'ri-help'},'Choose the actor, action, stat, and difficulty before rolling. Send your next message normally to use the result.'),
-        h('div',{class:'ri-grid2'}, scoped('Actor',actor),scoped('Action',action),scoped('Stat',stat),scoped('Difficulty',difficulty)),
-        h('div',{class:'ri-row'},button('Roll for next reply',()=>{try { receipt.textContent=checkText(queueCheck(action.value,stat.value,Number(difficulty.value),actor.value)); } catch(error){problem(error);} }),
-            button('Clear queued check',()=>{delete local.check;saveChatState();redraw();}),
-            last ? button('Reroll check and replace latest reply',()=>guideSwipe('Rewrite this reply using the newly resolved action check. Preserve the attempted action and other applicable directions.',{repeatOrders:true,rerollDice:true}).catch(problem)) : null), receipt);
-}
-
 function guidelineScope(local, book, entry) {
     const old = local.guidelineScopes;
     const scope = { ...(old && Object.hasOwn(old, book) ? old[book][entry.uid] : null) };
@@ -223,11 +206,11 @@ function guidelineScope(local, book, entry) {
         scoped('Scene location', textInput(scope.location || '',value=>save('location',value.trim()),{placeholder:'Any location'})));
 }
 
-function reusableBookControls(local, redraw, memory, app) {
+function reusableBookControls(local, redraw, app) {
     const assigned = reusableAssignments(local);
     const available = reusableBookNames().filter(name => name !== local.base?.name && !assigned.some(book => book.name === name));
-    const roles = Object.entries(reusableBookRoles).filter(([key]) => !memory || key === 'reference');
-    const role = select(roles.map(([value,label]) => ({value,label})), memory ? 'reference' : 'guidelines', () => {}, {'aria-label':'Reusable book role'});
+    const roles = Object.entries(reusableBookRoles);
+    const role = select(roles.map(([value,label]) => ({value,label})), 'guidelines', () => {}, {'aria-label':'Reusable book role'});
     const picker = select([{value:'',label:'Choose an existing book'}, ...options(available)], '', () => {}, {'aria-label':'Existing reusable book'});
     const files = h('input', {type:'file', multiple:true, accept:'.json,application/json', 'aria-label':'Reusable book JSON files'});
     const name = textInput('', () => {}, { 'aria-label':'New book name', placeholder:'New book name' });
@@ -270,7 +253,7 @@ function reusableBookControls(local, redraw, memory, app) {
             h('div', {class:'ri-row'},
                 button(book.on === false ? 'Enable in this chat' : 'Pause in this chat', () => { assignReusableBook(book.name, book.role, book.on === false); redraw(); }),
                 button('Unassign', () => { unassignReusableBook(book.name); redraw(); }, {kind:'ghost'}),
-                book.role === 'guidelines' && !memory ? button('Copy to Random Instructions', async event => {
+                book.role === 'guidelines' ? button('Copy to Random Instructions', async event => {
                     const control = event.currentTarget;
                     control.disabled = true;
                     try {
@@ -283,11 +266,11 @@ function reusableBookControls(local, redraw, memory, app) {
                     finally { control.disabled = false; }
                 }, {kind:'ghost', title:'Create an inactive set so you can review the guidance and its triggers'}) : null),
             bookEntryEditor(book.name, { reusable:true,
-                entryOptions: book.role === 'guidelines' && !memory ? entry => guidelineScope(local, book.name, entry) : null,
+                entryOptions: book.role === 'guidelines' ? entry => guidelineScope(local, book.name, entry) : null,
             }))));
 }
 
-function renderBooks(local, redraw, app, baseOnly = false) {
+function renderBooks(local, redraw, app) {
     const books = [{value:'',label:'None'},...options(reusableBookNames())];
     const pinned = baseWorld(local);
     const base = select(books,pinned?.name || '',async name=>{try { await pinBase(name); redraw(); } catch(error) { problem(error); redraw(); }});
@@ -316,10 +299,10 @@ function renderBooks(local, redraw, app, baseOnly = false) {
             local.base && !pinned && h('p',{class:'ri-help'},'The previously pinned Base World is no longer available. Choose another book to replace it.'),
             h('div',{class:'ri-row'},file,upload)),
         pins,
-        reusableBookControls(local, redraw, baseOnly, app),
+        reusableBookControls(local, redraw, app),
         h('div',{class:'ri-row'},
             button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
-            !baseOnly && button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
+            button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'})));
 }
 
 function editRecord(original, save, cancel, kinds) {
@@ -528,7 +511,7 @@ const MODULE_HELP = {
     relationships: 'Keeps brief notes on relationships and meaningful changes.',
     plots: 'Tracks unresolved threads, planted details, payoffs, and off-screen agendas.',
     worldEvents: 'Uses an automatic chance check to offer an optional development. Random Instructions are controlled separately.',
-    dice: 'Rolls once when you queue an action in Direction → Action Checks. Regular replies proceed without a roll.',
+    dice: 'Spots an uncertain attempt before each reply, rolls it in code and sends one verdict. Stats are on Story, Characters, Stats.',
     colors: 'Colors dialogue and italic thoughts when the prose identifies the character.',
     roast: 'Asks for one reader reaction in the same reply. Edit its voice under Setup → Reply Display.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
@@ -655,15 +638,6 @@ function moduleSettings(local, app, preset, modules, redraw) {
             h('h3',{class:'ri-label'},label),keys.map(key=>rows.find(row=>row.dataset.module===key)))));
 }
 
-function statsFold(app) {
-    const dice = diceSection(app);
-    return h('details',{class:'ri-card ri-tight',id:'ri-dice-stats',open:!!app.legacyControlsOpen,ontoggle:event=>{app.legacyControlsOpen=event.currentTarget.open;}},
-        h('summary',{},'Stats'),
-        h('p',{class:'ri-help'},'Stats and the legacy dice defaults.'),
-        ...[...dice.children].slice(1),
-        slot(['dice'],'Customize dice instruction'));
-}
-
 const roastVoice = () => {
     const editor = roastVoiceEditor(['structuredRoast','roastFeedback'],'Roast commentator voice and feedback');
     editor.dataset.promptSlot = '';
@@ -678,7 +652,6 @@ export function renderV10(body, app, page) {
             body.append(homeLink(app,'roast-voice','The Roast commentator voice is edited in Setup, Features.'));
             renderReplyDisplayOptions(body,app);
         }
-        if (page==='checks') body.append(statsFold(app));
         return;
     }
     const local = prefs();
@@ -706,32 +679,18 @@ export function renderV10(body, app, page) {
             const target=app.loreTarget;
             const back = () => app.back();
             body.append(section('World Info entry',receiptEntryEditor(target,back,(name,entry)=>
-                reusableAssignments(local).some(book=>book.name===name && book.role==='guidelines') && !memoryOnly()
+                reusableAssignments(local).some(book=>book.name===name && book.role==='guidelines')
                     ? guidelineScope(local,name,entry) : null),
                 target.fromReview && button('View all World Info books',()=>app.openPage('books'),{kind:'ghost'})));
             return;
         }
-        const manage = enabledV10() || memoryOnly() && memoryComponents().world;
+        const manage = enabledV10();
         body.append(storyWorldSection(app));
-        if (manage) body.append(renderBooks(local,redraw,app,memoryOnly()));
+        if (manage) body.append(renderBooks(local,redraw,app));
         body.append(renderChatBooks(app, { assignedEditors:manage }));
         return;
     }
     if (page === 'v10') {
-        body.append(section('Roleplay Instructions extension',field('Story workflow for this chat',
-            'Choose Structured to use the extension’s reply cards and continuity tools. Choose Memory only to use the host preset for writing and presentation. Legacy uses the original instructions, events and story tools.',
-            select([{value:'inherit',label:`Follow active preset (${isCompanionPreset(preset) ? 'Structured' : 'Legacy'})`},
-                {value:'memory',label:'Memory only'}, {value:'on',label:'Structured story workflow'},
-                {value:'off',label:'Legacy story workflow'}],memoryOnly() ? 'memory' : mode(local.enabled),value=>{
-                const cs = chatState();
-                if (value==='memory') (cs.components ||= {}).mode='memory';
-                else {
-                    if (cs.components) delete cs.components.mode;
-                    if (value==='inherit') delete local.enabled;
-                    else local.enabled=value==='on';
-                }
-                saveChatState();redraw();
-            },{id:'ri-story-workflow','aria-label':'Story workflow for this chat'}))));
         body.append(presetLinks(app),composerLinks(app));
         if (enabledV10()) body.append(h('div',{id:'ri-modules'},home('module-switches',moduleSettings(local,app,preset,modules,redraw))),
             isCompanionPreset(preset)
@@ -741,19 +700,7 @@ export function renderV10(body, app, page) {
         return;
     }
     if (!enabledV10()) {
-        if (page==='writing' && !memoryOnly()) {
-            body.append(replyScreening());
-            return;
-        }
-        if (page==='display') {
-            renderReplyDisplayOptions(body,app,{legacy:!memoryOnly()});
-            if (memoryOnly()) body.append(h('p',{class:'ri-help'},'The active host preset supplies reply cards in Memory only.'));
-            body.append(homeLink(app,'roast-voice','The Roast commentator voice is edited in Setup, Features.'));
-            return;
-        }
-        body.append(h('div',{class:'ri-note'},
-            h('p',{},'Choose the Structured story workflow to use this page.'),
-            button('Open workflow settings',()=>app.openPage('v10'),{kind:'ghost'})));
+        body.append(h('div',{class:'ri-note'},h('p',{},'Turn on Roleplay Instructions to use this page.')));
         return;
     }
     switch (page) {
@@ -764,7 +711,6 @@ export function renderV10(body, app, page) {
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
                 chatFlag('showRoast','Show Roast cards','Show the saved reader reaction beneath its reply. Choose the commentator voice below.',true),
-                sceneCardControl(app,()=>{saveSettings();redraw();}),
                 chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.'),
                 homeLink(app,'roast-switches','Roast generation and feedback are switched on in Setup, Features.'),
                 homeLink(app,'roast-voice','The Roast commentator voice is edited in Setup, Features.')));
@@ -814,10 +760,6 @@ export function renderV10(body, app, page) {
                 replyScreening());
             break;
         }
-        case 'checks': body.append(statsFold(app),slot(['resolvedActionGuidance'],'Customize action check prompt'),
-            modules.dice ? renderDice(local,redraw) : h('div',{class:'ri-note'},
-                h('p',{},'Turn on Explicit action checks for this chat.'),
-                button('Action check settings',()=>app.openSetting('v10','ri-module-dice','chat'),{kind:'ghost'}))); break;
     }
 }
 
@@ -827,18 +769,18 @@ export function refreshDialogue() {
     const local = ctx().chatMetadata?.[KEY]?.v10;
     const speakers = new Map(Object.values(local?.speakers || {}).flatMap(person=>person.aliases.map(alias=>[alias,person])));
     const owner = active ? moduleOwnership().colors : null;
-    const hideLegacy = active && (!owner || owner.usesExtension);
+    const hideLabels = active && (!owner || owner.usesExtension);
     for (const mes of document.querySelectorAll('#chat .mes')) {
         const area = mes.querySelector('.mes_text');
         const message = ctx().chat?.[Number(mes.getAttribute('mesid'))];
         if (!area || message?.is_user || message?.is_system) continue;
-        for (const span of area.querySelectorAll('.ri-speaker-label')) if (!hideLegacy) span.replaceWith(...span.childNodes);
+        for (const span of area.querySelectorAll('.ri-speaker-label')) if (!hideLabels) span.replaceWith(...span.childNodes);
         for (const span of area.querySelectorAll('.ri-speaker-text')) {
             const speaker = speakers.get(span.dataset.speaker);
             if (on && speaker) colorDialogue(span,speaker.color,area);
             else span.replaceWith(...span.childNodes);
         }
-        if (!hideLegacy && (!on || !speakers.size)) continue;
+        if (!hideLabels && (!on || !speakers.size)) continue;
         for (const paragraph of area.querySelectorAll('p, li')) {
             if (paragraph.querySelector('.ri-speaker-text') || paragraph.closest('blockquote, pre')) continue;
             const labels = paragraph.querySelectorAll('.ri-speaker-label');
@@ -868,7 +810,7 @@ export function refreshDialogue() {
                     const span = h('span',{class:`ri-speaker-text${match.thought ? ' ri-speaker-thought' : ''}`,'data-speaker':key,title:speaker.name});
                     if (wrapTextRange(nodes,match.start,match.end,span,match.thought)) colorDialogue(span,speaker.color,area);
                 }
-                if (hideLegacy && match.labelStart !== undefined) {
+                if (hideLabels && match.labelStart !== undefined) {
                     wrapTextRange(nodes,match.labelStart,match.start,h('span',{class:'ri-speaker-label',hidden:true}));
                 }
             }

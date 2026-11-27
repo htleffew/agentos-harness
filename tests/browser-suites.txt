@@ -77,3 +77,5 @@ t_story_outline
 t_block_gates
 t_loadout_gates
 t_themes_host
+t_voice
+t_legacy_parity

@@ -1,9 +1,11 @@
 // Stat sheets on screen (DESIGN 6.9): the sheet editor the Stats card and Story, Characters, Stats share, and the Dice
 // display row of Setup, Look, Reply tray. A value she types is marked "yours", and no later inference changes it.
-import { h } from './dom.js';
+import { h, field, textInput } from './dom.js';
+import { home } from './homes.js';
+import { settings, saveSettings } from '../store.js';
 import { registerPage } from './page-registry.js';
 import { isChatOpen, names } from '../st.js';
-import { savedSheets, statNames, setStatByHand, releaseStat, inferChatSheets, MOD_MIN, MOD_MAX } from '../stat-sheets.js';
+import { savedSheets, statNames, statsOf, setStatByHand, releaseStat, inferChatSheets, DEFAULT_STATS, MOD_MIN, MOD_MAX } from '../stat-sheets.js';
 import { DISPLAY, diceDisplay, setDiceDisplay, diceOn } from '../dice.js';
 
 const icon = (name, extra = '') => h('i', { class: `fa-solid ${name} ${extra}`.trim(), 'aria-hidden': 'true' });
@@ -21,7 +23,11 @@ export async function redrawTrays() {
 export function orderedSheets() {
     const all = savedSheets();
     const out = [];
-    for (const subject of ['user', 'char']) out.push([subject, all[subject] || { name: subject === 'user' ? names().user : names().char, kind: subject === 'user' ? 'persona' : 'character', stats: {}, mine: {}, reasons: {}, source: '' }]);
+    // Persona and character show the stats a roll adds: a sheet saved per card or persona before per-chat sheets, under this chat's own.
+    for (const subject of ['user', 'char']) {
+        const sheet = all[subject] || { name: subject === 'user' ? names().user : names().char, kind: subject === 'user' ? 'persona' : 'character', stats: {}, mine: {}, reasons: {}, source: '' };
+        out.push([subject, { ...sheet, stats: statsOf(subject) }]);
+    }
     for (const [subject, sheet] of Object.entries(all).filter(([key]) => key.startsWith('npc:')).sort((a, b) => String(a[1].name).localeCompare(String(b[1].name)))) out.push([subject, sheet]);
     return out;
 }
@@ -100,11 +106,23 @@ export function diceDisplayRow(rerender = () => {}) {
             : 'One line: each roll shows as one line inside the Roll card, ending with the die and the stat modifier.'));
 }
 
+/** The stats every sheet uses, in order. Its one home is Story, Characters, Stats. */
+function statList(onChange) {
+    const st = settings();
+    return home('dice-stats', field('Stats in use', `Separate them with commas. Each sheet gives every stat a modifier from ${MOD_MIN} to +${MOD_MAX}.`,
+        textInput(statNames().join(', '), value => {
+            const list = String(value).split(',').map(item => item.trim()).filter(Boolean);
+            st.dice ||= {};
+            st.dice.stats = list.length ? list : [...DEFAULT_STATS];
+            saveSettings();
+        }, { placeholder: DEFAULT_STATS.join(', '), 'aria-label': 'Stats in use', onchange: () => onChange?.() })));
+}
+
 registerPage({ id: 'stat-sheets', group: 'story', tab: 'characters', label: 'Stats', aliases: 'dice stat sheet modifiers npc persona',
     help: 'This chat\'s stat sheets for your persona, the character and NPCs. A value you set stays yours.',
     render(body, app) {
         const redraw = () => { app?.render?.(); redrawTrays(); };
         body.append(h('div', { class: 'ri-stat-page' },
             h('p', { class: 'ri-help' }, diceOn() ? `Every roll adds the actor's modifier for its stat, from ${MOD_MIN} to +${MOD_MAX}. 0 is ordinary.` : 'Dice are off. The sheets are kept for when you turn them on.'),
-            sheetEditor(redraw), isChatOpen() ? inferButton(redraw) : null));
+            sheetEditor(redraw), isChatOpen() ? inferButton(redraw) : null, statList(redraw)));
     } });

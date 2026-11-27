@@ -1,7 +1,6 @@
 // The reply tray while a reply is written and captured (DESIGN.md 6.4): the Strip alone, with the phase and a
 // chip per card as its values arrive. Every exit path ends the Strip resolved, failed or stopped.
 import { onReplyProgress, replyProgress } from '../reply-progress.js';
-import { memoryOnly } from '../components.js';
 import { ctx, isReply, LOG, on } from '../st.js';
 import { settings } from '../store.js';
 import { effectiveModules, enabledV10, prefs } from '../v10.js';
@@ -129,7 +128,7 @@ function finish() {
     }
 }
 
-const showsLoading = () => settings().enabled && !memoryOnly() && enabledV10() && settings().scene?.card !== 'off' && trayShows(true,chatTray());
+const showsLoading = () => enabledV10() && trayShows(true,chatTray());
 
 export function refreshReplyProgress() {
     const progress = replyProgress();
@@ -169,7 +168,7 @@ export function mountReplyProgress() {
     onTrayChange(redraw);
     mountSceneHeader({
         // The header belongs to the scene feature: asked for only while that feature is on Ours.
-        active: () => settings().enabled && !memoryOnly() && enabledV10() && settings().scene?.track !== false && effectiveModules().state !== false,
+        active: () => enabledV10() && effectiveModules().state !== false,
         changed: redraw,
     });
     on('GENERATION_STOPPED',()=>{ exits.stopped = true; });

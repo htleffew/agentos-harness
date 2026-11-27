@@ -35,7 +35,48 @@ export const ROUTES = Object.freeze({
     openrouter: { label: 'OpenRouter', cost: 'paid', source: 'openrouter', match: p => p.api === 'openrouter' },
     phone: { label: 'On-phone model', cost: 'local', kind: 'phone', judgmentOnly: true },
     main: { label: 'Main API', cost: 'main', kind: 'main' },
+    // V1: reading replies aloud. Not a text route and in no chain; voiceRoute() below resolves it.
+    voice: { label: 'Desktop voice over Tailscale', cost: 'local', kind: 'voice' },
 });
+
+// V1, the voice route. Chatterbox on her desktop, reachable over Tailscale only and never through Funnel or the public
+// internet (DECISIONS 2026-11-25; A19 section 2.6). The address is a tailnet address (100.64.0.0/10 or
+// fd7a:115c:a1e0::/48), a MagicDNS name on a port Funnel cannot publish, or this machine. Funnel publishes only ports
+// 443, 8443 and 10000, so a ts.net name on one of those ports is refused.
+export const FUNNEL_PORTS = Object.freeze(['443', '8443', '10000']);
+const TAILNET_V4 = ip => ip.length === 4 && ip.every(n => Number.isInteger(n) && n >= 0 && n <= 255) && ip[0] === 100 && ip[1] >= 64 && ip[1] <= 127;
+
+/** Why a voice server address is refused, or '' when it stays on her own devices. */
+export function voiceUrlProblem(url) {
+    let parsed;
+    try { parsed = new URL(String(url || '').trim()); } catch { return 'Enter the desktop voice address, for example http://100.97.15.107:8125.'; }
+    if (!/^https?:$/.test(parsed.protocol)) return 'The voice address starts with http:// or https://.';
+    const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    const port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+    if (/^(localhost|127(?:\.\d+){3}|::1)$/.test(host)) return '';
+    if (TAILNET_V4(host.split('.').map(Number))) return '';
+    if (/^fd7a:115c:a1e0:/.test(host)) return '';
+    if (/\.ts\.net$/.test(host)) {
+        return FUNNEL_PORTS.includes(port) ? `Port ${port} of a ts.net name can be published by Tailscale Funnel. Use the desktop's 100.x address and the voice server's own port.` : '';
+    }
+    return 'Use the desktop\'s Tailscale address (100.x) or its ts.net name, so the voice never leaves your own devices.';
+}
+
+/** The voice route on this device: { ok, url, key, problem }. The address and key are saved on the Voices page. */
+export function voiceRoute(config = settings().voice) {
+    const url = String(config?.url || '').trim().replace(/\/+$/, '');
+    const key = String(config?.key || '').trim();
+    if (!url) return { ok: false, url: '', key, problem: 'No desktop voice is set up. Add its address on Story, Characters, Voices.' };
+    const problem = voiceUrlProblem(url);
+    return problem ? { ok: false, url, key, problem } : { ok: true, url, key, problem: '' };
+}
+
+/** Record whether the voice server answered, so route health shows the voice route beside the others. */
+export function noteVoiceHealth(ok, reason = '', clock = Date.now) {
+    const state = healthOf('voice');
+    if (ok) { state.lastOk = clock(); state.downUntil = 0; state.reason = ''; }
+    else { state.downUntil = clock() + DOWN_MS; state.reason = String(reason || 'down'); }
+}
 
 /** Jobs and their tiers. chain names the job whose chain this one shares. judgment: may use the on-phone model. */
 export const JOBS = Object.freeze({
@@ -221,6 +262,7 @@ export function detectRoutes() {
     for (const [id, def] of Object.entries(ROUTES)) {
         if (def.kind === 'main') { found[id] = { kind: 'main', detected: true }; continue; }
         if (def.kind === 'phone') { if (phoneModel) found[id] = { kind: 'phone', detected: true }; continue; }
+        if (def.kind === 'voice') continue;
         const bound = bindings[id]?.profileId && profiles.find(p => p.id === String(bindings[id].profileId));
         const fit = FIT[id] || (() => 0);
         const match = bound || profiles.filter(def.match).sort((a, b) => fit(b) - fit(a))[0];

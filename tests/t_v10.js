@@ -50,7 +50,6 @@ const chatRequests = () => L.requests().filter(request=>!/You keep the records o
             V.prefs().keepTurnGuidance=true;
             const {saveChatState}=await import(`${B}/src/store.js`); saveChatState();
             await V.ensureWorld();
-            V.queueCheck('reach the ferry','Agility',12);
         });
         await page.setViewportSize({width:390,height:process.env.RI_CAPTURE_DIR ? 988 : 844});
         L.resetLog();
@@ -78,7 +77,8 @@ const chatRequests = () => L.requests().filter(request=>!/You keep the records o
             return globalThis.__riFerry === true;
         },L.BASE,{timeout:30000,polling:250});
         assert.equal(chatRequests().length,1);
-        assert.match(L.text(chatRequests()[0]),/Resolved action check/);
+        // B13: the Action checks queue retired; B22's dice verdict replaces the check line (tests/t_dice.js).
+        assert.doesNotMatch(L.text(chatRequests()[0]),/Resolved action check/);
         assert.match(L.text(chatRequests()[0]),/Scene and character checks:/);
         assert.match(L.text(chatRequests()[0]),/ordinary quoted dialogue/);
         assert.doesNotMatch(L.text(chatRequests()[0]),/in square brackets on its own/);
@@ -100,7 +100,6 @@ const chatRequests = () => L.requests().filter(request=>!/You keep the records o
             const msg=SillyTavern.getContext().chat.at(-1);
             return {rec:msg.extra.roleplay_instructions,mes:msg.mes,records:(await V.rowsForWorld()).map(V.readRecord).filter(Boolean),speakers:V.prefs().speakers};
         });
-        assert.match(state.rec.v10Request,/Resolved action check/);
         assert(!state.mes.includes('story_update'));
         assert.doesNotMatch(state.mes,/PRIVATE-PRELUDE-MARKER|<page:/);
         assert.match(state.rec.v10Plan,/PRIVATE-PRELUDE-MARKER/); assert.equal(state.rec.v10Minutes,120);
@@ -171,13 +170,27 @@ const chatRequests = () => L.requests().filter(request=>!/You keep the records o
         assert.doesNotMatch(L.text(chatRequests().at(-1)),/recover a missing state change/);
         assert.equal(chatRequests().length,3);
         assert.equal(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Minutes),123);
-        const idle=async()=>{
+        // idle(...ids): the world queue is idle, the newest reply shows a capture stamp for its current text, and every record id
+        // in `ids` is in the folded records. Each check is one page.evaluate that awaits capture's own answer, polled from here:
+        // Playwright's waitForFunction does not await an async predicate (the promise itself is truthy), and the old version
+        // read a flag the previous poll had set, so it returned before a guided swipe's capture (about a second after the swipe
+        // shows) had filed its records.
+        const idle=async(...ids)=>{
             await story(page,async({B})=>(await import(`${B}/src/worldflow.js`)).worldIdle());
-            await page.waitForFunction(B=>{
-                import(`${B}/src/memory/capture.js`).then(C=>{ const m=SillyTavern.getContext().chat.at(-1); globalThis.__riCaptured = !m || m.is_user || C.isCaptured(m); });
-                return globalThis.__riCaptured === true;
-            },L.BASE,{timeout:30000,polling:250});
-            await page.evaluate(()=>{ delete globalThis.__riCaptured; });
+            const deadline=Date.now()+30000;
+            for (;;) {
+                const done=await page.evaluate(async ({B,ids})=>{
+                    const C=await import(`${B}/src/memory/capture.js`);
+                    const V=await import(`${B}/src/v10.js`);
+                    const m=SillyTavern.getContext().chat.at(-1);
+                    if (m && !m.is_user && !C.isCaptured(m)) return false;
+                    const have=new Set(V.recordMap(await V.rowsForWorld()).keys());
+                    return ids.every(id=>have.has(id));
+                },{B:L.BASE,ids});
+                if (done) return;
+                if (Date.now()>deadline) throw new Error(`idle: the newest reply was not captured with ${ids.join(', ') || 'its records'} within 30 seconds`);
+                await page.waitForTimeout(250);
+            }
         };
         const read=()=>story(page,async({B})=>{
             const V=await import(`${B}/src/v10.js`);
@@ -202,6 +215,12 @@ const chatRequests = () => L.requests().filter(request=>!/You keep the records o
         assert.match(next,/Time: 11:58 PM\nDate: Day 1/);
         for (const part of ['12:02 AM','Dock','Light rain']) assert((await stripScene()).includes(part),part);
         assert.match(next,/bell \[seed, open, prerequisites pending\]/);
+        // B13b: each record reaches the request once, in the Established records list or in the memory block, never both
+        const recordLines=next.split('\n').filter(line=>/^[a-z0-9-]+ \[(?:fact|seed|agenda|thread|arc|event|profile|relationship|knowledge|emotion)\b/.test(line));
+        assert(recordLines.length>0,'the request lists its records');
+        assert.deepEqual(recordLines.filter((line,index)=>recordLines.indexOf(line)!==index),[],'a record line appears twice in the request');
+        // the list itself stays: the records the memory block does not carry are still here
+        assert(recordLines.some(line=>line.startsWith('bell [')),'the list keeps a record the memory block leaves to it');
         assert.doesNotMatch(next,/LOCKED-BELL-PAYOFF|REACTION-GUIDE|Resolved action check|recover a missing state change/);
         assert.equal((await read()).find(x=>x.id==='bell').status,'open');
         assert.deepEqual(await page.evaluate(()=>SillyTavern.getContext().chat.at(-1).extra.roleplay_instructions.v10Plot.find(row=>row.id==='bell')),
@@ -210,7 +229,7 @@ const chatRequests = () => L.requests().filter(request=>!/You keep the records o
             capture:cap(add('fact','rain','Rain has started.','Rain falls instead.'))});
         await story(page,async({B})=>(await import(`${B}/src/engine.js`)).guideSwipe('Change the snow to rain.'));
         await page.waitForFunction(()=>SillyTavern.getContext().chat.at(-1)?.mes?.includes('Rain falls instead.'));
-        await idle();
+        await idle('rain');
         const records=await read();
         assert(!records.some(x=>x.id==='snow'));
         assert(records.some(x=>x.id==='rain'));

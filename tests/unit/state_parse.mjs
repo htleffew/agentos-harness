@@ -1,17 +1,16 @@
 import assert from 'node:assert/strict';
 const context = { name2: 'Hale', name1: 'Mira', chat: [], extensionSettings: {} };
 globalThis.SillyTavern = { getContext: () => context };
-const { parseUpdate, buildSceneAsk, applyOps } = await import('../../src/worldflow.js');
+const { parseUpdate, applyOps, liftRoast } = await import('../../src/worldflow.js');
 const { changesFromProfiles, sceneFromReplyHeader, sceneUpdate, sceneAt, snapshotScene, statePrompt } = await import('../../src/state.js');
 const parsed = parseUpdate('Story.\n<story_update>\npresent: Hale\nwhere: Inn\nwhen: Night\nenvironment: Broken window\n<profile name="Hale">\nMind: Protect the letter\nBody: CLEAR\n</profile>\n</story_update>');
 assert.equal(parsed.clean, 'Story.');
 assert.equal(parsed.scene.environment, 'Broken window');
-assert.deepEqual(changesFromProfiles(parsed.profiles), [{ name: 'Hale', fields: { mind: 'Protect the letter', body: null } }]);
-const ask = buildSceneAsk();
-assert.match(ask, /Mind:/);
-assert.match(ask, /omit unchanged/i);
-assert.doesNotMatch(ask, /Will not:/);
-console.log('update parsing, clear semantics and state request: passed');
+// B13: Legacy profile blocks are no longer read; capture and the converted records keep character state.
+assert.deepEqual(parsed.profiles, []);
+assert.deepEqual(changesFromProfiles([{ name: 'Hale', now: { mind: 'Protect the letter', body: null } }]), [{ name: 'Hale', fields: { mind: 'Protect the letter', body: null } }]);
+assert.deepEqual(liftRoast('Story.\n<roast>Dry wit.</roast>'), { roast: 'Dry wit.', rest: 'Story.\n' });
+console.log('update parsing, clear semantics and the Roast block: passed');
 
 const cleared = parseUpdate('Story.\n<story_update>\nperson: CLEAR\nplace: clear.\ngroup: RESOLVED\nthread: CLEAR\nplanted: CLEAR\nelsewhere: CLEAR\nenvironment: CLEAR\n</story_update>');
 assert.deepEqual(cleared.ops,[]);

@@ -221,6 +221,8 @@ export async function startDice() {
         const v10 = await import('./v10.js');
         setDiceFeatureReader(() => !v10.enabledV10() || v10.effectiveModules().dice !== false);
     } catch (error) { console.warn(LOG, 'dice feature switch', error); }
+    // MB14: stat sheets become Stat sheet records in the memory log.
+    try { await (await import('./memory/stat-sheet-store.js')).installSheetStore(); } catch (error) { console.warn(LOG, 'stat sheet records', error); }
     on('GENERATION_AFTER_COMMANDS', beforeReply);
     on('MESSAGE_RECEIVED', afterReply);
     for (const name of ['GENERATION_ENDED', 'GENERATION_STOPPED']) on(name, () => { publishVerdict(''); });

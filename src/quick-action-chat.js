@@ -1,6 +1,5 @@
 // A pending direction is resolved before queueing and bound to a real player message.
 import { executionPreview } from './execution.js';
-import { memoryOnly } from './components.js';
 import { chatState, saveChatState, settings } from './store.js';
 import { characterKey, ctx, hasEvent, isGenerating, isReply, KEY, readComposer, writeComposer } from './st.js';
 
@@ -26,7 +25,6 @@ export function quickChat() {
 
 export function queueCapability() {
     const c = ctx();
-    if (memoryOnly()) return 'Directions need the full extension workflow in this chat.';
     const routeEvents = c.mainApi === 'openai' ? ['CHAT_COMPLETION_PROMPT_READY']
         : c.mainApi ? ['GENERATE_BEFORE_COMBINE_PROMPTS','GENERATE_AFTER_COMBINE_PROMPTS'] : [];
     if (!routeEvents.length || !['MESSAGE_SENT','WORLDINFO_SCAN_DONE','WORLDINFO_ENTRIES_LOADED',...routeEvents].every(hasEvent)) {

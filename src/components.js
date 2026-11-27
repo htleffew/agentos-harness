@@ -1,9 +1,5 @@
 import { chatState, settings } from './store.js';
 
-export function memoryOnly() {
-    return chatState()?.components?.mode === 'memory';
-}
-
 export function memoryComponents() {
     const local = chatState()?.components;
     const { enabled, summary } = settings();

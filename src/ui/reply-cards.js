@@ -1,10 +1,10 @@
 // The reply tray's cards (DESIGN.md 6.2, 6.3 and 6.5). `buildTrayCards` turns one reply's saved values into
 // the card descriptors reply-tray.js draws, in the order and mode of the chat's card setting (src/cards/catalog.js,
 // src/ui/tray-settings.js), through the shared templates (card-templates.js). B20 and B22 add their cards with
-// `registerCardRenderer`. The older drawer-style helpers at the bottom still serve the pre-tray stack.
+// `registerCardRenderer`. The header and chip helpers at the bottom serve the Current scene page and the Sent card.
 import { executionDetails } from './execution.js';
 import { button, h } from './dom.js';
-import { STATE_FIELDS, sceneDateLabel, changesFromProfiles, snapshotState } from '../state.js';
+import { STATE_FIELDS, sceneDateLabel, snapshotState } from '../state.js';
 import { chatState, saveChatState } from '../store.js';
 import { ctx, KEY, isReply } from '../st.js';
 import { undoReplyChanges } from '../worldflow.js';
@@ -46,7 +46,7 @@ export function carriedFrom(index, name, key, chat = ctx().chat || []) {
         for (let at = index; at >= 0; at--) {
             const rec = chat[at]?.extra?.[KEY];
             if (!rec || chat[at].is_user || rec.stateStale) continue;
-            const changes = [...(Array.isArray(rec.stateChanges) ? rec.stateChanges : []), ...(rec.v10 ? [] : changesFromProfiles(rec.profiles))];
+            const changes = Array.isArray(rec.stateChanges) ? rec.stateChanges : [];
             if (changes.some(change => fold(change.name) === target && change.fields?.[key])) return at === index ? null : replyNumber(at, chat);
         }
     } catch (error) { console.warn('[Roleplay Instructions] carried values', error); }
@@ -396,7 +396,7 @@ export function buildTrayCards(view, config = trayCardConfig()) {
     return cards;
 }
 
-// ---------- drawer helpers for the pre-tray stack (legacy story state) ----------
+// ---------- card headers and chips shared with the Current scene page and the Sent card ----------
 
 export function replyChip(text, tone = 'slate') {
     return h('span', { class: 'ri-reply-chip', 'data-tone': tone }, text);
@@ -429,11 +429,4 @@ export function replyCardHeader({ icon, eyebrow, title, subtitle = '', badges = 
         status || h('span', { class: 'ri-reply-chevron', 'aria-hidden': 'true' }, '⌄'));
 }
 
-export function roastCard(text, attrs = {}, status) {
-    const paragraphs = text.trim().split(/\r?\n\s*/).filter(Boolean);
-    return h(status ? 'div' : 'details', { class: 'ri-roast ri-reply-card ri-reply-roast', ...attrs },
-        replyCardHeader({ icon: '“', title: 'Roast', subtitle: 'Reader reaction', status }),
-        !status && h('blockquote', { class: 'ri-roast-v ri-reply-quote' }, paragraphs.map(line => h('p', {}, emphasis(line)))),
-        !status && executionDetails({ label: 'Reader reaction', stage: 'reply', connection: 'Original reply connection', attempts: 0,
-            outcome: 'completed', result: 'Generated in the character reply.' }));
-}
+

@@ -1,5 +1,5 @@
 import { readActivation, recallPolicy } from './recall.js';
-import { memoryComponents, memoryOnly } from './components.js';
+import { memoryComponents } from './components.js';
 import { promptText } from './prompts.js';
 import { sceneAt, sceneProtected } from './state.js';
 // The story world: characters, places, factions, secrets, threads, planted details and things going on elsewhere.
@@ -567,7 +567,7 @@ export function notesRetired() {
     try { return !!ctx().getCurrentChatId?.() && !!ctx().chatMetadata?.[MEMORY]?.imported; } catch { return false; }
 }
 
-export function storyRecall(list, type = 'normal', { memory = memoryOnly(), components = memoryComponents() } = {}) {
+export function storyRecall(list, type = 'normal', { memory = false, components = memoryComponents() } = {}) {
     const rows = list.filter(row=>row.kind==='chapter' ||
         components.world && (!memory || ['character','place','faction','fact'].includes(row.kind)));
     if (notesRetired()) return { rows, notes:null };

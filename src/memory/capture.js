@@ -16,6 +16,7 @@ import { parseSceneHeader, headerMode } from '../scene-header.js';
 import { outcome } from '../dice.js';
 import { sameStoryDay } from '../story-clock.js';
 import { firedForCapture } from './fired-entries.js';
+import { captureRollLines } from './rolls.js';
 import { temperamentMap, speedOf, scaleStep, SPEED_KEYS } from './temperament.js';
 
 export const BATCH_EVERY = 5;
@@ -679,7 +680,8 @@ export async function runCapture(indices, { signal, chain, runChainFn, context, 
     const cast = [...new Set([H.st.names().char, H.st.names().user].filter(Boolean))];
     const call = captureCall(chat, live, {
         records: foldResult.records, suspects: suspectsIn(foldResult, chat), fields, cast, headerReliable: reliable, key,
-        rollOf: rec => rollLine(rec?.v10Check || rec?.roll), firedOf: firedForCapture,
+        // The turn's dice rolls (MB14, src/memory/rolls.js), else a roll saved before degrees.
+        rollOf: (rec, message) => captureRollLines(message) || rollLine(rec?.v10Check || rec?.roll), firedOf: firedForCapture,
     });
     for (const i of live) tell({ index: i, phase: 'capturing' });
     const exchanges = call.exchanges.map(x => ({ ...x, chatId }));

@@ -75,7 +75,7 @@ for (const call of inspectorCalls) assert.ok(call.includes('editable:false'), `$
 // The control homes name pages that exist and links that make sense.
 const { HOMES } = await import('../../src/ui/home-table.js');
 const D = await import('../../src/ui/destinations.js');
-const known = new Set([...D.pages.map(page => page.id), 'memory', 'set-rules', 'presets']);
+const known = new Set([...D.pages.map(page => page.id), 'memory', 'set-rules', 'presets', 'stat-sheets']);
 for (const [key, home] of Object.entries(HOMES)) {
     assert.ok(known.has(home.page), `${key}: home page ${home.page} exists`);
     for (const link of home.links) assert.ok(known.has(link), `${key}: link page ${link} exists`);

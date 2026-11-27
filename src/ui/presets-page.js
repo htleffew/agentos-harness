@@ -129,7 +129,7 @@ function alongsideList(context) {
     const { alongside } = context.features;
     if (context.companion || !alongside.length) return null;
     return h('details', { class: 'ri-ps-fold', id: 'ri-preset-alongside' }, h('summary', {}, `Works alongside (${alongside.length})`),
-        !enabledV10() && hint('Roleplay Instructions is off for this chat, so the extension supplies nothing and the preset is sent as it is.'),
+        !enabledV10() && hint('Roleplay Instructions is off, so the extension supplies nothing and the preset is sent as it is.'),
         alongside.map(item => h('div', { class: 'ri-ps-line' }, h('strong', {}, item.label), h('span', {}, ` ${item.blocks.map(block => plainName(block.name)).join(', ')}`), item.rule && hint(item.rule))));
 }
 

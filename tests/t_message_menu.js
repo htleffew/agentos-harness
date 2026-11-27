@@ -22,7 +22,6 @@ test('every AI reply gets What was sent and Correct a story fact', () => {
 
 test('MB10: a chat whose memory lives in chat data also gets Close the chapter here and Memory from this reply', () => {
     assert.deepEqual(entriesFor(reply, { chatMemory: true }).map(entry => entry.id), ['sent', 'correct', 'close-chapter', 'memory-reply']);
-    assert.deepEqual(entriesFor(reply, { memory: true, chatMemory: true }).map(entry => entry.id), ['sent', 'close-chapter', 'memory-reply']);
     const memory = MENU_ENTRIES.find(entry => entry.id === 'memory-reply');
     const app = {};
     memory.prepare(app, 5);
@@ -36,10 +35,6 @@ test('the player\'s messages, system notes and an extension that is off get none
     assert.deepEqual(entriesFor({ ...reply, is_system: true }), []);
     assert.deepEqual(entriesFor(undefined), []);
     assert.deepEqual(entriesFor(reply, { enabled: false }), []);
-});
-
-test('a memory-only chat keeps What was sent and drops the correction entry', () => {
-    assert.deepEqual(entriesFor(reply, { memory: true }).map(entry => entry.id), ['sent']);
 });
 
 test('each entry names its page and anchors on the selected reply', () => {

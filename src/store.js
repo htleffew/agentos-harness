@@ -54,9 +54,8 @@ const DEFAULTS = {
             { name: 'Long run', from: 41, chance: 125, line: '' },
         ],
     },
-    scene: { track: true, card: 'auto' },   // ask every reply for who is present, where and when; draw the scene card ('auto': only under replies with no HUD of their own)
-    cards: { on: true, most: 2, roast: true, previousRoast: false, stateBudget: 350 },   // character profile cards and the roast, asked for in the same block as the scene lines
-    dice: { on: true, user: true, char: true, others: true, stats: ['Strength', 'Agility', 'Wits', 'Charm', 'Will', 'Senses'], sheets: {} },   // rolled in code; sheets: stat modifiers per character card and persona
+    cards: { stateBudget: 350 },   // room in tokens for the current story state sent with a reply (Setup, Memory, Budgets)
+    dice: { on: true, stats: ['Strength', 'Agility', 'Wits', 'Charm', 'Will', 'Senses'], sheets: {} },   // sheets: stat modifiers saved per character card and persona before per-chat sheets
     words: { on: true, list: DEFAULT_WORDS },   // words to flag locally in AI-written text
     writer: { count: 10, moreRoom: false, eventScene: false, rules: DEFAULT_WRITER_RULES, context: { card: false, scenario: false, persona: false, summary: false, recent: false, recentCount: 10 } },
     pronounMemory: { char: {}, user: {} },

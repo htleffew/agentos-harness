@@ -227,7 +227,7 @@ async function run(browser, viewport, tag) {
     assert.equal(out.search.summarize.landed.page, 'world');
     out.search.worldInfo = await search('World Info');
     assert.equal(out.search.worldInfo.landed.page, 'books');
-    out.search.foldedPrompt = await search('Dice guidance', 'search-folded', /Dice guidance PROMPT/);
+    out.search.foldedPrompt = await search('Dialogue and thought attribution', 'search-folded', /Dialogue and thought attribution PROMPT/);
     assert.equal(out.search.foldedPrompt.landed.tag, 'TEXTAREA');
     assert(out.search.foldedPrompt.landed.foldsOpen.length && out.search.foldedPrompt.landed.foldsOpen.every(Boolean));
     await shot('landed-folded-prompt');

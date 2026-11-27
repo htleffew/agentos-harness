@@ -242,10 +242,3 @@ export function clearQueuedRoll() {
     saveChatState();
     return true;
 }
-
-// ---------------------------------------------------------------- today's callers
-
-// The story world's legacy dice entry (engine.js, the path for chats without v10) now gets nothing from here: the verdict
-// goes out once, under DICE_PROMPT_KEY, for every chat. B13 retires the entry with the legacy path.
-export const rollDice = () => null;
-export const DICE_QUESTION = 'The reply wrote each attempt with the outcome its dice verdict set.';

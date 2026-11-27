@@ -3,8 +3,9 @@
 //   NPC in a World Info book: a sheet inferred from that book's entry, stored in the book as one added, disabled entry
 //     ("Stats: <name>"); every entry she wrote stays as written.
 //   NPC who first acts during play: a plain sheet (every modifier 0) at once, stored with the chat, filled by inference.
-// A value she sets is marked as hers, and no later inference changes it. The sheets live in the chat's metadata until
-// MB14 moves them into the memory log as Stat sheet records.
+// A value she sets is marked as hers, and no later inference changes it. With MB14's store installed
+// (src/memory/stat-sheet-store.js) the sheets are Stat sheet records in the memory log: every read comes from there and
+// every write goes there too; the per-chat copy in chat state answers only while no store is installed.
 import { ctx, names, characterKey, loadBook, saveBook, worldNames, isChatOpen, KEY } from './st.js';
 import { settings, chatState, saveChatState } from './store.js';
 import { runJob } from './routing.js';
@@ -16,6 +17,10 @@ export const MOD_MAX = 20;
 export const INFER_MIN = -3;
 export const INFER_MAX = 5;
 export const SHEET_ENTRY_PREFIX = 'Stats: ';
+
+// MB14: the memory store of Stat sheet records, once installed.
+let records = null;
+export const setSheetRecords = store => { records = store || null; };
 
 const fold = value => String(value ?? '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(n) || 0)));
@@ -52,6 +57,7 @@ export function chatSheets() {
 
 /** The same sheets read only: a roll or a view never writes the chat's metadata. */
 export function savedSheets() {
+    if (records) { try { return records.sheets() || {}; } catch { return {}; } }
     try {
         const sheets = isChatOpen() ? ctx().chatMetadata?.[KEY]?.statSheets : null;
         return sheets && typeof sheets === 'object' ? sheets : {};
@@ -91,11 +97,16 @@ export function setStatByHand(who, stat, value, name = '') {
     sheet.mine = { ...(sheet.mine || {}), [stat]: true };
     if (sheet.reasons) delete sheet.reasons[stat];
     saveChatState();
-    return sheet;
+    return records?.byHand(subject, stat, value, sheet.name) || sheet;
 }
 
 /** Give a value back to inference: the mark goes, and the next inference may set it. */
 export function releaseStat(who, stat) {
+    if (records) {
+        const own = chatState()?.statSheets?.[subjectOf(who)];
+        if (own?.mine) delete own.mine[stat];
+        return !!records.release(subjectOf(who), stat);
+    }
     const sheet = sheetOf(who);
     if (!sheet?.mine?.[stat]) return false;
     delete sheet.mine[stat];
@@ -119,8 +130,9 @@ export function applyInferred(who, { name = '', stats = {}, reasons = {}, source
         if (reasons?.[stat]) sheet.reasons[stat] = clip(reasons[stat], 160);
     }
     Object.assign(sheet, { source: sheet.source === 'you' ? 'you' : source, inferred: Date.now(), ...(route ? { route } : {}), ...(model ? { model } : {}), ...(book ? { book } : {}) });
+    delete sheet.plain;
     saveChatState();
-    return sheet;
+    return records?.inferred(subject, { name: sheet.name, stats, reasons, source, route, model, book }) || sheet;
 }
 
 /** A plain sheet, every modifier 0, for an actor with none yet. It is stored with the chat. */
@@ -132,7 +144,7 @@ export function ensurePlainSheet(who, name = '', source = 'play') {
     const sheet = chatSheets()[subject] = newSheet(subject, nameOf(subject, name || who), kindOf(subject), source);
     sheet.plain = true;
     saveChatState();
-    return sheet;
+    return records?.plain(subject, sheet.name, source) || sheet;
 }
 
 // ---------------------------------------------------------------- the inference call
@@ -311,12 +323,7 @@ export async function inferNpcSheet(name, { run = runJob, storyText = '', load =
         ensurePlainSheet(name, name, found ? 'book' : 'play');
         // A sheet an earlier chat added to the book is read back with no call.
         const saved = found ? readSheetEntry(found.data, name) : null;
-        if (saved) {
-            const sheet = applyInferred(name, { name, ...saved, source: 'book', book: found.book });
-            delete sheet.plain;
-            saveChatState();
-            return sheet;
-        }
+        if (saved) return applyInferred(name, { name, ...saved, source: 'book', book: found.book });
         const text = found ? found.entry.content : storyText;
         const res = await run('statSheets', { ...sheetRequest([{ who: name, text }]), tokens: 300, signal, label: `Stat sheet for ${name}` });
         const cs = chatState();
@@ -325,12 +332,12 @@ export async function inferNpcSheet(name, { run = runJob, storyText = '', load =
         const read = readSheetAnswer(res.value)[fold(name)] || Object.values(readSheetAnswer(res.value))[0];
         if (!read) return sheetOf(name);
         const sheet = applyInferred(name, { name, ...read, source: found ? 'book' : 'play', route: res.route, model: res.model, book: found?.book || '' });
-        delete sheet.plain;
-        if (found) {
-            writeSheetEntry(found.data, name, sheet.stats, sheet.reasons);
+        // The base sheet goes into the NPC's book at any "Story may add to this book" level except Off (memory DESIGN 7.7).
+        if (found && (records?.mayAddToBook(found.book) ?? true)) {
+            const uid = writeSheetEntry(found.data, name, sheet.stats, sheet.reasons);
             await save(found.book, found.data);
+            records?.addedToBook(found.book, uid, found.data.entries[uid]);
         }
-        saveChatState();
         return sheet;
     })().finally(() => npcRuns.delete(subject));
     npcRuns.set(subject, work);

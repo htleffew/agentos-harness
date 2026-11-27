@@ -32,7 +32,7 @@ export const SILLYTAVERN_TERMS = [
         help:'Every prompt the extension sends is listed in Setup, Prompts, each editable in place.' },
     { words:['quick reply','quick replies','qr'], label:'Quick Reply', targets:[{ page:'bridge-bar' }, { page:'bridge-library' }] },
     { words:['theme','font size','ui theme'], label:'Theme and sizes', targets:[{ page:'look' }, { page:'display' }] },
-    { words:['dice','roll'], label:'Dice', targets:[{ page:'checks' }] },
+    { words:['dice','roll'], label:'Dice', targets:[{ page:'stat-sheets' }] },
     { words:['objective','objectives'], label:'Objective', targets:[{ page:'goals' }] },
     { words:['vector storage','vectors','data bank'], label:'Vector Storage and Data Bank', targets:[{ page:'memory' }] },
     { words:['prompt itemization','itemized prompt'], label:'Prompt itemization', targets:[{ page:'sent' }] },

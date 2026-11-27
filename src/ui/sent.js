@@ -1,11 +1,10 @@
-import { memoryOnly } from '../components.js';
 import { refreshReplyProgress } from './reply-progress.js';
 import { refreshDialogue } from './v10.js';
 import { proseDiagnosticsNotes } from '../prose-diagnostics.js';
 import { historySourceMark } from '../history-source.js';
 import { executionAction, executionDetails, functionExecution } from './execution.js';
 import { enabledV10, effectiveModules, KIND_MODULE, checkText } from '../v10.js';
-import { buildTrayCards, replyCardHeader, replyChip, roastCard } from './reply-cards.js';
+import { buildTrayCards, replyChip } from './reply-cards.js';
 import { chatTray, inScene, presentNames, replyTray, trayShows, traySettings } from './reply-tray.js';
 import { headerMode, headerState, parseSceneHeader } from '../scene-header.js';
 import { replyWorld } from './reply-world.js';
@@ -13,8 +12,7 @@ import { trayCardConfig } from './tray-settings.js';
 import { captureStatus } from '../memory/capture.js';
 import { chatWorld } from '../world.js';
 import { refreshMessageMenu } from './message-menu.js';
-import { snapshotState, snapshotScene, sceneDateLabel, STATE_FIELDS } from '../state.js';
-import { characterStateCard, sceneEditor } from './state.js';
+import { snapshotState, snapshotScene, sceneDateLabel } from '../state.js';
 // What Was Sent tab, and the optional section under each reply.
 import { h, button, foldCard, chip } from './dom.js';
 import { homeLink } from './homes.js';
@@ -293,68 +291,6 @@ function underBlock(id, rec) {
         foldCard([h('span', { class: 'ri-sent-title' }, 'What was sent with this reply'), h('span', { class: 'ri-sent-sub' }, summaryLine(rec))], recordBody(id, rec, false, false), { cls: 'ri-sentcard' }));
 }
 
-// A reply that draws its own HUD (a preset tracker) needs no scene card from the extension.
-const OWN_HUD = /<(scene_cast|sola_hud|internal_states|profile|status|tracker|hud)\b|\bpresent\s*=\s*"|^\s*(present|location)\s*:/im;
-
-/** The scene card: when, where and who is present, from the reply's own scene lines. */
-function sceneCard(sc) {
-    const fields = [['where', 'Location'], ['when', 'Time'], ['present', 'Present'], ['environment', 'Environment']];
-    const values = h('div', { class: 'ri-reply-fields' }, fields.filter(([key]) => sc[key]).map(([key, label]) =>
-        h('div', { class: 'ri-scene-row ri-reply-field' }, h('span', { class: 'ri-scene-k' }, label), h('span', { class: 'ri-scene-v ri-reply-value' }, sc[key]))));
-    return h('details', { class: 'ri-scene ri-reply-card ri-reply-scene', 'data-card-key': 'scene' },
-        replyCardHeader({ icon: '◇', eyebrow: 'The story so far', title: 'Scene', subtitle: [sc.where, sc.when].filter(Boolean).join(' · ') }), values);
-}
-
-/** One collapsed view of the state after each reply. */
-function refreshStoryState(chat) {
-    const st = settings();
-    const v10 = enabledV10();
-    const mode = st.enabled && !memoryOnly() ? (st.scene?.card || 'auto') : 'off';
-    const seen = new Set();
-    for (const mes of document.querySelectorAll('#chat .mes')) {
-        const id = Number(mes.getAttribute('mesid'));
-        const m = chat[id], rec = m?.extra?.[KEY], block = mes.querySelector('.mes_block');
-        if (!block || !rec || m.is_user || mode === 'off' || (mode === 'auto' && OWN_HUD.test(String(m.mes || '')))) continue;
-        const sc = st.scene?.track !== false ? snapshotScene(id) : {};
-        const all = st.cards?.on ? snapshotState(id) : {};
-        const names = String(sc.present || '').toLocaleLowerCase();
-        const people = Object.values(all).filter(p => !names || names.includes(p.name.toLocaleLowerCase()));
-        for (const profile of st.cards?.on ? rec.profiles || [] : []) {
-            if (names && !names.includes(String(profile.name || '').toLocaleLowerCase())) continue;
-            let person = people.find(p => p.name.toLocaleLowerCase() === String(profile.name || '').toLocaleLowerCase());
-            if (!person && Object.keys(profile.stable || {}).length) { person = { name: profile.name, fields: {}, protected: {} }; people.push(person); }
-            if (person) person.foundation = profile.stable || {};
-        }
-        if (v10 || rec.v10) continue;
-        const roast = st.cards?.on && st.cards.roast !== false ? rec.roast : '';
-        if (!Object.keys(sc).length && !people.length && !roast) continue;
-        const stamp = JSON.stringify([sc, people, roast, rec.stateOutdated, rec.snapshotEdits]);
-        const old = block.querySelector(':scope > .ri-story-state');
-        seen.add(mes);
-        const responseKey = `${rec.time || ''}:${m.swipe_id ?? 0}`;
-        if (old && old.dataset.responseKey === responseKey && (old.dataset.stamp === stamp || old.querySelector('.ri-state-editor'))) continue;
-        const openCards = new Set(old?.dataset.responseKey === responseKey ? [...old.querySelectorAll('.ri-reply-card[open]')].map(card => card.dataset.cardKey) : []);
-        const outer = h('div', { class: 'ri-root ri-story-state ri-reply-stack', 'data-accent': 'sky' });
-        outer.dataset.stamp = stamp;
-        outer.dataset.responseKey = responseKey;
-        const refreshCards = () => { outer.querySelectorAll('.ri-state-editor').forEach(editor => editor.remove()); outer.dataset.stamp = ''; refreshUnderReplies(); };
-        if (rec.stateOutdated) outer.append(h('div', { class: 'ri-note ri-note-warn' }, 'This reply was edited; its recorded state may be out of date.'));
-        if (Object.keys(sc).length) {
-            const scene = sceneCard(sc);
-            const slot = h('div', { class: 'ri-state-body ri-reply-actions' });
-            slot.append(button('Edit this scene snapshot', () => slot.replaceChildren(sceneEditor(sc, refreshCards, { historicalId: id })), { kind: 'ghost' }));
-            scene.append(slot); outer.append(scene);
-        }
-        for (const person of people) outer.append(characterStateCard(person, id, refreshCards, { historical: true, replyCard: true }));
-        if (roast) outer.append(roastCard(roast,{'data-card-key':'roast'}));
-        for (const card of outer.querySelectorAll('.ri-reply-card')) card.open = openCards.has(card.dataset.cardKey);
-        const under = block.querySelector(':scope > .ri-under');
-        if (old) old.replaceWith(outer); else if (under) block.insertBefore(outer, under); else block.appendChild(outer);
-    }
-    for (const el of document.querySelectorAll('#chat .mes .ri-story-state')) if (!seen.has(el.closest('.mes'))) el.remove();
-    for (const el of document.querySelectorAll('#chat .mes .ri-scene, #chat .mes .ri-cards')) if (!el.closest('.ri-story-state')) el.remove();
-}
-
 function loreEntryButton(entry, fromReview) {
     if (!entry.book) return null;
     const managed = entry.managedSet || ['Random Instructions','Random Story Events','Random Writing Style'].includes(entry.role);
@@ -434,14 +370,15 @@ function refreshV10Replies(chat) {
         if (!block) continue;
         const old=block.querySelector(':scope > .ri-tray:not(.ri-tray-loading)');
         const latest=id===latestReply;
-        const showHeader = enabled && !memoryOnly() && (native || rec?.v10) && isReply(msg);
-        const diagnostics = enabled && !memoryOnly() && isReply(msg)
+        const showHeader = native && isReply(msg);
+        const diagnostics = enabled && isReply(msg)
             ? proseDiagnosticsNotes(chat,id,{avoid:local.avoidPhrases,metrics:local.proseMetrics===true}) : null;
         const hasDiagnostics = !!(diagnostics?.notes.length || diagnostics?.details.length || diagnostics?.metrics || diagnostics?.auditRequested);
         const show = (showHeader || hasDiagnostics) && !!rec && trayShows(latest);
         if (!show) {old?.remove();continue;}
-        const showConsole=showHeader && settings().scene?.card !== 'off';
-        const showState=showConsole && modules.state && (settings().scene?.card !== 'auto' || !OWN_HUD.test(msg.mes || ''));
+        const showConsole=showHeader;
+        // With the preset's tracker on Theirs, modules.state is off and the tray shows none of the state cards (DESIGN 6.6).
+        const showState=showConsole && modules.state;
         const snapshot=showState ? snapshotScene(id) : null;
         const profiles=showState ? rec.v10Profiles || [] : [];
         const aliases=name=>profiles.find(profile=>profile.subject===name)?.aliases || [];
@@ -490,10 +427,10 @@ function refreshV10Replies(chat) {
 export function refreshUnderReplies() {
     try { refreshReplyProgress(); } catch (e) { console.warn('[Roleplay Instructions] reply progress',e); }
     try { refreshMessageMenu(); } catch (e) { console.warn('[Roleplay Instructions] message menu', e); }
-    try { refreshStoryState(ctx().chat || []); refreshV10Replies(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
+    try { refreshV10Replies(ctx().chat || []); } catch (e) { console.warn('[Roleplay Instructions] story state', e); }
     try {
         const st = settings();
-        const show = st.enabled && !memoryOnly() && st.showUnder === 'display';
+        const show = st.enabled && st.showUnder === 'display';
         const chat = ctx().chat || [];
         const seen = new Set();
         if (show) {

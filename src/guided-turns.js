@@ -1,6 +1,5 @@
 import { ctx, eventTypes, hasEvent, isGenerating, isReply, KEY, readComposer, restoreReplySnapshot, selectReplyVersion, setReplyVersion, updateReplyVersion, withSingleHostRequest, writeComposer } from './st.js';
 import { settings } from './store.js';
-import { memoryOnly } from './components.js';
 import { guideContinuation, guideSwipe } from './engine.js';
 import { isOwnPrompt, request } from './ai.js';
 import { amendExecutionReceipt, executionPreview, executionScope, executionSetting, runAdditional } from './execution.js';
@@ -46,7 +45,7 @@ function nativeDraftAvailable(base) {
 
 function nativeStoryAvailable(family, target) {
     const host = ctx();
-    if (!target?.latest || memoryOnly() || !hasEvent('GENERATION_STARTED') || !hasEvent('MESSAGE_RECEIVED')) return false;
+    if (!target?.latest || !hasEvent('GENERATION_STARTED') || !hasEvent('MESSAGE_RECEIVED')) return false;
     if (family === 'continue') return typeof host.generate === 'function';
     const message = host.chat?.[target.index];
     if (host.swipe?.isAllowed?.() === false || message?.extra?.swipeable === false || message?.extra?.isSmallSys ||

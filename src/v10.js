@@ -3,7 +3,7 @@ import { orderedSections } from './module-layout.js';
 import { correctedLoreEntry, characterCorrectionFields, isRejectedStoryClaim } from './correction-rules.js';
 import { BOOK_TRIGGER_SOURCES, bookTriggerSource, reusableKeywordMatch } from './book-triggers.js';
 import { recallPolicy, recallTiming } from './recall.js';
-import { memoryOnly, memoryComponents } from './components.js';
+import { memoryComponents } from './components.js';
 import { dialogueAttributions, thoughtAttributions } from './dialogue.js';
 import { separateReply } from './reply-format.js';
 import { validStoryMinute, validElapsed } from './story-clock.js';
@@ -13,11 +13,10 @@ import { ctx, KEY, names, loadBook, saveBook, refreshWorldList, worldNames, isGe
 import { chatState, settings, saveChatState } from './store.js';
 import { rollInt, createSet, cleanSetName, setInfo, setOfEntry } from './books.js';
 import { chatWorld, setChatWorld, listWorld, newWorldEntry, writeWorldEntry } from './world.js';
-import { loadEffectiveWorld, worldBeforeGeneration } from './worldflow.js';
+import { loadEffectiveWorld, worldBeforeGeneration, isAsk } from './worldflow.js';
 import { foldRows, memoryActive } from './memory/import.js';
 // The quote check of memory DESIGN 7.2 replaces the old word-overlap test of a claim against its quote (M1a W2).
 import { quoteIn } from './memory/validate.js';
-import { statNames, sheet } from './dice.js';
 
 export const PRESET = 'Roleplay Instructions V10';
 export const isCompanionPreset = name => /^Roleplay Instructions V10(?:\.\d+)*$/i.test(String(name || '').trim());
@@ -25,7 +24,7 @@ export const pairedPreset = () => enabledV10() && isCompanionPreset(activePreset
 export const MODULES = {
     style: 'Live writing guidance', preflight: 'Scene and character checks', state: 'Story, scene and character state', knowledge: 'Character knowledge', emotions: 'NPC emotion scales',
     relationships: 'Relationships', plots: 'Arcs, seeds and off-screen agendas', worldEvents: 'Autonomous world events',
-    dice: 'Explicit action checks', colors: 'Dialogue colors', roast: 'Roast generation', roastFeedback: 'Roast feedback in future prompts',
+    dice: 'Dice', colors: 'Dialogue colors', roast: 'Roast generation', roastFeedback: 'Roast feedback in future prompts',
 };
 export const DEFAULT_MODULES = {
     style: true, preflight: true, state: true, knowledge: true, emotions: true, relationships: true, plots: true, worldEvents: true,
@@ -78,8 +77,8 @@ export function baseWorld(local = chatState()?.v10) {
     return base && (!ctx().getWorldInfoNames || worldNames().includes(base.name)) ? base : null;
 }
 export function enabledV10() {
-    const local = chatState()?.v10?.enabled;
-    return settings().enabled && !memoryOnly() && (local ?? isCompanionPreset(activePreset()));
+    // Structured is the one story workflow while the extension is on (B13; the Legacy workflow and Memory only retired).
+    return settings().enabled !== false;
 }
 export const HOST_OVERLAPS = {
     style: ['Prose Rules','Realistic Bold NPCs','HQ NPC Creation','NPC Voice','Prose Lint Functions','Output Length','Card Fidelity','🎭 Card Fidelity 🃏','Gemini Pacing Nerf','Realism Mode/Jailbreak','[Gemini] Realism NSFW/Jailbreak'],
@@ -253,7 +252,7 @@ export function extractUpdate(raw, { sourceProse, allowPlayerThoughts = false } 
     if (Object.hasOwn(value,'repair') && !Number.isSafeInteger(value.repair)) issues.push('Repair must reference an accepted reply.');
     return {
         clean: cleanText, found:true, scene, profiles, issues, minutes, elapsed:validElapsed(elapsed) ? elapsed : undefined,
-        ended: inputScene.ended === true, legacyOutcome:safeText(value.legacyOutcome,400), roast: safeText(value.roast,1000), changes:(value.changes || []).slice(0,12),
+        ended: inputScene.ended === true, roast: safeText(value.roast,1000), changes:(value.changes || []).slice(0,12),
         repairChanges: (value.repairChanges || []).slice(0,4), repair: Number.isSafeInteger(value.repair) ? value.repair : null,
     };
 }
@@ -512,7 +511,7 @@ export function reusableBookNames() {
 
 export async function uploadReusableBook(file, role = 'base') {
     const local = prefs();
-    if (!local || !(enabledV10() || memoryOnly() && memoryComponents().world && role !== 'guidelines')) {
+    if (!local || !enabledV10()) {
         throw new Error('Enable the corresponding World Info workflow before importing a book.');
     }
     let data;
@@ -625,16 +624,6 @@ export async function rowsForWorld(type = 'normal') {
     if (memoryActive()) return foldRows(id,{before:worldBeforeGeneration(type)});
     const data = await loadEffectiveWorld(id,{before:worldBeforeGeneration(type)});
     return data ? listWorld(data,id) : [];
-}
-
-export function queueCheck(action, stat, dc, actor = 'user') {
-    const local = prefs();
-    if (!enabledV10() || !effectiveModules().dice || !local || isGenerating()) throw new Error('Action checks are unavailable right now.');
-    if (!clean(action) || !statNames().includes(stat) || !['user','char'].includes(actor) || !Number.isInteger(dc) || dc < 1 || dc > 40) throw new Error('Choose an action, stat and difficulty from 1 to 40.');
-    const mod = Math.trunc(Number(sheet(actor)[stat]) || 0);
-    local.check = resolveCheck({ action:safeText(action,240), stat, dc, mod, actor, name:names()[actor] });
-    saveChatState();
-    return local.check;
 }
 
 export function resolveCheck(spec) {
@@ -834,21 +823,66 @@ export function prepareTurn(rows, scene, type, modules, check, { schedule = fals
         ['emotions', modules.emotions && promptText('emotionSensitivity',{sensitivity:local.emotion?.sensitivity || 'flexible'})],
         ['state', baseline.length && `Established portrayal takes precedence over general style:\n${baseline.join('\n')}`],
         ['plots', plotAudit.some(row=>!row.eligible && row.recalled) && promptText('lockedPayoff')],
-        ['state', recalled.length && `Established records (respect private knowledge and protected portrayal):\n${recalled.map(x=>x.text).join('\n')}`],
+        ['state', recordsSection(recalled)],
         ['state', modules.state && Number.isInteger(clock) && `Current exact story minute: ${clock}.`],
         ['worldEvents', order?.length && opportunitySlot],
         ['dice', check && `${checkText(check)} ${promptText('resolvedActionGuidance')}`],
         ['roastFeedback', feedback.length && `Out-of-story voice feedback, not canon:\n${promptText('roastFeedback')}\n${feedback.join('\n')}`],
     ],group?.modes),order);
-    const slot=guidance.indexOf(opportunitySlot);
-    const beforeOffer=slot<0 ? null : [format,...guidance.slice(0,slot)].filter(Boolean).join('\n');
-    if (slot>=0) guidance.splice(slot,1);
-    const text = [format,...guidance,
-        replyExtras(modules),
-    ].filter(Boolean).join('\n');
+    // The records list is composed again when the memory block settles which records it carries (leaveOutRecords).
+    const extras = replyExtras(modules);
+    const whole = recordsSection(recalled);
+    const compose = drop => {
+        const section = recordsSection(recalled.filter(x=>!drop.has(x.record.id)));
+        const parts = guidance.map(part => part===whole ? section : part).filter(Boolean);
+        const slot = parts.indexOf(opportunitySlot);
+        const beforeOffer = slot<0 ? null : [format,...parts.slice(0,slot)].filter(Boolean).join('\n');
+        if (slot>=0) parts.splice(slot,1);
+        return { text:[format,...parts,extras].filter(Boolean).join('\n'), offerOffset:beforeOffer?.length, section };
+    };
+    const { text, offerOffset } = compose(new Set());
     // Story state reaches memory through capture after the reply (src/memory/capture.js), so the request asks for no
     // update block and no repair of an earlier one (memory DESIGN 5.1, 7.2).
-    return { text, offerOffset:beforeOffer?.length, offer, repair:null, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
+    lastTurn = { text, offerOffset, listed:whole, earlier:new Set(), compose, offer, repair:null, records, clock, check, modules, expectsPlan:paired && local.generatePlan===true, recalled, recallFresh:recalled.flatMap(item=>{const hit=exposure.get(item.record.id);return hit?.fresh ? [String(hit.entry.uid)] : [];}), baselines, base, plotAudit };
+    return lastTurn;
+}
+
+const recordsSection = items => items.length ? `Established records (respect private knowledge and protected portrayal):\n${items.map(x=>x.text).join('\n')}` : '';
+let lastTurn = null;
+
+/**
+ * Send each record once. In a chat whose memory lives in chat data the memory block (src/recall.js) carries some records and
+ * holds others out (a record that only repeats one of her World Info entries, a record outside the recall pool). The
+ * records list of the Structured turn leaves out both. `ids` are the records the block carries or held out, and `lore` is
+ * the host's loaded entries; the list inside the ask entry is rewritten in place, so it can run again when the block
+ * changes and bring a record back. Returns true when the list changed.
+ */
+export function leaveOutRecords(lore, ids) {
+    const turn = lastTurn;
+    if (!turn?.recalled.length) return false;
+    const drop = new Set([...ids].filter(id => turn.recalled.some(x=>x.record.id===id)));
+    const next = turn.compose(drop);
+    if (next.section === turn.listed) return false;
+    const entry = (lore?.chatLore || []).find(e => isAsk(e) && String(e.content).includes(turn.listed || turn.text));
+    if (!entry) return false;
+    if (turn.listed && next.section) entry.content = entry.content.replace(turn.listed, () => next.section);
+    else if (turn.listed) entry.content = entry.content.replace(`${turn.listed}\n`, '').replace(`\n${turn.listed}`, '').replace(turn.listed, '');
+    else entry.content = entry.content.replace(turn.text, () => next.text);
+    if (turn.listed) turn.earlier.add(turn.listed);
+    Object.assign(turn, { text:next.text, offerOffset:next.offerOffset, listed:next.section });
+    return true;
+}
+
+/** The ask text as the request now carries it: an earlier copy of the records list is swapped for the one in force. */
+export function askAsSent(text) {
+    const turn = lastTurn;
+    let out = String(text ?? '');
+    if (!turn?.earlier.size) return out;
+    for (const old of turn.earlier) {
+        if (old === turn.listed || !out.includes(old)) continue;
+        out = turn.listed ? out.replace(old, () => turn.listed) : out.replace(`${old}\n`, '').replace(`\n${old}`, '').replace(old, '');
+    }
+    return out;
 }
 
 export function loreReceipt(entries, notes, rows, book, recalled = []) {
@@ -1015,7 +1049,7 @@ export function greetings() {
 export async function draftOpening({ text = '', direction = '', signal } = {}) {
     const local = prefs();
     const preset = activePreset();
-    if (!enabledV10() || !local || isGenerating()) throw new Error('Choose the Structured story workflow and wait for the current reply to finish.');
+    if (!enabledV10() || !local || isGenerating()) throw new Error('Turn on Roleplay Instructions and wait for the current reply to finish.');
     const { request } = await import('./ai.js');
     const card = ctx().characters?.[ctx().characterId] || {};
     const modules = effectiveModules();

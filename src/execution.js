@@ -30,7 +30,6 @@ export const EXECUTION_OPERATIONS = Object.freeze({
     writerGoal: { label:'Draft a character goal' },
     writerWorld: { label:'Draft a Story World entry' },
     bookKeywords: { label:'Suggest lorebook trigger phrases' },
-    editedState: { label:'Rebuild edited story state' },
     presetParity: { label:'Compare preset blocks and extension modules' },
 });
 
@@ -98,7 +97,7 @@ export const OPERATION_JOBS = Object.freeze({
     factRepair:'tidy', chapterSummary:'chapter', chapterCombine:'storySoFar', newChapter:'carryOver',
     starterWorld:'behaviorDrafts', storyOpening:'behaviorDrafts', instructionCheck:'capture', writerVersions:'behaviorDrafts',
     writerVersionRewrite:'behaviorDrafts', writerItems:'behaviorDrafts', writerStyle:'behaviorDrafts', writerRewrite:'behaviorDrafts',
-    writerGoal:'behaviorDrafts', writerWorld:'behaviorDrafts', bookKeywords:'capture', editedState:'capture', presetParity:'tidy',
+    writerGoal:'behaviorDrafts', writerWorld:'behaviorDrafts', bookKeywords:'capture', presetParity:'tidy',
 });
 
 /** The tier chain of a function, ending on Main API so a host with no saved profile still answers, as it did before chains. */

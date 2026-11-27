@@ -1,0 +1,14 @@
+/* V1: the Voices page and the Read aloud entry. Layout only; colors come from the shared tokens. */
+.ri-voice-actions { display: flex; flex-wrap: wrap; gap: calc(var(--ri-gap) * 2); margin: var(--ri-pad) 0; }
+.ri-voice-actions > .ri-btn, .ri-voice-upload { min-height: max(var(--ri-hit-min), calc(var(--ri-hit-base) * var(--ri-hit-scale))); }
+.ri-voice-upload { display: inline-flex; align-items: center; cursor: pointer; position: relative; }
+.ri-voice-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.ri-voice-upload:focus-within { outline: 2px solid var(--ri-focus); outline-offset: 1px; }
+.ri-voice-card { margin: var(--ri-pad) 0; padding: var(--ri-pad); }
+.ri-voice-result p, .ri-voice-result ul { margin: calc(var(--ri-gap)) 0; }
+.ri-voice-range { width: 100%; min-height: var(--ri-hit-min); accent-color: var(--ri-focus); color-scheme: dark; }
+.ri-voice-value { font-variant-numeric: tabular-nums; min-width: 3em; display: inline-block; }
+.ri-voice-url-problem:empty, .ri-voice-probe:empty, .ri-voice-result:empty { display: none; }
+.ri-voice-button:focus-visible { outline: 2px solid var(--ri-focus); outline-offset: 1px; }
+.ri-voice-button[data-ri-elapsed]::after { content: attr(data-ri-elapsed); font-family: inherit; font-weight: 400; font-size: 12px; margin-left: 2px; }
+#ri-voice-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }

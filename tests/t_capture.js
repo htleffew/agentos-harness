@@ -57,7 +57,6 @@ test('the chat request carries no update-block instructions and the reply keeps 
     const roast = V10.prepareTurn([], {}, 'normal', { ...V10.DEFAULT_MODULES, roast: true }, null);
     assert.match(roast.text, /<roast>/, 'the Roast card still asks for its own block');
     assert.doesNotMatch(roast.text, /story_update/);
-    assert.equal(typeof WF.buildAsk, 'function');
     const flow = await WF.prepareWorld('normal', 1, {});
     assert.ok(!flow || !('ask' in flow), 'prepareWorld returns no update request');
     out.request = { turnChars: turn.text.length, roastChars: roast.text.length };

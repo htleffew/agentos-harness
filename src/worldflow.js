@@ -4,7 +4,7 @@ import { recallPolicy } from './recall.js';
 import { memoryComponents } from './components.js';
 import { separateReply } from './reply-format.js';
 import { extractUpdate, normalizeRecord, readRecord, recordMap, effectiveModules, ensureWorld, enabledV10, baselineFor, effectivePortrayal, PLOT_KINDS, baseWorld, prefs } from './v10.js';
-import { promptText, promptStatus, roastVoiceText } from './prompts.js';
+import { promptText } from './prompts.js';
 import { trimBranchOverrides, correctionAnchor, sceneAt, sceneFromReplyHeader, stripSceneTracker } from './state.js';
 import { currentWorldData, memoryActive } from './memory/import.js';
 // Keeping the story world up to date by itself.
@@ -28,8 +28,6 @@ export const isAsk = e => e?.world === ASK_WORLD;
 export const isOrder = e => e?.world === ORDER_WORLD;
 export const PACE_WORLD = 'Roleplay Instructions story phase';
 export const isPace = e => e?.world === PACE_WORLD;
-export const DICE_WORLD = 'Roleplay Instructions dice';
-export const isDice = e => e?.world === DICE_WORLD;
 export const ORDER_KEY = `${ORDER_WORLD}.0`;
 
 const clean = t => String(t ?? '').replace(/\s+/g, ' ').trim();
@@ -49,7 +47,6 @@ function synthetic(world, comment, content, depth) {
 export const askEntry = text => synthetic(ASK_WORLD, 'Story update request', text, 0);
 export const orderEntry = () => synthetic(ORDER_WORLD, 'Story world', 'story world', 1);
 export const paceEntry = text => synthetic(PACE_WORLD, 'Story phase', text, 1);
-export const diceEntry = () => synthetic(DICE_WORLD, 'Dice', 'dice', 1);
 
 /** True when the newest message from the user starts out of character, as in "(OOC: ...)". */
 export function isOocTurn() {
@@ -83,184 +80,29 @@ const FORM = [
 const isClearSubject = value => /^(clear|resolved)$/i.test(norm(value));
 const PLACEHOLDER = /^(name|short title|thread title|secret title|planted detail title|title|none|nothing|n\/a|-+|\.+)$/i;
 
-/** The three lines about the scene itself. They are asked for with every reply, with or without a story world, so the
- * extension knows who is present, where and when under any preset. */
+/** The scene lines of a <story_update> block. A line copied from the form with nothing filled in is left out when read. */
 const SCENE_FORM = [
     ['present', 'everyone in the scene at the end of this reply other than {{user}}, by name, separated by commas'],
     ['where', 'the place where the scene is at the end of this reply'],
     ['when', 'the day, the time of day and the weather at the end of this reply'],
     ['environment', 'important continuing physical conditions or hazards; omit if unchanged, CLEAR if resolved'],
 ];
-const sceneLines = () => SCENE_FORM.map(([k, v]) => `${k}: ${v}`);
-
-/** The request for the scene lines and the character cards, for a chat with no story world. type: the kind of generation. */
-export function buildSceneAsk(type = 'normal', { freshStart = false } = {}) {
-    const track = settings().scene?.track !== false;
-    const cards = cardsOn();
-    if (!track && !cards) return '';
-    const what = [track ? 'who is present, where and when' : '', cards ? 'character profiles' : ''].filter(Boolean).join(', and ');
-    return [
-        `[Scene. ${promptText('scene', { what, sceneRule: track ? ' Fill in all three scene lines.' : '' })}${promptStatus('scene').customized ? ' Output the following <story_update> block after the story text.' : ''}`,
-        '<story_update>',
-        ...(track ? sceneLines() : []),
-        ...(track ? ['scene: continues (or "ended" when the story moved on to a new time or place)'] : []),
-        ...cardForm(),
-        '</story_update>',
-        ...cardRules(onFileNames([], type), type, freshStart),
-    ].join('\n') + ']';
-}
-
-// ---------- character profile cards and the roast ----------
-
-/** The lines of a profile that say who the person is. They are kept (in the story world, or with the chat) and asked for once. */
-export const PROFILE_STABLE = [
-    ['who', 'Who', 'personality and background, in two or three plain facts'],
-    ['strength', 'Strength', 'their main strength'],
-    ['flaw', 'Flaw', 'their main flaw'],
-    ['voice', 'Voice', 'how they talk (rhythm, word choice, habits of speech)'],
-    ['orientation', 'Orientation', 'as their card or the story states it'],
-];
-/** The lines of a profile that say what is going on in the person now. They are written new with every reply. */
-export const PROFILE_NOW = [
-    ['wants', 'Wants', 'what they want right now, and in the long run'],
-    ['thinks', 'Thinks', 'what they think about what just happened'],
-    ['feels', 'Feels', 'what they feel, named plainly, such as "Hale feels angry"'],
-    ['shows', 'Shows', 'what they let the others see'],
-    ['private', 'Keeps private', 'their private thought or feeling'],
-    ['willnot', 'Will not', 'what they refuse to do in this scene'],
-    ['why', 'Why', 'how who they are led to what they just did, felt or chose in this reply'],
-    ['mind', 'Mind', 'current goal, attention or plan'],
-    ['heart', 'Heart', 'salient emotion or relationship tension'],
-    ['body', 'Body', 'persistent physical condition or injury'],
-    ['psyche', 'Psyche', 'established inner conflict or vulnerability'],
-];
-const PROFILE_LINES = [...PROFILE_STABLE, ...PROFILE_NOW];
-const ROAST_FORM = "the commentator's reaction to this reply";
-
-export function cardsOn() {
-    const c = settings().cards;
-    return !!(settings().enabled !== false && c?.on);
-}
-const roastOn = () => cardsOn() && settings().cards.roast !== false;
-const cardMost = () => Math.max(1, Math.min(3, Math.round(Number(settings().cards?.most) || 2)));
-
-function cardForm() {
-    if (!cardsOn()) return [];
-    return [
-        '<profile name="{{char}}">',
-        ...PROFILE_NOW.filter(([k]) => ['mind', 'heart', 'body', 'psyche'].includes(k)).map(([, label, help]) => `${label}: ${help}`),
-        '</profile>',
-        ...(roastOn() ? ['<roast>', ROAST_FORM, '</roast>'] : []),
-    ];
-}
-
-/** True when a person's profile is on file: the four lines that describe them are filled in. */
-const complete = (f) => ['who', 'strength', 'flaw', 'voice'].every(k => clean(f?.[k]));
-
-/** Who a person is, from the newest card of theirs in this chat before message `before`. Swipes, deletes and branches follow by themselves. */
-export function keptProfile(name, before = Infinity) {
-    const chat = ctx().chat || [];
-    for (let i = Math.min(chat.length, before) - 1; i >= 0; i--) {
-        const p = (chat[i]?.extra?.[KEY]?.profiles || []).find(x => norm(x.name) === norm(name));
-        if (p && Object.keys(p.stable || {}).length) return p.stable;
-    }
-    return null;
-}
-
-/** Names whose profile is on file, from the story world's characters and from earlier cards in this chat. */
-export function onFileNames(list, type = 'normal') {
-    const out = list.filter(w => w.on && w.kind === 'character' && complete(w.fields)).map(w => clean(w.name));
-    const chat = ctx().chat || [];
-    // A reply that is being replaced by a swipe does not count.
-    const upTo = type === 'swipe' && chat.length && !chat[chat.length - 1]?.is_user ? chat.length - 1 : chat.length;
-    for (const m of chat.slice(0, upTo)) for (const p of m?.extra?.[KEY]?.profiles || []) if (complete(p.stable) && !out.some(n => norm(n) === norm(p.name))) out.push(clean(p.name));
-    return out.filter(Boolean).slice(0, 30);
-}
-
-/** The roast written about the reply before the one being written now. */
-export function lastRoast(type = 'normal') {
-    const chat = ctx().chat || [];
-    let i = chat.length - 1;
-    if ((type === 'swipe' || type === 'continue') && i >= 0 && !chat[i]?.is_user) i--;
-    for (; i >= 0 && i >= chat.length - 8; i--) {
-        const m = chat[i];
-        if (!m || m.is_user || m.is_system) continue;
-        return clean(m.extra?.[KEY]?.roast || '');
-    }
-    return '';
-}
-
-function cardRules(onFile, type, freshStart = false) {
-    if (!cardsOn()) return [];
-    const most = cardMost();
-    const lines = [
-        `Profiles: {{char}} gets a profile in every reply.${most > 1 ? ` Another character gets one only when they are present and what they did in this reply changed what happens next: they spoke to {{user}}, made a choice, or acted on a goal of their own. ${most} profiles at most.` : ''} Give profiles to NPCs only. The player supplies {{user}}’s own perspective. ${promptText('profile')}${promptStatus('profile').customized ? ' Omit unchanged fields and use CLEAR to resolve a field.' : ''}`,
-        `For a person with a new profile, add five lines at the top of their profile: ${PROFILE_STABLE.map(([, label, help]) => `${label}: ${help}`).join('. ')}. Established profiles: ${onFile.join(', ') || 'none yet'}.`,
-    ];
-    if (roastOn()) {
-        lines.push(`Roast: ${clean(roastVoiceText())}`);
-        const prev = freshStart || settings().cards.previousRoast === false ? '' : lastRoast(type);
-        if (prev) lines.push(`The commentator's reaction to the previous reply was: ${prev}`);
-    }
-    return lines;
-}
-
-const PROFILE_BLOCK = /<profile\b([^>]*)>([\s\S]*?)(?:<\/profile\s*>|(?=<profile\b|<roast\b|<\/story_update|$))/gi;
-const ROAST_BLOCK = /<roast\b[^>]*>([\s\S]*?)(?:<\/roast\s*>|(?=<profile\b|<\/story_update|$))/gi;
-const NAME_PLACEHOLDER = /^(\[?name\]?|\{\{char\}\}|character|none)$/i;
-
-/** Read the profiles and the roast in a piece of text. Returns { profiles: [{ name, now, stable }], roast, rest } where rest is the text without them. */
-export function parseCards(text) {
-    const src = String(text ?? '');
-    const profiles = [];
-    let roast = '';
-    const charName = clean(names().char);
-    let rest = src.replace(PROFILE_BLOCK, (all, attrs, body) => {
-        const nm = String(attrs).match(/name\s*=\s*["“']?([^"”'>]+)/i);
-        let name = clean(nm?.[1] || '');
-        if (/^\{\{char\}\}$/i.test(name)) name = charName;
-        if (!name || isClearSubject(name) || NAME_PLACEHOLDER.test(name) || name.length > 60) return '';
-        const now = {}, stable = {};
-        for (const raw of String(body).split('\n')) {
-            const line = raw.replace(/^[\s\-*•]+/, '').replace(/\*\*/g, '').trim();
-            const hit = PROFILE_LINES.find(([, label]) => line.toLowerCase().startsWith(label.toLowerCase() + ':'));
-            if (!hit) continue;
-            const v = clean(line.slice(hit[1].length + 1)).replace(/^\[|\]$/g, '');
-            if (!v || norm(v) === norm(hit[2]) || v.length > 600) continue;
-            (PROFILE_STABLE.includes(hit) ? stable : now)[hit[0]] = /^(clear|resolved)$/i.test(v) && ['mind', 'heart', 'body', 'psyche'].includes(hit[0]) ? null : v;
-        }
-        if (!Object.keys(now).length && !Object.keys(stable).length) return '';
-        const same = profiles.find(p => norm(p.name) === norm(name));
-        if (same) { Object.assign(same.now, now); Object.assign(same.stable, stable); } else profiles.push({ name, now, stable });
-        return '';
-    });
-    rest = rest.replace(ROAST_BLOCK, (all, body) => {
-        const v = String(body).replace(/\s+\n/g, '\n').trim();
-        if (v && norm(v) !== norm(ROAST_FORM)) roast = v.slice(0, 1200);
-        return '';
-    });
-    return { profiles: profiles.slice(0, 3), roast, rest };
-}
-
-/** The text that asks for the block. list: the world's entries. */
-export function buildAsk(list, type = 'normal', freshStart = false) {
-    const on = list.filter(w => w.on);
-    const names = (kind, keep = () => true) => on.filter(w => w.kind === kind && keep(w)).map(w => clean(w.name)).filter(Boolean).slice(0, 40).join(', ') || 'none yet';
-    return [
-        `[Story update. ${promptText('worldUpdate')} ${promptText('memoryFacts')}${promptStatus('worldUpdate').customized ? ' Output the following <story_update> block after the story text.' : ''}`,
-        '<story_update>',
-        ...(settings().scene?.track !== false ? sceneLines() : []),
-        ...FORM.map(([k, v]) => `${k}: ${v}`),
-        'scene: continues (or "ended" when the story moved on to a new time or place)',
-        ...cardForm(),
-        '</story_update>',
-        ...cardRules(onFileNames(list, type), type, freshStart),
-        '"person", "place" and "group" are for newly established named people, places and groups. Use the existing names and titles exactly as shown.',
-        `Established people: ${names('character')}. Places: ${names('place')}. Groups: ${names('faction')}. Open threads: ${names('thread', w => w.status !== DONE.thread)}. Kept secrets: ${names('secret', w => w.status === 'kept')}. Planted details: ${names('seed', w => w.status !== DONE.seed)}. Going on elsewhere: ${names('activity', w => w.status !== DONE.activity)}.]`,
-    ].join('\n');
-}
 
 // ---------- reading the block ----------
+
+// The Roast card's block (replyExtras in v10.js): one <roast> block after the prose, lifted out of the reply.
+const ROAST_BLOCK = /<roast\b[^>]*>([\s\S]*?)(?:<\/roast\s*>|(?=<\/story_update|$))/gi;
+
+/** Take the <roast> block out of a piece of text. Returns { roast, rest }. */
+export function liftRoast(text) {
+    let roast = '';
+    const rest = String(text ?? '').replace(ROAST_BLOCK, (all, body) => {
+        const value = String(body).replace(/\s+\n/g, '\n').trim();
+        if (value && !roast) roast = value.slice(0, 1200);
+        return '';
+    });
+    return { roast, rest };
+}
 
 const BLOCK = /\s*<story_update\b[^>]*>([\s\S]*?)(?:<\/story_update\s*>|$)/i;
 const BLOCK_ALL = /\s*<story_update\b[^>]*>[\s\S]*?(?:<\/story_update\s*>|$)/gi;
@@ -277,13 +119,7 @@ export function parseUpdate(text) {
     const ops = [];
     let ended = false;
     const scene = {};
-    // Profiles and the roast sit inside the block. They are read first, so their lines are not read as update lines.
-    const cards = parseCards(m[1]);
-    for (const p of cards.profiles) {
-        if (Object.keys(p.stable).length) ops.push({ k: 'profile', a: p.name, b: '', c: '', f: { ...p.stable } });
-        if (p.now.wants) ops.push({ k: 'wants', a: p.name, b: p.now.wants, c: '' });
-    }
-    for (const raw of cards.rest.split('\n')) {
+    for (const raw of m[1].split('\n')) {
         const line = raw.replace(/^[\s\-*•]+/, '').replace(/\*\*/g, '').trim();
         const hit = line.match(/^([a-z]+)\s*:\s*(.+)$/i);
         if (!hit) continue;
@@ -302,7 +138,7 @@ export function parseUpdate(text) {
         if (FORM.some(([fk, fv]) => fk === k && norm(fv) === norm(hit[2]))) continue;
         ops.push({ k, a: parts[0], b: parts[1] || '', c: parts.slice(2).join(' | ') });
     }
-    return { found: true, ops, ended, block: clean(m[0]), clean: stripUpdateBlock(src).trimEnd(), scene: Object.keys(scene).length ? scene : null, profiles: cards.profiles, roast: cards.roast };
+    return { found: true, ops, ended, block: clean(m[0]), clean: stripUpdateBlock(src).trimEnd(), scene: Object.keys(scene).length ? scene : null, profiles: [], roast: '' };
 }
 
 // ---------- filing what the block says ----------
@@ -630,7 +466,8 @@ export async function prepareWorld(type, replyNo, { quiet = false, scale = 100, 
     const offers = inData ? memoryOffers(eligible, memoryPresence(present, type), meta) : worldOffers(eligible, present, meta);
     if (memory) return {id,notes,rows,order:null,offers};
     const ooc = isOocTurn();
-    const order = ooc || (native && !opportunities) ? null : rollOrder(eligible, present, meta, native ? {...o, head:100, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
+    // Structured sends the silent-character order on any turn; the other orders only as a scheduled plot offer.
+    const order = ooc ? null : rollOrder(eligible, present, meta, native ? {...o, head:opportunities ? 100 : 0, bring:{...o.bring,secret:false}} : o, { type, scale:native ? 100 : scale });
     if (order) order.text = promptText('worldOrder', { order: order.text });
     return { id, notes, order, offers };
 }
@@ -790,25 +627,16 @@ export function liftBlock(id, paired = false, modules = null) {
     const output = paired ? separateReply(m.mes) : {text:m.mes,plan:''};
     if (paired && modules?.state) output.text=stripSceneTracker(output.text);
     const hasBlock = /<story_update\b/i.test(output.text);
-    // A profile or roast written outside the block (some models put it after the block) is taken too.
-    const hasCards = (modules || cardsOn()) && /<(profile|roast)\b/i.test(output.text);
-    if (!hasBlock && !hasCards && output.text === m.mes) return none;
+    const hasRoast = !!modules && /<roast\b/i.test(output.text);
+    if (!hasBlock && !hasRoast && output.text === m.mes) return none;
     const parsed = hasBlock ? parseUpdate(output.text) : { ...none, clean:output.text };
-    if (modules?.state) parsed.legacyScene = sceneFromReplyHeader(m.mes);
+    if (modules?.state) parsed.headerScene = sceneFromReplyHeader(m.mes);
     if (output.plan) parsed.plan = output.plan;
-    if (hasCards) {
-        const stray = parseCards(parsed.clean);
-        if (stray.rest !== parsed.clean) {
-            parsed.clean = stray.rest.replace(/\n{3,}/g, '\n\n').trimEnd();
-            for (const p of stray.profiles) {
-                const same = parsed.profiles.find(x => norm(x.name) === norm(p.name));
-                if (same) continue;
-                parsed.profiles.push(p);
-                if (Object.keys(p.stable).length) parsed.ops.push({ k: 'profile', a: p.name, b: '', c: '', f: { ...p.stable } });
-                if (p.now.wants) parsed.ops.push({ k: 'wants', a: p.name, b: p.now.wants, c: '' });
-            }
-            if (!parsed.roast) parsed.roast = stray.roast;
-            parsed.found = parsed.found || hasBlock;
+    if (hasRoast) {
+        const lifted = liftRoast(parsed.clean);
+        if (lifted.rest !== parsed.clean) {
+            parsed.clean = lifted.rest.replace(/\n{3,}/g, '\n\n').trimEnd();
+            if (!parsed.roast) parsed.roast = lifted.roast;
         }
     }
     m.mes = parsed.clean;
@@ -822,19 +650,6 @@ export function applyStructuredUpdates(data, wid, meta, id, rec, parsed, turn, {
     const changes = [];
     const previous = listWorld(data,wid);
     const records = recordMap(previous);
-    const offer = turn.legacyOffer;
-    const quote = clean(parsed.legacyOutcome);
-    const established = offer && previous.find(row=>row.uid===offer.uid && row.kind===offer.kind && row.on && !row.locked);
-    if (established && quote.length >= 4 && clean(parsed.clean).toLowerCase().includes(quote.toLowerCase())) {
-        const before = established.status, beforeAt = established.at;
-        if (before !== offer.to && before !== DONE[offer.kind]) {
-            established.status = offer.to;
-            established.at = { chat:meta.chat, n:meta.n };
-            writeWorldEntry(data,established,wid);
-            changes.push({uid:established.uid,name:established.name,kind:established.kind,type:'status',
-                before,after:established.status,beforeAt,afterAt:established.at,legacyV10:true});
-        }
-    }
     const repair = parsed.repair && parsed.repair === turn.repair?.id;
     const updates = [
         ...(parsed.changes || []).map(input=>({input,evidence:parsed.clean,source:rec.time})),
@@ -909,14 +724,6 @@ export function afterReply(id, rec, parsed, replyNo, onDone, options = {}) {
             changes.push(...applyStructuredUpdates(data, wid, meta, id, rec, parsed, options.v10, {historical:!!options.historical}));
         }
         if ((parsed.found || parsed.ops?.length) && o.update !== 'off' && !ooc) changes.push(...applyOps(data, wid, parsed.ops, meta, o.update));
-        // The cards under the reply show who each person is as the story world has it.
-        if (rec.profiles?.length) {
-            const list = listWorld(data, wid);
-            for (const p of rec.profiles) {
-                const w = findEntry(list, 'character', p.name);
-                if (w) for (const [k] of PROFILE_STABLE) if (clean(w.fields[k])) p.stable[k] = clean(w.fields[k]);
-            }
-        }
         if (!ooc && !options.rebuild && !options.v10) changes.push(...tick(data, wid, meta));
         if (options.v10 && !ooc) rec.v10Profiles = [...recordMap(listWorld(data,wid)).values()].filter(row=>row.kind==='profile' && String(rec.scene?.present || '').toLowerCase().split(/[,;\n]/).some(name=>[row.subject,...(row.aliases || [])].some(alias=>alias.toLowerCase() === name.trim()))).slice(0,8).map(row=>{
             const profile = effectivePortrayal(row,baselineFor(options.v10.baselines,row.subject,row.aliases));

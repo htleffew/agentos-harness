@@ -33,16 +33,8 @@ function save() {
     try { (c.saveMetadataDebounced || c.saveMetadata)?.(); } catch (e) { console.warn('[Roleplay Instructions] saving state metadata', e); }
     try { Promise.resolve(c.saveChat?.()).catch(e => console.warn('[Roleplay Instructions] saving state', e)); } catch (e) { console.warn('[Roleplay Instructions] saving state', e); }
 }
-function changes(rec) {
-    const saved = Array.isArray(rec.stateChanges) ? rec.stateChanges : [];
-    if (rec.v10 || !rec.profiles?.length) return saved;
-    const fromProfiles = changesFromProfiles(rec.profiles);
-    if (!saved.length) return fromProfiles;
-    // Previously saved turns can contain changes for only the new-format characters.
-    // The saved deltas run last so explicit edits and clears retain precedence.
-    const recorded = new Set(saved.map(change => norm(change.name)));
-    return [...fromProfiles.filter(change => !recorded.has(norm(change.name))), ...saved];
-}
+// A Legacy reply's profile blocks were converted once into `stateChanges` (src/legacy-retire.js), so every reply reads the same field.
+const changes = rec => Array.isArray(rec.stateChanges) ? rec.stateChanges : [];
 function applyEdit(state, edit) {
     const key = norm(edit.name);
     if (!key || !validField(edit.field)) return;

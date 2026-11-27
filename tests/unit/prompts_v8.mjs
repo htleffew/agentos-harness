@@ -23,7 +23,6 @@ assert.match(B.wrapText('ooc','Hale must wait'),/words, choices and thoughts are
 assert(P.promptStatus('event').customized);
 const oldDefault=P.PROMPTS.event.text;P.PROMPTS.event.text='New built-in wording {parts}';assert(P.promptStatus('event').defaultChanged);assert.match(P.promptText('event',{parts:'x'}),/EVENT CUSTOM/);P.PROMPTS.event.text=oldDefault;
 P.restorePrompt('event');assert(!P.promptStatus('event').customized);assert(P.promptStatus('guided').customized);
-P.savePrompt('worldUpdate','Custom world behavior');const ask=WF.buildAsk([]);assert.match(ask,/Custom world behavior/);assert.match(ask,/<story_update>/);assert.match(ask,/Output the following/);
 extensionSettings.roleplay_instructions.prompts.guided={text:'bad without token',base:'old'};assert.match(P.promptText('guided',{direction:'SAFE'}),/SAFE/);
 assert(saves>=5);console.log('prompt templates, validation, protected format, independent restore and default drift: passed');
 
@@ -59,7 +58,6 @@ const ownedText = [
     ...preset.prompts.map(prompt => [prompt.name, (prompt.content || '').replace(/\{\{\/\/[\s\S]*?\}\}/g, '')]), // comment macros never reach the model
     ['writer rules', DEFAULT_WRITER_RULES],
     ['structured scene', updateContract(DEFAULT_MODULES)],
-    ['legacy scene', WF.buildAsk([])],
 ];
 for (const [label, value] of ownedText) {
     assert.doesNotMatch(value,/\b(?:beat|beats|cost|costs|ledger|invoice|archive|filed|filing)\b/i,label);

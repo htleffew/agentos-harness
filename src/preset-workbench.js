@@ -542,7 +542,7 @@ export function applyWorkingCopy(type = 'normal') {
     const context = switchContext();
     // With the extension off for the chat, a loadout sends as saved, except that a block it holds with a first reply (B57) waits for it.
     // A loadout is not the companion preset, so a chat that never switched the extension on or off still honours its gates.
-    if (!context || !(enabledV10() || (context.marker && settings().enabled && chatState()?.v10?.enabled !== false))) return 0;
+    if (!context || !enabledV10()) return 0;
     const reply = replyNumber(typeof type === 'string' ? type : 'normal', c.chat || []);
     let changes;
     if (context.marker) {

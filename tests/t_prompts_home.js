@@ -189,10 +189,10 @@ async function run(tag, viewport) {
     await open('prompts');
     await root.getByRole('button', { name: 'Show every prompt' }).tap();
     await root.locator('.ri-prompts-family[data-family=story] > summary').tap();
-    await root.locator('[data-ri-prompt=rebuild] > summary').tap();
+    await root.locator('[data-ri-prompt=timingUpdate] > summary').tap();
     const homeDepth = await page.evaluate(() => {
         const body = document.querySelector('#ri_panel_page');
-        const node = body.querySelector('[data-ri-prompt=rebuild]');
+        const node = body.querySelector('[data-ri-prompt=timingUpdate]');
         let n = 1; for (let p = node.parentElement; p && p !== body; p = p.parentElement) if (p.tagName === 'DETAILS') n++;
         return { depth: n, inner: node.querySelectorAll('details').length };
     });

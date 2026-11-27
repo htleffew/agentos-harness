@@ -1,6 +1,5 @@
 import { readActivation } from './recall.js';
-import { separateReply } from './reply-format.js';
-import { memoryComponents, memoryOnly } from './components.js';
+import { memoryComponents } from './components.js';
 import { promptText } from './prompts.js';
 import { stateAt, sceneAt, storyMinuteAt, sceneUpdate, sceneFromReplyHeader, SCENE_FIELDS } from './state.js';
 import { advanceStoryClock, validElapsed } from './story-clock.js';
@@ -57,7 +56,7 @@ function storyText(from, to, limit = 24000) {
         const m = chat[i];
         if (!isStory(m) || !m.mes) continue;
         const original = m.is_user ? stripStoredQuickText(String(m.mes)) : String(m.mes);
-        const extracted = memoryOnly() && !m.is_user ? separateReply(original).text : original;
+        const extracted = original;
         const text = tidy(extracted || original);
         if (text) lines.push(`${m.name}: ${limit && text.length > 2500 ? `${text.slice(0, 2500)} [...]` : text}`);
     }
@@ -222,7 +221,7 @@ export async function writeChapter(from, to, why, {automatic=false} = {}) {
             Object.assign(w.fields, { summary: clean(obj.summary), when: clean(obj.when), people: asList(obj.people), places: asList(obj.places), settled: clean(obj.settled) });
             // What is finished moves into the chapter: it is written into it in one line each and turned off, so the
             // world holds what is still open. Entries set to "keep it as I wrote it" are left alone.
-            const retired = memoryOnly() || settings().summary.retire === false ? [] : listWorld(data, wid).filter(x => x.on && !x.locked && (x.kind === 'secret' ? x.status === 'out' : DONE[x.kind] && x.status === DONE[x.kind]));
+            const retired = settings().summary.retire === false ? [] : listWorld(data, wid).filter(x => x.on && !x.locked && (x.kind === 'secret' ? x.status === 'out' : DONE[x.kind] && x.status === DONE[x.kind]));
             if (retired.length) w.fields.closed = retired.map(finishedLine).join(' ');
             writeWorldEntry(data, w, wid);
             for (const x of retired) { x.on = false; writeWorldEntry(data, x, wid); }
@@ -273,7 +272,7 @@ export function chapterAfterReply(time, replyNo, onDone) {
         const tokens = Math.max(0, Math.round(Number(o.everyTokens) || 0));
         let why = '';
         let to = through;
-        const scene = o.onSceneEnd && !memoryOnly() && replies().find(turn=>turn.n>=last+min && turn.n<=through &&
+        const scene = o.onSceneEnd && replies().find(turn=>turn.n>=last+min && turn.n<=through &&
             ctx().chat[turn.index]?.extra?.[KEY]?.update?.ended);
         if (scene) { why = 'the scene ended'; to = scene.n; }
         else if (every && since >= every) { why = `${every} filed replies are ready`; to = last+every; }
@@ -681,7 +680,7 @@ export function chapterSize() {
 /** The prose of a message as the chapter call reads it: without stored quick text, HUD blocks or update blocks. */
 function chapterText(m) {
     const original = m.is_user ? stripStoredQuickText(String(m.mes ?? '')) : String(m.mes ?? '');
-    const extracted = memoryOnly() && !m.is_user ? separateReply(original).text : original;
+    const extracted = original;
     return tidy(extracted || original);
 }
 

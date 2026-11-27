@@ -29,12 +29,12 @@ const MOVES = {
     plots: { has: ['Plot Records'], gone: [] },
     'set-rules': { has: ['New things in one reply', 'Where your sets are kept', 'Pacing', 'Follow-through checks', 'World orders', 'Tags to skip'], gone: [] },
     writing: { has: ['Live writing guidance', 'Scene and character checks', 'Reply screening', 'New NPC names to avoid'], gone: [] },
-    checks: { has: ['Stats'], gone: [] },
+    'stat-sheets': { has: ['Stats in use'], gone: [] },
     context: { has: ['Memory status', 'This chat now', 'Next reply preview'], gone: ['Catch up or rebuild this chat', 'Write a chapter now', 'Conversation and memory'] },
-    v10: { has: ['Extension modules', 'Composer quick actions', 'Advanced prompts'], gone: ['Active host preset', 'Room for story notes', 'Catch up this chat'] },
+    v10: { has: ['Extension modules', 'Composer quick actions', 'Advanced prompts'], gone: ['Active host preset', 'Room for story notes', 'Catch up this chat', 'Roleplay Instructions extension'] },
     memory: { has: ['Recall', 'Budgets', 'Upkeep', 'This chat', 'Room for story notes', 'Current state prompt budget', 'Keep the world up to date from each reply'], gone: [] },
     settings: { has: ['Connections & automatic requests', 'What the AI writes for you'], gone: ['Pronouns for', 'Legacy dice defaults', 'Pacing', 'Appearance & about', 'Accent colour', 'Where your sets are kept'] },
-    display: { has: ['Reply Display', 'Story state under replies'], gone: ['Commentator voice'] },
+    display: { has: ['Reply Display'], gone: ['Commentator voice', 'Character cards', 'Story state under replies'] },
 };
 
 async function ready(page) {
@@ -78,7 +78,7 @@ async function run(browser, tag, viewport) {
     out.tree = ids;
     const known = new Set(ids.map(item => item.id));
     for (const id of ['state', 'opening', 'corrections', 'portrayal', 'emotion', 'speakers', 'world', 'facts', 'plots', 'books', 'instructions', 'events', 'style',
-        'set-rules', 'goals', 'writing', 'checks', 'sent', 'context', 'log', 'v10', 'memory', 'settings', 'display']) {
+        'set-rules', 'goals', 'writing', 'stat-sheets', 'sent', 'context', 'log', 'v10', 'memory', 'settings', 'display']) {
         if (!known.has(id)) out.missing.push(id);
     }
     assert.deepEqual(out.missing, [], `${tag}: pages missing from the tree`);
@@ -86,7 +86,7 @@ async function run(browser, tag, viewport) {
     const nestedOf = id => ids.find(item => item.id === id)?.nested;
     assert.equal(nestedOf('facts'), 'story-world');
     assert.equal(nestedOf('plots'), 'story-world');
-    assert.equal(new Set(ids.map(item => item.nested)).size, 19);
+    assert.equal(new Set(ids.map(item => item.nested)).size, 18);
     assert.equal(nestedOf('memory'), 'memory');
     assert.equal(nestedOf('set-rules'), 'random-sets');
 
@@ -124,7 +124,7 @@ async function run(browser, tag, viewport) {
             for (const wanted of move.has) assert.ok(haystack.includes(wanted), `${tag}: ${id} shows "${wanted}"`);
             for (const absent of move.gone) assert.ok(!seen.details.some(title => title.startsWith(absent)), `${tag}: ${id} no longer shows "${absent}"`);
         }
-        if (['world', 'books', 'memory', 'set-rules', 'context', 'v10', 'settings', 'writing', 'checks', 'portrayal', 'display', 'state', 'opening'].includes(id)) {
+        if (['world', 'books', 'memory', 'set-rules', 'context', 'v10', 'settings', 'writing', 'stat-sheets', 'portrayal', 'display', 'state', 'opening'].includes(id)) {
             await page.screenshot({ path: path.join(OUT, `${tag}-${id}.png`) });
         }
     }

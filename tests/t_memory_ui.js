@@ -4,7 +4,7 @@
 //      chapter close; the next request is built in code.
 //   2. Setup, Memory: seven sections, the status pill, the review list with File as my edit (clipped to 300 characters)
 //      and Dismiss.
-//   3. Story, Story World: the filters (Facts and Plot among them, the old nested tabs gone, 19 pages), Lock, Pin, Undo
+//   3. Story, Story World: the filters (Facts and Plot among them, the old nested tabs gone, 18 pages), Lock, Pin, Undo
 //      and Restore, a meter set by hand, temperament, a thread's "ends when" line and Paused switch, Memory from this reply;
 //      Add record on Facts and Plot with the old record form, filed as her locked record, and Edit (fixadd).
 //   4. Export as World Info book: a new book SillyTavern's World Info screen opens, secrets left out by default, chat
@@ -247,7 +247,7 @@ const fold = (page, id) => page.evaluate(async ({ B, id }) => {
         }, B);
         out.checks.tree = tree;
         assert.deepEqual(tree.nested[0], ['scene', 'characters', 'story-world', 'world-info'], 'Story has four nested tabs');
-        assert.equal(tree.count, 19, 'navigation lists 19 pages');
+        assert.equal(tree.count, 18, 'navigation lists 18 pages (B13 retired Action checks)');
         assert.equal(tree.facts, 'story-world');
         assert.equal(tree.plots, 'story-world');
 

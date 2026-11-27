@@ -34,6 +34,9 @@ async function setupApi(page) {
         if ($('#stream_toggle').prop('checked')) $('#stream_toggle').prop('checked', false).trigger('change');
         $('#api_button_openai').trigger('click');
     }, Number(process.env.RI_MOCK_PORT || 8124));
+    // Every chat gets the Structured request, and the stack adds the companion blocks to any preset (B24, B13), so a 4,095-token
+    // context would drop the greeting and the depth-1 entries from a chat's first request. A phone connection has far more room.
+    await page.evaluate(async () => { const O = await import('/scripts/openai.js'); globalThis.jQuery('#openai_max_context').val(32000).trigger('input'); O.oai_settings.openai_max_context = 32000; });
     await page.waitForFunction(() => globalThis.SillyTavern.getContext().onlineStatus && globalThis.SillyTavern.getContext().onlineStatus !== 'no_connection', null, { timeout: 20000 }).catch(() => {});
     await page.waitForTimeout(1500);
 }

@@ -2,13 +2,12 @@
 // small buttons that already holds Exclude, Branch, Checkpoint and Copy. They replace the card that used to sit
 // under every reply. "What was sent" opens Review, Replies on that reply; "Correct a story fact" opens Story,
 // Scene with that reply selected. B16 confirmed on the phone that the menu opens by touch and takes extension entries.
-import { memoryOnly } from '../components.js';
 import { ctx, isReply } from '../st.js';
 import { settings } from '../store.js';
 
 export const MENU_ENTRIES = Object.freeze([
     Object.freeze({ id: 'sent', label: 'What was sent', icon: 'fa-receipt', page: 'sent', anchor: id => `#ri-review-reply-${id}` }),
-    Object.freeze({ id: 'correct', label: 'Correct a story fact', icon: 'fa-pen-to-square', page: 'corrections', anchor: () => '#ri-correction-target', needsFacts: true }),
+    Object.freeze({ id: 'correct', label: 'Correct a story fact', icon: 'fa-pen-to-square', page: 'corrections', anchor: () => '#ri-correction-target' }),
     // memory DESIGN 12.2: two entries for a chat whose memory lives in chat data
     Object.freeze({ id: 'close-chapter', label: 'Close the chapter here', icon: 'fa-flag-checkered', needsChatMemory: true, run: closeChapterAt }),
     Object.freeze({ id: 'memory-reply', label: 'Memory from this reply', icon: 'fa-database', page: 'world', anchor: () => '#ri-world-records', needsChatMemory: true,
@@ -27,12 +26,12 @@ async function closeChapterAt(id) {
 }
 
 /**
- * The entries a message gets: every AI reply while the extension is on; corrections wait for a story world chat; the
- * chapter and memory entries need a chat whose memory lives in chat data.
+ * The entries a message gets: every AI reply while the extension is on; the chapter and memory entries need a chat whose
+ * memory lives in chat data.
  */
-export function entriesFor(message, { enabled = true, memory = false, chatMemory = false } = {}) {
+export function entriesFor(message, { enabled = true, chatMemory = false } = {}) {
     if (!enabled || !isReply(message) || message.is_system) return [];
-    return MENU_ENTRIES.filter(entry => !(entry.needsFacts && memory) && !(entry.needsChatMemory && !chatMemory));
+    return MENU_ENTRIES.filter(entry => !(entry.needsChatMemory && !chatMemory));
 }
 
 function entryNode(entry) {
@@ -79,7 +78,7 @@ function listen(doc = document) {
 export function refreshMessageMenu() {
     listen();
     const chat = ctx().chat || [];
-    const state = { enabled: settings().enabled, memory: memoryOnly(), chatMemory: !!ctx().chatMetadata?.ri_memory?.imported };
+    const state = { enabled: settings().enabled, chatMemory: !!ctx().chatMetadata?.ri_memory?.imported };
     for (const node of document.querySelectorAll('#chat .mes[mesid]')) {
         const holder = node.querySelector('.extraMesButtons');
         if (!holder) continue;

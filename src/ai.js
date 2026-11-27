@@ -15,7 +15,7 @@ const errorText = error => String(error?.cause?.message || error?.message || err
 const systemPrompts = Object.freeze({
     writerVersions:'systemVersions',writerVersionRewrite:'systemVersions',writerItems:'systemItems',writerStyle:'systemStyleItems',
     writerRewrite:'systemRewrite',writerGoal:'systemGoal',writerWorld:'systemWorldEntry',chapterSummary:'systemChapter',
-    chapterCombine:'systemCombine',newChapter:'systemNewChapter',starterWorld:'systemStarter',instructionCheck:'systemCheck',editedState:'rebuild',
+    chapterCombine:'systemCombine',newChapter:'systemNewChapter',starterWorld:'systemStarter',instructionCheck:'systemCheck',
 });
 
 /** Return the accepted transport text, its execution receipt and a note writer for parsing results. */

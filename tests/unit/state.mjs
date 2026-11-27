@@ -3,6 +3,9 @@ const chat = [];
 let saves = 0;
 globalThis.SillyTavern = { getContext: () => ({ chat, extensionSettings: {}, saveChat: () => { saves++; } }) };
 const { stateAt, statePrompt, editState, changesFromProfiles } = await import('../../src/state.js');
+const { convertRecord } = await import('../../src/legacy-retire.js');
+// B13: a Legacy reply's profile blocks convert once into stateChanges; the state replay reads only that field.
+const legacy = record => { convertRecord(record); return { extra: { roleplay_instructions: record } }; };
 const msg = (record) => ({ extra: { roleplay_instructions: record } });
 chat.push(msg({ stateChanges: [{ name: 'Hale', fields: { mind: 'Find the letter', body: 'Sore shoulder' } }], scene: { present: 'Hale' } }));
 chat.push({ is_user: true, mes: 'Hello' });
@@ -24,9 +27,9 @@ assert.equal(stateAt().hale.fields.body, 'Broken arm');
 assert.deepEqual(changesFromProfiles([{ name: 'Hale', now: { mind: 'Wait', willnot: 'obsolete' } }]), [{ name: 'Hale', fields: { mind: 'Wait' } }]);
 assert.deepEqual(changesFromProfiles([{name:'Mira',now:{feels:'Curious',thinks:'He knows',private:'The letter',mind:null}}]),
     [{name:'Mira',fields:{heart:'Curious',mind:null,psyche:'The letter'}}]);
-chat.push(msg({stateChanges:[],profiles:[{name:'Mira',now:{feels:'Curious'}}]}));
+chat.push(legacy({stateChanges:[],profiles:[{name:'Mira',now:{feels:'Curious'}}]}));
 assert.equal(stateAt().mira.fields.heart,'Curious');
-chat.push(msg({stateChanges:[{name:'Hale',fields:{heart:null}}], profiles:[
+chat.push(legacy({stateChanges:[{name:'Hale',fields:{heart:null}}], profiles:[
     {name:'Hale',now:{feels:'Superseded'}}, {name:'Nia',now:{feels:'Excited'}}]}));
 assert.equal(stateAt().nia.fields.heart, 'Excited');
 assert.equal(stateAt().hale.fields.heart, undefined);

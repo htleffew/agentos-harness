@@ -80,7 +80,7 @@ const turn = async (page, text) => { await L.send(page, text); await settle(page
         await shot(page, '1-chat');
 
         // ------------------------------------------------------------ Story state on Theirs, then the Tracker book
-        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); V.setModuleOwner(V.activePreset(), 'state', 'preset'); V.setModuleOwner(V.activePreset(), 'dice', 'preset'); }, B);
+        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); const K = await import(`${B}/src/preset-bank.js`); const bank = K.refreshBank(); const key = K.stackFor(bank, V.activePreset()).key; K.excludeCards(bank, key, ["ri::state","ri::dice"], { base: V.activePreset() }); (await import(`${B}/src/preset-workbench.js`)).syncOwners(); }, B);
         L.resetLog();
         await turn(page, `At Valen Ford I ask ${names.char} if he worries for me and whether he trusts me.`);
         const theirs = chatRequest();
@@ -90,7 +90,7 @@ const turn = async (page, text) => { await L.send(page, text); await settle(page
         const captureText = captures.map(r => r.messages.map(textOf).join('\n')).join('\n');
         check('capture still files records after the reply, and asks for the scene', captures.length >= 1 && /scene/i.test(captureText), `${captures.length} capture calls`);
         out.dumps.theirs = dump(theirs);
-        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); V.setModuleOwner(V.activePreset(), 'state', undefined); V.setModuleOwner(V.activePreset(), 'dice', undefined); }, B);
+        await page.evaluate(async B => { const V = await import(`${B}/src/v10.js`); const K = await import(`${B}/src/preset-bank.js`); const bank = K.refreshBank(); const key = K.stackFor(bank, V.activePreset()).key; K.includeCards(bank, key, ["ri::state","ri::dice"], { base: V.activePreset() }); (await import(`${B}/src/preset-workbench.js`)).syncOwners(); }, B);
         await page.evaluate(async () => { const c = globalThis.SillyTavern.getContext(); c.chatMetadata.ri_memory.trackerBook = { name: 'RI Tracker, test', cards: ['scene', 'characters', 'emotions', 'relationships'] }; });
         L.resetLog();
         await turn(page, `Still at Valen Ford I ask ${names.char} again if he worries for me and whether he trusts me.`);
@@ -124,7 +124,15 @@ const turn = async (page, text) => { await L.send(page, text); await settle(page
         const upkeepText = chatRequest().messages.map(textOf).join('\n');
         const upkeepRecall = (upkeepText.match(/<recall>[\s\S]*?<\/recall>/) || [''])[0];
         check('an entry replaced by "The story changed" is not in the request; the record that replaces it is', !/black stallion of the captain/.test(upkeepText) && /sold at the Saltmar fair/.test(upkeepRecall), upkeepRecall.slice(0, 300));
-        check('a record that only repeats her entry is held out of the recall block; her entry is sent once', !/Brannic keeps the forge/.test(upkeepRecall) && (upkeepText.match(/Brannic keeps the forge/g) || []).length === 1, '');
+        // B13b: the turn's Established records list leaves out what the recall block carries or held out, so each record is sent once.
+        const copies = re => (upkeepText.match(re) || []).length;
+        check('a record that only repeats her entry is held out of the recall block; her entry is sent once and the record is not repeated', !/Brannic keeps the forge/.test(upkeepRecall) && copies(/Brannic keeps the forge/g) === 1, `${copies(/Brannic keeps the forge/g)} copies in the request`);
+        check('a record the recall block carries is in the request once', copies(/sold at the Saltmar fair/g) === 1 && /sold at the Saltmar fair/.test(upkeepRecall), `${copies(/sold at the Saltmar fair/g)} copies`);
+        check('no record id line of the Established records list repeats a record the recall block carries', !/Established records[^\n]*\n(?:[^\n]*\n)*?story-night \[/.test(upkeepText), '');
+        const roleTexts = chatRequest().messages.map(textOf);
+        const dupLines = new Map();
+        for (const t of roleTexts) for (const line of new Set(t.split('\n').map(x => x.trim()).filter(x => x.length >= 40 && /^[a-z0-9-]+ \[[a-z]+/.test(x)))) dupLines.set(line, (dupLines.get(line) || 0) + 1);
+        check('the whole request holds no record line twice', ![...dupLines.values()].some(n => n > 1), JSON.stringify([...dupLines].filter(([, n]) => n > 1)).slice(0, 300));
         check('a record outside the recall pool (a thread closed before the chapter close) is not in the recall block', !/lost bridle/.test(upkeepRecall), '');
         out.dumps.upkeepRecall = upkeepRecall;
         await page.evaluate(async () => { const c = globalThis.SillyTavern.getContext(); delete c.chatMetadata.world_info; await c.saveMetadata(); });
