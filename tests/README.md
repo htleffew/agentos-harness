@@ -69,6 +69,8 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_import.js` | browser | legacy |
 | `t_inline_direction.js` | node | B42 |
 | `t_labels.js` | node | B7 |
+| `t_help.js` | node | B58 |
+| `t_help_host.js` | browser (523 and 1006 px with touch; `RI_HELP_WRITE=1` writes `assets/help/generated/app.json` from the run) | B58 |
 | `t_inline_direction_host.js` | browser | B42 |
 | `t_scene_markers.js` | node | B50 |
 | `t_inject.js` | node (the converter row needs RI_ST_DIR) | MB5 |
@@ -145,6 +147,8 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_upkeep.js` | node (fixture tests skip without docs/) | MB7 |
 | `t_upkeep_browser.js` | browser | MB7 |
 | `t_labels.js` | B7: reads every string literal of src/ui and the user-text files of src and fails on a retired name from DESIGN.md 2.1 and 2.2 (lorebook, host, Always eligible, Steer, model request and the rest), help text of more than two sentences outside a How it works disclosure, a Shift-click or hover hint, a screen reference the navigation (destinations.js and registered pages) does not list, an emoji or a dash. `LABELS_DUMP=<file>` collects every finding; `LABELS_FULL=1` prints whole strings. |
+| `t_help.js` | B58: every menu page, card, quick action, background job and setting has a guide entry in `assets/help/`, and the test lists each one with none; `assets/help/generated/app.json` agrees with the pages, cards, quick actions, jobs and prompts in the code; each entry has its title and three hand-written sections; every guide link opens something real; `index.md` is current (`RI_HELP_WRITE=1` writes it); search finds a control by its label; the help request keeps its fixed part first and the question last. `HELP_DUMP=<file>` lists the settings the prose does not name. |
+| `t_help_host.js` | B58: every control the running extension draws is in app.json; Setup, Help at 523 and 1006 px with search, Show and every page header Help link; one question is one request on the chosen route with the amber mark, a paid route on the spend meter and the sources listed; the covered and uncovered fixture (`tests/fixtures/help-questions.json`) with its pass rate in results.json; a route switch changes only the route; live state off and on; the fallback note. |
 | `t_voice.js` | browser, with a node half (`node tests/t_voice.js --unit` runs it alone, no host) | V1 |
 | `t_voice_delivery.js` | browser, with a node half (`node tests/t_voice_delivery.js --unit` runs it alone, no host) | V2 |
 | `t_style.js` | browser | legacy |

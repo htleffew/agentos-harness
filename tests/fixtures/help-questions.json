@@ -1,0 +1,25 @@
+{
+  "note": "B58 fixture for the help assistant. covered: questions the guide answers, with the guide entry that holds the answer (any of them counts). uncovered: questions the guide does not answer. tests/t_help_host.js asks each once through the mock and records the pass rate.",
+  "covered": [
+    { "q": "Where do I change the monthly spend ceiling?", "entries": ["spend", "model-calls"] },
+    { "q": "How do I reorder the routes a background job tries?", "entries": ["background-jobs"] },
+    { "q": "How do I pin a quick action to the bar?", "entries": ["quick-bar", "quick-library", "quick-actions"] },
+    { "q": "Which cards can the reply tray show?", "entries": ["reply-cards", "reply-tray", "display"] },
+    { "q": "How do I pick a theme for the menu?", "entries": ["look-theme", "look"] },
+    { "q": "Where are chapters and the story so far kept?", "entries": ["world", "memory", "context"] },
+    { "q": "How do I add a World Info book to this chat?", "entries": ["books", "books-memory"] },
+    { "q": "What does the amber dot on a button mean?", "entries": ["model-calls", "quick-actions", "help-assistant"] },
+    { "q": "How do I set the pronouns for my persona?", "entries": ["portrayal"] },
+    { "q": "Where can I see what was sent with a reply?", "entries": ["sent", "what-was-sent"] },
+    { "q": "How do I restore the default prompt after editing it?", "entries": ["prompts", "v10"] },
+    { "q": "How do I set a goal for a character?", "entries": ["goals", "story-outline"] }
+  ],
+  "uncovered": [
+    { "q": "What is the capital city of Peru?" },
+    { "q": "How do I install Python on Windows?" },
+    { "q": "Can the extension order groceries for delivery?" },
+    { "q": "Which football team won the tournament?" },
+    { "q": "How tall is Mount Kilimanjaro?" },
+    { "q": "Recommend a recipe for banana bread." }
+  ]
+}

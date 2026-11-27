@@ -123,6 +123,8 @@ const builtinActions = [
     builtIn('steer', 'conflict', 'Bring in conflict', sharedDirections.find(([key]) => key === 'conflict')[2], { kind: 'direction', barOnly: true }),
 ];
 const builtinById = new Map(builtinActions.map(action => [action.id, action]));
+/** The quick actions that ship with the extension, as the guide lists them (B58). */
+export const builtinQuickActions = () => builtinActions.map(action => ({ id: action.id, family: action.family, kind: kindOf(action), title: action.title }));
 
 export function actionLibrary() {
     const cfg = settings();

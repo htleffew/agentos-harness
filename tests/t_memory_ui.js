@@ -247,7 +247,7 @@ const fold = (page, id) => page.evaluate(async ({ B, id }) => {
         }, B);
         out.checks.tree = tree;
         assert.deepEqual(tree.nested[0], ['scene', 'characters', 'story-world', 'world-info'], 'Story has four nested tabs');
-        assert.equal(tree.count, 18, 'navigation lists 18 pages (B13 retired Action checks)');
+        assert.equal(tree.count, 19, 'navigation lists 19 nested tabs (B13 retired Action checks; B58 added Setup, Help)');
         assert.equal(tree.facts, 'story-world');
         assert.equal(tree.plots, 'story-world');
 

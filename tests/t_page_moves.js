@@ -86,7 +86,7 @@ async function run(browser, tag, viewport) {
     const nestedOf = id => ids.find(item => item.id === id)?.nested;
     assert.equal(nestedOf('facts'), 'story-world');
     assert.equal(nestedOf('plots'), 'story-world');
-    assert.equal(new Set(ids.map(item => item.nested)).size, 18);
+    assert.equal(new Set(ids.map(item => item.nested)).size, 19); // B58 added Setup, Help
     assert.equal(nestedOf('memory'), 'memory');
     assert.equal(nestedOf('set-rules'), 'random-sets');
 

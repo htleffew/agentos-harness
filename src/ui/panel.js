@@ -21,6 +21,7 @@ import { confirmBox, isChatOpen } from '../st.js';
 import { buildTree, locate, pathName, startingPage } from './destinations.js';
 import { registeredPages, renderRegistered } from './page-registry.js';
 import { harvest, pageEntries, searchMenu } from './menu-search.js';
+import { HELP_PAGE, setHelpTarget } from './help.js';
 import { PROMPTS, promptStatus } from '../prompts.js';
 import { executionScope } from '../execution.js';
 import { guidedTarget } from '../guided-context.js';
@@ -695,7 +696,11 @@ export function render() {
         h('div',{class:'ri-shell-page','data-ri-shell':''},
             h('div',{class:'ri-shell-pagehead'},
                 h('i',{class:`fa-solid ${nested.icon} ri-shell-pageicon`,'aria-hidden':'true'}),heading,
-                h('span',{class:`ri-shell-pill${pill.tone ? ` ri-shell-pill-${pill.tone}` : ''}`},pill.text)),
+                h('span',{class:`ri-shell-pill${pill.tone ? ` ri-shell-pill-${pill.tone}` : ''}`},pill.text),
+                // B58: a Help link in every page header opens this page's entry in Setup, Help.
+                page.id!==HELP_PAGE && h('button',{type:'button',class:'ri-shell-helplink','data-ri-help-link':'',
+                    'aria-label':`Help for ${pathName(current,page.id)}`,onclick:()=>{ setHelpTarget(page.id); navigate(HELP_PAGE); }},
+                h('i',{class:'fa-solid fa-circle-question','aria-hidden':'true'}),h('span',{},'Help'))),
             h('p',{class:'ri-shell-help'},page.help && nested.pages.length>1 ? page.help : nested.help || page.help),
             sections,crumbs),
         interruptedDrafts());

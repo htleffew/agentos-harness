@@ -80,3 +80,4 @@ t_themes_host
 t_voice
 t_voice_delivery
 t_legacy_parity
+t_help_host

@@ -25,6 +25,7 @@ const NPCS = [
 // The kind of a request, read from the prompt's own task line, so a suite can count only the kinds it asserts.
 // reply is the chat generation itself; capture, chapter and condensed are the background memory calls.
 const KINDS = [
+    ['help', /You are the help assistant inside Roleplay Instructions/],
     ['capture', /You keep the records of a roleplay story/],
     ['tidy', /You tidy the records of a roleplay story/],
     ['chapter', /Write the record of one chapter|Write the summary of one part of a roleplay story/],
@@ -37,12 +38,29 @@ const KINDS = [
     ['dice', /You set up dice for/],
     ['sheets', /You set stat modifiers for characters/],
 ];
+const HELP_STOP = new Set('what where which when does have this that with from your into about there they them then than want need find work works like used using make should would could kind thing things'.split(' '));
 const kindOf = text => (KINDS.find(([, pattern]) => pattern.test(text)) || ['reply'])[0];
 let n = 0;
 function answer(body) {
     const msgs = body.messages || [];
     const all = msgs.map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join(NL);
     const m = mode();
+    // B58: the help assistant. mode.help maps a question to its answer. Otherwise the answer is read from the guide pages
+    // the request carries: when at least three in four of the question's words appear there, it quotes the sentence that
+    // holds the most of them; else it says the guide does not cover the question. A scripted stand-in for a model.
+    if (/You are the help assistant inside Roleplay Instructions/.test(all)) {
+        const user = String(msgs.filter(x => x.role === 'user').map(x => typeof x.content === 'string' ? x.content : JSON.stringify(x.content)).pop() || '');
+        const question = (/^Question: (.+)$/m.exec(user) || [])[1] || '';
+        if (m.help && m.help[question]) return m.help[question];
+        const guide = user.split(NL + 'Question: ')[0];
+        const words = (question.toLowerCase().match(/[a-z]{4,}/g) || []).filter(word => !HELP_STOP.has(word));
+        const stem = word => word.slice(0, 5);
+        const found = words.filter(word => guide.toLowerCase().includes(stem(word)));
+        if (!words.length || found.length / words.length < 0.75) return 'The guide does not cover this. The closest page may say more.';
+        const best = guide.split(/(?<=\.)\s+/).map(s => ({ s, n: found.filter(word => s.toLowerCase().includes(stem(word))).length })).sort((a, b) => b.n - a.n)[0];
+        const title = (/^Guide pages:\s+(.+?) \(/m.exec(user) || [])[1] || 'the first page';
+        return `From the guide: ${best.s.replace(/\s+/g, ' ').trim()} See ${title}.`;
+    }
     if (/You keep the records of a roleplay story/.test(all)) return JSON.stringify(m.capture || { decisions: { durable_change: false, scene_ended: false, out_of_character: false }, ops: [],
         state: { scene: { place: 'The mock scene', time: 'Day 1, evening', present: ['Hale'] } } });
     // MB7: the Cleanup call. Each cluster is ruled from mode.tidy.clusters (keyed by its record ids joined with "|" in the

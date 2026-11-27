@@ -347,6 +347,40 @@ test('no em or en dash in user text', () => {
     none(readable().filter(item => /[–—]/.test(item.text)).map(show));
 });
 
+// ---------------------------------------------------------------------------------------------
+// 6. The reference guide (B58): its hand-written text follows the same rules. Generated blocks quote labels from the code,
+//    which the checks above already read at their source, so they are left out here.
+// ---------------------------------------------------------------------------------------------
+function guideLines() {
+    const dir = path.join(root, 'assets', 'help');
+    if (!fs.existsSync(dir)) return [];
+    const mdFiles = [];
+    const walkMd = folder => { for (const name of fs.readdirSync(folder)) { const full = path.join(folder, name); if (fs.statSync(full).isDirectory()) walkMd(full); else if (name.endsWith('.md')) mdFiles.push(full); } };
+    walkMd(dir);
+    return mdFiles.flatMap(file => {
+        const text = fs.readFileSync(file, 'utf8').replace(/<!-- generated:([\w-]+) -->[\s\S]*?<!-- \/generated:\1 -->/g, '');
+        return text.split('\n').map((line, i) => ({ text: line.replace(/\]\((page|help):[^)]*\)/g, ']').replace(/^#+\s*|^\s*[-*]\s+/g, '').replace(/\*\*|`/g, ''), line: i + 1, file: rel(file) }))
+            .filter(item => item.text.trim() && !/^<!--/.test(item.text));
+    });
+}
+
+test('the guide follows the glossary, names screens the navigation lists and uses no emoji or dashes', async () => {
+    const destinations = await import(pathToFileURL(path.join(root, 'src/ui/destinations.js')).href);
+    const nav = navigation(destinations);
+    const bad = [];
+    for (const item of guideLines()) {
+        for (const [pattern, use] of RETIRED) if (pattern.test(item.text)) bad.push(`${show(item)}  [use: ${use}]`);
+        for (const match of item.text.matchAll(REFERENCE)) {
+            if (!namesPage(nav, nav.tabs.get(nav.norm(match[1])), match[2])) bad.push(`${show(item)}  [no "${match[1]}, ${match[2]}"]`);
+        }
+        for (const [pattern, use] of DEAD) if (pattern.test(item.text)) bad.push(`${show(item)}  [use: ${use}]`);
+        if (/\p{Emoji_Presentation}|️/u.test(item.text)) bad.push(`${show(item)}  [emoji]`);
+        if (/[–—]/.test(item.text)) bad.push(`${show(item)}  [dash]`);
+        if (/shift[- +]?click|right[- ]?click|\bhover(ing)?\b|\bmouse over\b/i.test(item.text)) bad.push(`${show(item)}  [tap or press and hold]`);
+    }
+    none(bad);
+});
+
 test('the scan reads the files it should', () => {
     assert.ok(files.length > 60, 'src/ui files are scanned');
     assert.ok(allTexts().length > 3000, 'a few thousand literals are read');

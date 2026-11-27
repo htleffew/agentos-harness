@@ -1,0 +1,3273 @@
+{
+ "note": "Written by tests/t_help_host.js with RI_HELP_WRITE=1 from the running extension. Do not edit by hand.",
+ "pages": [
+  {
+   "id": "opening",
+   "label": "First message",
+   "top": "Story",
+   "nested": "Scene",
+   "sub": false,
+   "lead": true,
+   "help": "Choose a greeting or prepare a first message. It comes first while the chat holds only its first message."
+  },
+  {
+   "id": "state",
+   "label": "Current scene",
+   "top": "Story",
+   "nested": "Scene",
+   "sub": false,
+   "lead": false,
+   "help": "Review the active scene and character state."
+  },
+  {
+   "id": "corrections",
+   "label": "Correct story facts",
+   "top": "Story",
+   "nested": "Scene",
+   "sub": false,
+   "lead": false,
+   "help": "Find, correct or undo a story fact."
+  },
+  {
+   "id": "portrayal",
+   "label": "Portrayal & knowledge",
+   "top": "Story",
+   "nested": "Characters",
+   "sub": false,
+   "lead": true,
+   "help": "Pronouns, character portrayal and who knows a fact."
+  },
+  {
+   "id": "emotion",
+   "label": "Emotions & relationships",
+   "top": "Story",
+   "nested": "Characters",
+   "sub": false,
+   "lead": false,
+   "help": "Review a character or relationship pair."
+  },
+  {
+   "id": "speakers",
+   "label": "Dialogue colors",
+   "top": "Story",
+   "nested": "Characters",
+   "sub": false,
+   "lead": false,
+   "help": "Review or change speaker colors."
+  },
+  {
+   "id": "story-rules-link",
+   "label": "Story rules",
+   "top": "Story",
+   "nested": "Characters",
+   "sub": false,
+   "lead": false,
+   "help": "Where the story rules on character values are set."
+  },
+  {
+   "id": "stat-sheets",
+   "label": "Stats",
+   "top": "Story",
+   "nested": "Characters",
+   "sub": false,
+   "lead": false,
+   "help": "This chat's stat sheets for your persona, the character and NPCs. A value you set stays yours."
+  },
+  {
+   "id": "voices",
+   "label": "Voices",
+   "top": "Story",
+   "nested": "Characters",
+   "sub": false,
+   "lead": false,
+   "help": "A cloned voice for each character and your persona, read on your desktop over Tailscale."
+  },
+  {
+   "id": "world",
+   "label": "Story World",
+   "top": "Story",
+   "nested": "Story World",
+   "sub": false,
+   "lead": true,
+   "help": "The lasting records of this chat, its entries by kind and the story so far."
+  },
+  {
+   "id": "facts",
+   "label": "Facts",
+   "top": "Story",
+   "nested": "Story World",
+   "sub": true,
+   "lead": false,
+   "help": "The Facts filter of Story World."
+  },
+  {
+   "id": "plots",
+   "label": "Plot",
+   "top": "Story",
+   "nested": "Story World",
+   "sub": true,
+   "lead": false,
+   "help": "The Plot filter of Story World."
+  },
+  {
+   "id": "books",
+   "label": "World Info books",
+   "top": "Story",
+   "nested": "World Info",
+   "sub": false,
+   "lead": true,
+   "help": "Assign books to the chat or edit their entries."
+  },
+  {
+   "id": "books-memory",
+   "label": "Books and memory",
+   "top": "Story",
+   "nested": "World Info",
+   "sub": false,
+   "lead": false,
+   "help": "Every World Info book with its kind, \"Recall manages this book\", \"Story may add to this book\", behavior books and generated books."
+  },
+  {
+   "id": "tracker-book",
+   "label": "Tracker book",
+   "top": "Story",
+   "nested": "World Info",
+   "sub": false,
+   "lead": false,
+   "help": [
+    "The current tracker values as a World Info book the model reads, with its size and a link to the World Info editor. The same values are also set as chat variables a preset block can read.",
+    "ref: <Node>"
+   ]
+  },
+  {
+   "id": "sets",
+   "label": "All sets",
+   "top": "Direction",
+   "nested": "Random sets",
+   "sub": false,
+   "lead": true,
+   "help": "Every instruction, story event and writing style set in one list."
+  },
+  {
+   "id": "instructions",
+   "label": "Random instructions",
+   "top": "Direction",
+   "nested": "Random sets",
+   "sub": true,
+   "lead": false,
+   "help": "Manage instruction sets, triggers and versions."
+  },
+  {
+   "id": "events",
+   "label": "Random story events",
+   "top": "Direction",
+   "nested": "Random sets",
+   "sub": true,
+   "lead": false,
+   "help": "Manage event sets, eligibility and rolls."
+  },
+  {
+   "id": "style",
+   "label": "Random writing style",
+   "top": "Direction",
+   "nested": "Random sets",
+   "sub": true,
+   "lead": false,
+   "help": "Manage writing categories and wording."
+  },
+  {
+   "id": "story-rules",
+   "label": "Story rules",
+   "top": "Direction",
+   "nested": "Random sets",
+   "sub": false,
+   "lead": false,
+   "help": "Rules that send a private direction or let an event item roll when a card value, a Pending thread or the reply count meets a condition."
+  },
+  {
+   "id": "set-rules",
+   "label": "Sets and pacing",
+   "top": "Direction",
+   "nested": "Random sets",
+   "sub": false,
+   "lead": false,
+   "help": "How often new things start, where sets are kept, follow-through checks, world orders and tags to skip."
+  },
+  {
+   "id": "goals",
+   "label": "Character goals",
+   "top": "Direction",
+   "nested": "Goal",
+   "sub": false,
+   "lead": true,
+   "help": "Set a goal and order its steps."
+  },
+  {
+   "id": "story-outline",
+   "label": "Story outline",
+   "top": "Direction",
+   "nested": "Goal",
+   "sub": false,
+   "lead": false,
+   "help": "A private outline of possible next chapters, written every 40 replies on a free route, that the writer reads in the Director's desk."
+  },
+  {
+   "id": "writing",
+   "label": "Writing guidance",
+   "top": "Direction",
+   "nested": "Writing",
+   "sub": false,
+   "lead": true,
+   "help": "Edit ongoing guidance and reply screening, including new NPC names to avoid."
+  },
+  {
+   "id": "inline-notes",
+   "label": "Notes inside your message",
+   "top": "Direction",
+   "nested": "Writing",
+   "sub": false,
+   "lead": false,
+   "help": "The [[OOC: ]] marker and the wrap buttons on the bar."
+  },
+  {
+   "id": "quick-bar",
+   "label": "Bar",
+   "top": "Quick actions",
+   "nested": "Bar",
+   "sub": false,
+   "lead": true,
+   "help": "Choose which quick actions sit above the message box and in what order, globally or for this chat."
+  },
+  {
+   "id": "quick-library",
+   "label": "Library",
+   "top": "Quick actions",
+   "nested": "Library",
+   "sub": false,
+   "lead": true,
+   "help": "Every quick action by kind: pin, edit, duplicate, delete, import and export."
+  },
+  {
+   "id": "sent",
+   "label": "What was sent",
+   "top": "Review",
+   "nested": "Replies",
+   "sub": false,
+   "lead": true,
+   "help": "Inspect a reply’s directions, sources and execution."
+  },
+  {
+   "id": "context",
+   "label": "Context & memory",
+   "top": "Review",
+   "nested": "Context",
+   "sub": false,
+   "lead": true,
+   "help": "What this chat sends now, memory filing status and the next reply preview."
+  },
+  {
+   "id": "what-was-sent",
+   "label": "What was sent",
+   "top": "Review",
+   "nested": "Context",
+   "sub": false,
+   "lead": false,
+   "help": "What the model saw with the next request or a past reply: the chapter view, recalled records with their scores, what was held out and why, sizes and the cache."
+  },
+  {
+   "id": "tracker-book-size",
+   "label": "Tracker book",
+   "top": "Review",
+   "nested": "Context",
+   "sub": false,
+   "lead": false,
+   "help": "How many tokens the Tracker book adds to each request."
+  },
+  {
+   "id": "diagnostics-log",
+   "label": "Diagnostics log",
+   "top": "Review",
+   "nested": "Context",
+   "sub": false,
+   "lead": false,
+   "help": "Off by default. When on, each reply keeps a short list of the stack blocks and World Info entries that were not sent, with the reason."
+  },
+  {
+   "id": "log",
+   "label": "Request log",
+   "top": "Review",
+   "nested": "Request log",
+   "sub": false,
+   "lead": true,
+   "help": "Inspect request outcomes or export the log."
+  },
+  {
+   "id": "v10",
+   "label": "Features",
+   "top": "Setup",
+   "nested": "Features",
+   "sub": false,
+   "lead": true,
+   "help": "Turn each feature on or off and edit the Roast voice."
+  },
+  {
+   "id": "presets",
+   "label": "Presets",
+   "top": "Setup",
+   "nested": "Presets",
+   "sub": false,
+   "lead": true,
+   "help": "Build the stack the next request sends from the bank of every preset block, the extension’s cards and your versions; save loadouts."
+  },
+  {
+   "id": "preset-cleanup",
+   "label": "Cleanup",
+   "top": "Setup",
+   "nested": "Presets",
+   "sub": false,
+   "lead": false,
+   "help": "Back up every preset, then retire exact copies and merge Evening Truth presets that differ only in context size."
+  },
+  {
+   "id": "memory",
+   "label": "Memory",
+   "top": "Setup",
+   "nested": "Memory",
+   "sub": false,
+   "lead": true,
+   "help": "How story memory is kept, recalled and budgeted."
+  },
+  {
+   "id": "settings",
+   "label": "Connections",
+   "top": "Setup",
+   "nested": "Connections",
+   "sub": false,
+   "lead": true,
+   "help": "Which connection each job uses and what the AI writes for you."
+  },
+  {
+   "id": "spend",
+   "label": "Spend",
+   "top": "Setup",
+   "nested": "Connections",
+   "sub": false,
+   "lead": false,
+   "help": "This month's paid background spend per route against your monthly ceiling, and the health of each route."
+  },
+  {
+   "id": "background-jobs",
+   "label": "Background jobs",
+   "top": "Setup",
+   "nested": "Connections",
+   "sub": false,
+   "lead": false,
+   "help": "Each background job and the routes it tries in order, with Test per route, the OpenRouter key for jev-1.13, the on-phone model and the desktop guide."
+  },
+  {
+   "id": "look",
+   "label": "Look",
+   "top": "Setup",
+   "nested": "Look",
+   "sub": false,
+   "lead": true,
+   "help": "Set text, icon and touch-target sizes."
+  },
+  {
+   "id": "display",
+   "label": "Reply display",
+   "top": "Setup",
+   "nested": "Look",
+   "sub": false,
+   "lead": false,
+   "help": "Choose which reply cards and commentator voice appear."
+  },
+  {
+   "id": "look-theme",
+   "label": "Theme",
+   "top": "Setup",
+   "nested": "Look",
+   "sub": false,
+   "lead": false,
+   "help": "Pick a theme for the menus and controls, save variations, share them, or save a matching SillyTavern theme."
+  },
+  {
+   "id": "look-story-style",
+   "label": "Story style",
+   "top": "Setup",
+   "nested": "Look",
+   "sub": false,
+   "lead": false,
+   "help": "Choose how story cards look in the reply tray: Parchment, Noir, Sci-fi readout or Modern minimal."
+  },
+  {
+   "id": "reply-tray",
+   "label": "Reply tray",
+   "top": "Setup",
+   "nested": "Look",
+   "sub": false,
+   "lead": false,
+   "help": "Choose the tray view, where it shows, card text and where the scene header lives."
+  },
+  {
+   "id": "prompts",
+   "label": "Prompts",
+   "top": "Setup",
+   "nested": "Prompts",
+   "sub": false,
+   "lead": true,
+   "help": "Every prompt the extension sends, in one list. Each is stored once and also editable beside its feature."
+  },
+  {
+   "id": "help",
+   "label": "Help",
+   "top": "Setup",
+   "nested": "Help",
+   "sub": false,
+   "lead": true,
+   "help": "The reference guide with search, and a help assistant that answers from it."
+  }
+ ],
+ "controls": {
+  "opening": [
+   {
+    "kind": "section",
+    "label": "Opening setup"
+   },
+   {
+    "kind": "section",
+    "label": "Opening message guidance"
+   },
+   {
+    "kind": "section",
+    "label": "Compare with installed default"
+   },
+   {
+    "kind": "section",
+    "label": "Named variations"
+   },
+   {
+    "kind": "section",
+    "label": "Import variation"
+   },
+   {
+    "kind": "section",
+    "label": "Undo removal"
+   },
+   {
+    "kind": "section",
+    "label": "Customize opening and greeting prompts"
+   },
+   {
+    "kind": "setting",
+    "label": "Choose a greeting",
+    "value": "First message"
+   },
+   {
+    "kind": "setting",
+    "label": "Opening direction"
+   },
+   {
+    "kind": "setting",
+    "label": "Review or edit opening"
+   },
+   {
+    "kind": "prompt",
+    "label": "Opening: system message"
+   },
+   {
+    "kind": "prompt",
+    "label": "Reading the chosen greeting"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing authorized opening thoughts"
+   },
+   {
+    "kind": "prompt",
+    "label": "Opening scene checks"
+   }
+  ],
+  "state": [
+   {
+    "kind": "section",
+    "label": "Customize the scene timing prompt"
+   },
+   {
+    "kind": "section",
+    "label": "Scene"
+   },
+   {
+    "kind": "prompt",
+    "label": "Recording story time and weather"
+   }
+  ],
+  "corrections": [
+   {
+    "kind": "section",
+    "label": "Correct story facts"
+   },
+   {
+    "kind": "section",
+    "label": "◇ How it ran · Runs in code"
+   },
+   {
+    "kind": "section",
+    "label": "Find and edit source records"
+   },
+   {
+    "kind": "section",
+    "label": "Customize correction prompts"
+   },
+   {
+    "kind": "prompt",
+    "label": "Tracing story corrections"
+   },
+   {
+    "kind": "prompt",
+    "label": "Regenerating after a story correction"
+   },
+   {
+    "kind": "prompt",
+    "label": "Using accepted story corrections"
+   }
+  ],
+  "portrayal": [
+   {
+    "kind": "section",
+    "label": "Pronouns"
+   },
+   {
+    "kind": "section",
+    "label": "Portrayal & Knowledge"
+   },
+   {
+    "kind": "section",
+    "label": "Portrayal · Seraphina"
+   },
+   {
+    "kind": "section",
+    "label": "Customize portrayal and knowledge prompts"
+   },
+   {
+    "kind": "setting",
+    "label": "Pronouns for Seraphina (the character)",
+    "help": "Versions use these wherever they have a pronoun label, so one instruction set works with any character.",
+    "value": "they / them"
+   },
+   {
+    "kind": "setting",
+    "label": "Pronouns for User (you)",
+    "help": "Versions use these wherever they have a pronoun label, so one instruction set works with any character.",
+    "value": "they / them"
+   },
+   {
+    "kind": "prompt",
+    "label": "Recording portrayal and growth"
+   },
+   {
+    "kind": "prompt",
+    "label": "Recording character knowledge"
+   },
+   {
+    "kind": "prompt",
+    "label": "Character knowledge check"
+   }
+  ],
+  "emotion": [
+   {
+    "kind": "section",
+    "label": "Emotion tuning"
+   },
+   {
+    "kind": "section",
+    "label": "Emotions & Relationships"
+   },
+   {
+    "kind": "section",
+    "label": "Customize emotion and relationship prompts"
+   },
+   {
+    "kind": "setting",
+    "label": "Baseline",
+    "value": "3"
+   },
+   {
+    "kind": "setting",
+    "label": "Persistence in replies",
+    "value": "3"
+   },
+   {
+    "kind": "setting",
+    "label": "Recovery per reply",
+    "value": "1"
+   },
+   {
+    "kind": "setting",
+    "label": "Sensitivity",
+    "value": "flexible"
+   },
+   {
+    "kind": "prompt",
+    "label": "Using tracked emotions"
+   },
+   {
+    "kind": "prompt",
+    "label": "Emotional continuity check"
+   },
+   {
+    "kind": "prompt",
+    "label": "Recording emotional state"
+   },
+   {
+    "kind": "prompt",
+    "label": "Recording relationship dynamics"
+   }
+  ],
+  "speakers": [
+   {
+    "kind": "section",
+    "label": "Dialogue colors"
+   },
+   {
+    "kind": "section",
+    "label": "Customize speaker attribution prompt"
+   },
+   {
+    "kind": "prompt",
+    "label": "Dialogue and thought attribution"
+   }
+  ],
+  "story-rules-link": [],
+  "stat-sheets": [
+   {
+    "kind": "setting",
+    "label": "Stats in use",
+    "help": "Separate them with commas. Each sheet gives every stat a modifier from -20 to +20."
+   }
+  ],
+  "voices": [
+   {
+    "kind": "section",
+    "label": "Desktop voice"
+   },
+   {
+    "kind": "section",
+    "label": "Voices in this chat"
+   },
+   {
+    "kind": "section",
+    "label": "Seraphina Character"
+   },
+   {
+    "kind": "section",
+    "label": "User Your persona"
+   },
+   {
+    "kind": "setting",
+    "label": "Address"
+   },
+   {
+    "kind": "setting",
+    "label": "Key"
+   },
+   {
+    "kind": "setting",
+    "label": "Check each line by transcription",
+    "help": "The desktop transcribes each line and renders it again with a new seed when the words differ. Names are listed in the receipt for your ear.",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "More feeling on exclaimed and shouted lines",
+    "help": "Off by default. A line with an exclamation or a word in capitals, or a quote the narration says was shouted, yelled or snapped, gets a little more expressiveness for that line only. Decided here in code; the receipt names each lift.",
+    "value": "off"
+   }
+  ],
+  "world": [
+   {
+    "kind": "section",
+    "label": "People"
+   },
+   {
+    "kind": "section",
+    "label": "History of automatic changes"
+   },
+   {
+    "kind": "section",
+    "label": "The story so far"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "Story World book"
+   },
+   {
+    "kind": "section",
+    "label": "Related settings"
+   },
+   {
+    "kind": "setting",
+    "label": "Condensed account"
+   }
+  ],
+  "books": [
+   {
+    "kind": "section",
+    "label": "Story World"
+   },
+   {
+    "kind": "section",
+    "label": "Reusable World Info books"
+   },
+   {
+    "kind": "section",
+    "label": "Guideline and reference books"
+   },
+   {
+    "kind": "section",
+    "label": "Create an empty book"
+   },
+   {
+    "kind": "section",
+    "label": "World Info books for this chat"
+   },
+   {
+    "kind": "section",
+    "label": "Edit or delete entries"
+   },
+   {
+    "kind": "setting",
+    "label": "Base World",
+    "help": "Choose an existing World Info book or upload a native JSON export. The pinned copy keeps its triggers.",
+    "value": "None"
+   },
+   {
+    "kind": "setting",
+    "label": "Role for books you add",
+    "help": "Guidelines supply writing directions. Reference books hold facts about people, places, or anything else.",
+    "value": "Behavior & Guidelines"
+   },
+   {
+    "kind": "setting",
+    "label": "Name",
+    "help": "The new book uses the selected role. Add entries from the new book’s card."
+   }
+  ],
+  "books-memory": [
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "Books"
+   },
+   {
+    "kind": "section",
+    "label": "Behavior books"
+   },
+   {
+    "kind": "section",
+    "label": "Draft entries from a description"
+   },
+   {
+    "kind": "section",
+    "label": "Generated books"
+   },
+   {
+    "kind": "setting",
+    "label": "Kind",
+    "value": "Random story event"
+   },
+   {
+    "kind": "setting",
+    "label": "Story may add to this book",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Receive story events",
+    "help": "One behavior book per chat takes the story events chapters suggest. Each one waits on the review list in Setup, Memory first.",
+    "value": "No book receives story events"
+   },
+   {
+    "kind": "setting",
+    "label": "Book",
+    "value": "Docks events"
+   },
+   {
+    "kind": "setting",
+    "label": "What the entries should do",
+    "help": "For example: \"rival smugglers turn up at the docks now and then\"."
+   }
+  ],
+  "tracker-book": [
+   {
+    "kind": "section",
+    "label": "Tracker book"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   }
+  ],
+  "sets": [
+   {
+    "kind": "section",
+    "label": "Instruction sets"
+   },
+   {
+    "kind": "section",
+    "label": "Customize in-chat instruction wording"
+   },
+   {
+    "kind": "section",
+    "label": "Customize Write with AI prompts"
+   },
+   {
+    "kind": "section",
+    "label": "Story event sets"
+   },
+   {
+    "kind": "section",
+    "label": "Customize in-chat story event wording"
+   },
+   {
+    "kind": "section",
+    "label": "Writing style sets"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "Customize in-chat writing style wording"
+   },
+   {
+    "kind": "prompt",
+    "label": "Instruction framing"
+   },
+   {
+    "kind": "prompt",
+    "label": "First reminder framing"
+   },
+   {
+    "kind": "prompt",
+    "label": "Final reminder framing"
+   },
+   {
+    "kind": "prompt",
+    "label": "Player agency in instruction notes"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing instruction versions"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing model-directed versions"
+   },
+   {
+    "kind": "prompt",
+    "label": "Instruction writer: system message"
+   },
+   {
+    "kind": "prompt",
+    "label": "Story event wording"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing story event items"
+   },
+   {
+    "kind": "prompt",
+    "label": "Working in different settings"
+   },
+   {
+    "kind": "prompt",
+    "label": "Situation item guidance"
+   },
+   {
+    "kind": "prompt",
+    "label": "Complication item guidance"
+   },
+   {
+    "kind": "prompt",
+    "label": "Event driver guidance"
+   },
+   {
+    "kind": "prompt",
+    "label": "Event tone guidance"
+   },
+   {
+    "kind": "prompt",
+    "label": "Event stakes guidance"
+   },
+   {
+    "kind": "prompt",
+    "label": "Rewriting events to work anywhere"
+   },
+   {
+    "kind": "prompt",
+    "label": "Story event item writer: system message"
+   },
+   {
+    "kind": "prompt",
+    "label": "Event rewrite: system message"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing style wording"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing style items"
+   },
+   {
+    "kind": "prompt",
+    "label": "Style item writer: system message"
+   }
+  ],
+  "story-rules": [
+   {
+    "kind": "section",
+    "label": "Story rules"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "setting",
+    "label": "Kept with",
+    "help": "Rules kept with a story event set work in every chat where that set is on.",
+    "value": "This chat"
+   }
+  ],
+  "set-rules": [
+   {
+    "kind": "section",
+    "label": "New things in one reply"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "Where your sets are kept"
+   },
+   {
+    "kind": "section",
+    "label": "Pacing"
+   },
+   {
+    "kind": "section",
+    "label": "Time skips and scene breaks"
+   },
+   {
+    "kind": "section",
+    "label": "Follow-through checks"
+   },
+   {
+    "kind": "section",
+    "label": "Customize checking instructions"
+   },
+   {
+    "kind": "section",
+    "label": "World orders"
+   },
+   {
+    "kind": "section",
+    "label": "Customize world order instructions"
+   },
+   {
+    "kind": "section",
+    "label": "Tags to skip"
+   },
+   {
+    "kind": "setting",
+    "label": "How many new things can start in one reply",
+    "help": "Counted across every instruction set, story event set, the goal and the world orders. When more are ready, one is picked at random; 0 turns this off.How it worksThe others wait for a later reply. Something already under way (kept for more replies, or sent again because it did not happen) uses up the room first. Writing style and the goal line are always sent.",
+    "value": "0"
+   },
+   {
+    "kind": "setting",
+    "label": "New sets are kept in",
+    "help": "Every set you add from now on gets a World Info book of its own, named after the set.",
+    "value": "A World Info book of its own for each set"
+   },
+   {
+    "kind": "setting",
+    "label": "Calm after a big event (replies)",
+    "help": "After a big event, nothing new starts for this many replies across every set, the goal and the story world. 0 turns this off.How it worksBig events are story event sets marked \"Events from this set are big\" and an open thread of the story world coming to a head. What is already under way carries on.",
+    "value": "0"
+   },
+   {
+    "kind": "setting",
+    "label": "Order a character who has gone silent (replies)",
+    "help": "Needs a story world. A character who has been in the scene for this many replies without being named in the story text is ordered to speak or act; 0 turns this off.How it worksThe order counts as the one new thing of that reply and is checked.",
+    "value": "0"
+   },
+   {
+    "kind": "setting",
+    "label": "Story phases",
+    "help": "Off: every chance stays as you set it for the whole chat.",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Move the story clock",
+    "help": "A line in your message that starts \"Time skip:\" followed by an amount such as \"three days\" moves the story clock forward before the reply is written. If the amount cannot be read, the clock is marked unknown until the reply is filed.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Close the chapter",
+    "help": "A \"Time skip:\" line, a \"Scene:\" line or a line of *** closes the open chapter at the newest reply, so your message starts a new one. The chapter is written the same way \"Close the chapter here\" writes it.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "List Pending events that fell due",
+    "help": "After a \"Time skip:\", Pending events whose due time falls inside the skipped time are listed, and the next filing of the story rules on each.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Check each reply that was sent an instruction",
+    "help": "Automatic checks also need the permission below. Each check uses one additional model call to look for evidence in the reply.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "While one is waiting to be sent again, hold back new instructions",
+    "help": "On: the overdue instruction goes alone, so the AI has one thing to do.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Regenerate when an instruction did not happen",
+    "help": "When automatic replacement is permitted, SillyTavern makes one additional swipe request after a missed instruction.",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Check that the reply did not write for you",
+    "help": "Checked in the same request, only on replies that were sent an instruction.",
+    "value": "Show a warning in What was sent"
+   },
+   {
+    "kind": "setting",
+    "label": "An open thread builds by itself after (replies)",
+    "help": "A thread that has not moved for this many replies goes up one step, as far as \"About to come to a head\". 0 leaves the steps to the story and to you.",
+    "value": "10"
+   },
+   {
+    "kind": "setting",
+    "label": "Chance that something ready is ordered into the scene (%)",
+    "help": "Each reply has this chance that one thing below becomes an order for it. 0 turns this off.How it worksThe order counts as the one new thing per reply and is checked like any instruction.",
+    "value": "20"
+   },
+   {
+    "kind": "setting",
+    "label": "Replies before a planted detail or a thing going on elsewhere can be ordered in",
+    "help": "So that something new has time to sit before it matters.",
+    "value": "6"
+   },
+   {
+    "kind": "setting",
+    "label": "An open thread that is about to come to a head",
+    "help": "The order: it comes to a head in this reply. When it happens the thread is marked \"Happening now\".",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "A planted detail",
+    "help": "The order: the detail matters in this reply. When it happens it is marked \"Paid off\".",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Something going on elsewhere",
+    "help": "The order: it reaches the scene in this reply. When it happens it is marked \"Finished\".",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "A kept secret of someone in the scene",
+    "help": "The order: the secret comes out in this reply and is marked \"Out in the open\". Off to start with, so secrets come out only when you or the story decide.",
+    "value": "Off"
+   },
+   {
+    "kind": "prompt",
+    "label": "Instruction checker guidance"
+   },
+   {
+    "kind": "prompt",
+    "label": "Checker: system message"
+   },
+   {
+    "kind": "prompt",
+    "label": "Story World event wording"
+   },
+   {
+    "kind": "prompt",
+    "label": "Quiet character order"
+   },
+   {
+    "kind": "prompt",
+    "label": "Open thread order"
+   },
+   {
+    "kind": "prompt",
+    "label": "Planted detail order"
+   },
+   {
+    "kind": "prompt",
+    "label": "Off-scene activity order"
+   },
+   {
+    "kind": "prompt",
+    "label": "Secret revelation order"
+   }
+  ],
+  "goals": [
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "The goal"
+   },
+   {
+    "kind": "section",
+    "label": "One-time steps (each happens once, in any order)"
+   },
+   {
+    "kind": "section",
+    "label": "Repeatable actions (sent again and again)"
+   },
+   {
+    "kind": "section",
+    "label": "How often"
+   },
+   {
+    "kind": "section",
+    "label": "Customize goal prompts"
+   },
+   {
+    "kind": "setting",
+    "label": "What the character is working toward",
+    "help": "One plain sentence. Keep it loose, for example: {{char}} wants {{user}} to trust {{char.them}}."
+   },
+   {
+    "kind": "setting",
+    "label": "Chance to add a task each reply (%)",
+    "help": "At most one task is sent at a time. 35 adds a task to about 1 reply in 3.",
+    "value": "35"
+   },
+   {
+    "kind": "setting",
+    "label": "A repeatable action waits at least (replies)",
+    "help": "After it is sent, it is left alone for a number of replies between these two.",
+    "value": "6"
+   },
+   {
+    "kind": "setting",
+    "label": "A repeatable action waits at most (replies)",
+    "value": "10"
+   },
+   {
+    "kind": "setting",
+    "label": "The goal is done when every one-time step is done",
+    "help": "Off: the goal stays in progress until you press \"Mark the goal done\".",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "When the goal is done",
+    "help": "The next goal is the one after this one in your list.",
+    "value": "Stop sending"
+   },
+   {
+    "kind": "setting",
+    "label": "Turn the goal on or off for this chat",
+    "value": "off"
+   },
+   {
+    "kind": "prompt",
+    "label": "Goal task wording"
+   },
+   {
+    "kind": "prompt",
+    "label": "Ongoing goal wording"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing goal actions and steps"
+   },
+   {
+    "kind": "prompt",
+    "label": "Goal writer: system message"
+   }
+  ],
+  "story-outline": [
+   {
+    "kind": "section",
+    "label": "Story outline",
+    "value": "on"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "setting",
+    "label": "Story outline",
+    "help": "Off stops the runs and takes the outline out of the Director's desk. The text stays on file.",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Possible next chapters",
+    "help": "One chapter per line. Your edit stays as you wrote it; the writer reads it at the next reply."
+   },
+   {
+    "kind": "setting",
+    "label": "When you have edited it, the next run",
+    "help": "\"Write the outline now\" always rewrites from your text.",
+    "value": "Keeps your text"
+   }
+  ],
+  "writing": [
+   {
+    "kind": "section",
+    "label": "Writing profile"
+   },
+   {
+    "kind": "section",
+    "label": "Customize portrayal profiles"
+   },
+   {
+    "kind": "section",
+    "label": "Live writing guidance"
+   },
+   {
+    "kind": "section",
+    "label": "Compare with installed default"
+   },
+   {
+    "kind": "section",
+    "label": "Named variations"
+   },
+   {
+    "kind": "section",
+    "label": "Import variation"
+   },
+   {
+    "kind": "section",
+    "label": "Undo removal"
+   },
+   {
+    "kind": "section",
+    "label": "Continuity guidance"
+   },
+   {
+    "kind": "section",
+    "label": "Continuity guidance for this chat"
+   },
+   {
+    "kind": "section",
+    "label": "Customize individual scene checks"
+   },
+   {
+    "kind": "section",
+    "label": "Reply screening"
+   },
+   {
+    "kind": "section",
+    "label": "Stock phrases to avoid"
+   },
+   {
+    "kind": "section",
+    "label": "New NPC names to avoid"
+   },
+   {
+    "kind": "section",
+    "label": "Customize the writing review prompt"
+   },
+   {
+    "kind": "section",
+    "label": "◇ How it ran · multiple stages"
+   },
+   {
+    "kind": "setting",
+    "label": "Portrayal intensity",
+    "help": "Choose the shared guidance used in this chat. Existing character material still has priority.",
+    "value": "Follow live writing guidance"
+   },
+   {
+    "kind": "setting",
+    "label": "Show turn length and dialogue share",
+    "help": "Add word count and the approximate percentage in quotation marks to the reply’s Notes tab.",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Review recent writing with the reply",
+    "help": "Add a short review of recurring writing patterns when at least two earlier story replies are available. Notes show which revisions support each finding.",
+    "value": "Off"
+   },
+   {
+    "kind": "prompt",
+    "label": "Grounded portrayal"
+   },
+   {
+    "kind": "prompt",
+    "label": "Heightened portrayal"
+   },
+   {
+    "kind": "prompt",
+    "label": "Physical realism check"
+   },
+   {
+    "kind": "prompt",
+    "label": "Social realism and character fidelity check"
+   },
+   {
+    "kind": "prompt",
+    "label": "Pacing and prose check"
+   },
+   {
+    "kind": "prompt",
+    "label": "Information and continuity check"
+   },
+   {
+    "kind": "prompt",
+    "label": "Solo scene"
+   },
+   {
+    "kind": "prompt",
+    "label": "Ensemble scene"
+   },
+   {
+    "kind": "prompt",
+    "label": "Uncertain cast"
+   },
+   {
+    "kind": "prompt",
+    "label": "Continuing a reply"
+   },
+   {
+    "kind": "prompt",
+    "label": "Same-reply writing review"
+   }
+  ],
+  "inline-notes": [
+   {
+    "kind": "section",
+    "label": "Notes inside your message"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "Wrap buttons on the bar"
+   },
+   {
+    "kind": "setting",
+    "label": "Notes in [[OOC: ]]",
+    "help": "Off leaves the brackets in your message like any other text.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "[[OOC: ]]",
+    "help": "Wraps the selection in [[OOC: ]]. The note is cut from your message and sent once, privately.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "* *",
+    "help": "Wraps the selection in * *.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "\" \"",
+    "help": "Wraps the selection in \" \".",
+    "value": "On"
+   }
+  ],
+  "quick-bar": [
+   {
+    "kind": "section",
+    "label": "Pin a quick action · 21"
+   }
+  ],
+  "quick-library": [
+   {
+    "kind": "section",
+    "label": "Options · 1"
+   },
+   {
+    "kind": "section",
+    "label": "Swipe · 7"
+   },
+   {
+    "kind": "section",
+    "label": "Continue · 7"
+   },
+   {
+    "kind": "section",
+    "label": "Impersonate · 8"
+   },
+   {
+    "kind": "section",
+    "label": "Direction · 2"
+   },
+   {
+    "kind": "section",
+    "label": "Action check · 1"
+   },
+   {
+    "kind": "section",
+    "label": "Review · 1"
+   }
+  ],
+  "sent": [],
+  "context": [
+   {
+    "kind": "section",
+    "label": "Memory status"
+   },
+   {
+    "kind": "section",
+    "label": "This chat now"
+   },
+   {
+    "kind": "section",
+    "label": "Last observed request"
+   },
+   {
+    "kind": "section",
+    "label": "Next reply preview"
+   }
+  ],
+  "what-was-sent": [
+   {
+    "kind": "section",
+    "label": "Chapter view"
+   },
+   {
+    "kind": "section",
+    "label": "Recall block"
+   },
+   {
+    "kind": "section",
+    "label": "Held out"
+   },
+   {
+    "kind": "section",
+    "label": "Sizes"
+   },
+   {
+    "kind": "section",
+    "label": "Cache"
+   },
+   {
+    "kind": "section",
+    "label": "Tracker book"
+   },
+   {
+    "kind": "section",
+    "label": "Behavior entries and roll"
+   },
+   {
+    "kind": "section",
+    "label": "Trim warnings"
+   },
+   {
+    "kind": "setting",
+    "label": "Request",
+    "value": "The next request"
+   }
+  ],
+  "tracker-book-size": [
+   {
+    "kind": "section",
+    "label": "Tracker book"
+   }
+  ],
+  "diagnostics-log": [],
+  "log": [],
+  "v10": [
+   {
+    "kind": "section",
+    "label": "Quick action bar"
+   },
+   {
+    "kind": "section",
+    "label": "Features"
+   },
+   {
+    "kind": "section",
+    "label": "Writing & reply display"
+   },
+   {
+    "kind": "section",
+    "label": "Instruction source & diagnostics"
+   },
+   {
+    "kind": "section",
+    "label": "Story state & character continuity"
+   },
+   {
+    "kind": "section",
+    "label": "Plot & mechanics"
+   },
+   {
+    "kind": "section",
+    "label": "Roast commentator voice and feedback"
+   },
+   {
+    "kind": "section",
+    "label": "New commentator voice"
+   },
+   {
+    "kind": "section",
+    "label": "Import or export a voice"
+   },
+   {
+    "kind": "section",
+    "label": "Advanced prompts"
+   },
+   {
+    "kind": "section",
+    "label": "Customize planning and prose prompts"
+   },
+   {
+    "kind": "section",
+    "label": "Named variations"
+   },
+   {
+    "kind": "section",
+    "label": "Import variation"
+   },
+   {
+    "kind": "section",
+    "label": "Undo removal"
+   },
+   {
+    "kind": "setting",
+    "label": "Base for direct Impersonate",
+    "help": "A choice for Default.",
+    "value": "Follow preset"
+   },
+   {
+    "kind": "setting",
+    "label": "Shared impersonation instruction"
+   },
+   {
+    "kind": "prompt",
+    "label": "Roast voice"
+   },
+   {
+    "kind": "prompt",
+    "label": "Writing the Roast"
+   },
+   {
+    "kind": "prompt",
+    "label": "Using previous Roast commentary"
+   },
+   {
+    "kind": "prompt",
+    "label": "Optional reply outline"
+   },
+   {
+    "kind": "prompt",
+    "label": "Prose first"
+   },
+   {
+    "kind": "prompt",
+    "label": "Player draft instruction"
+   },
+   {
+    "kind": "prompt",
+    "label": "Player choices instruction"
+   },
+   {
+    "kind": "prompt",
+    "label": "Expand a player choice"
+   }
+  ],
+  "presets": [
+   {
+    "kind": "section",
+    "label": "Profiles in the preset family"
+   },
+   {
+    "kind": "section",
+    "label": "What changes"
+   },
+   {
+    "kind": "section",
+    "label": "Save as loadout"
+   },
+   {
+    "kind": "section",
+    "label": "Edit the conflict check prompt"
+   },
+   {
+    "kind": "section",
+    "label": "Document view of the working copy"
+   },
+   {
+    "kind": "section",
+    "label": "Regex scripts the preset carries"
+   },
+   {
+    "kind": "prompt",
+    "label": "Checking blocks for conflicts"
+   }
+  ],
+  "preset-cleanup": [
+   {
+    "kind": "section",
+    "label": "Copies of a base (0 of 14 ready)"
+   },
+   {
+    "kind": "section",
+    "label": "Evening Truth groups"
+   }
+  ],
+  "memory": [
+   {
+    "kind": "section",
+    "label": "Status"
+   },
+   {
+    "kind": "section",
+    "label": "Recall"
+   },
+   {
+    "kind": "section",
+    "label": "More recall settings"
+   },
+   {
+    "kind": "section",
+    "label": "Budgets"
+   },
+   {
+    "kind": "section",
+    "label": "More budgets"
+   },
+   {
+    "kind": "section",
+    "label": "Customize current-state guidance"
+   },
+   {
+    "kind": "section",
+    "label": "Chapters"
+   },
+   {
+    "kind": "section",
+    "label": "Upkeep"
+   },
+   {
+    "kind": "section",
+    "label": "More upkeep settings"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "Customize story memory wording"
+   },
+   {
+    "kind": "section",
+    "label": "Chapter organization"
+   },
+   {
+    "kind": "section",
+    "label": "This chat"
+   },
+   {
+    "kind": "section",
+    "label": "Catch up and rebuild"
+   },
+   {
+    "kind": "section",
+    "label": "Continue in a new chat"
+   },
+   {
+    "kind": "section",
+    "label": "Review list"
+   },
+   {
+    "kind": "setting",
+    "label": "Books Recall manages",
+    "help": "None yet. Switch a book on in Story, World Info."
+   },
+   {
+    "kind": "setting",
+    "label": "World Info recall",
+    "help": "Include the pinned Base World and relevant Story World entries. World Info remains under SillyTavern control.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Chapter summaries",
+    "help": "Write and recall chapter summaries. Each new chapter uses one model call.",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Exclude summarized messages from prompts",
+    "help": "Enable Chapter summaries first. Only saved chapters can hide messages.",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Where the notes are placed",
+    "help": "In the chat, above your last message. Works with every preset, and a chat whose memory lives in chat data sends Recall instead.",
+    "value": "In the chat, above your last message"
+   },
+   {
+    "kind": "setting",
+    "label": "How many messages up",
+    "help": "0 is the very end of the chat, 1 is above your last message. A deeper place costs the prompt cache more messages each turn.",
+    "value": "1"
+   },
+   {
+    "kind": "setting",
+    "label": "Messages read for names",
+    "help": "When the reply has no scene header or HUD, people named in this many recent messages count as present. Other entries named there are added while room is left.",
+    "value": "4"
+   },
+   {
+    "kind": "setting",
+    "label": "Protect recent history by",
+    "help": "Choose how to size the full-text window for covered history. The opening and unsummarized messages stay available.",
+    "value": "Message count"
+   },
+   {
+    "kind": "setting",
+    "label": "Recent messages to protect",
+    "help": "Protects this many recent story messages.",
+    "value": "30"
+   },
+   {
+    "kind": "setting",
+    "label": "Chat model size",
+    "help": "Auto reads the context size SillyTavern is set to. The size sets the caps below.",
+    "value": "Auto"
+   },
+   {
+    "kind": "setting",
+    "label": "Room for Recall (tokens)",
+    "help": "Estimated budget for the scene, explicit activations and relevant story entries. Chapters have a separate budget.",
+    "value": "600"
+   },
+   {
+    "kind": "setting",
+    "label": "Chapter notes budget",
+    "help": "Approximate text budget for the story so far.",
+    "value": "800"
+   },
+   {
+    "kind": "setting",
+    "label": "Current state prompt budget",
+    "help": "Approximate room for scene and character state; lines that do not fit are left out.",
+    "value": "350"
+   },
+   {
+    "kind": "setting",
+    "label": "Capture",
+    "help": "Every five replies is offered while the state cards are off, since nothing then needs the newest values at once.",
+    "value": "After each reply"
+   },
+   {
+    "kind": "setting",
+    "label": "Keep the world up to date from each reply",
+    "help": "With each reply the AI adds a short block recording what the reply made true, and the extension files it here with no extra model call. Entries you wrote are only touched on the changing lines.How it worksThe extension takes the block out of the reply. New people, places, groups, threads, secrets and planted details are added, and what people want, plan and know is kept current.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "A branch gets its own copy of the world",
+    "help": "On: the first time a branch is opened, it gets its own World Info book, so changes there never touch the chat it came from.How it worksThe book is named after the story world with \"(branch)\". Recorded later changes are rewound on the copy, and swipes and deletes in the branch undo changes in the copy only.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Earlier replies kept editable",
+    "help": "Automatic Story World changes file as soon as a reply is accepted.",
+    "value": "File immediately"
+   },
+   {
+    "kind": "setting",
+    "label": "Move finished records into chapters",
+    "help": "Keeps completed threads and events with the chapter that covers them.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Recent chapters eligible for full recall",
+    "help": "The chapter budget also limits recall.",
+    "value": "2"
+   },
+   {
+    "kind": "setting",
+    "label": "Combine older chapters when there are more than",
+    "help": "Combining follows the saved automatic request setting.",
+    "value": "8"
+   },
+   {
+    "kind": "setting",
+    "label": "Write a chapter when the scene ends",
+    "help": "Requires Story World updates and at least the minimum number of replies.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Minimum replies for a scene-end chapter",
+    "help": "A reply is a model message.",
+    "value": "4"
+   },
+   {
+    "kind": "setting",
+    "label": "Write a chapter at least every",
+    "help": "Set 0 to disable the reply-count threshold.",
+    "value": "20"
+   },
+   {
+    "kind": "setting",
+    "label": "Summarize at estimated tokens",
+    "help": "After an accepted reply, a chapter is written when unsummarized text reaches this estimate. Set 0 to turn the token threshold off.",
+    "value": "0"
+   },
+   {
+    "kind": "setting",
+    "label": "World Info recall for this chat",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Desktop booster",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Chapter summaries for this chat",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Tidy automatically",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Memory on for this chat",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Catch up by itself on free routes",
+    "value": "on"
+   },
+   {
+    "kind": "prompt",
+    "label": "Current state guidance"
+   },
+   {
+    "kind": "prompt",
+    "label": "Plain language for story memory"
+   },
+   {
+    "kind": "prompt",
+    "label": "Story notes guidance"
+   }
+  ],
+  "settings": [
+   {
+    "kind": "section",
+    "label": "Connections & automatic requests"
+   },
+   {
+    "kind": "section",
+    "label": "Model call settings"
+   },
+   {
+    "kind": "section",
+    "label": "Write my next message"
+   },
+   {
+    "kind": "section",
+    "label": "Give me choices"
+   },
+   {
+    "kind": "section",
+    "label": "Draft from this choice"
+   },
+   {
+    "kind": "section",
+    "label": "Swipe an earlier reply"
+   },
+   {
+    "kind": "section",
+    "label": "Continue a historical reply"
+   },
+   {
+    "kind": "section",
+    "label": "Find source facts to repair"
+   },
+   {
+    "kind": "section",
+    "label": "Write a chapter summary"
+   },
+   {
+    "kind": "section",
+    "label": "Combine older chapters"
+   },
+   {
+    "kind": "section",
+    "label": "Draft a new chapter"
+   },
+   {
+    "kind": "section",
+    "label": "Fill a starter Story World"
+   },
+   {
+    "kind": "section",
+    "label": "Draft or read an opening"
+   },
+   {
+    "kind": "section",
+    "label": "Check whether directions happened"
+   },
+   {
+    "kind": "section",
+    "label": "Automatically replace a missed reply"
+   },
+   {
+    "kind": "section",
+    "label": "Write instruction versions"
+   },
+   {
+    "kind": "section",
+    "label": "Rewrite one instruction version"
+   },
+   {
+    "kind": "section",
+    "label": "Write story event items"
+   },
+   {
+    "kind": "section",
+    "label": "Write style items"
+   },
+   {
+    "kind": "section",
+    "label": "Rewrite event items"
+   },
+   {
+    "kind": "section",
+    "label": "Draft a character goal"
+   },
+   {
+    "kind": "section",
+    "label": "Draft a Story World entry"
+   },
+   {
+    "kind": "section",
+    "label": "Suggest Primary Keywords"
+   },
+   {
+    "kind": "section",
+    "label": "Compare preset blocks and extension features"
+   },
+   {
+    "kind": "section",
+    "label": "Customize guided-turn instructions"
+   },
+   {
+    "kind": "section",
+    "label": "What the AI writes for you"
+   },
+   {
+    "kind": "section",
+    "label": "Settings backup"
+   },
+   {
+    "kind": "section",
+    "label": "Settings that moved"
+   },
+   {
+    "kind": "setting",
+    "label": "Mode",
+    "value": "Automatic"
+   },
+   {
+    "kind": "setting",
+    "label": "Connection",
+    "value": "Main API"
+   },
+   {
+    "kind": "setting",
+    "label": "Automatic requests",
+    "help": "When a filed reply qualifies at an enabled reply count, scene-end or token threshold. Budget is one request per trigger.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Give the AI more room to answer",
+    "help": "Increase the answer budget for models that use part of the answer for reasoning. An empty answer leaves the next attempt up to you.",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Rules given to the AI writer",
+    "help": "One rule per line, in plain words. They are added to every writing request."
+   },
+   {
+    "kind": "setting",
+    "label": "Flag words from your list",
+    "help": "On: 57 words are on the list. Text that uses one gets the line \"On your word list\" where you review it, and you can always keep the text.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Your word list",
+    "help": "This list runs locally. Separate words with commas; a star at the end matches any ending, and capitals make no difference."
+   },
+   {
+    "kind": "prompt",
+    "label": "Guided swipe framing"
+   },
+   {
+    "kind": "prompt",
+    "label": "Guided continuation framing"
+   },
+   {
+    "kind": "prompt",
+    "label": "Historical replacement framing"
+   },
+   {
+    "kind": "prompt",
+    "label": "Historical continuation framing"
+   },
+   {
+    "kind": "prompt",
+    "label": "Fresh start guidance"
+   }
+  ],
+  "spend": [
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "section",
+    "label": "Paid background calls this month"
+   }
+  ],
+  "background-jobs": [
+   {
+    "kind": "section",
+    "label": "How it works"
+   }
+  ],
+  "look": [],
+  "display": [
+   {
+    "kind": "section",
+    "label": "Reply Display"
+   },
+   {
+    "kind": "section",
+    "label": "Show what was sent under each reply"
+   },
+   {
+    "kind": "setting",
+    "label": "Show arriving story sections",
+    "help": "Preview the reply cards as their fields arrive. Turn off for a single progress line.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Show Reply planning",
+    "help": "Show any emitted outline in a collapsed disclosure.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "World Info under replies",
+    "help": "Show a collapsed card with the selected entries and their source books. This controls visibility only.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Show Roast cards",
+    "help": "Show the saved Roast beneath its reply. Choose the commentator voice below.",
+    "value": "On"
+   },
+   {
+    "kind": "setting",
+    "label": "Keep exact story guidance",
+    "help": "Save confirmed extension guidance for inspection in What was sent.",
+    "value": "Off"
+   },
+   {
+    "kind": "setting",
+    "label": "Under each reply",
+    "help": "Nothing is added to the chat screen. What was sent is always in Review, Context, What was sent.",
+    "value": "Off"
+   }
+  ],
+  "look-theme": [
+   {
+    "kind": "section",
+    "label": "SillyTavern"
+   }
+  ],
+  "look-story-style": [
+   {
+    "kind": "section",
+    "label": "Default for every chat"
+   },
+   {
+    "kind": "section",
+    "label": "This chat"
+   }
+  ],
+  "reply-tray": [
+   {
+    "kind": "section",
+    "label": "This chat"
+   },
+   {
+    "kind": "section",
+    "label": "Cards"
+   },
+   {
+    "kind": "section",
+    "label": "Sections and fields"
+   },
+   {
+    "kind": "setting",
+    "label": "Where and when",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Place",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Story date and time",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Weather",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Surroundings",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Who is there",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Present",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Ambient people",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Observable facts",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Known places",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "World detail",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Right now",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Inner life",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Mind",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Heart",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Body",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Psyche",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Thoughts",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Portrayal",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Who they are",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Facet",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Voice",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Outfit",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Holding",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Faculty set",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Conditions",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Emotional axes",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Axes",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Outward behavior",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Coexisting feeling",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Turn psychology",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Pairs",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Pair",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Level",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Change and reason",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Route",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Who knows what",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Secrets",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "False beliefs",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "What each person remembers",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Open threads",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Plotlines",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Tracks",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Elsewhere",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Planted details",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Pending events",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Filed this reply",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Threads closed",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Facts on record",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Entries used",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Plan",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Course",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Pressure",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Branches",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Graded",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "One voice",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Panel",
+    "value": "off"
+   },
+   {
+    "kind": "setting",
+    "label": "Sent",
+    "value": "on"
+   },
+   {
+    "kind": "setting",
+    "label": "Notes",
+    "value": "on"
+   }
+  ],
+  "prompts": [],
+  "help": [
+   {
+    "kind": "section",
+    "label": "Help settings"
+   },
+   {
+    "kind": "section",
+    "label": "How it works"
+   },
+   {
+    "kind": "setting",
+    "label": "Search the guide"
+   },
+   {
+    "kind": "setting",
+    "label": "Add a route",
+    "help": "A route joins the end of the list. Each saved Connection Profile is listed by its name.",
+    "value": "Desktop over Tailscale"
+   }
+  ]
+ },
+ "cards": [
+  {
+   "id": "scene",
+   "label": "Scene",
+   "effect": "Where and when the reply happens, who is present and what can be seen."
+  },
+  {
+   "id": "map",
+   "label": "Map",
+   "effect": "The current room as a text grid with who and what stands where."
+  },
+  {
+   "id": "characters",
+   "label": "Characters",
+   "effect": "What each present character is doing, thinking and feeling, and who they are."
+  },
+  {
+   "id": "emotions",
+   "label": "Emotions",
+   "effect": "How strongly each character feels, with the change since the last reply."
+  },
+  {
+   "id": "relationships",
+   "label": "Relationships",
+   "effect": "Each pair, how far along they are and what moved it."
+  },
+  {
+   "id": "holding_back",
+   "label": "Holding back",
+   "effect": "What a character lets themselves show or say to another, and the strain."
+  },
+  {
+   "id": "knowledge",
+   "label": "Knowledge and secrets",
+   "effect": "Who knows what, secrets with their owners, false beliefs and what each person remembers."
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory",
+   "effect": "Items per character with what changed and why it counts."
+  },
+  {
+   "id": "plot",
+   "label": "Plot",
+   "effect": "Open threads, story lines, what happens elsewhere and what is waiting to pay off."
+  },
+  {
+   "id": "new_faces",
+   "label": "New faces",
+   "effect": "A profile sheet where a named character first appears."
+  },
+  {
+   "id": "reputation",
+   "label": "Reputation",
+   "effect": "How each group or source sees you, which way it is moving and why."
+  },
+  {
+   "id": "achievements",
+   "label": "Achievements",
+   "effect": "A title, how rare it is and what earned it."
+  },
+  {
+   "id": "changes",
+   "label": "Story changes",
+   "effect": "What this reply filed into the story and which threads it closed."
+  },
+  {
+   "id": "lore",
+   "label": "World Info",
+   "effect": "The World Info entries used for this reply, each linking to its entry."
+  },
+  {
+   "id": "plan",
+   "label": "Director's desk",
+   "effect": "The reply plan and where the next beat heads."
+  },
+  {
+   "id": "choices",
+   "label": "Choices",
+   "effect": "Numbered moves for your next message, each with Copy, Insert and Send."
+  },
+  {
+   "id": "stats",
+   "label": "Stats",
+   "effect": "This chat's stat sheets with level and growth notes."
+  },
+  {
+   "id": "roll",
+   "label": "Roll",
+   "effect": "One line per roll in this reply."
+  },
+  {
+   "id": "notebook",
+   "label": "Notebook",
+   "effect": "Narrator notes and private diary entries."
+  },
+  {
+   "id": "roast",
+   "label": "Roast",
+   "effect": "A reader commenting on the reply, in one voice or as a panel."
+  },
+  {
+   "id": "sent",
+   "label": "Sent",
+   "effect": "What went with this reply, which connection answered and what each background call cost."
+  },
+  {
+   "id": "notes",
+   "label": "Notes",
+   "effect": "Reply screening notes and problems found in this reply."
+  }
+ ],
+ "quickActionKinds": [
+  {
+   "kind": "options",
+   "name": "Options",
+   "call": "extra"
+  },
+  {
+   "kind": "swipe",
+   "name": "Swipe",
+   "call": "reply"
+  },
+  {
+   "kind": "continue",
+   "name": "Continue",
+   "call": "reply"
+  },
+  {
+   "kind": "impersonate",
+   "name": "Impersonate",
+   "call": "reply"
+  },
+  {
+   "kind": "direction",
+   "name": "Direction",
+   "call": "code"
+  },
+  {
+   "kind": "check",
+   "name": "Action check",
+   "call": "code"
+  },
+  {
+   "kind": "review",
+   "name": "Review",
+   "call": "code"
+  }
+ ],
+ "builtinQuickActions": [
+  {
+   "id": "builtin:steer:dress-me",
+   "kind": "direction",
+   "title": "Dress me"
+  },
+  {
+   "id": "builtin:swipe:emotional",
+   "kind": "swipe",
+   "title": "More emotional"
+  },
+  {
+   "id": "builtin:swipe:romantic",
+   "kind": "swipe",
+   "title": "More romantic"
+  },
+  {
+   "id": "builtin:swipe:conflict",
+   "kind": "swipe",
+   "title": "Bring in conflict"
+  },
+  {
+   "id": "builtin:swipe:twist",
+   "kind": "swipe",
+   "title": "Add a plot twist"
+  },
+  {
+   "id": "builtin:swipe:character",
+   "kind": "swipe",
+   "title": "Back to character"
+  },
+  {
+   "id": "builtin:swipe:fix-facts",
+   "kind": "swipe",
+   "title": "Fix world facts"
+  },
+  {
+   "id": "builtin:continue:emotional",
+   "kind": "continue",
+   "title": "More emotional"
+  },
+  {
+   "id": "builtin:continue:romantic",
+   "kind": "continue",
+   "title": "More romantic"
+  },
+  {
+   "id": "builtin:continue:conflict",
+   "kind": "continue",
+   "title": "Bring in conflict"
+  },
+  {
+   "id": "builtin:continue:twist",
+   "kind": "continue",
+   "title": "Add a plot twist"
+  },
+  {
+   "id": "builtin:continue:character",
+   "kind": "continue",
+   "title": "Back to character"
+  },
+  {
+   "id": "builtin:continue:fix-facts",
+   "kind": "continue",
+   "title": "Fix world facts"
+  },
+  {
+   "id": "builtin:draft:natural",
+   "kind": "impersonate",
+   "title": "Respond naturally as me"
+  },
+  {
+   "id": "builtin:draft:bold",
+   "kind": "impersonate",
+   "title": "Do something bold"
+  },
+  {
+   "id": "builtin:draft:npc",
+   "kind": "impersonate",
+   "title": "Introduce an NPC"
+  },
+  {
+   "id": "builtin:draft:intimate-start",
+   "kind": "impersonate",
+   "title": "Initiate an intimate moment"
+  },
+  {
+   "id": "builtin:draft:intimate-continue",
+   "kind": "impersonate",
+   "title": "Continue an intimate moment"
+  },
+  {
+   "id": "builtin:draft:twist",
+   "kind": "impersonate",
+   "title": "Introduce a plot twist"
+  },
+  {
+   "id": "builtin:draft:drama",
+   "kind": "impersonate",
+   "title": "Make it more dramatic"
+  },
+  {
+   "id": "builtin:options:npc",
+   "kind": "options",
+   "title": "NPC options"
+  },
+  {
+   "id": "builtin:swipe:plain",
+   "kind": "swipe",
+   "title": "Swipe"
+  },
+  {
+   "id": "builtin:continue:plain",
+   "kind": "continue",
+   "title": "Continue"
+  },
+  {
+   "id": "builtin:draft:plain",
+   "kind": "impersonate",
+   "title": "Impersonate"
+  },
+  {
+   "id": "builtin:review:sent",
+   "kind": "review",
+   "title": "Review"
+  },
+  {
+   "id": "builtin:check:d20",
+   "kind": "check",
+   "title": "Action check"
+  },
+  {
+   "id": "builtin:steer:conflict",
+   "kind": "direction",
+   "title": "Bring in conflict"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "judgment",
+   "label": "Judgment call",
+   "tier": "quick"
+  },
+  {
+   "id": "capture",
+   "label": "Capture",
+   "tier": "quick"
+  },
+  {
+   "id": "statSheets",
+   "label": "Stat sheets",
+   "tier": "quick",
+   "follows": "capture"
+  },
+  {
+   "id": "choices",
+   "label": "Choices",
+   "tier": "quick",
+   "follows": "capture"
+  },
+  {
+   "id": "chapter",
+   "label": "Chapter close",
+   "tier": "writer"
+  },
+  {
+   "id": "storySoFar",
+   "label": "Story so far",
+   "tier": "writer",
+   "follows": "chapter"
+  },
+  {
+   "id": "tidy",
+   "label": "Tidy",
+   "tier": "cleanup"
+  },
+  {
+   "id": "catchUp",
+   "label": "Catch-up map",
+   "tier": "writer"
+  },
+  {
+   "id": "catchUpNow",
+   "label": "Catch-up map, run now",
+   "tier": "writer"
+  },
+  {
+   "id": "carryOver",
+   "label": "Continue in a new chat",
+   "tier": "writer"
+  },
+  {
+   "id": "behaviorDrafts",
+   "label": "Behavior book drafts",
+   "tier": "writer",
+   "follows": "carryOver"
+  },
+  {
+   "id": "outline",
+   "label": "Story outline",
+   "tier": "writer",
+   "follows": "chapter"
+  }
+ ],
+ "prompts": [
+  {
+   "id": "stateContext",
+   "label": "Current state guidance"
+  },
+  {
+   "id": "memoryFacts",
+   "label": "Plain language for story memory"
+  },
+  {
+   "id": "storyNotes",
+   "label": "Story notes guidance"
+  },
+  {
+   "id": "event",
+   "label": "Story event wording"
+  },
+  {
+   "id": "style",
+   "label": "Writing style wording"
+  },
+  {
+   "id": "goalOrder",
+   "label": "Goal task wording"
+  },
+  {
+   "id": "goalOngoing",
+   "label": "Ongoing goal wording"
+  },
+  {
+   "id": "guided",
+   "label": "Guided swipe framing"
+  },
+  {
+   "id": "guidedContinue",
+   "label": "Guided continuation framing"
+  },
+  {
+   "id": "historicalSwipe",
+   "label": "Historical replacement framing"
+  },
+  {
+   "id": "historicalContinue",
+   "label": "Historical continuation framing"
+  },
+  {
+   "id": "freshStart",
+   "label": "Fresh start guidance"
+  },
+  {
+   "id": "proseReview",
+   "label": "Same-reply writing review"
+  },
+  {
+   "id": "playerDraft",
+   "label": "Player draft instruction"
+  },
+  {
+   "id": "playerChoices",
+   "label": "Player choices instruction"
+  },
+  {
+   "id": "playerExpansion",
+   "label": "Expand a player choice"
+  },
+  {
+   "id": "checker",
+   "label": "Instruction checker guidance"
+  },
+  {
+   "id": "versionRules",
+   "label": "Writing instruction versions"
+  },
+  {
+   "id": "modelVersionRules",
+   "label": "Writing model-directed versions"
+  },
+  {
+   "id": "eventWriterRules",
+   "label": "Writing story event items"
+  },
+  {
+   "id": "styleWriterRules",
+   "label": "Writing style items"
+  },
+  {
+   "id": "rewriteRules",
+   "label": "Rewriting events to work anywhere"
+  },
+  {
+   "id": "anywhere",
+   "label": "Working in different settings"
+  },
+  {
+   "id": "situationRules",
+   "label": "Situation item guidance"
+  },
+  {
+   "id": "complicationRules",
+   "label": "Complication item guidance"
+  },
+  {
+   "id": "driverRules",
+   "label": "Event driver guidance"
+  },
+  {
+   "id": "toneRules",
+   "label": "Event tone guidance"
+  },
+  {
+   "id": "stakeRules",
+   "label": "Event stakes guidance"
+  },
+  {
+   "id": "worldOrder",
+   "label": "Story World event wording"
+  },
+  {
+   "id": "silentCharacter",
+   "label": "Quiet character order"
+  },
+  {
+   "id": "threadOrder",
+   "label": "Open thread order"
+  },
+  {
+   "id": "seedOrder",
+   "label": "Planted detail order"
+  },
+  {
+   "id": "activityOrder",
+   "label": "Off-scene activity order"
+  },
+  {
+   "id": "secretOrder",
+   "label": "Secret revelation order"
+  },
+  {
+   "id": "instructionOrder",
+   "label": "Instruction framing"
+  },
+  {
+   "id": "instructionAgency",
+   "label": "Player agency in instruction notes"
+  },
+  {
+   "id": "overdueOrder",
+   "label": "First reminder framing"
+  },
+  {
+   "id": "finalOrder",
+   "label": "Final reminder framing"
+  },
+  {
+   "id": "goalWriterRules",
+   "label": "Writing goal actions and steps"
+  },
+  {
+   "id": "entryWriterRules",
+   "label": "Writing a Story World entry"
+  },
+  {
+   "id": "bookKeywords",
+   "label": "Suggesting trigger phrases"
+  },
+  {
+   "id": "systemBookKeywords",
+   "label": "Keyword suggestions: system message"
+  },
+  {
+   "id": "systemOpening",
+   "label": "Opening: system message"
+  },
+  {
+   "id": "readGreeting",
+   "label": "Reading the chosen greeting"
+  },
+  {
+   "id": "openingPlayerThoughts",
+   "label": "Writing authorized opening thoughts"
+  },
+  {
+   "id": "groundedRealism",
+   "label": "Grounded portrayal"
+  },
+  {
+   "id": "heightenedRealism",
+   "label": "Heightened portrayal"
+  },
+  {
+   "id": "speakerGuidance",
+   "label": "Dialogue and thought attribution"
+  },
+  {
+   "id": "planGuidance",
+   "label": "Optional reply outline"
+  },
+  {
+   "id": "proseFirst",
+   "label": "Prose first"
+  },
+  {
+   "id": "sceneSolo",
+   "label": "Solo scene"
+  },
+  {
+   "id": "sceneEnsemble",
+   "label": "Ensemble scene"
+  },
+  {
+   "id": "sceneUnknown",
+   "label": "Uncertain cast"
+  },
+  {
+   "id": "sceneOpening",
+   "label": "Opening scene checks"
+  },
+  {
+   "id": "sceneContinue",
+   "label": "Continuing a reply"
+  },
+  {
+   "id": "checkPhysical",
+   "label": "Physical realism check"
+  },
+  {
+   "id": "checkSocial",
+   "label": "Social realism and character fidelity check"
+  },
+  {
+   "id": "checkCraft",
+   "label": "Pacing and prose check"
+  },
+  {
+   "id": "checkContinuity",
+   "label": "Information and continuity check"
+  },
+  {
+   "id": "checkKnowledge",
+   "label": "Character knowledge check"
+  },
+  {
+   "id": "checkPlot",
+   "label": "Plot and agenda check"
+  },
+  {
+   "id": "checkEmotion",
+   "label": "Emotional continuity check"
+  },
+  {
+   "id": "timingUpdate",
+   "label": "Recording story time and weather"
+  },
+  {
+   "id": "structuredFacts",
+   "label": "Recording facts and snapshots"
+  },
+  {
+   "id": "structuredPortrayal",
+   "label": "Recording portrayal and growth"
+  },
+  {
+   "id": "structuredRelationships",
+   "label": "Recording relationship dynamics"
+  },
+  {
+   "id": "structuredKnowledge",
+   "label": "Recording character knowledge"
+  },
+  {
+   "id": "structuredEmotions",
+   "label": "Recording emotional state"
+  },
+  {
+   "id": "emotionSensitivity",
+   "label": "Using tracked emotions"
+  },
+  {
+   "id": "structuredOutcomes",
+   "label": "Recording plot outcomes"
+  },
+  {
+   "id": "structuredSchedule",
+   "label": "Scheduling story opportunities"
+  },
+  {
+   "id": "lockedPayoff",
+   "label": "Respecting prerequisites"
+  },
+  {
+   "id": "autonomousEvent",
+   "label": "Unscheduled world opportunity"
+  },
+  {
+   "id": "optionalOpportunity",
+   "label": "Offering a plot development"
+  },
+  {
+   "id": "resolvedActionGuidance",
+   "label": "Using the resolved action check"
+  },
+  {
+   "id": "structuredRoast",
+   "label": "Writing the Roast"
+  },
+  {
+   "id": "roastVoice",
+   "label": "Roast voice"
+  },
+  {
+   "id": "voiceVelvet",
+   "label": "Velvet · Sola"
+  },
+  {
+   "id": "voiceRiot",
+   "label": "Riot · Sola"
+  },
+  {
+   "id": "voiceMystic",
+   "label": "Mystic · Sola"
+  },
+  {
+   "id": "voiceScholar",
+   "label": "Scholar · Sola"
+  },
+  {
+   "id": "voiceVexa",
+   "label": "Mad-scientist reader · Vexa"
+  },
+  {
+   "id": "voiceDetective",
+   "label": "Noir detective · Deus Ex Machina"
+  },
+  {
+   "id": "voiceScreenwriter",
+   "label": "Golden Age screenwriter · Deus Ex Machina"
+  },
+  {
+   "id": "voiceGamer",
+   "label": "Cozy gamer · Deus Ex Machina"
+  },
+  {
+   "id": "conflictCheck",
+   "label": "Checking blocks for conflicts"
+  },
+  {
+   "id": "roastFeedback",
+   "label": "Using previous Roast commentary"
+  },
+  {
+   "id": "structuredRepair",
+   "label": "Repairing a missed story update"
+  },
+  {
+   "id": "correctionSwipe",
+   "label": "Regenerating after a story correction"
+  },
+  {
+   "id": "correctionCanon",
+   "label": "Using accepted story corrections"
+  },
+  {
+   "id": "chapterOpeningScene",
+   "label": "Continuing scene and clock"
+  },
+  {
+   "id": "chapterSummary",
+   "label": "Chapter summary"
+  },
+  {
+   "id": "traceCorrection",
+   "label": "Tracing story corrections"
+  },
+  {
+   "id": "chapterCombine",
+   "label": "Combining chapters"
+  },
+  {
+   "id": "newChapterSummary",
+   "label": "New chapter: summary"
+  },
+  {
+   "id": "newChapterFirst",
+   "label": "New chapter: first message"
+  },
+  {
+   "id": "starterWorld",
+   "label": "Creating a Story World from a card"
+  },
+  {
+   "id": "systemVersions",
+   "label": "Instruction writer: system message"
+  },
+  {
+   "id": "systemItems",
+   "label": "Story event item writer: system message"
+  },
+  {
+   "id": "systemStyleItems",
+   "label": "Style item writer: system message"
+  },
+  {
+   "id": "systemRewrite",
+   "label": "Event rewrite: system message"
+  },
+  {
+   "id": "systemGoal",
+   "label": "Goal writer: system message"
+  },
+  {
+   "id": "systemWorldEntry",
+   "label": "World entry writer: system message"
+  },
+  {
+   "id": "systemChapter",
+   "label": "Chapter writer: system message"
+  },
+  {
+   "id": "systemCombine",
+   "label": "Chapter combiner: system message"
+  },
+  {
+   "id": "systemNewChapter",
+   "label": "New chapter: system message"
+  },
+  {
+   "id": "systemStarter",
+   "label": "Starter world: system message"
+  },
+  {
+   "id": "systemCheck",
+   "label": "Checker: system message"
+  }
+ ]
+}

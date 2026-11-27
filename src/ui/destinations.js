@@ -39,6 +39,7 @@ export const tabs = [
         { id:'connections', label:'Connections', icon:'fa-plug', help:'Which connection each job uses and what the extension may do on its own.' },
         { id:'look', label:'Look', icon:'fa-palette', help:'Sizes, reply tray display and the look of the menu.' },
         { id:'prompts', label:'Prompts', icon:'fa-terminal', help:'Every prompt the extension sends, in one list.' },
+        { id:'help', label:'Help', icon:'fa-circle-question', help:'The reference guide, and a help assistant that answers from it.' },
     ] },
 ];
 
@@ -78,6 +79,8 @@ const PAGES = [
         bridge:{ page:'memory', anchor:'#ri-memory-settings', text:'Memory settings sit in Setup, Memory.' } },
     { id:'settings', tab:'connections', label:'Connections', help:'Which connection each job uses and what the AI writes for you.', aliases:'connection profile provider request automation more room writer rules word list', withoutChat:true },
     { id:'display', tab:'look', label:'Reply display', help:'Choose which reply cards and commentator voice appear.', aliases:'roast commentator notes card visual tray' },
+    // B58: src/ui/help.js draws this page through the registry; it is listed here so the tab has its page in every tree.
+    { id:'help', tab:'help', label:'Help', help:'The reference guide with search, and a help assistant that answers from it.', aliases:'help guide reference manual assistant question how where explain documentation', withoutChat:true },
     { id:'bridge-prompts', tab:'prompts', label:'Prompts', withoutChat:true, aliases:'prompt manager instructions',
         bridge:{ page:'v10', anchor:'#ri-planning-prompts', text:'Each page lists its own prompts at its foot. The advanced prompts sit in Setup, Features until this page is built.' } },
 ];

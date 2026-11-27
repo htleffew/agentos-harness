@@ -185,6 +185,25 @@
     letter-spacing: var(--ri-track-label);
 }
 .ri-shell-pill-off { border-color: var(--ri-line); color: var(--ri-text-muted); }
+/* B58: the page's Help link, a text button with an invisible hit area up to the target size. */
+.ri-shell-helplink {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: var(--ri-hit-min);
+    min-width: var(--ri-hit-min);
+    padding: 2px 6px;
+    background: none;
+    border: 1px solid var(--ri-line);
+    color: var(--ri-text-muted);
+    font: inherit;
+    font-size: var(--ri-type-label);
+    font-weight: 700;
+    cursor: pointer;
+}
+.ri-shell-helplink:focus-visible { outline: 2px solid var(--ri-focus); outline-offset: 2px; }
+.ri-shell-helplink:active { color: var(--ri-text); border-color: var(--ri-shell-line); }
 .ri-shell-help { margin: 4px 0 var(--ri-pad); color: var(--ri-text-muted); font-size: var(--ri-type-help); }
 
 .ri-shell-sections, .ri-shell-crumbs ol {

@@ -13,10 +13,10 @@ test('five top tabs with the nested tabs of DESIGN.md 3.1, in order',()=>{
         ['Random sets','Goal','Writing'],
         ['Bar','Library'],
         ['Replies','Context','Request log'],
-        ['Features','Presets','Memory','Connections','Look','Prompts'],
+        ['Features','Presets','Memory','Connections','Look','Prompts','Help'],
     ]);
-    // MB10: Facts and Plot are filters of Story World (UI design 3.5), so 19 pages; B13 retired Action checks, so 18
-    assert.equal(tabs.flatMap(top=>top.nested).length,18);
+    // MB10: Facts and Plot are filters of Story World (UI design 3.5), so 19 pages; B13 retired Action checks, so 18; B58 added Setup, Help, so 19
+    assert.equal(tabs.flatMap(top=>top.nested).length,19);
     assert.deepEqual(tabs.map(top=>top.family),['story','direction','reply','review','setup']);
     assert.equal(tabs.find(top=>top.id==='quick').short,'Quick');
     for (const top of tabs) for (const item of top.nested) assert.match(item.icon,/^fa-/);
@@ -104,7 +104,9 @@ test('SillyTavern words find their page and setting',()=>{
     // Plain words: every word must start a word in the entry.
     assert.equal(first('story notes').page,'world');
     assert.equal(first('request log').page,'log');
-    assert.deepEqual(searchMenu(entries,'he'),[]);
+    // "he" matches at the start of a word (Help, B58) and never inside one ("the").
+    assert.ok(searchMenu(entries,'he').every(item=>/(^|[^a-z])he/.test(item.terms)));
+    assert.ok(!searchMenu(entries,'he').some(item=>item.page==='writing'));
     assert.deepEqual(searchMenu(entries,''),[]);
 });
 
