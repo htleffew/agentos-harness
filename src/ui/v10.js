@@ -78,7 +78,7 @@ function profileEditor(local, key, label, fallback, standalone=true, list=false)
     }
     compare.ontoggle=refreshCompare;
     const form = h('details',{class:'ri-card ri-tight'},h('summary',{},label,' ',badge),
-        h('p',{class:'ri-help'},list ? 'One entry per line. Matches appear in reply Notes. Changes apply to this chat.' : 'Changes apply to this chat.'),box,
+        h('p',{class:'ri-help'},list ? 'One entry per line, and matches appear in reply Notes. Changes apply to this chat.' : 'Changes apply to this chat.'),box,
         h('div',{class:'ri-row'},button(list ? 'Save list' : 'Save guidance',()=>{
             try { commit(); } catch (error) { update(error.message); }
         },{kind:'primary'}),discard,button('Restore default',()=>{
@@ -118,7 +118,7 @@ function renderOpening(local, redraw) {
     const markDraft=()=>{area.dataset.v10Draft='';form.dataset.riDirty='';};
     area.addEventListener('input',()=>{markDraft();refreshExecution();});
     const direction = textArea('',markDraft, {placeholder:'Optional direction for a new opening', 'aria-label':'Opening direction'});
-    const card = select([{value:'new',label:'Start a blank opening'},...list.map((_,i)=>({value:String(i),label:i ? `Alternate greeting ${i}` : 'Main greeting'}))], initialGreeting,value=>{
+    const card = select([{value:'new',label:'Start a blank opening'},...list.map((_,i)=>({value:String(i),label:i ? `Alternate greeting ${i}` : 'First message'}))], initialGreeting,value=>{
         draft = null; area.value = value === 'new' ? '' : list[Number(value)]; markDraft(); refreshExecution();
     },{'aria-label':'Opening source'});
     area.value = list[0] || '';
@@ -201,7 +201,7 @@ function guidelineScope(local, book, entry) {
     return h('details', { class:'ri-book-scope' },
         h('summary', {}, 'Chat-specific conditions'),
         scoped('Use this entry in this chat', h('input', { type:'checkbox', checked:scope.enabled!==false, onchange:event=>save('enabled',event.currentTarget.checked) })),
-        scoped('Required extension module', select([{value:'',label:'Any'}, ...Object.entries(MODULES).map(([value,label])=>({value,label}))],scope.module || '',value=>save('module',value))),
+        scoped('Required extension feature', select([{value:'',label:'Any'}, ...Object.entries(MODULES).map(([value,label])=>({value,label}))],scope.module || '',value=>save('module',value))),
         scoped('Character in scene', textInput(scope.character || '',value=>save('character',value.trim()),{placeholder:'Any character'})),
         scoped('Scene location', textInput(scope.location || '',value=>save('location',value.trim()),{placeholder:'Any location'})));
 }
@@ -229,8 +229,8 @@ function reusableBookControls(local, redraw, app) {
         redraw();
     });
     return section('Guideline and reference books',
-        field('Role for books you add', 'Guidelines supply writing nudges. Reference books hold facts about people, places, or anything else.', role),
-        assigned.length ? h('p', {class:'ri-help'}, 'Pausing a book stops its use here. Unassigning leaves any host World Info selection in effect.') : null,
+        field('Role for books you add', 'Guidelines supply writing directions. Reference books hold facts about people, places, or anything else.', role),
+        assigned.length ? h('p', {class:'ri-help'}, 'Pausing a book stops its use here. Unassigning leaves any World Info selection in effect.') : null,
         h('div', {class:'ri-row'}, picker, button('Assign book', () => {
             if (!picker.value) return;
             try { assignReusableBook(picker.value, role.value); redraw(); } catch (error) { problem(error); }
@@ -293,7 +293,7 @@ function renderBooks(local, redraw, app) {
                 pinned.pins = [...ids];
                 saveChatState();
             }}),row.comment || row.key?.[0] || `Entry ${row.uid}`))) : null;
-    return section('Reusable lorebooks',
+    return section('Reusable World Info books',
         field('Base World','Choose an existing World Info book or upload a native JSON export. The pinned copy keeps its triggers.',base,
             pinned ? button('Refresh pinned copy',()=>pinBase(pinned.name).then(redraw).catch(problem)) : null,
             local.base && !pinned && h('p',{class:'ri-help'},'The previously pinned Base World is no longer available. Choose another book to replace it.'),
@@ -472,7 +472,7 @@ function renderRecords(redraw, title, kinds, app) {
             h('p',{},record.text),record.voice && h('p',{class:'ri-help'},`Voice · ${record.voice}`),
             record.baseline?.sources?.length && h('p',{class:'ri-help'},`Sources · ${record.baseline.sources.join(' · ')}`),
             record.baseEntry && record.baseRelation==='contradicts' && h('p',{class:'ri-note'},'Base World conflict. This correction applies in this chat.'),
-            h('p',{class:'ri-help'},['This chat',record.id,record.basis,record.source==='user'?'Edited by player':record.quote].filter(Boolean).join(' · ')),
+            h('p',{class:'ri-help'},['This chat',record.id,record.basis,record.source==='user'?'Edited by you':record.quote].filter(Boolean).join(' · ')),
             button('Edit',()=>open(record))))
             : records.length ? [h('p',{class:'ri-help'},'No records match the search.')] : []));
     }
@@ -504,8 +504,8 @@ function renderSpeakers(local) {
 
 const MODULE_HELP = {
     preflight: 'Adds scene, knowledge, cast, pacing and continuity checks to the same reply request.',
-    style: 'Sends your Writing Guidance with the reply to steer prose, voice, and pacing.',
-    state: 'Tracks the scene, story clock, character snapshots, and durable story facts.',
+    style: 'Sends your Writing Guidance with the reply to shape prose, voice and pacing.',
+    state: 'Tracks the scene, story clock, character state, and durable story facts.',
     knowledge: 'Tracks what each character has observed, heard, or believes.',
     emotions: 'Tracks tunable NPC emotion axes and outward behavior.',
     relationships: 'Keeps brief notes on relationships and meaningful changes.',
@@ -513,12 +513,12 @@ const MODULE_HELP = {
     worldEvents: 'Uses an automatic chance check to offer an optional development. Random Instructions are controlled separately.',
     dice: 'Spots an uncertain attempt before each reply, rolls it in code and sends one verdict. Stats are on Story, Characters, Stats.',
     colors: 'Colors dialogue and italic thoughts when the prose identifies the character.',
-    roast: 'Asks for one reader reaction in the same reply. Edit its voice under Setup → Reply Display.',
+    roast: 'Asks for one Roast in the same reply. Edit its voice under Setup → Reply Display.',
     roastFeedback: 'Includes recent Roast commentary as writing feedback in later prompts.',
 };
 function advancedPrompts(preset, app) {
     return section('Advanced prompts',
-        activeHostPrompts() ? presetWorkbench(preset,app) : h('p',{class:'ri-help'},'This host does not expose preset prompt blocks.'),
+        activeHostPrompts() ? presetWorkbench(preset,app) : h('p',{class:'ri-help'},'SillyTavern does not expose preset prompt blocks.'),
         h('div',{id:'ri-planning-prompts'},slot(['planGuidance','proseFirst'],'Customize planning and prose prompts')),home('impersonation-prompts',impersonationInspector()));
 }
 
@@ -530,7 +530,7 @@ function presetLinks(app) {
 
 function composerLinks(app) {
     return h('section',{id:'ri-composer-settings',class:'ri-section'},
-        h('h3',{class:'ri-section-title'},'Composer quick actions'),
+        h('h3',{class:'ri-section-title'},'Quick action bar'),
         h('p',{class:'ri-help'},'The bar above the message box, its pins and the library of saved quick actions are set in the Quick actions tab.'),
         h('div',{class:'ri-row'},button('Open Quick actions, Bar',()=>app.openPage('quick-bar',{focusPage:true}),{kind:'ghost'}),
             button('Open Quick actions, Library',()=>app.openPage('quick-library',{focusPage:true}),{kind:'ghost'})));
@@ -542,14 +542,14 @@ function hostOverlap(key, owner, enabled) {
     const unknown = owner.blocks.some(block=>block.enabled===null);
     let status;
     if (owner.usesExtension) {
-        status=enabled ? 'The extension runs this module in this chat.' : 'The extension is selected. Turn the module on to use it in this chat.';
+        status=enabled ? 'The extension runs this feature in this chat.' : 'The extension is selected. Turn the feature on to use it in this chat.';
     } else if (owner.choice==='extension') {
-        status=active ? 'The host preset still has a matching block on. Turn off the matching blocks in the host Prompt Manager. The extension waits until all matching blocks are off.'
-            : 'The host has not reported the status of every matching block. The extension waits until it can verify that they are off.';
+        status=active ? 'The preset still has a matching block on. Turn it off in the Prompt Manager and the extension takes over.'
+            : 'SillyTavern has not reported the status of every matching block. The extension waits until it can verify that they are off.';
     } else {
-        status=active ? 'The host preset has a matching block on. The extension skips this module.'
-            : unknown ? 'The host preset is selected. Block status is unavailable. The extension skips this module.'
-                : 'All matching host blocks are off. To use this feature, enable a block in the host Prompt Manager or put the extension’s card in the stack in Setup, Presets.';
+        status=active ? 'The preset has a matching block on. The extension skips this feature.'
+            : unknown ? 'The preset is selected and its block status is unavailable, so the extension skips this feature.'
+                : 'All matching preset blocks are off. To use this feature, enable a block in the Prompt Manager or put the extension’s card in the stack in Setup, Presets.';
     }
     // The stack on Setup, Presets decides who supplies a feature; this page shows the supplier and links to the feature there.
     const supplier = supplierChip(key);
@@ -558,7 +558,7 @@ function hostOverlap(key, owner, enabled) {
         supplier ? h('div',{class:'ri-note ri-home-link','data-home-link':'feature-owner'},h('span',{},`Who supplies ${MODULES[key]} is read from the stack in Setup, Presets.`),supplier)
             : homeLink(null,'feature-owner',`Who supplies ${MODULES[key]} is set by the stack in Setup, Presets.`),
         h('p',{class:'ri-help',id:`${id}-status`},status),
-        h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in host preset`,
+        h('ul',{},owner.blocks.map(block=>h('li',{},`${block.name} · ${block.enabled===null ? 'Status unavailable' : onOff(block.enabled)} in preset`,
             block.blocks.filter(entry=>entry.content).map(entry=>h('pre',{class:'ri-v10-prompt-text'},entry.content))))));
 }
 const onOff = value => value ? 'On' : 'Off';
@@ -602,7 +602,7 @@ function moduleSettings(local, app, preset, modules, redraw) {
         const hostBlockOn = blocked && owner.blocks.some(block=>block.enabled===true);
         const message = editingPreset
             ? `Extension default for this preset: ${onOff(value ?? fallback)}`
-            : hostBlockOn ? 'Host block on · Extension off' : blocked ? 'Extension off in this chat' : `${onOff(modules[key])} in this chat`;
+            : hostBlockOn ? 'Preset block on · Extension off' : blocked ? 'Extension off in this chat' : `${onOff(modules[key])} in this chat`;
         const moduleRow = h('div',{class:'ri-module-row','data-module':key},
             h('div',{class:'ri-module-heading'},
                 blocked ? h('strong',{},label) : h('label',{htmlFor:controlId},label),
@@ -618,17 +618,17 @@ function moduleSettings(local, app, preset, modules, redraw) {
         if (key === 'roast') moduleRow.dataset.control = 'roast-switches';
         return moduleRow;
     });
-    return section('Extension modules',
+    return section('Features',
         h('div',{class:'ri-module-scopes',role:'group','aria-label':'Settings scope'},
             h('button',{type:'button',class:'ri-btn ri-btn-ghost','data-module-scope':'chat','aria-pressed':String(controlScope==='chat'),
                 onclick:()=>changeScope('chat')},'This chat'),
             h('button',{type:'button',class:'ri-btn ri-btn-ghost','data-module-scope':'preset','aria-pressed':String(controlScope==='preset'),
                 disabled:!canEditPreset,onclick:()=>changeScope('preset')},'Extension defaults for this preset')),
         h('p',{class:'ri-help'},editingPreset
-            ? `Set extension module defaults for chats that use “${preset}”. Chats with their own settings keep them.`
+            ? `Set feature defaults for chats that use “${preset}”. Chats with their own settings keep them.`
             : canEditPreset ? `Changes here apply only to this chat. Use the extension default to follow the settings saved for “${preset}”.`
             : 'Changes here apply only to this chat. Reset a changed setting to follow the extension again.'),
-        !editingPreset && Object.keys(ownership).length ? h('div',{class:'ri-note'},'Instruction source is saved for this chat and preset. Related blocks are managed in the host preset editor. The extension yields while those blocks are on or their status is unavailable.',
+        !editingPreset && Object.keys(ownership).length ? h('div',{class:'ri-note'},'Instruction source is saved for this chat and preset. The extension yields while the related preset blocks are on or their status is unavailable.',
             h('div',{class:'ri-row'},button('Refresh source status',redraw,{kind:'ghost'}))) : null,
         ...[
             ['Writing & reply display',['style','preflight','colors','roast','roastFeedback']],
@@ -671,7 +671,7 @@ export function renderV10(body, app, page) {
         chatFlag('proseAudit','Review recent writing with the reply','Add a short review of recurring writing patterns when at least two earlier story replies are available. Notes show which revisions support each finding.'),
         slot(['proseReview'],'Customize the writing review prompt'),
         executionDetails([
-            executionPreview('prose-screen',{stage:'code',label:'Local prose screening',trigger:'When the reply is accepted.'}),
+            executionPreview('prose-screen',{stage:'code',label:'Reply screening',trigger:'When the reply is accepted.'}),
             executionPreview('prose-audit',{stage:'reply',label:'Review and next-turn guidance',trigger:'On an ordinary story reply when enabled or supported guidance is ready.'}),
         ]));
     if (page === 'books') {
@@ -710,8 +710,8 @@ export function renderV10(body, app, page) {
                 chatFlag('showPlanning','Show Reply planning','Show any emitted outline in a collapsed disclosure.',true),
                 chatFlag('showLore','World Info under replies','Show a collapsed card with the selected entries and their source books. This controls visibility only.',true),
                 button('Review World Info selections',()=>app.openPage('sent'),{kind:'ghost'}),
-                chatFlag('showRoast','Show Roast cards','Show the saved reader reaction beneath its reply. Choose the commentator voice below.',true),
-                chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What Was Sent.'),
+                chatFlag('showRoast','Show Roast cards','Show the saved Roast beneath its reply. Choose the commentator voice below.',true),
+                chatFlag('keepTurnGuidance','Keep exact story guidance','Save confirmed extension guidance for inspection in What was sent.'),
                 homeLink(app,'roast-switches','Roast generation and feedback are switched on in Setup, Features.'),
                 homeLink(app,'roast-voice','The Roast commentator voice is edited in Setup, Features.')));
             renderReplyDisplayOptions(body,app);
@@ -747,15 +747,15 @@ export function renderV10(body, app, page) {
                 local.writingProfile && writingProfileText(local.writingProfile) ? h('p',{class:'ri-help'},writingProfileText(local.writingProfile)) : null,
                 slot(Object.values(WRITING_PROFILES),'Customize portrayal profiles')),
                 home('live-guidance',profileEditor(local,'style','Live writing guidance',defaultWritingGuidance())),
-                home('scene-checks',profileEditor(local,'preflight','Scene and character checks',PREFLIGHT)),
-                section('Checks for this chat',
-                    h('p',{class:'ri-help'},modules.preflight ? 'The extension sends these enabled checks with a normal reply. Any checks marked Host preset are sent by the preset.'
-                        : 'The extension’s checks are off for this chat. Any checks marked Host preset are sent by the preset.'),
-                    button('Open module settings',()=>app.openPage('v10',{anchor:'#ri-modules'}),{kind:'ghost'}),
+                home('scene-checks',profileEditor(local,'preflight','Continuity guidance',PREFLIGHT)),
+                section('Continuity guidance for this chat',
+                    h('p',{class:'ri-help'},modules.preflight ? 'The extension sends these enabled checks with a normal reply. Any checks marked Theirs are sent by the preset.'
+                        : 'The extension’s checks are off for this chat. Any checks marked Theirs are sent by the preset.'),
+                    button('Open feature settings',()=>app.openPage('v10',{anchor:'#ri-modules'}),{kind:'ghost'}),
                     ...Object.entries(SCENE_CHECKS).map(([key,label])=>h('label',{class:'ri-row'},
                         h('input',{type:'checkbox',disabled:!!hostChecks[key],checked:!!hostChecks[key] || local.sceneChecks?.[key]!==false,onchange:event=>{
                             (local.sceneChecks ||= {})[key]=event.currentTarget.checked;saveChatState();
-                        }}),label,hostChecks[key] && h('span',{class:'ri-help'},`Host preset · ${hostChecks[key]}`))),
+                        }}),label,hostChecks[key] && h('span',{class:'ri-help'},`Theirs · ${hostChecks[key]}`))),
                     slot([...Object.keys(SCENE_CHECKS).map(sceneCheckId),'sceneSolo','sceneEnsemble','sceneUnknown','sceneContinue'],'Customize individual scene checks')),
                 replyScreening());
             break;

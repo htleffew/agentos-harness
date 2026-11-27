@@ -9,7 +9,7 @@ import { activePreset, enabledV10 } from '../v10.js';
 import { FEATURES, plainName, activeProfile } from '../preset-library.js';
 import { profileStatus, profileValues, syncProfile, onProfileChange } from '../preset-profiles.js';
 import { listLoadouts, saveLoadoutFromContext, updateLoadoutFromContext, renameLoadout, deleteLoadout, loadoutName } from '../preset-loadouts.js';
-import { ensureLibrary, libraryStatus, switchContext, workingPlan, applyWorkingCopy, restoreWorkingCopy,
+import { ensureLibrary, libraryStatus, switchContext, workingPlan, onGenerationStarted, onPromptBuilt, onGenerationDone,
     onPresetSelected, syncOwners, onSwitchChange } from '../preset-workbench.js';
 import { featureState } from '../preset-bank.js';
 import { installBankHooks } from '../preset-bank.js';
@@ -74,7 +74,7 @@ function modelProfiles(follow) {
     if (!follow.profiles.length) return null;
     const now = follow.live === null ? 'not set' : size(follow.live);
     return h('details', { class: 'ri-ps-fold', id: 'ri-model-profiles' }, h('summary', {}, `Model profiles (${follow.profiles.length})`),
-        hint(follow.model ? `Selected model: ${follow.model}. Context size now ${now}. A profile sets its values when the model or preset changes and the saved preset file stays as it is.`
+        hint(follow.model ? `Selected model: ${follow.model}. Context size now ${now}; a profile sets its values when the model or preset changes.`
             : 'Select a model to see which profile follows it.'),
         follow.profiles.map(item => {
             const values = Object.entries(profileValues(item)).map(([key, value]) => valueText(key, value));
@@ -151,7 +151,7 @@ function regexScripts(context) {
             script.disabled ? chip('Off') : chip('On', 'on'),
             h('p', { class: 'ri-ps-meta' }, `Applies to ${(script.placement || []).map(value => where[value] || `place ${value}`).join(', ') || 'nothing'}`,
                 script.promptOnly ? ' · prompt only' : '', script.markdownOnly ? ' · display only' : ''),
-            h('code', { class: 'ri-ps-code' }, String(script.findRegex || '')))) : hint('This preset carries no regex scripts.'));
+            h('code', { class: 'ri-ps-code' }, String(script.findRegex || '')))) : hint('This preset carries no scripts that rewrite text.'));
 }
 
 const stackSummary = marker => {
@@ -234,8 +234,9 @@ export function mountPresetsPage() {
         aliases: 'preset bank stack block version compare feature supplier loadout working copy blocks regex document conflict duplicate', render: renderPresetsPage });
     ensureLibrary();
     installBankHooks();
-    on('GENERATION_STARTED', type => { try { applyWorkingCopy(type); } catch (error) { restoreWorkingCopy(); console.warn('Roleplay Instructions working copy failed.', error); } });
-    for (const name of ['CHAT_COMPLETION_PROMPT_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED']) on(name, restoreWorkingCopy);
+    on('GENERATION_STARTED', (type, _options, dryRun) => { try { onGenerationStarted(type, !!dryRun); } catch (error) { onGenerationDone(); console.warn('Roleplay Instructions working copy failed.', error); } });
+    on('GENERATE_AFTER_DATA', onPromptBuilt);
+    for (const name of ['GENERATION_ENDED', 'GENERATION_STOPPED']) on(name, onGenerationDone);
     on('OAI_PRESET_CHANGED_AFTER', () => { state.status = ''; onPresetSelected(); syncProfile('preset'); });
     for (const name of ['CHATCOMPLETION_MODEL_CHANGED', 'CHATCOMPLETION_SOURCE_CHANGED']) on(name, () => syncProfile('model'));
     onProfileChange(() => { if (document.getElementById('ri-presets-page')) redraw?.(); });

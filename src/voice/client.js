@@ -12,13 +12,10 @@ export const PROBE_MS = 4000;
 const SPEAK_MS = 180 * 1000;
 /** Her King County settings, the server's defaults since ri-v1. RI sends only what she changed. */
 export const KING_COUNTY = Object.freeze({ exaggeration: 0.65, cfg_weight: 0.5, temperature: 0.8, steps: 24 });
-export const KNOBS = Object.freeze({
-    exaggeration: { label: 'Expressiveness', min: 0.25, max: 1.25, step: 0.05 },
-    cfg_weight: { label: 'Closeness to the clip', min: 0.2, max: 1, step: 0.05 },
-    temperature: { label: 'Variety', min: 0.4, max: 1.2, step: 0.05 },
-});
-
-/** The saved voice settings: { url, key, verify, voices: { [castKey]: { id, name, seconds, at, knobs } } }. */
+/**
+ * The saved voice settings: { url, key, verify, lift, presets, voices: { [castKey]: { id, name, seconds, at, delivery } } }.
+ * delivery is V2's three settings (delivery.js); a voice saved by V1 may hold raw knobs instead, read back by deliveryOf.
+ */
 export function voiceSettings() {
     const st = settings();
     const config = st.voice && typeof st.voice === 'object' ? st.voice : (st.voice = {});

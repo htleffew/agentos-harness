@@ -58,7 +58,7 @@ async function runBackup(rerender) {
         state.backup = { name: backup.name, count: backup.count, libraryHash: backup.libraryHash, path, downloaded, text: backup.text, created: backup.created };
         if (path) remember({ name: backup.name, path, count: backup.count, created: backup.created });
         state.status = path ? `Backed up ${backup.count} presets. A copy is in SillyTavern’s user files${downloaded ? ' and a download started' : ''}.`
-            : `Backed up ${backup.count} presets by download only; the host would not keep a copy.`;
+            : `Backed up ${backup.count} presets by download only; SillyTavern would not keep a copy.`;
     } catch (error) { state.backup = null; state.status = error.message || String(error); }
     state.busy = ''; rerender();
 }
@@ -166,7 +166,7 @@ export function renderCleanupPage(body) {
         state.backup ? h('p', { class: 'ri-ps-meta' }, chip('Backed up', 'on'), ` ${state.backup.count} presets in ${state.backup.name}`) : null,
         h('div', { class: 'ri-row ri-row-tight' },
             button(state.backup ? `Back up again (${entries.length} presets)` : `Back up ${entries.length} presets`, () => runBackup(rerender), { kind: state.backup ? 'ghost' : 'primary', disabled: busy || !entries.length }),
-            state.backup && button('Download again', () => { if (!download(state.backup.name, state.backup.text)) { state.status = 'This host could not start the download.'; rerender(); } }, { kind: 'ghost' })));
+            state.backup && button('Download again', () => { if (!download(state.backup.name, state.backup.text)) { state.status = 'SillyTavern could not start the download.'; rerender(); } }, { kind: 'ghost' })));
     const reviewCard = h('section', { class: 'ri-ps-card ri-pc-card', id: 'ri-cleanup-review' }, h('h4', { class: 'ri-ps-heading' }, '2. Review'),
         copiesList(plan), groupsList(plan));
     const confirmCard = h('section', { class: 'ri-ps-card ri-pc-card', id: 'ri-cleanup-confirm' }, h('h4', { class: 'ri-ps-heading' }, '3. Confirm'),

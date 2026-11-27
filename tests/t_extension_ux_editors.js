@@ -8,7 +8,7 @@ const L = require('./lib.js');
     const panel=page.locator('#ri_root');
     const body=panel.locator('#ri_panel_page');
     // B28: pages open through the app object; the section names the old suite tapped map to page ids.
-    const PAGE={'Opening':'opening','Character goals':'goals','Chat facts':'facts','Dialogue colors':'speakers','Emotions & relationships':'emotion','Request log':'log'};
+    const PAGE={'First message':'opening','Character goals':'goals','Chat facts':'facts','Dialogue colors':'speakers','Emotions & relationships':'emotion','Request log':'log'};
     const click=(name,root=panel)=>PAGE[name] ? L.openPanel(page,PAGE[name]) : root.getByRole('button',{name,exact:true}).tap();
     const scope=async()=>{};
     const openDrawer=()=>L.openPanel(page);
@@ -31,7 +31,7 @@ const L = require('./lib.js');
         evidence.push({case:'first open with and without a chat',destinations:['Preset & Extension','Current scene']});
 
         await scope('Story');
-        await click('Opening');
+        await click('First message');
         const greeting=body.getByLabel('Opening preview',{exact:true});
         const original=await greeting.inputValue();
         const openingDirection=body.getByLabel('Opening direction',{exact:true});

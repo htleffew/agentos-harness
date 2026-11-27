@@ -95,7 +95,7 @@ test('preset fields keep distinct sources, draft variations survive restore, and
     live.impersonation_prompt='My cue for {{user}}';
     const blank=await saveImpersonationField(impersonationSource(),'');
     assert.equal(blank.kind,'blank');
-    assert.equal(blank.status,'Blank host field');
+    assert.equal(blank.status,'Blank SillyTavern field');
     assert.equal(write[0][1].impersonation_prompt,'');
     setImpersonationSource(blank,'preset');
     assert.equal(draftImpersonation().expanded,'');
@@ -104,16 +104,16 @@ test('preset fields keep distinct sources, draft variations survive restore, and
     assert.equal(impersonationSource().kind,'instruct');
     assert.equal(impersonationSource().text,'USER:');
     assert.equal(impersonationSource().writable,false);
-    assert.equal(draftImpersonation().source,'Extension player draft instruction');
+    assert.equal(draftImpersonation().source,'Extension Impersonate instruction');
     host.powerUserSettings.instruct.enabled=false;
     assert.equal(impersonationSource().kind,'opaque');
     assert.equal(impersonationSource().text,null);
-    assert.equal(draftImpersonation().host.status,'Host wording unavailable');
+    assert.equal(draftImpersonation().host.status,'SillyTavern wording unavailable');
     host.mainApi='openai';
     const manager=host.getPresetManager;
     delete host.getPresetManager;
     live.impersonation_prompt='A readable cue from a read-only host.';
-    assert.equal(impersonationSource().status,'Read-only host wording');
+    assert.equal(impersonationSource().status,'Read-only SillyTavern wording');
     assert.equal(draftImpersonation().expanded,live.impersonation_prompt);
     await assert.rejects(saveImpersonationField(impersonationSource(),'Change read-only text'),/read-only/);
     host.getPresetManager=manager;

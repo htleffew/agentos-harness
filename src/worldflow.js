@@ -491,16 +491,16 @@ export async function loadDurableWorld(wid) {
         method:'POST',headers:host.getRequestHeaders(),cache:'no-store',
         body:JSON.stringify({name:setInfo(wid).book}),
     });
-    if (!response.ok) throw new Error('The host could not verify the saved Story World.');
+    if (!response.ok) throw new Error('SillyTavern could not verify the saved Story World.');
     const data = await response.json();
-    if (!data?.entries) throw new Error('The host returned no saved Story World.');
+    if (!data?.entries) throw new Error('SillyTavern returned no saved Story World.');
     return data;
 }
 
 export async function saveVerifiedWorld(wid,data) {
     await saveWorld(wid,data);
     const saved = await loadDurableWorld(wid);
-    if (JSON.stringify(saved)!==JSON.stringify(data)) throw new Error('The host did not confirm the Story World write.');
+    if (JSON.stringify(saved)!==JSON.stringify(data)) throw new Error('SillyTavern did not confirm the Story World write.');
 }
 
 function worldLog(cs) {
@@ -564,7 +564,7 @@ async function reconcileHistoricalFile(chat,root,wid,index,old) {
         if (revertChanges(copy,wid,changes)!==changes.length) {
             // Leave the book intact when later manual changes cover automatic provenance.
             rec.memoryUncertain = 'The reference changed and its filed record needs review.';
-            root.historicalMemoryError = 'An earlier reply changed. A manually edited filed record needs source repair.';
+            root.historicalMemoryError = `An earlier reply changed. A manually edited filed record needs source repair.`;
             saveChatState();
             return false;
         }
@@ -907,7 +907,7 @@ async function invalidateFrom(id, onDone) {
     cs.historyNeedsReview = true;
     saveChatState();
     try { await c.saveChat?.(); } catch { /* saved on the next change */ }
-    addLog({ what: 'Edited story', ok: null, result: `An earlier reply changed. ${affected.length} replies have stale state; ${undone} automatic world changes were undone. Review current state, world entries and any manually edited chapter summaries.`, details: [], got: '' });
+    addLog({ what: 'Edited story', ok: null, result: `An earlier reply changed, so ${affected.length} replies have stale state and ${undone} automatic world changes were undone. Review current state, world entries and hand-edited chapter summaries.`, details: [], got: '' });
     onDone?.(firstReply);
 }
 
@@ -1173,7 +1173,7 @@ async function ownWorld() {
     cs.worldLog = null;   // rebuilt from the records, which now name the copy
     saveChatState();
     try { await ctx().saveChat?.(); } catch { /* saved with the next change */ }
-    addLog({ what: 'Story world for a branch', ok: true, result: `This chat is a branch, so it got its own copy of the story world "${info.name}", named "${name}", with ${Object.keys(uids).length} entries. What happens in this branch now changes the copy, and the chat it came from keeps the original. ${moved} replies were pointed at the copy.${removedOverrides ? ` ${removedOverrides} protected corrections from after the branch point or without a known date were left out.` : ''}` });
+    addLog({ what: 'Story world for a branch', ok: true, result: `This chat is a branch, so it got its own copy of the story world "${info.name}", named "${name}", with ${Object.keys(uids).length} entries. ${moved} replies point at the copy.${removedOverrides ? ` ${removedOverrides} protected corrections from after the branch point or without a known date were left out.` : ''}` });
 }
 
 /**
@@ -1258,7 +1258,7 @@ export function restoreGuidedSwipe(tx) {
         if (tx.world) {
             const current = await loadWorld(tx.world);
             if (!current || JSON.stringify(current) !== JSON.stringify(tx.after)) {
-                toast('warning', 'The guided swipe stopped, but the world changed meanwhile. Review the Story World; it was not overwritten.');
+                toast('warning', 'The swipe stopped, but the world changed meanwhile. Review the Story World; it was not overwritten.');
                 return false;
             }
             await saveWorld(tx.world, tx.before);

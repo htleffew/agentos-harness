@@ -247,7 +247,7 @@ function bookActions(app) {
         app.worldBookNote = `Saved "${res.name}", an ordinary World Info book${res.secretsLeftOut ? ` with ${res.secretsLeftOut} secrets left out` : ''}. The chat's records are unchanged.`;
     }), { kind: '' });
     const node = section('Story World book',
-        h('p', { class: 'ri-help' }, 'The generated book shows these records as World Info entries. An edit typed into it goes to the review list in Setup, Memory. An export is a new book of your own that works with the extension off.'),
+        h('p', { class: 'ri-help' }, 'The generated book shows these records as World Info entries. An edit typed into it goes to the review list in Setup, Memory; an export is a new book of your own.'),
         h('div', { class: 'ri-row' }, open),
         h('label', { class: 'ri-row ri-row-tight' }, leave, h('span', {}, 'Leave secrets out')),
         h('div', { class: 'ri-row' }, exporter), status);

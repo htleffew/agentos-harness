@@ -397,7 +397,7 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
         const base = { n, of, route: item.route, label: route.label || (item.profileId ? 'Saved connection profile' : item.route), model: item.model || '' };
         if (route.judgmentOnly && !def.judgment) { note({ ...base, outcome: 'skipped', reason: 'the on-phone model takes judgment calls only' }); continue; }
         const target = resolveRoute(item);
-        if (!target) { note({ ...base, outcome: 'skipped', reason: 'no connection on this host carries this route' }); continue; }
+        if (!target) { note({ ...base, outcome: 'skipped', reason: 'no connection here carries this route' }); continue; }
         const key = routeKey(item, target);
         const state = healthOf(key);
         const now = clock();

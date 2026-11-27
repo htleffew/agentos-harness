@@ -212,12 +212,12 @@ test('drafts use the helper when native status is disconnected, and host-context
     host.eventTypes = { CHAT_COMPLETION_PROMPT_READY: 'prompt-ready', IMPERSONATE_READY: 'draft-ready' };
     host.onlineStatus = 'no_connection';
     try {
-        assert.equal(guidedPreview('draft', { target: guidedTarget() }).route, 'Player-only helper');
+        assert.equal(guidedPreview('draft', { target: guidedTarget() }).route, 'Impersonate helper');
         host.onlineStatus = 'Valid';
         assert.equal(guidedPreview('draft', { target: guidedTarget() }).route, 'Native impersonation');
         host.chatCompletionSettings.impersonation_prompt = '{{lastMessage}}';
         host.substituteParams = value => value.replaceAll('{{lastMessage}}', npcSecret);
-        assert.equal(guidedPreview('draft', { target: guidedTarget() }).route, 'Player-only helper');
+        assert.equal(guidedPreview('draft', { target: guidedTarget() }).route, 'Impersonate helper');
         result = 'I wait by the gate.';
         await runGuidedTurn('draft', { direction: 'Keep {{lastMessage}} literal.' });
         const sent = out.at(-1);

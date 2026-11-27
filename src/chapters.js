@@ -199,7 +199,7 @@ export async function writeChapter(from, to, why, {automatic=false} = {}) {
         const answer = String(res.text);
         const obj = parseJson(answer.slice(Math.max(0, answer.indexOf('{'))));
         if (!obj || typeof obj !== 'object' || Array.isArray(obj) || !clean(obj.summary)) {
-            const msg = `The AI answered, but no summary could be read from the answer. It began: "${clean(answer).slice(0, 140)}". The Log tab has the whole answer.`;
+            const msg = `The AI answered, but no summary could be read from the answer. It began: "${clean(answer).slice(0, 140)}". Review, Request log has the whole answer.`;
             res.note(msg, false);
             throw new Error(msg);
         }
@@ -390,7 +390,7 @@ export async function draftNewChapter(wish = '') {
     const answer = String(res.text);
     const m = answer.match(/SUMMARY\s*:\s*([\s\S]*?)\n\s*FIRST MESSAGE\s*:\s*([\s\S]*)$/i);
     if (!m || !clean(m[1]) || !clean(m[2])) {
-        const msg = `The AI answered, but the two parts could not be told apart. The answer began: "${clean(answer).slice(0, 140)}". The Log tab has the whole answer.`;
+        const msg = `The AI answered, but the two parts could not be told apart. The answer began: "${clean(answer).slice(0, 140)}". Review, Request log has the whole answer.`;
         res.note(msg, false);
         throw new Error(msg);
     }
@@ -503,7 +503,7 @@ export async function startNewChapter(draft, burnedSoFar) {
         const id = await createSet(title,'world',data,'');
         const saved = await loadDurableWorld(id);
         if (saved?.entries?.[roll.uid]?.extensions?.ri?.fields?.summary!==summary) {
-            throw new Error('The host did not confirm saving the continuation summary. The source chat is still open.');
+            throw new Error('SillyTavern did not confirm saving the carry-over summary. The source chat is still open.');
         }
         if (source) carry.storyJournalCarry = carryStoryJournal(source,wid,c.chat || [],cs).map(item=>{
             const changes = item.changes.map(change=>{
@@ -584,7 +584,7 @@ export async function draftStarterWorld() {
         f.personality ? `Character personality: ${fill(f.personality)}` : '',
         f.scenario ? `Scenario: ${fill(f.scenario)}` : '',
         f.persona ? `About ${n.user}: ${fill(f.persona)}` : '',
-        lore ? `The character's own lorebook:\n${lore}` : '',
+        lore ? `The character's own World Info book:\n${lore}` : '',
         greeting ? `The opening message of this chat:\n${greeting}` : '',
     ].filter(Boolean).join('\n\n').slice(0, 26000);
     if (!material) throw new Error('The character card and the chat have nothing to read yet.');
@@ -610,7 +610,7 @@ export async function draftStarterWorld() {
     const answer = String(res.text);
     const parsed = parseUpdate(/<story_update/i.test(answer) ? answer : `<story_update>\n${answer}\n</story_update>`);
     if (!parsed.ops.length) {
-        const msg = `The AI answered, but no lines in the asked form could be read. The answer began: "${clean(answer).slice(0, 140)}". The Log tab has the whole answer.`;
+        const msg = `The AI answered, but no lines in the asked form could be read. The answer began: "${clean(answer).slice(0, 140)}". Review, Request log has the whole answer.`;
         res.note(msg, false);
         throw new Error(msg);
     }

@@ -37,7 +37,7 @@ function sharedFieldEditor(initial, onChange) {
         for (const baseline of [file,before].filter(Boolean)) {
             const label=baseline===file ? 'Restore from original preset file' : 'Restore before extension edits';
             comparison.append(h('details',{},h('summary',{},baseline.label),baseline.captured && h('small',{},`Captured ${new Date(baseline.captured).toLocaleString()}`),
-                promptComparison({before:baseline.text,after:source.text,beforeLabel:baseline.label,afterLabel:'Current host field'})));
+                promptComparison({before:baseline.text,after:source.text,beforeLabel:baseline.label,afterLabel:'Current SillyTavern field'})));
             controls.append(button(label,run(async()=>{
                 const previous=source.text;
                 box.value=baseline.text;
@@ -52,13 +52,13 @@ function sharedFieldEditor(initial, onChange) {
         loadDraft:value=>{box.value=value;inspect(value);},applyDraft:save,applyLabel:`Apply to ${source.preset}`,
         validate:value=>typeof value==='string' && value.length<=12000 ? '' : 'Choose a text variation of up to 12,000 characters.'});
     box.oninput=()=>inspect(box.value);
-    root.append(h('p',{class:'ri-help'},`Saving applies to every chat that uses ${source.preset}. Keep host macros in the saved text.`),
+    root.append(h('p',{class:'ri-help'},`Saving applies to every chat that uses ${source.preset}. Keep SillyTavern macros in the saved text.`),
         field('Shared impersonation instruction','',box),preview,
-        button('Save shared impersonation prompt',run(save,'Saved in the active host preset.'),{kind:'primary'}),
+        button('Save shared impersonation prompt',run(save,'Saved in the active preset.'),{kind:'primary'}),
         variants.root,comparison,controls,
-        hasHostImpersonationDefault() && button('Load host utility default into draft',run(()=>{
+        hasHostImpersonationDefault() && button('Load SillyTavern utility default into draft',run(()=>{
             box.value=readHostImpersonationDefault(source); inspect(box.value);
-        },'Host utility default loaded into the draft. Save to apply it to this preset.')),status);
+        },'SillyTavern utility default loaded into the draft. Save to apply it to this preset.')),status);
     inspect(box.value); refreshRestores();
     return root;
 }
@@ -85,9 +85,9 @@ export function impersonationInspector({ operation = 'playerDraft', guidance = (
         if (['playerChoices','playerExpansion'].includes(selectedOperation)) {
             const instruction=playerPrompt(selectedOperation,{count:3});
             blocks.push(readout(selectedOperation==='playerChoices' ? 'Choices instruction' : 'Expansion instruction',instruction.expanded));
-            if (instruction.privateMacro) blocks.push(h('p',{class:'ri-help'},'This instruction uses the installed default to keep host context macros out of the player request.'));
+            if (instruction.privateMacro) blocks.push(h('p',{class:'ri-help'},'This instruction uses the installed default to keep SillyTavern context macros out of the Impersonate request.'));
         }
-        if (active.privateMacro) blocks.push(h('p',{class:'ri-help'},'The draft uses the extension template to keep host context macros out of the player request.'));
+        if (active.privateMacro) blocks.push(h('p',{class:'ri-help'},'The draft uses the extension template to keep SillyTavern context macros out of the Impersonate request.'));
         const cue=typeof guidance==='function' ? guidance() : guidance;
         blocks.push(readout('Directions for this action',Array.isArray(cue) ? cue.join('\n') || '(none selected)' : cue || '(none selected)'));
         if (selectedMode==='native' && !active.include) blocks.push(h('p',{class:'ri-help'},'The native request supplies this base.'));
@@ -95,12 +95,12 @@ export function impersonationInspector({ operation = 'playerDraft', guidance = (
     }
     root.refresh=refresh;
     const readable=['prompt','blank'].includes(initial.kind);
-    if (editable && readable) editors.append(field('Base for direct player helpers',`A choice for ${initial.preset || 'this host connection'}.`,
-        select([{value:'preset',label:'Follow host preset'},{value:'extension',label:'Use extension instruction'}],
+    if (editable && readable) editors.append(field('Base for direct Impersonate',`A choice for ${initial.preset || 'this connection'}.`,
+        select([{value:'preset',label:'Follow preset'},{value:'extension',label:'Use extension instruction'}],
             impersonationMode(initial),value=>{
                 try { setImpersonationSource(initial,value); refresh(); onChange(); }
                 catch (error) { note.textContent=error.message; }
-            },{'aria-label':'Base for direct player helpers'})));
+            },{'aria-label':'Base for direct Impersonate'})));
     if (editable && initial.writable) editors.append(sharedFieldEditor(initial,refresh));
     if (editable) editors.append(slot(['playerDraft','playerChoices','playerExpansion'],'Impersonation prompts',{bare:true,onChange:refresh}));
     root.append(preview,editable ? editors : link ? homeLink(null,'impersonation-prompts','The impersonation prompts are edited in Setup, Features, Advanced prompts.') : '',note);

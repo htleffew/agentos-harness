@@ -385,7 +385,7 @@ export function renderQuickActionLibrary(host, {
             details('Options',
                 field('Category', '', textInput(draft.category, value => { draft.category = value; })),
                 draft.family === 'steer' ? [
-                    field('Delivery', '', select([{ label: 'Private system note', value: 'private' }, { label: 'Visible OOC', value: 'visible' }],
+                    field('Delivery', '', select([{ label: 'Direction', value: 'private' }, { label: 'Visible OOC', value: 'visible' }],
                         draft.delivery.visibility, value => { draft.delivery.visibility = value; })),
                     check('Required direction', draft.delivery.required, value => { draft.delivery.required = value; }),
                 ] : null,
@@ -436,7 +436,7 @@ export function renderQuickActionLibrary(host, {
                 ['Keep unresolved variables literally', !!item.baseline.literalMacros, !!values.literalMacros],
             ].filter(([, original, value]) => JSON.stringify(original) !== JSON.stringify(value));
             const show = (label, value) => {
-                if (label === 'Delivery') return value === 'visible' ? 'Visible OOC' : 'Private system note';
+                if (label === 'Delivery') return value === 'visible' ? 'Visible OOC' : 'Direction';
                 if (typeof value === 'boolean') return value ? 'Yes' : 'No';
                 if (value === undefined || value === '') return 'Empty';
                 return typeof value === 'string' ? value : JSON.stringify(value);
@@ -540,8 +540,8 @@ export function renderQuickActionLibrary(host, {
             field('Baseline name', '', readOnly(item.baseline.title)),
             field('Baseline wording', '', readOnly(item.baseline.text || 'Follow live source')),
             item.family === 'steer' && field('Baseline delivery', '', readOnly(
-                (item.baseline.delivery?.visibility === 'visible' ? 'Visible OOC' : 'Private system note') +
-                (item.baseline.delivery?.required ? ' · Required direction' : ' · Nudge'))),
+                (item.baseline.delivery?.visibility === 'visible' ? 'Visible OOC' : 'Direction') +
+                (item.baseline.delivery?.required ? ' · Required direction' : ' · Optional'))),
             button('Confirm button restore', run(async () => {
                 restoreQuickAction(item.id);
                 await saveNow();

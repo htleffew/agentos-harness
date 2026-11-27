@@ -1,6 +1,6 @@
 import { memoryComponents } from '../components.js';
 import { setMemoryComponent } from '../hide.js';
-import { h, button, field, section, select, toggle } from './dom.js';
+import { h, button, field, section, select, toggle, howItWorks } from './dom.js';
 import { settings, saveSettings } from '../store.js';
 import { isChatOpen, hasEvent, toast, ctx, KEY } from '../st.js';
 import { applyHistoryWindow, otherSummaryOn } from '../chapters.js';
@@ -71,7 +71,7 @@ function historyTools(app, components) {
         const go = executionAction(button('Write the synopsis and start', () => run(async () => (await hostCarryOver()).start({ opening: opening.checked, wish: wish.value, leaveSecretsOut: secrets.checked }),
             out => `The new chat is open. The carry-over book "${out.book}" is bound to it, and the old chat is unchanged.`), { kind: 'primary', disabled: !on }), '1 model call (the Writer)');
         return h('details', { class: 'ri-card ri-tight', 'data-ri-continue': '' }, h('summary', {}, 'Continue in a new chat'),
-            h('p', { class: 'ri-help' }, 'Starts a fresh chat with the same character. The story’s canon and its current state go into a carry-over book bound to the new chat, and the old chat’s habits stay behind: no message text, no example replies. The old chat is not changed. One Writer call.'),
+            h('p', { class: 'ri-help' }, ['Starts a fresh chat with the same character. The story’s canon and current state go into a carry-over book bound to the new chat, and the old chat is not changed.', howItWorks('The old chat’s habits stay behind: no message text and no example replies. This is one Writer call.')]),
             wish,
             h('label', { class: 'ri-row' }, opening, 'Write an opening message too'),
             h('label', { class: 'ri-row' }, secrets, 'Leave secrets out of the book'),
@@ -103,9 +103,9 @@ function historyTools(app, components) {
             catchUpButton.disabled = !on || count === 0;
             rebuildButton.disabled = !on || !(ctx().chat || []).some((m, i) => i > 0 && m && !m.is_user && !m.is_system);
             parts.push(h('div', { class: 'ri-row' }, catchUpButton),
-                h('p', { class: 'ri-help' }, count ? `${count} ${count === 1 ? 'exchange is' : 'exchanges are'} not in memory yet. Catch-up reads them in order, a stretch at a time, and files records and chapters. It resumes if the app closes.` : 'Every reply is in memory.'),
+                h('p', { class: 'ri-help' }, count ? `${count} ${count === 1 ? 'exchange is' : 'exchanges are'} not in memory yet. Catch-up files them in order and resumes if the app closes.` : 'Every reply is in memory.'),
                 h('div', { class: 'ri-row' }, rebuildButton),
-                h('p', { class: 'ri-help' }, 'Retires every record a model made in one entry, then catches up from the first message. Your locked records and your own edits stay. Undo is one tap.'));
+                h('p', { class: 'ri-help' }, 'Retires every record a model made in one entry, then catches up from the first message. Your locked records and edits stay, and Undo is one tap.'));
         }
         parts.push(h('div', { class: 'ri-row', 'data-ri-catchup-free': '' }, h('span', {}, 'Catch up by itself on free routes'), toggle(memory().catchUpFree !== false, value => { memory().catchUpFree = value; saveSettings(); }, 'Catch up by itself on free routes')),
             h('p', { class: 'ri-help' }, 'On: a chat that opens with 20 or more exchanges not in memory starts catch-up by itself when your desktop, your NanoGPT plan or an on-phone model can do it well. Off, or when none can, it asks first with the route, the calls, the time and the cost.'),
@@ -181,9 +181,9 @@ export function renderMemory(body, app) {
             'Chapter settings are saved. Automatic summaries and hiding are paused until this chat has a Story World.',
             button('Open Story World, World Info',()=>app.openPage('books',{anchor:'#ri-world-create'}),{kind:'ghost'})),
         otherSummaryOn() && components.chapters && h('p',{class:'ri-note ri-note-warn'},'SillyTavern’s own Summarize also adds a summary. Choose the summary source in Setup.'),
-        control('world','World Info recall','Include the pinned Base World and relevant Story World entries. Host World Info remains under host control.',components.world),
+        control('world','World Info recall','Include the pinned Base World and relevant Story World entries. World Info remains under SillyTavern control.',components.world),
         control('chapters','Chapter summaries','Write and recall chapter summaries. Each new chapter uses one model call.',components.chapters),
-        control('hide','Auto-hide summarized messages','Enable Chapter summaries first. Only saved chapters can hide messages.',components.hide),
+        control('hide','Exclude summarized messages from prompts','Enable Chapter summaries first. Only saved chapters can hide messages.',components.hide),
         ...storyNotesFields(app),
         field('Protect recent history by','Choose how to size the full-text window for covered history. The opening and unsummarized messages stay available.',
             select([{value:'messages',label:'Message count'},{value:'tokens',label:'Estimated tokens'}],historyUnit,
@@ -207,7 +207,7 @@ export function renderMemory(body, app) {
         ...worldUpkeepFields(app),
         worldUpdatePrompts(),
         field('Earlier replies kept editable',
-            editableReplySlots() ? `The current reply is kept separately · ${editableReplySlots()} total editable slots. The Story World book holds filed facts. Recent changes appear in reply cards and extension recall.`
+            editableReplySlots() ? `The Story World book holds filed facts; recent changes appear in reply cards and Recall. ${editableReplySlots()} editable slots in total.`
                 : 'Automatic Story World changes file as soon as a reply is accepted.',
             select([{value:'-1',label:'File immediately'},...Array.from({length:21},(_,n)=>({value:String(n),label:String(n)}))],
                 String(editableReplySlots()-1), value=>{st.world.editableReplies=Number(value);save();},
@@ -225,7 +225,7 @@ export function renderMemory(body, app) {
             numeric('Minimum replies for a scene-end chapter', o.minReplies, 1, 100, 'replies', n => {o.minReplies=n;}, 'A reply is a model message.'),
             numeric('Write a chapter at least every', o.every, 0, 200, 'replies', n => {o.every=n;}, 'Set 0 to disable the reply-count threshold.'),
             numeric('Summarize at estimated tokens',o.everyTokens || 0,0,1000000,'tokens',n=>{o.everyTokens=n;},
-                'After an accepted reply, write a chapter when unsummarized text reaches this estimate. Whichever enabled threshold is reached first starts the chapter. Set 0 to disable the token threshold.')),
+                'After an accepted reply, a chapter is written when unsummarized text reaches this estimate. Set 0 to turn the token threshold off.')),
         isChatOpen() && Number(o.every) > 0 ? (() => { const c = chapterPreview(Number(o.every)); return h('div', {class:'ri-help'}, `The latest ${c.replies} model replies and their surrounding messages contain about ${number(c.tokens)} tokens across ${c.messages} messages. This is a preview of recent text, not the exact next chapter.`); })() : null,
         homeLink(app,'write-chapter','Write a chapter now is in Story, Story World, The story so far.'));
     upkeep.id='ri-memory-upkeep';
@@ -259,10 +259,10 @@ export function renderContext(body, app) {
     const p = historyPreview(target,historyUnit), last = lastContext();
     body.appendChild(section('This chat now', h('div', {class:'ri-context-grid'},
         row('Story messages', number(p.total), 'Includes messages hidden from the AI.'),
-        row('Currently visible', number(p.open), 'The host may omit more when assembling a request.'),
-        row('Hidden from AI', number(p.hidden), 'Still readable in the chat.'))));
+        row('Currently visible', number(p.open), 'SillyTavern may omit more when assembling a request.'),
+        row('Exclude from prompts', number(p.hidden), 'Still readable in the chat.'))));
     const content = [];
-    if (!hasEvent('CHAT_COMPLETION_PROMPT_READY')) content.push(h('div', {class:'ri-note ri-note-warn'}, 'This host does not expose the assembled chat-completion prompt. A last-request breakdown is unavailable.'));
+    if (!hasEvent('CHAT_COMPLETION_PROMPT_READY')) content.push(h('div', {class:'ri-note ri-note-warn'}, 'SillyTavern does not expose the assembled chat-completion prompt. A last-request breakdown is unavailable.'));
     else if (!last) content.push(h('div', {class:'ri-note'}, 'No assembled chat-completion request has been observed in this chat since opening or reloading the app. Send a reply to see its breakdown.'));
     else {
         const metric = (name, data) => row(name, data.chars ? approx(data.tokens) : (data.unmatched ? 'Not recognized' : 'None recognized'), data.unmatched ? `${number(data.unmatched)} prepared passage${data.unmatched === 1 ? '' : 's'} could not be matched; the actual amount may be higher.` : 'Recognized text only.');
@@ -272,7 +272,7 @@ export function renderContext(body, app) {
             metric('Story World notes', last.notes), metric('Chapter summaries', last.chapters), metric('Recalled World Info and structured records',last.lore),
             metric('Story events and world orders', last.events), metric('Other extension instructions', last.other), metric('Scene, state and update instructions', last.updates)));
         if (last.unsupportedContent) content.push(h('div', {class:'ri-note ri-note-warn'}, 'The request contains non-text content, which is not included in these estimates.'));
-        content.push(h('div', {class:'ri-help'}, 'This is the last assembled request observed in this session, not a prediction of the next reply. Matching can miss text changed by a preset or another extension. Categories are partial and do not add up to the total. The host or provider may change the request afterward. Text is estimated at roughly four characters per token, so actual counts vary by model and language.'));
+        content.push(h('div', {class:'ri-help'}, ['This is the last request observed in this session, not a prediction of the next reply.', howItWorks('Matching can miss text changed by a preset or another extension, and categories are partial, so they do not add up to the total. SillyTavern or the provider may change the request afterward. Text is estimated at roughly four characters per token, so counts vary by model and language.')]));
     }
     body.appendChild(section('Last observed request', ...content));
     const mem = lastLayout();

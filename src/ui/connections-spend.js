@@ -3,7 +3,7 @@
 // come first, a route that stops answering shows one dismissible note per outage and a "back" note when it returns, and
 // routes are checked only when a job needs them. The meter is src/spend.js (MB1) and the route chains are src/routing.js;
 // this file reads both, keeps a small ledger of calls per route, and draws the sections and the notes.
-import { h, button } from './dom.js';
+import { h, button, howItWorks } from './dom.js';
 import { registerPage } from './page-registry.js';
 import { settings, saveSettings } from '../store.js';
 import { confirmBox } from '../st.js';
@@ -313,8 +313,8 @@ export function renderSpendPage(body) {
         const rows = spendRows(now);
         host.replaceChildren(...[
             h('p', { class: 'ri-spend-summary', id: 'ri-spend-summary' }, summaryLine(now)), bar,
-            hint(`This month's paid background spend resets on the first. Background work means calls the extension makes that no tap starts: capture, filing, catch-up, upkeep, follow-through checks, roll judgments and Choices. Chat replies through your main connection and the actions you tap stay outside the ceiling.`),
-            state.overWarning && !stated ? h('p', { class: 'ri-spend-warning', role: 'note' }, state.atCeiling ? `${usd(state.ceiling)} ceiling reached. Paid background calls are paused until the first of next month or until you raise the ceiling. Free and local routes carry on.`
+            hint(['This month’s paid background spend resets on the first. Taps and chat replies through your main connection stay outside the ceiling.', howItWorks('Background work means calls the extension makes that no tap starts: capture, filing, catch-up, upkeep, follow-through checks, roll judgments and Options.')]),
+            state.overWarning && !stated ? h('p', { class: 'ri-spend-warning', role: 'note' }, state.atCeiling ? `${usd(state.ceiling)} ceiling reached. Paid background calls pause until the first of next month or until you raise it; free and local routes carry on.`
                 : `${usd(state.warning)} warning point passed. Paid background calls pause at ${usd(state.ceiling)}.`) : null,
             notes.length ? h('div', { class: 'ri-spend-notices', role: 'group', 'aria-label': 'Notices' }, notes.map(noticeRow)) : null,
             h('h4', { class: 'ri-spend-head' }, 'Limits'), limitsForm(draw, status), status,
@@ -363,7 +363,7 @@ function phoneRow(host) {
             tapDownloadPhoneModel({ signal: busy.signal }).catch(() => {}).finally(() => { busy = null; draw(); });
             draw();
         } : info.action === 'Cancel' ? () => busy?.abort()
-            : async () => { if (await confirmBox(`Delete the on-phone model? It frees ${PHONE_MODEL.size}. Download stays off until you tap it again.`)) { await deletePhoneModel(); draw(); } };
+            : async () => { if (await confirmBox(`Delete the on-phone model? It frees ${PHONE_MODEL.size}, and Download stays off until you tap it.`)) { await deletePhoneModel(); draw(); } };
         row.replaceChildren(h('div', { class: 'ri-spend-route' }, info.label), h('div', { class: 'ri-spend-fact', role: 'status' }, words(info)),
             button(info.action, act, { kind: info.action === 'Delete' ? 'ghost' : '' }));
     };
@@ -393,7 +393,7 @@ function keyForm() {
     }, { kind: 'ghost' });
     return h('div', { class: 'ri-spend-key-form' }, h('label', { class: 'ri-label', for: 'ri-jev-key' }, 'OpenRouter key for jev-1.13'), input,
         h('div', { class: 'ri-row' }, save, remove), status,
-        hint('Used only to call jev-1.13 on OpenRouter for judgment calls, after the desktop and the on-phone model gave no answer. It is stored in this extension\'s settings on this device, goes only to OpenRouter, and is never logged or shown again. Without a key, judgment calls use jev-router through your saved OpenRouter connection. Calls count toward the ceiling.'));
+        hint(['Used for judgment calls on OpenRouter after the desktop and the on-phone model gave no answer. It stays on this device, goes only to OpenRouter and is never shown again.', howItWorks('The key calls jev-1.13 and is kept in this extension’s settings. Without a key, judgment calls use jev-router through your saved OpenRouter connection. Calls count toward the ceiling.')]));
 }
 
 /** Setup, Connections, Background jobs. */

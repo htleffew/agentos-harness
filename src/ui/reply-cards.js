@@ -100,7 +100,7 @@ registerCardRenderer('scene', env => {
         on('facts') && present(saved.facts) ? h('section', { class: 'ri-c-section' }, sectionHead('Observable facts'), bulletList(asList(unwrap(saved.facts).value))) : null,
         on('places') && places.length ? h('section', { class: 'ri-c-section' }, sectionHead('Known places'), timelineRows(places)) : null,
         on('detail') && present(saved.detail) ? row('World detail', unwrap(saved.detail).value) : null,
-        Object.keys(sc).length ? [slot, button('Edit this scene snapshot', () => slot.replaceChildren(sceneEditor(sc, view.redraw, { historicalId: id })), { kind: 'ghost' })] : null,
+        Object.keys(sc).length ? [slot, button('Edit this scene state', () => slot.replaceChildren(sceneEditor(sc, view.redraw, { historicalId: id })), { kind: 'ghost' })] : null,
         view.strip && h('p', { class: 'ri-tray-help' }, view.strip.source === 'header' ? 'From the reply\'s scene header.' : 'From the story state saved after the reply.'),
         footer(env),
     ];
@@ -250,7 +250,7 @@ function personSection(person, env) {
         rows([line('thoughts', 'Thoughts', { quote: true })]),
         rows([line('facet', 'Facet'), line('voice', 'Voice'), line('outfit', 'Outfit'), line('holding', 'Holding'), line('who', 'Who they are')]),
         faculty.length ? h('div', { class: 'ri-c-faculty' }, faculty) : null,
-        editable ? [slot, button('Edit this snapshot', () => slot.replaceChildren(stateEditor(id, editable, view.redraw, { historical: true })), { kind: 'ghost' })] : null);
+        editable ? [slot, button('Edit this state', () => slot.replaceChildren(stateEditor(id, editable, view.redraw, { historical: true })), { kind: 'ghost' })] : null);
 }
 
 registerCardRenderer('characters', env => {
@@ -346,7 +346,7 @@ registerCardRenderer('roast', env => {
     const text = env.view.roast;
     if (!text || !env.on('voice')) return null;
     return { first: firstLine(text).replace(/\*+/g, ''), body: () => [quoteBlock(text, { format: emphasis }),
-        executionDetails({ label: 'Reader reaction', stage: 'reply', connection: 'Original reply connection', attempts: 0, outcome: 'completed', result: 'Generated in the character reply.' }),
+        executionDetails({ label: 'Roast', stage: 'reply', connection: 'Original reply connection', attempts: 0, outcome: 'completed', result: 'Generated in the character reply.' }),
         footer(env)] };
 });
 

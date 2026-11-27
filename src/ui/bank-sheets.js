@@ -91,7 +91,7 @@ export const closePoolSheet = () => openSheet?.close();
 /** The import box. state lives on the editor route so a redraw keeps it. type: 'event' or 'style'. */
 export function importBox(state, type, redraw) {
     const box = h('div', { class: 'ri-sheet-box', 'data-ri-import': '' }, h('div', { class: 'ri-h2' }, 'Import options from a preset or plugin file'));
-    box.append(h('div', { class: 'ri-help' }, 'Pick a SillyTavern Chat Completion preset, a LoreBary plugin, a World Info book or a Writer\'s Workbench page from this device. The file is read here and nothing in it is run or sent. Value lists go to the option banks in "RI Option banks"; instruction blocks go to the block bank.'));
+    box.append(h('div', { class: 'ri-help' }, 'Pick a SillyTavern Chat Completion preset, a LoreBary plugin, a World Info book or a Writer’s Workbench page from this device. The file is only read here; value lists go to the option banks and instruction blocks to the block bank.'));
     const file = h('input', { type: 'file', accept: '.json,.html,.htm,application/json,text/html', 'aria-label': 'File to import', 'data-ri-import-file': '',
         onchange: async () => {
             const f = file.files?.[0];

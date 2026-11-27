@@ -38,10 +38,10 @@ const L = require('./lib.js');
             .filter({ has: page.getByText(name, { exact: true }) });
         const assigned = root.locator('.ri-assigned-book').filter({ has: page.getByText(names.odds, { exact: true }) });
         await assigned.getByText('Edit or delete entries', { exact: true }).click();
-        await assigned.getByText(/Always eligible · 10% chance · Sticky 2 · Cooldown 10 messages/).waitFor();
-        await assigned.getByText(/Keyword triggered.*3% chance · Sticky 4 · Cooldown 12 messages/).waitFor();
+        await assigned.getByText(/Constant · 10% chance · Sticky 2 · Cooldown 10 messages/).waitFor();
+        await assigned.getByText(/Normal.*3% chance · Sticky 4 · Cooldown 12 messages/).waitFor();
         await assigned.getByText('Change recall settings for selected entries', { exact: true }).click();
-        const chanceField = assigned.getByLabel('Selected entries chance (%)', { exact: true });
+        const chanceField = assigned.getByLabel('Selected entries Trigger %', { exact: true });
         assert.equal(await chanceField.inputValue(), '');
         assert.equal(await assigned.getByLabel('Selected entries activation', { exact: true }).inputValue(), '');
         const contrast = control => control.evaluate(element => {
@@ -117,7 +117,7 @@ const L = require('./lib.js');
         assert.ok((await state()).names.includes(names.pinned));
         await card(names.pinned).getByRole('button', { name: 'Delete book everywhere', exact: true }).click();
         await page.locator('dialog[open] .popup-button-ok').click();
-        await card(names.pinned).getByText('Referenced by this chat. The host no longer lists this book.', { exact: true }).waitFor();
+        await card(names.pinned).getByText('Referenced by this chat. SillyTavern no longer lists this book.', { exact: true }).waitFor();
         assert.ok(!(await state()).names.includes(names.pinned));
         const cached = await page.evaluate(async ([base, oldPin]) => {
             const V = await import(`${base}/src/v10.js`);

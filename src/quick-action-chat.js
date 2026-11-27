@@ -28,7 +28,7 @@ export function queueCapability() {
     const routeEvents = c.mainApi === 'openai' ? ['CHAT_COMPLETION_PROMPT_READY']
         : c.mainApi ? ['GENERATE_BEFORE_COMBINE_PROMPTS','GENERATE_AFTER_COMBINE_PROMPTS'] : [];
     if (!routeEvents.length || !['MESSAGE_SENT','WORLDINFO_SCAN_DONE','WORLDINFO_ENTRIES_LOADED',...routeEvents].every(hasEvent)) {
-        return 'This host does not expose the player send and final prompt needed for queue delivery.';
+        return 'SillyTavern does not expose the message send and final prompt needed for queue delivery.';
     }
     return '';
 }
@@ -39,7 +39,7 @@ export function queueDirections(cues, direction, { visibility = 'private', requi
     const reason = queueCapability();
     if (reason) throw new Error(reason);
     const rows = [...cues, ...(direction.trim() ? [{ text: direction }] : [])].filter(cue => cue?.text?.trim());
-    if (!rows.length && !freshStart && !roll) throw new Error('Add a cue, a direction or Fresh start.');
+    if (!rows.length && !freshStart && !roll) throw new Error('Add a direction or Fresh start.');
     const entry = { id: id(), created: Date.now(), freshStart, roll, rows: structuredClone(rows).map(row => ({
         ...row, visibility: visibility === 'default' ? row.visibility || 'private' : visibility,
         required: required || row.required === true,
@@ -239,7 +239,7 @@ function recordDelivery(plan, rows, route) {
     const {snapshot,entries} = plan;
     snapshot.attempts += 1;
     const receipt = {...executionPreview('steer',{stage:'reply',label:'Queued directions',target:snapshot.id,
-        trigger:'The first character reply to this player message.'}), observedRoute:route,
+        trigger:'The first character reply to this message.'}), observedRoute:route,
         attempts:snapshot.attempts, outcome:'included', directions:structuredClone(rows),
         rolls:entries.flatMap(entry=>entry.roll || [])};
     snapshot.receipt = receipt;
@@ -311,11 +311,11 @@ export function finishQuickReply(plan, message, acceptedRecord, {story=true}={})
         if (plan.arm) armFreshStart();
     } else if (snapshot?.owner === state.owner && plan.entries.length && !snapshot.accepted && !plan.confirmed) {
         state.bindings = (state.bindings || []).filter(binding=>binding.id!==snapshot.id);
-        failQuickReply(plan, 'The host could not confirm delivery. The directions are pending for the next send.');
+        failQuickReply(plan, 'SillyTavern could not confirm delivery. The directions are pending for the next send.');
     }
     if (plan?.freshStart && plan.history && !acceptedRecord.quickActions) {
         acceptedRecord.quickActions = {...executionPreview('steer',{stage:'reply',label:'Fresh start',trigger:'An accepted forward story reply.'}),
-            observedRoute:plan.history.mode==='retained' ? 'Host history' : 'Chat Completion', history:plan.history, attempts:1, outcome:'accepted'};
+            observedRoute:plan.history.mode==='retained' ? 'SillyTavern history' : 'Chat Completion', history:plan.history, attempts:1, outcome:'accepted'};
     }
     if (story && acceptedRecord.type === 'normal' && !message.extra?.[SLOT_KEY]) {
         state.slotSequence=(Number(state.slotSequence) || 0)+1;
@@ -348,13 +348,13 @@ export function queuedRetry() {
 
 export async function retryQueuedReply() {
     const host=ctx(), state=quickChat(), message=host.chat?.at(-1), binding=boundSnapshot(state,message);
-    if (!queuedRetry() || !binding) throw new Error('The original player message is no longer the latest message.');
-    if (playerContribution(message)!==binding.contribution) throw new Error('The player message was edited. Cancel the old directions and queue them for a new send.');
+    if (!queuedRetry() || !binding) throw new Error('The original message is no longer the latest message.');
+    if (playerContribution(message)!==binding.contribution) throw new Error('Your message was edited. Cancel the old directions and queue them for a new send.');
     if (isGenerating() || retrying) throw new Error('Wait for the current reply to finish.');
     if (queueCapability()) throw new Error(queueCapability());
-    if (typeof host.generate !== 'function') throw new Error('This host cannot retry the original message from Quick actions.');
+    if (typeof host.generate !== 'function') throw new Error('SillyTavern cannot retry the original message from Quick actions.');
     if (host.groupId && host.mainApi==='openai' && host.chatCompletionSettings?.send_if_empty?.trim()) {
-        throw new Error('The host adds a default player message in this group. Clear the host’s Send if empty setting to retry the original message.');
+        throw new Error('SillyTavern adds a default message in this group. Clear SillyTavern’s Send if empty setting to retry the original message.');
     }
     const retry = {owner:state.owner,binding:binding.id};
     retrying=retry;

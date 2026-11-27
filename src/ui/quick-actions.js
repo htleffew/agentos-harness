@@ -23,10 +23,10 @@ import { armFreshStart, cancelQueued, freshRemaining, moveQuickPin, pinQuickActi
     queueDirections, queuedRetry, quickChat, quickChatIdentity, rememberQuickActions, restoreHeldRetryDraft, retryQueuedReply, stopFreshStart } from '../quick-action-chat.js';
 
 const families = {
-    steer: { title:'Steer the next reply', primary:'Queue with my next message' },
+    steer: { title:'Direction for the next reply', primary:'Queue with my next message' },
     swipe: { title:taskLabels.alternate, primary:taskLabels.generateAlternate },
     continue: { title:taskLabels.continue, primary:taskLabels.continue },
-    draft: { title:'Draft my reply', primary:'Generate my draft' },
+    draft: { title:'Impersonate', primary:'Write my next message' },
 };
 const sessions = new Map();
 let session;
@@ -219,7 +219,7 @@ function joinGuidance(edit) {
 
 async function resolveForSheet(edit, reference) {
     const action = typeof reference === 'string' ? readQuickAction(reference) : reference;
-    if (!action) throw new Error('This shortcut was removed. Open Manage to recover it.');
+    if (!action) throw new Error('This quick action was removed. Open Manage to recover it.');
     const sources = action.source ? await loadQuickActionSources({family:edit.family}) : [];
     return {...resolveQuickAction(action, {sources, twist:edit.twist, variables:{direction:edit.direction}}),
         reference, usesDirection:action.text?.includes('{{direction}}')};
@@ -298,11 +298,11 @@ function pendingView() {
     const state = quickChat();
     const entries = state?.pending || [];
     const remaining = freshRemaining();
-    return h('div',{}, !entries.length && info('No directions are waiting for a player message.'),
+    return h('div',{}, !entries.length && info('No directions are waiting for your next message.'),
         remaining > 0 && actionRow(info(`Fresh start · ${remaining} story replies remaining`), button('Stop Fresh start', () => { stopFreshStart(); renderSheet(); })),
         ...entries.map((entry, index) => h('article',{class:'ri-quick-card'},
             h('strong',{},entry.rows.map(row=>row.title).filter(Boolean).join(' · ') || `Direction ${index + 1}`),
-            entry.rows.map(row=>h('p',{},`${row.visibility === 'visible' ? 'Visible OOC' : 'Private'} · ${row.required ? 'Required direction' : 'Nudge'}`, h('br'),row.text)),
+            entry.rows.map(row=>h('p',{},`${row.visibility === 'visible' ? 'Visible OOC' : 'Private'} · ${row.required ? 'Required direction' : 'Optional'}`, h('br'),row.text)),
             entry.freshStart && info(entry.freshStart === 'five' ? 'Fresh start for five story replies' : 'Fresh start for this action'),
             entry.roll && info(entry.roll.text),
             session.pendingEdit === entry.id && h('div',{},entry.rows.map((row, i) => field(row.title || `Direction ${i + 1}`, '',
@@ -372,7 +372,7 @@ function rootView() {
         hits.replaceChildren();
         if (!words.length) return;
         const found = listQuickActions().filter(action=>words.every(word=>`${action.title} ${action.category} ${action.text}`.toLowerCase().includes(word))).slice(0, 30);
-        if (!found.length) hits.append(info('No saved actions match. Browse directions to search source books.'));
+        if (!found.length) hits.append(info('No quick actions match. Browse directions to search source books.'));
         else {
             hits.append(info('Choose a result to preview its direction. Manage saved buttons in Preset & Extension.'));
             for (const action of found) hits.append(button(`${action.title} · ${families[action.family].title}`, () => {
@@ -399,9 +399,9 @@ function rootView() {
                 selectFavorite(field, {...row,pinned:pinned.includes(row)});
             }),definition && info(quickActionOwner(definition)));
         })),
-        h('details',{},h('summary',{},'Search saved actions'), query, hits),
+        h('details',{},h('summary',{},'Search quick actions'), query, hits),
         h('details',{},h('summary',{},'Review and settings'),
-            actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What Was Sent',()=>openPanel('sent')))));
+            actionRow(button('Context & Memory',()=>openPanel('context',null,'#ri-memory-status')),button('What was sent',()=>openPanel('sent')))));
 }
 
 function openLibrarySettings(showLibrary = true) {
@@ -429,7 +429,7 @@ function previewFor(edit, mode = 'draft') {
     if (edit.family === 'steer') {
         const reason = queueCapability();
         return {available:!reason, reason, history:freshHistoryCapability(),
-            stages:[executionPreview('steer',{stage:'reply',label:'Queued directions',trigger:'The reply to your next player message.'})]};
+            stages:[executionPreview('steer',{stage:'reply',label:'Queued directions',trigger:'The reply to your next message.'})]};
     }
     const fixFacts = edit.cues.some(cue=>cue.operation==='repair');
     const preview = guidedPreview(edit.family,{target:edit.target,freshStart:!!edit.freshStart,mode,fixFacts});
@@ -502,7 +502,7 @@ function rememberDraftBatch(edit, owner, batch) {
 function draftHistory(edit, state) {
     if (!state?.draftBatches?.length) return null;
     return h('details',{},h('summary',{},'Recent drafts and choices'),state.draftBatches.map((batch,index)=>{
-        const label=batch.mode==='choices' ? 'Player choices' : batch.mode==='expand' ? 'Expanded choice' : 'Player draft';
+        const label=batch.mode==='choices' ? 'Options' : batch.mode==='expand' ? 'Expanded choice' : 'Impersonate';
         return h('details',{class:'ri-quick-card'},h('summary',{},label+' · '+batch.candidates[0]?.text.slice(0,65)),
             batch.candidates.map(candidate=>info(candidate.text)),
             actionRow(button('Restore for editing',()=>{
@@ -554,7 +554,7 @@ async function submit(edit, mode = 'draft', choice = '', replay = null) {
     try {
         if (edit.family === 'steer') {
             const entry = queueDirections(input.cues,input.direction,{visibility:edit.visibility,required:edit.required,freshStart:input.freshStart,roll:input.roll});
-            edit.message = 'Queued with your next player message.';
+            edit.message = 'Queued with your next message.';
             edit.lastQueued = entry.id;
         } else {
             const outcome = await runGuidedTurn(edit.family,{...input,freshStart:!!input.freshStart,mode,choice,
@@ -659,12 +659,12 @@ function familyView(edit) {
     const draftPreview = choicesPreview && !edit.receipt;
     const execution = executionDetails(stage,{onSettings:openConnection,summary:draftPreview ? 'Draft and choice costs' : undefined});
     if (draftPreview) execution.firstElementChild.after(info(
-        'Get up to three editable choices. Using the wording in the composer takes no model call. Expanding a choice into a draft takes one.'));
+        'Get up to three editable options. Using the wording in the composer takes no model call; expanding one into a draft takes one.'));
     const twistCue = edit.cues.find(cue=>readQuickAction(cue.reference)?.twistTypes?.length);
     const detailNodes = h('div',{class:'ri-quick-content'},
         reference && info(`${reference.name} · swipe ${reference.swipe + 1} · revision ${String(reference.fingerprint).slice(-8)}`),
         reference && h('details',{},h('summary',{},'Selected reply'),h('p',{},reference.text)),
-        reference && versions.length>1 && field('Selected version','A version is called a swipe in the host.',
+        reference && versions.length>1 && field('Selected version','A version is called a swipe in SillyTavern.',
             select(versions.map(({swipe})=>({value:String(swipe),label:`Version ${swipe + 1}`})),String(reference.swipe),async value=>{
                 if (edit.switching || edit.running) return;
                 const owner=session;
@@ -680,7 +680,7 @@ function familyView(edit) {
         edit.switching && status('Switching to the selected swipe…'),
         reference && !reference.latest && button('Use latest reply',()=>{edit.target=guidedTarget();edit.lastAttempt=null;renderSheet();},
             {disabled:edit.running || edit.switching}),
-        preview.dependent?.replies > 0 && info(`${preview.dependent.replies} later replies and ${preview.dependent.cards} dependent cards. Later prose stays saved. Affected facts will be reconciled from surviving evidence.`),
+        preview.dependent?.replies > 0 && info(`${preview.dependent.replies} later replies and ${preview.dependent.cards} dependent cards. Later prose stays saved, and affected facts are reconciled from surviving evidence.`),
         preview.fallback && info(preview.fallback),
         unavailableAction(preview),
         unavailableAction(choicesPreview,'Give me choices'),
@@ -693,7 +693,7 @@ function familyView(edit) {
         edit.family==='swipe' && actionRow(button('Fix world facts',()=>selectFavorite(edit,{reference:'builtin:swipe:fix-facts',title:'Fix world facts'},true))),
         h('details',{open:!pinned.length},h('summary',{},'Available directions'),
             shelf(available.map(action=>({reference:action.id,title:action.title,operation:action.operation})),edit)),
-        edit.cues.length > 0 && h('div',{},h('h3',{},'Selected cues in send order'),edit.cues.map((cue,i)=>optionEditor(edit,cue,i))),
+        edit.cues.length > 0 && h('div',{},h('h3',{},'Selected directions in send order'),edit.cues.map((cue,i)=>optionEditor(edit,cue,i))),
         twistCue && field('Twist type','',select([{value:'',label:'Choose for me'},...readQuickAction(twistCue.reference).twistTypes.map(value=>({value,label:value}))],edit.twist,async value=>{
             edit.twist=value;
             try { addResolved(edit, await resolveForSheet(edit,twistCue.reference)); } catch (error) { edit.error=error.message; }
@@ -701,7 +701,7 @@ function familyView(edit) {
         })),
         edit.awaiting && button(`Select ${edit.awaiting.title}`,()=>{ const next=edit.awaiting; edit.awaiting=null; selectFavorite(edit,next,true); }),
         edit.family==='steer' && actionRow(
-            field('Delivery','',select([{value:'default',label:'Use cue defaults'},{value:'private',label:'Private guidance'},{value:'visible',label:'Visible OOC'}],edit.visibility,value=>{edit.visibility=value;})),
+            field('Delivery','',select([{value:'default',label:'Use direction defaults'},{value:'private',label:'Private guidance'},{value:'visible',label:'Visible OOC'}],edit.visibility,value=>{edit.visibility=value;})),
             h('label',{},h('input',{type:'checkbox',checked:edit.required,onchange:event=>{edit.required=event.target.checked;}}),'Required direction')),
         (edit.family==='steer' || edit.family==='swipe') && h('details',{},h('summary',{},'Action roll'),
             info(edit.die?.text || 'Roll in code and keep the result with this action.'),
@@ -717,7 +717,7 @@ function familyView(edit) {
                 edit.freshStart=value;
                 renderSheet();
             })),
-            info((preview.history?.mode || preview.history)==='retained'?'This route keeps host prose history and adds the Fresh start direction.':'This route can replace earlier prose with established facts.'),
+            info((preview.history?.mode || preview.history)==='retained'?'This route keeps SillyTavern prose history and adds the Fresh start direction.':'This route can replace earlier prose with established facts.'),
             freshRemaining() > 0 && button(`Stop · ${freshRemaining()} story replies remaining`,()=>{stopFreshStart();renderSheet();})),
         edit.family==='swipe' && h('details',{},h('summary',{},'Prior orders and edits'),
             h('label',{},h('input',{type:'checkbox',checked:edit.repeatOrders,onchange:event=>{edit.repeatOrders=event.target.checked;}}),'Repeat prior orders'),
@@ -829,8 +829,8 @@ function activeInstructionSets() {
 }
 
 const familyButtons = {
-    steer: ['Steer','fa-signs-post'],
-    swipe: ['Alternate','fa-rotate'],
+    steer: ['Direction','fa-signs-post'],
+    swipe: ['Swipe','fa-rotate'],
     continue: ['Continue','fa-forward-step'],
     draft: ['Draft','fa-pen'],
 };
@@ -916,7 +916,7 @@ async function runBarOptions(action, typed, job) {
         if (!activeInstructionSets().includes(set)) throw new Error('Activate the Random Instruction Set this action rolls in this chat.');
         cues.push(rollQuickAction(await loadQuickActionSources({family:'draft',sets:[set]}),{scope:{set}}));
     }
-    if (job.cancelled) throw new DOMException('Cancelled before the model request.','AbortError');
+    if (job.cancelled) throw new DOMException('Cancelled before the model call.','AbortError');
     const response = await runGuidedTurn('draft',{mode:'choices',composer:openComposer()?.value || '',target:guidedTarget(),
         cues,direction:typed.trim(),suggestions:config});
     if (!response.ok) throw new Error('The model returned no usable options.');
@@ -932,7 +932,7 @@ async function runBarStory(action, typed, job) {
         // Both empty: SillyTavern's own swipe or continue, with nothing added.
         job.plain = true;
         const done = kind === 'swipe' ? await triggerSwipe() : await triggerContinuation();
-        if (!done) throw new Error(`This host cannot ${kind} the last reply.`);
+        if (!done) throw new Error(`SillyTavern cannot ${kind} the last reply.`);
         return;
     }
     const outcome = await runGuidedTurn(kind,{target,cues:cue ? [cue] : [],direction:typed.trim(),freshStart:!!action.freshStart,
@@ -1159,7 +1159,7 @@ export function renderComposerSettings() {
     }
     library.addEventListener('toggle',()=>{if (library.open && !libraryHost.firstChild) mountLibrary();});
     return h('section',{id:'ri-composer-settings',class:'ri-section'},
-        h('h3',{class:'ri-section-title'},'Composer quick actions'),
+        h('h3',{class:'ri-section-title'},'Quick action bar'),
         info('Pinned quick actions sit on the bar above the message box, in this order. Hold an icon on the bar for the same choices.'),
         actionRow(button('Open Quick actions, Bar',()=>app.openPage('quick-bar',{focusPage:true})),button('Open Quick actions, Library',()=>app.openPage('quick-library',{focusPage:true}))),
         h('details',{id:'ri-composer-families'},h('summary',{},'Actions shown in All quick actions'),Object.entries(families).map(([id,{title}])=>

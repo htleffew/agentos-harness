@@ -105,7 +105,7 @@ export function variationEditor({ owner, readDraft, readActive, loadDraft, apply
     });
     const exportFile = action('Export variation',()=>{
         const entry=selected();
-        if (!download(`${entry.name.replace(/[\\/:*?"<>|]/g,'-')}.json`,JSON.stringify(variationFile(entry),null,2))) throw new Error('This host could not start the download.');
+        if (!download(`${entry.name.replace(/[\\/:*?"<>|]/g,'-')}.json`,JSON.stringify(variationFile(entry),null,2))) throw new Error('SillyTavern could not start the download.');
         note.textContent='Export started.';
     });
     const compareButton = action('Compare with active instruction',()=>{ comparing=!comparing; refresh(); });

@@ -124,7 +124,7 @@ async function ordinaryInstruction(page, name) {
         assert.equal(await page.locator('#settings_preset_openai option:checked').textContent(), initialPreset);
         disabled = await h.assertQuietHost(page);
         const names = await makeStoryWorld(page);
-        await open('Steer the next reply');
+        await open('Direction for the next reply');
         await direction().fill(`${marker.oldCue} Have the guard gesture toward the clock.`);
         await sheet.getByLabel('Delivery', { exact: true }).selectOption('visible');
         await tap('Queue with my next message');
@@ -140,7 +140,7 @@ async function ordinaryInstruction(page, name) {
         await direction().fill('Let me hear the chain move. HISTORICAL_SCOPE_CONTROL');
         h.resetLog();
         h.mode({ reply: 'The guard turns a brass key.' });
-        await tap('Generate alternate reply · 1 model call');
+        await tap('Swipe · 1 model call');
         await saved();
         const bounded = record('GA16-bounded', { laterBefore: later, laterAfter: (await chat()).slice(3), world: names.id });
         excludes(bounded, [marker.future, marker.secret, marker.offscreen, marker.oldCue]);
@@ -158,7 +158,7 @@ async function ordinaryInstruction(page, name) {
         await tap('Select direction');
         h.resetLog();
         h.mode({ reply: 'The guard points at the tunnel map.' });
-        await tap('Generate alternate reply · 1 model call');
+        await tap('Swipe · 1 model call');
         await saved();
         const history = await page.evaluate(() => SillyTavern.getContext().chat[2].extra.roleplay_instructions.guided);
         const bolder = record('GA16-explicit-source', { history });
@@ -192,7 +192,7 @@ async function ordinaryInstruction(page, name) {
             for (const value of includes) assert(sent.includes(value), value);
         };
 
-        await open('Steer the next reply');
+        await open('Direction for the next reply');
         await direction().fill(`${marker.current}_STEER Ground the next beat in the clock stair.`);
         await fresh();
         await tap('Queue with my next message');
@@ -201,23 +201,23 @@ async function ordinaryInstruction(page, name) {
         await answer('The guard settles his lamp beside the stair.', 'CURRENT_SEND I raise one hand.');
         reset(record('GA54-steer', { initialPreset, activePreset: preset }), `${marker.current}_STEER`, { includes: ['CURRENT_SEND'] });
 
-        await open('Generate an alternate reply');
+        await open('Swipe');
         await direction().fill(`${marker.current}_SWIPE Keep the lamp low.`);
         await fresh();
         h.resetLog();
         h.mode({ reply: 'The guard rests a small lamp on the landing.' });
-        await tap('Generate alternate reply');
+        await tap('Swipe');
         await saved();
         reset(record('GA54-swipe', { initialPreset, activePreset: preset }), `${marker.current}_SWIPE`, { includes: ['CURRENT_SEND'] });
         await close();
 
         const prefix = (await chat()).at(-1);
-        await open('Continue this reply');
+        await open('Continue');
         await direction().fill(`${marker.current}_CONTINUE Have him walk to the stairs.`);
         await fresh();
         h.resetLog();
         h.mode({ reply: 'He steps toward the stairs.' });
-        await tap('Continue this reply');
+        await tap('Continue');
         await saved();
         reset(record('GA54-continue', { initialPreset, activePreset: preset, prefix, resultingText: (await chat()).at(-1) }),
             `${marker.current}_CONTINUE`, { includes: [prefix] });
@@ -226,12 +226,12 @@ async function ordinaryInstruction(page, name) {
         await setScene(page, marker, names);
 
         await composer.fill(marker.fragment);
-        await open('Draft my reply');
+        await open('Impersonate');
         await direction().fill(`${marker.current}_DRAFT Use something I know about the lever.`);
         await fresh();
         h.resetLog();
         h.mode({ player: 'I point to the red stripe and identify the brake lever.' });
-        await tap('Generate my draft · 1 model call');
+        await tap('Write my next message · 1 model call');
         await draftReady();
         const playerReset = record('GA54-draft', { initialPreset, activePreset: preset });
         reset(playerReset, `${marker.current}_DRAFT`, { includes: [marker.fragment, marker.known], excludes: [prefix] });
@@ -252,14 +252,14 @@ async function ordinaryInstruction(page, name) {
             ['Introduce a plot twist', 'Twist type: Revelation.', 'I lift up my own duplicate key and admit I made it.'],
         ];
         for (const [name, cue, text] of templates) {
-            await open('Draft my reply');
+            await open('Impersonate');
             await tap(name);
             if (name === 'Introduce a plot twist') await sheet.getByLabel('Twist type', { exact: true }).selectOption('Revelation');
             const qualifier = `TEMPLATE_QUALIFIER ${name}. Keep the landing in view.`;
             await direction().fill(qualifier);
             h.resetLog();
             h.mode({ player: text });
-            await tap('Generate my draft · 1 model call');
+            await tap('Write my next message · 1 model call');
             await draftReady();
             const sent = record(`GA27-${name}`, { fixtureOutput: text });
             playerRequest(sent, cue);
@@ -269,13 +269,13 @@ async function ordinaryInstruction(page, name) {
             await close();
         }
 
-        await open('Draft my reply');
+        await open('Impersonate');
         await tap('Do something bold');
         const retryDirection = 'GA27_RETRY Keep my hands on the lever.';
         await direction().fill(retryDirection);
         h.resetLog();
         h.mode({ fail: true });
-        await tap('Generate my draft · 1 model call');
+        await tap('Write my next message · 1 model call');
         await sheet.getByRole('button', { name: /Retry with the same directions/ }).waitFor({ timeout: 20000 });
         containsOnce(record('GA27-failed-attempt'), retryDirection);
         assert.equal(await composer.inputValue(), marker.fragment);
@@ -293,7 +293,7 @@ async function ordinaryInstruction(page, name) {
         // browser touch context keeps the textarea focused across the resize.
         const prior = await acceptedState();
         h.resetLog();
-        await open('Draft my reply');
+        await open('Impersonate');
         await tap('Make it more dramatic');
         await tap(/Make it more dramatic/);
         await tap('Do something bold');
@@ -302,7 +302,7 @@ async function ordinaryInstruction(page, name) {
         await page.setViewportSize({ width: 390, height: 360 });
         assert(await direction().evaluate(input => document.activeElement === input));
         await close();
-        await open('Draft my reply');
+        await open('Impersonate');
         assert.equal(await direction().inputValue(), optionText);
         assert.equal(h.requests().length, 0);
         h.mode({ choices: JSON.stringify(choiceTexts) });
@@ -318,14 +318,14 @@ async function ordinaryInstruction(page, name) {
         await tap('Use this wording', cards.first());
         assert.equal(await composer.inputValue(), edit);
         assert.equal(h.requests().length, 1);
-        await open('Draft my reply');
+        await open('Impersonate');
         await tap('Dismiss', cards.first());
         assert.equal(await cards.count(), 2);
         await tap('Recover previous composer draft');
         assert.equal(await composer.inputValue(), marker.fragment);
         assert.equal(h.requests().length, 1);
 
-        await open('Draft my reply');
+        await open('Impersonate');
         h.resetLog();
         const expansion = 'I touch the red stripe and ask whether the lever is safe.';
         h.mode({ player: expansion });
@@ -343,7 +343,7 @@ async function ordinaryInstruction(page, name) {
             ['truncated-list', '["I ask about the lever.", {"text":"I step away from the stairs."}, "I begin to'],
             ['empty', ''],
         ]) {
-            await open('Draft my reply');
+            await open('Impersonate');
             h.resetLog();
             h.mode({ choices: raw });
             await tap('Give me choices · 1 model call');
@@ -362,10 +362,10 @@ async function ordinaryInstruction(page, name) {
                     await use.tap();
                     assert.equal(await composer.inputValue(), manual);
                     assert.equal(h.requests().length, 1);
-                    await open('Draft my reply');
+                    await open('Impersonate');
                     await tap('Recover previous composer draft');
                     assert.equal(await composer.inputValue(), marker.fragment);
-                    await open('Draft my reply');
+                    await open('Impersonate');
                 }
             } else {
                 await sheet.getByRole('button', { name: /Retry with the same directions/ }).waitFor({ timeout: 20000 });

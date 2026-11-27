@@ -22,8 +22,8 @@ export const PRESET = 'Roleplay Instructions V10';
 export const isCompanionPreset = name => /^Roleplay Instructions V10(?:\.\d+)*$/i.test(String(name || '').trim());
 export const pairedPreset = () => enabledV10() && isCompanionPreset(activePreset());
 export const MODULES = {
-    style: 'Live writing guidance', preflight: 'Scene and character checks', state: 'Story, scene and character state', knowledge: 'Character knowledge', emotions: 'NPC emotion scales',
-    relationships: 'Relationships', plots: 'Arcs, seeds and off-screen agendas', worldEvents: 'Autonomous world events',
+    style: 'Live writing guidance', preflight: 'Continuity guidance', state: 'Story, scene and character state', knowledge: 'Character knowledge', emotions: 'NPC emotion scales',
+    relationships: 'Relationships', plots: 'Arcs, seeds and off-screen agendas', worldEvents: 'Plot offers',
     dice: 'Dice', colors: 'Dialogue colors', roast: 'Roast generation', roastFeedback: 'Roast feedback in future prompts',
 };
 export const DEFAULT_MODULES = {
@@ -237,7 +237,7 @@ export function extractUpdate(raw, { sourceProse, allowPlayerThoughts = false } 
         const evidence = safeText(item?.evidence,300);
         if (name && !allowPlayerThoughts && normalize(name) === normalize(names().user)) return [];
         if (!name || evidence.length < 4 || !normalize(sourceProse ?? cleanText).includes(normalize(evidence))) {
-            issues.push('A character snapshot lacked a name or evidence in the accepted prose.');
+            issues.push('A character state lacked a name or evidence in the accepted prose.');
             return [];
         }
         const now = {};
@@ -524,7 +524,7 @@ export async function uploadReusableBook(file, role = 'base') {
     const entries = Object.values(data.entries);
     if (entries.some(entry=>!entry || !Number.isSafeInteger(entry.uid) || typeof entry.content !== 'string' || !Array.isArray(entry.key))
         || new Set(entries.map(entry=>entry.uid)).size !== entries.length) {
-        throw new Error('Invalid World Info entries. Import other formats through the host World Info menu first.');
+        throw new Error('Invalid World Info entries. Import other formats through the World Info menu first.');
     }
     for (const entry of entries) {
         const chance = entry.probability;
@@ -536,7 +536,7 @@ export async function uploadReusableBook(file, role = 'base') {
     for (let i=2; taken.has(name.toLocaleLowerCase()); i++) name = `${base} (${i})`;
     await saveBook(name,data);
     await refreshWorldList();
-    if (!worldNames().includes(name)) throw new Error('The host did not confirm that the lorebook was saved.');
+    if (!worldNames().includes(name)) throw new Error('SillyTavern did not confirm that the World Info book was saved.');
     if (prefs() !== local) throw new Error(`Imported "${name}". Assign it in the intended chat.`);
     if (role === 'base') await pinBase(name);
     else assignReusableBook(name, role);
@@ -610,7 +610,7 @@ export async function createReusableBook(name, content = '') {
     }
     await saveBook(name,{ entries });
     await refreshWorldList();
-    if (!worldNames().includes(name)) throw new Error('The host did not confirm that the lorebook was saved.');
+    if (!worldNames().includes(name)) throw new Error('SillyTavern did not confirm that the World Info book was saved.');
     return name;
 }
 
@@ -902,7 +902,7 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
         const set = setOfEntry(entry);
         const managed = set && { instructions:'Random Instructions',events:'Random Story Events',style:'Random Writing Style' }[setInfo(set).kind];
         const timing = managed ? null : [
-            entry.constant ? 'Always eligible' : `${entry.vectorized ? 'Vector or keyword' : 'Keyword'} · ${BOOK_TRIGGER_SOURCES[bookTriggerSource(entry)]}`,
+            entry.constant ? 'Constant' : `${entry.vectorized ? 'Vector or keyword' : 'Keyword'} · ${BOOK_TRIGGER_SOURCES[bookTriggerSource(entry)]}`,
             !entry.useProbability ? '100% chance' : entry.probability != null && Number.isFinite(Number(entry.probability)) ? `${entry.probability}% chance` : '',
             entry.sticky > 0 && `sticky ${entry.sticky}`,
             entry.cooldown > 0 && `cooldown ${entry.cooldown}`,
@@ -914,7 +914,7 @@ export function loreReceipt(entries, notes, rows, book, recalled = []) {
     for (const uid of notes?.ids || []) {
         const row = rows.find(item => item.uid === uid);
         if (row) add({ book, uid, ...source, recallUid:String(uid),title:row.kind === 'secret' && row.status !== 'out' ? 'Concealed entry' : row.name,
-            timing:recallTiming(row.activation),selected:true, role:'Story World', delivery:'Story notes block', text:notes.text });
+            timing:recallTiming(row.activation),selected:true, role:'Story World', delivery:'Recall block', text:notes.text });
     }
     const recordEntries=new Map(rows.map(row=>[readRecord(row)?.id,row]));
     for (const {record,text} of recalled) {

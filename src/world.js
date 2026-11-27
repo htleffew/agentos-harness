@@ -264,7 +264,7 @@ export function entryFlags(w, others = []) {
     if (twin) checks.push(`"${twin.name}" in this world has the same name or another name in common. If they are the same, keep one entry.`);
     if (!def.fields.some(f => clean(w.fields[f.key]))) warns.push('Every line is empty, so nothing would be sent for this entry.');
     const size = Math.round(renderEntry(w).length / 4);
-    if (size > 220 && w.kind !== 'chapter') warns.push(`This entry is about ${size} tokens. Long entries use up the room for story notes quickly.`);
+    if (size > 220 && w.kind !== 'chapter') warns.push(`This entry is about ${size} tokens. Long entries use up the room for Recall quickly.`);
     if (w.kind === 'secret' && clean(w.fields.secret) && !clean(w.fields.holder)) warns.push('Say whose secret it is, so it can be sent when that person is in the scene.');
     if (w.kind !== 'chapter') { const hit = wordFlag(def.fields.map(f => w.fields[f.key]).join(' \n ')); if (hit) warns.push(hit); }
     return { blocks, checks, warns };
@@ -629,7 +629,7 @@ export async function writeWorldEntryWithAI({ kind, about, context, existing = [
     const obj = parseJson(answer.slice(Math.max(0, answer.indexOf('{'))));
     if (!obj || typeof obj !== 'object' || Array.isArray(obj) || !Object.keys(obj).some(k => k === 'name' || keys.includes(k))) {
         const began = clean(answer).slice(0, 140);
-        const why = `The AI answered, but no entry could be read from the answer. It began: "${began}". The Log tab has the whole answer.`;
+        const why = `The AI answered, but no entry could be read from the answer. It began: "${began}". Review, Request log has the whole answer.`;
         res.note(why, false);
         throw new Error(why);
     }

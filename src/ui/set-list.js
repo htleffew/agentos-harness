@@ -13,7 +13,7 @@ const KINDS = [
     { value:'instructions', label:'Instruction set' },
     { value:'events', label:'Story event set' },
     { value:'style', label:'Writing style set' },
-    { value:'lorebook', label:'Lorebook you already have, as an instruction set' },
+    { value:'lorebook', label:'World Info book you already have, as an instruction set' },
 ];
 
 // The open Add set form lives here so a redraw while it is open keeps what was typed.
@@ -51,11 +51,11 @@ function addForm(app) {
     const kinds = KINDS.filter(item => item.value !== 'lorebook' || lorebooks.length);
     if (adding.kind === 'lorebook' && !lorebooks.includes(adding.lorebook)) adding.lorebook = lorebooks[0];
     const nameField = adding.kind === 'lorebook'
-        ? field('Lorebook to open', 'The lorebook file is left as it is until you edit one of its instructions. A shared lorebook made by this extension adds every set kept inside it.',
+        ? field('World Info book to open', 'The World Info book file is left as it is until you edit one of its instructions. A shared World Info book made by this extension adds every set kept inside it.',
             select(lorebooks.map(name => ({ value:name, label:name })), adding.lorebook, value => { adding.lorebook = value; }))
         : field('Name', '', textInput(adding.name, value => { adding.name = value; }, { 'aria-label':'Name for the new set', maxLength:120 }));
     return h('div', { class:'ri-card ri-pick', 'data-add-set':'' },
-        field('Kind of set', 'Instruction sets send occasional directions. Story event sets roll a story event. Writing style sets change how replies are written.',
+        field('Kind of set', 'Instruction sets send occasional directions, story event sets roll a story event and writing style sets change how replies are written.',
             select(kinds, adding.kind, value => { adding.kind = value; adding.error = ''; app.render(); }, { 'aria-label':'Kind of set' })),
         nameField,
         adding.error && h('p', { class:'ri-note ri-note-warn', role:'status' }, adding.error),
@@ -90,8 +90,8 @@ export function renderSetList(body, app) {
 
     body.append(group('Story event sets', EVENT_KINDS.events.intro,
         enabledV10() && h('div', { class:'ri-note' },
-            h('p', {}, `Autonomous world events are ${effectiveModules().worldEvents ? 'on' : 'off'} for this chat. They offer optional developments independently of the event sets below.`),
-            button('Change autonomous world events', () => app.openSetting('v10', 'ri-module-worldEvents', 'chat'), { kind:'ghost' })),
+            h('p', {}, `Plot offers are ${effectiveModules().worldEvents ? 'on' : 'off'} for this chat. They offer optional developments independently of the event sets below.`),
+            button('Change plot offers', () => app.openSetting('v10', 'ri-module-worldEvents', 'chat'), { kind:'ghost' })),
         home('event-wording', slot(['event'], 'Customize in-chat story event wording', { contextual:true })),
         slot(['eventWriterRules', 'anywhere', 'situationRules', 'complicationRules', 'driverRules', 'toneRules', 'stakeRules', 'rewriteRules', 'systemItems', 'systemRewrite'], 'Customize Write with AI prompts'),
         events.length ? events.map(name => eventSetCard(app, name, EVENT_KINDS.events)) : empty('No story event sets yet. Press "Add set" to make the first one.')));

@@ -135,9 +135,11 @@ const fixture = { prompt_order: [{ character_id: 100000, order: ['late', 'depth'
             const r = await send(`reply-${reply}`);
             assert.equal(r.text.includes(LATE), false, `reply ${reply}: the block that starts at reply 5 is left out`);
             assert.equal(r.text.includes(CONT), false, `reply ${reply}: the continue-only block is left out of a normal reply`);
+            // Every reply sends the stack's blocks, also when the scene job of the last reply or a token count lands while
+            // this one is being built.
+            const where = placed(r.messages, DEPTH);
+            assert.ok(where, `reply ${reply}: the depth block is sent`);
             if (reply === 2) {
-                const where = placed(r.messages, DEPTH);
-                assert.ok(where, 'the depth block is sent');
                 assert.equal(where.after, 2, 'the depth block sits two chat messages from the end');
                 assert.equal(where.role, 'user', 'the depth block keeps its role');
                 mark('depth-2', where);
@@ -166,6 +168,12 @@ const fixture = { prompt_order: [{ character_id: 100000, order: ['late', 'depth'
         assert.match(await card('Continue Only').locator(':scope > .ri-bk-meta').textContent(), /In the chat, depth 1/);
         await depth.scrollIntoViewIfNeeded();
         await shot('1-chips');
+        // A background job that lands (the scene job after a reply) redraws the panel; the page keeps its place.
+        const top = async () => (await depth.boundingBox())?.y;
+        const shown = await top();
+        await ev(async ({ B }) => { (await import(`${B}/src/ui/panel.js`)).render(); });
+        await page.waitForTimeout(100);
+        assert.equal(await top(), shown, 'a background redraw moved the stack');
 
         // 5. The Placement editor: depth 1 as assistant; the next request follows.
         await expand(depth);

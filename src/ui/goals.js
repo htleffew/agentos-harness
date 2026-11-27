@@ -1,6 +1,6 @@
 import { slot } from './homes.js';
 // Character Goals tab: one goal for {{char}} in this chat, repeatable actions, one-time steps.
-import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip } from './dom.js';
+import { h, button, toggle, select, numberInput, textInput, textArea, field, section, versionText, chip, howItWorks } from './dom.js';
 import { goals, saveGoals, goalProgress, stepDone, goalDone, setStepDone, library, saveToLibrary, loadFromLibrary, blankGoal } from '../goals.js';
 import { settings } from '../store.js';
 import { validateVersion, swapNames } from '../validate.js';
@@ -80,7 +80,7 @@ export function renderGoals(body, app) {
     const isDone = goalDone(g, p);
     const n = names();
 
-    body.appendChild(h('div', { class: 'ri-intro' }, `A goal gives ${n.char} something to work toward in this chat. The goal goes with every reply. Now and then one small task is added as an order: a repeatable action, or a one-time step. One-time steps can happen in any order and are ticked off when the reply shows them. Goals are only ever for the character; you write your own.`));
+    body.appendChild(h('div', { class: 'ri-intro' }, [`A goal gives ${n.char} something to work toward in this chat and goes with every reply. Now and then one small task joins it as an order; goals are only for the character.`, howItWorks('A task is a repeatable action or a one-time step. One-time steps can happen in any order and are ticked off when the reply shows them.')]));
     body.appendChild(h('div', { class: 'ri-card ri-setcard' }, h('div', { class: 'ri-card-top' },
         h('div', { class: 'ri-h2' }, 'Goal for this chat'),
         h('label', { class: 'ri-switch-row' }, h('span', {}, g.on ? 'On' : 'Off'), toggle(g.on, v => { g.on = v; saveGoals(); redraw(); }, 'Turn the goal on or off for this chat'))),
@@ -110,7 +110,7 @@ export function renderGoals(body, app) {
 
     // ----- One-time steps -----
     body.appendChild(section('One-time steps (each happens once, in any order)',
-        h('div', { class: 'ri-help' }, settings().check.mode === 'off' ? 'Checking is off in Settings, so steps are not ticked off on their own. Press "Mark done" yourself.' : 'When a step is sent, it is sent again with every reply until the reply shows it happened. Then it is ticked off, with the words that show it.'),
+        h('div', { class: 'ri-help' }, settings().check.mode === 'off' ? 'The follow-through check is off in Direction, Random sets, so steps are not ticked off on their own. Press "Mark done" yourself.' : 'When a step is sent, it is sent again with every reply until the reply shows it happened. Then it is ticked off, with the words that show it.'),
         taskList(g, 'steps', ui, redraw, (t) => {
             const d = p.done.get(t.id);
             const done = stepDone(t, p);
@@ -172,7 +172,7 @@ function aiBox(g, ui, redraw) {
     const r = ai.result;
     const show = (label, list) => [h('div', { class: 'ri-label' }, label), h('div', { class: 'ri-versions' }, list.map(t => h('div', { class: 'ri-version' }, h('span', { class: 'ri-vbody' }, versionText(t)), taskFlags(t))))];
     box.append(
-        h('div', { class: 'ri-help' }, 'This is everything the AI wrote. Nothing changes until you press a button. You can edit it afterwards.'),
+        h('div', { class: 'ri-help' }, 'This is everything the AI wrote. Nothing changes until you press a button.'),
         h('div', { class: 'ri-label' }, 'Goal'), h('div', { class: 'ri-preview' }, versionText(r.goal)),
         ...show('One-time steps', r.steps), ...show('Repeatable actions', r.actions),
         h('div', { class: 'ri-row' },

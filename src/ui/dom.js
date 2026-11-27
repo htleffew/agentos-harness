@@ -175,6 +175,11 @@ export function foldCard(summaryKids, bodyKids, { open = false, cls = '' } = {})
         h('div', { class: 'ri-fold-body' }, bodyKids));
 }
 
+/** A "How it works" disclosure under a help line: the outcome stays in the line, the mechanism sits here (DESIGN.md 2.3 item 3). */
+export function howItWorks(...kids) {
+    return h('details', { class: 'ri-how' }, h('summary', {}, 'How it works'), h('div', { class: 'ri-help' }, kids));
+}
+
 export function chip(text, cls = '') {
     return h('span', { class: `ri-chip ${cls}` }, text);
 }

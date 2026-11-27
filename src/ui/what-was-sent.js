@@ -322,7 +322,7 @@ export function sentView(record, { app = null, essentials = null, fired = [], ro
         kv('Tracker book', `${n(s.tracker)} of ${n(s.caps.tracker)} tokens`), kv('Memory notes', `${n(s.instruction)} tokens`), kv('Depth 0', `${n(s.depth0)} tokens`),
         kv('Whole request', record.next ? 'Known when it is sent' : `${n(s.total)} of ${n(s.ceiling)} tokens`))));
     parts.push(section('Cache', record.cache
-        ? h('p', { class: 'ri-help', 'data-ri-cache': '' }, `First changed message: ${n(record.cache.firstChanged + 1)} of ${n(record.cache.messages)}. About ${n(record.cache.lostTokens)} tokens after it are reprocessed. ${record.cache.followsHistory ? 'The change follows the history.' : 'The change starts above the history: a chapter closed, or something above the history changed.'}`)
+        ? h('p', { class: 'ri-help', 'data-ri-cache': '' }, `First changed message: ${n(record.cache.firstChanged + 1)} of ${n(record.cache.messages)}, and about ${n(record.cache.lostTokens)} tokens after it are reprocessed.${record.cache.followsHistory ? 'The change follows the history.' : 'The change starts above the history: a chapter closed, or something above the history changed.'}`)
         : h('p', { class: 'ri-muted' }, record.next ? 'Known when it is sent.' : 'First request of this chat in this session.')));
     const t = record.tracker;
     parts.push(section('Tracker book', t.entries.length

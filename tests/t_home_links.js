@@ -46,7 +46,7 @@ const L = require('./lib.js');
         await page.evaluate(async B => (await (await import(`${B}/src/ui/panel.js`)).app.setExpanded(false)), L.BASE);
         await L.openQuickActions(page);
         const sheet = page.locator('.ri-quick-sheet');
-        await sheet.getByRole('button', { name: 'Draft my reply', exact: true }).first().tap();
+        await sheet.getByRole('button', { name: 'Impersonate', exact: true }).first().tap();
         const impersonationRow = sheet.locator('[data-home-link="impersonation-prompts"]');
         await impersonationRow.waitFor({ state: 'attached', timeout: 10000 });
         await impersonationRow.evaluate(node => { for (let item = node; item; item = item.parentElement) if (item.tagName === 'DETAILS') item.open = true; });

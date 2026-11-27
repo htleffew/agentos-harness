@@ -9,7 +9,7 @@
 // The page lays itself out by its own width (a container query on .ri-bk): under 760 px one view at a time behind a Stack
 // and Bank segmented control, Compare as a partial sheet; at 760 px and wider the bank and the stack side by side, Compare
 // as columns over the bank.
-import { h, button, toggle, select, field } from './dom.js';
+import { h, button, toggle, select, field, howItWorks } from './dom.js';
 import { slot, homeLink } from './homes.js';
 import { conflictSection } from './preset-conflicts.js';
 import { fitBottom } from './generate-sheet.js';
@@ -137,7 +137,7 @@ const tokenText = card => card.marker ? 'filled by SillyTavern' : `${card.raw ? 
  * Setup, Features, is the shipped default, because riGroup reads the stored prompt.
  */
 const wordingFeature = item => item ? savedWordingOf(item) || (B.parseKey(item.key).source === B.SOURCE_MINE ? riFeatureOfVersion(B.parseKey(item.key).id) : '') : '';
-const wordingGone = feature => `Your wording of ${FEATURES[feature]?.label || feature} came with this stack, but the Prompts page on this device holds no saved wording for it. This card keeps sending the text below at the end of the request until you take it out. While the feature is on in Setup, Features, its guidance is the shipped default as well. Save this text on the Prompts page to make it the feature's wording again.`;
+const wordingGone = feature => [`Your wording of ${FEATURES[feature]?.label || feature} came with this stack, but Setup, Prompts holds no saved wording for it. This card keeps sending the text below until you take it out.`, howItWorks('While the feature is on in Setup, Features, its guidance is the shipped default as well. Save this text on Setup, Prompts to make it the feature’s wording again.')];
 
 /** The chips a card carries for where it stands: Changed in source, Source removed, In another copy, Yours. */
 function statusChips(item, data) {
@@ -147,7 +147,7 @@ function statusChips(item, data) {
     if (item?.elsewhere) out.push(chip(`In another copy: ${plainName(item.elsewhere)}`, 'distinct'));
     if (item?.source === B.SOURCE_MINE && item.cleanStatus === 'changed') out.push(chip('Changed in source', 'tag'));
     if (item?.source === B.SOURCE_MINE && item.cleanStatus === 'removed') out.push(chip('Source removed', 'conflict'));
-    if (item?.landmark) out.push(chip('Host row'));
+    if (item?.landmark) out.push(chip('Preset row'));
     if (wordingFeature(item)) out.push(chip('Your wording', 'ours'));
     return out;
 }
@@ -339,7 +339,7 @@ function versionEditor(data, card, show) {
 function riEditor(feature) {
     const ids = MODULE_PROMPTS[feature] || [];
     return h('div', { class: 'ri-bk-editor' },
-        hint('This edits the stored prompt the Prompts page also shows. Saved wording goes in as its own card, on, and the shipped card turns off, one tap from back on.'),
+        hint('This edits the stored prompt Setup, Prompts also shows. Saved wording goes in as its own card, on, and the shipped card turns off, one tap from back on.'),
         ids.length ? slot(ids, '', { bare: true, onChange: () => queueDraw() }) : hint('This feature has no stored prompt to edit here.'),
         // The commentator voice has one home, in Setup, Features; this card edits only the Roast prompt, the same stored prompt that home shows.
         feature === 'roast' ? homeLink(appRef, 'roast-voice', 'The commentator voice is set in Setup, Features, beside this prompt.') : null);
@@ -374,7 +374,7 @@ function stackPane(data) {
         for (const item of items) {
             if (moving && moving.group === items.group && !moving.keys.includes(item.key)) out.push(target(item.key));
             if (item.landmark) { strip = null; out.push(h('div', { class: 'ri-bk-landmark', role: 'listitem', 'data-stack-key': item.key }, h('span', {}, plainName(item.name)),
-                item.on ? null : chip('Left out', 'conflict'), item.on ? null : includeControl(false, next => tapInclude(data, item.key, next), `Send ${plainName(item.name)}`, 'host row', `inc|${item.key}`))); continue; }
+                item.on ? null : chip('Left out', 'conflict'), item.on ? null : includeControl(false, next => tapInclude(data, item.key, next), `Send ${plainName(item.name)}`, 'preset row', `inc|${item.key}`))); continue; }
             const row = cardRow(data, item, item, 'stack', { controls: moveControls(data, item, items) });
             row.setAttribute('role', 'listitem');
             if (!item.on && !moving) {
@@ -397,7 +397,7 @@ function stackPane(data) {
     const follows = Object.keys(FEATURES).filter(key => !carded.has(key));
     return h('section', { class: 'ri-bk-pane ri-bk-stack', 'aria-label': 'Stack' }, head, batchBar(data), list,
         h('div', { class: 'ri-bk-group' }, h('h4', { class: 'ri-ps-heading' }, 'Sent by Roleplay Instructions'),
-            hint('The extension sends these cards at the end of the request, in this order. When you save your own wording on the Prompts page it goes in as its own card, on, and the shipped card turns off, one tap from back on.'),
+            hint('The extension sends these cards at the end of the request, in this order. When you save your own wording on Setup, Prompts it goes in as its own card, on, and the shipped card turns off, one tap from back on.'),
             riList,
             follows.length ? h('p', { class: 'ri-ps-meta', id: 'ri-bk-follows' }, `Follows Features: ${follows.map(key => FEATURES[key].label).join(', ')}. These features have no card in this stack, so their switch in Setup, Features decides.`) : null),
         checkSection(data),

@@ -421,7 +421,7 @@ export async function editSet(id, edit, save = data => saveSet(id, data)) {
     const pending = (previous ?? Promise.resolve()).catch(() => {}).then(async () => {
         if (!settings().sets[id]) throw new Error('This set is no longer in the list.');
         const loaded = await loadSet(id);
-        if (!loaded) throw new Error(`The lorebook "${book}" could not be read.`);
+        if (!loaded) throw new Error(`The World Info book "${book}" could not be read.`);
         const data = structuredClone(loaded);
         edit(data);
         await save(data);
@@ -446,10 +446,10 @@ export function cleanSetName(name) {
 /** Read a lorebook that is to hold sets as groups. Returns fresh data when the lorebook does not exist yet. */
 async function openShared(book) {
     const st = settings();
-    if (st.sets[book] && !st.sets[book].book) throw new Error(`"${book}" is the lorebook of a set that is kept on its own. Pick another lorebook to share.`);
+    if (st.sets[book] && !st.sets[book].book) throw new Error(`"${book}" is the World Info book of a set that is kept on its own. Pick another World Info book to share.`);
     if (!worldNames().includes(book)) return { entries: {} };
     const data = await loadBook(book);
-    if (!data || typeof data !== 'object') throw new Error(`The lorebook "${book}" could not be read.`);
+    if (!data || typeof data !== 'object') throw new Error(`The World Info book "${book}" could not be read.`);
     if (!data.entries || typeof data.entries !== 'object') data.entries = {};
     return data;
 }
@@ -460,7 +460,7 @@ function freeGroup(book, data, name) {
     const taken = n => !!st.sets[sharedId(book, n)] || !!data.extensions?.ri?.groups?.[n];
     if (!taken(name)) return name;
     for (let i = 2; i < 500; i++) if (!taken(`${name} ${i}`)) return `${name} ${i}`;
-    throw new Error(`A set named "${name}" is already in the shared lorebook "${book}". Pick another name.`);
+    throw new Error(`A set named "${name}" is already in the shared World Info book "${book}". Pick another name.`);
 }
 
 /**
@@ -473,7 +473,7 @@ export async function createSet(name, kind = 'instructions', data = { entries: {
     const st = settings();
     home = cleanSetName(home === undefined ? st.home : home);
     if (!home) {
-        if (worldNames().includes(name) || st.sets[name]) throw new Error(`A lorebook named "${name}" already exists. Pick another name.`);
+        if (worldNames().includes(name) || st.sets[name]) throw new Error(`A World Info book named "${name}" already exists. Pick another name.`);
         st.sets[name] = { limit: 'none', max: 2, kind };
         saveSettings();
         await saveSet(name, data);
@@ -482,7 +482,7 @@ export async function createSet(name, kind = 'instructions', data = { entries: {
     }
     const book = await openShared(home);
     const id = sharedId(home, name);
-    if (st.sets[id] || book.extensions?.ri?.groups?.[name]) throw new Error(`A set named "${name}" is already in the shared lorebook "${home}". Pick another name.`);
+    if (st.sets[id] || book.extensions?.ri?.groups?.[name]) throw new Error(`A set named "${name}" is already in the shared World Info book "${home}". Pick another name.`);
     for (const e of Object.values(data.entries || {})) {
         const uid = freeUid(book);
         book.entries[uid] = { ...e, uid, displayIndex: uid, extensions: { ...(e.extensions || {}), ri: { ...(e.extensions?.ri || {}), set: name } } };
@@ -526,7 +526,7 @@ export async function copyGuidelinesToInstructions(book) {
  */
 export async function adoptSet(name) {
     const data = await loadBook(name);
-    if (!data || typeof data !== 'object') throw new Error(`The lorebook "${name}" could not be read.`);
+    if (!data || typeof data !== 'object') throw new Error(`The World Info book "${name}" could not be read.`);
     const st = settings();
     const saved = data.extensions?.ri;
     const opts = o => ({ limit: LIMITS[o?.limit] ? o.limit : 'none', max: Math.max(1, Number(o?.max) || 2), kind: KINDS.includes(o?.kind) ? o.kind : 'instructions', ...(Array.isArray(o?.was) && o.was.length ? { was: [...o.was] } : {}) });
@@ -565,7 +565,7 @@ export async function moveSet(id, home) {
     home = cleanSetName(home);
     if (from.shared ? home === from.book : !home) return { id, from: id, keys: [] };
     const source = await loadSet(id);
-    if (!source) throw new Error(`The lorebook "${from.book}" could not be read.`);
+    if (!source) throw new Error(`The World Info book "${from.book}" could not be read.`);
     const moving = entriesOf(source, id).sort((a, b) => (Number(a.displayIndex ?? a.uid) - Number(b.displayIndex ?? b.uid)) || (a.uid - b.uid));
     const opts = { limit: from.limit, max: from.max, kind: from.kind, was: [...new Set([...from.was, id])] };
     const keys = [];

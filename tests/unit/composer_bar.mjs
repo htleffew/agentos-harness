@@ -116,7 +116,7 @@ test('pins that fit at 523 px: 9 in Compact and 6 in Comfortable', () => {
 test('the Generate sheet matches the 4.4 table for its four kinds', () => {
     const npc = { title: 'NPC options', kind: 'options', count: 4, prompt: 'Suggest a new NPC.' };
     assert.deepEqual(sheetText('options', npc, 'DeepSeek V3'), { title: 'NPC options', cost: '1 model call · extra request · DeepSeek V3', call: 'extra', dot: true,
-        boxLabel: 'Steer these options', generate: 'Generate 4 options', saved: 'Prompt: Suggest a new NPC.' });
+        boxLabel: 'Add to these options', generate: 'Generate 4 options', saved: 'Prompt: Suggest a new NPC.' });
     const swipe = sheetText('swipe', { title: 'More emotional', text: 'Let them show it.' });
     assert.deepEqual([swipe.boxLabel, swipe.generate, swipe.dot, swipe.saved], ['Add to this swipe', 'Swipe', false, 'Direction: More emotional']);
     assert.equal(sheetText('swipe', { title: 'Swipe', text: '' }).saved, 'No saved direction');

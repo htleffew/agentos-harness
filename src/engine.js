@@ -856,7 +856,7 @@ function onScanDone(args) {
             lore:plan.v10Turn || receiptNotes ? loreReceipt(map.values(),receiptNotes,plan.v10Turn ? plan.v10Rows : plan.flow?.rows || [],plan.flow?.id,
                 guidanceSelected ? plan.v10Turn?.recalled : []) : null, usedUp: gen.usedUp || null,
             guided: gen.guided ? {direction:gen.guided.direction,repeatOrders:gen.guided.repeatOrders,correctionId:gen.guided.correction?.id,roll:gen.guided.roll} : null };
-        if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open the Random Story Events tab and press "Bring the used items back".`);
+        if (gen.usedUp) toast('info', `Used up in this chat: ${gen.usedUp.map(n => `"${n}"`).join(', ')}. Every item of its main list has happened, so it sends no more events here. To use it again in this chat, open Direction, Random sets and press "Bring the used items back".`);
         rerollCat = null;
         saveChatState();
         // A set with "Smooth the rolled parts into prose" on: the rolled parts go to the background model before the
@@ -1186,7 +1186,7 @@ async function runCheck(id, authorization = 'automatic') {
     let results = null;
     try {
         const swipe = Number(m.swipe_id || 0);
-        const res = await request({ operation:'instructionCheck', authorization, what:'Check that it happened',user,tokens:500,
+        const res = await request({ operation:'instructionCheck', authorization, what:'Follow-through check',user,tokens:500,
             target:{id,swipe,label:`${m.name || 'Reply'} · swipe ${swipe+1}`},
             onReceipt:value=>{if (!stale()) rec.checkExecution=value;}
         });
@@ -1260,13 +1260,13 @@ async function autoRegenerate({ id, rec, chatId, missed }) {
     return runAdditional('automaticSwipe',{authorization:'automatic',target,mainOnly:true,onReceipt:saveReceipt},async ({receipt})=>{
         if (typeof c.swipe?.right!=='function') {
             receipt.attempts=0;
-            throw new Error('The host does not expose an automatic swipe that waits for the reply.');
+            throw new Error('SillyTavern does not expose an automatic swipe that waits for the reply.');
         }
-        receipt.route='Host swipe';
+        receipt.route='SillyTavern swipe';
         await withSingleHostRequest(()=>triggerSwipe({append:true}));
         if (ctx().chat!==chat || chat[id]!==message) throw new DOMException('The chat changed during the automatic swipe.','AbortError');
-        if (message.swipe_id===swipe || !message.extra?.[KEY]) throw new Error('The host did not accept an automatic replacement.');
-        receipt.result='The host accepted a replacement swipe.';
+        if (message.swipe_id===swipe || !message.extra?.[KEY]) throw new Error('SillyTavern did not accept an automatic replacement.');
+        receipt.result='SillyTavern accepted a replacement swipe.';
     });
 }
 
@@ -1276,7 +1276,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': 
 
 export function statusLabel(it) {
     if ('goalTask' in it && it.noCheck) return it.goalTask?.type === 'action' ? 'Sent (repeatable actions are not checked)' : it.goalTask ? 'Sent (not checked)' : 'Sent (goal line)';
-    if (it.notes) return 'Sent (story notes are facts, with nothing to check)';
+    if (it.notes) return 'Sent (Recall holds facts, with nothing to check)';
     if (it.pace) return 'Sent (the line of the story phase)';
     if (it.dice) return 'Sent (dice results, to be used only for an attempt with real stakes)';
     if (it.modelDirection) return 'Sent (reply-writing guidance)';
@@ -1551,7 +1551,7 @@ async function guideHostTurn(operation, direction, { repeatOrders = false, keepM
     if (!settings().enabled) throw new Error('Turn the extension on first.');
     if (value.length > (target ? 12000 : 2000) || replacing && !value) throw new Error('Enter a shorter direction for this reply.');
     if (guided || guidedPreparing || isGenerating()) throw new Error('Wait for the current generation to finish.');
-    if (target && validateGuidedTarget(target).index !== id) throw new Error('This host only runs an ordinary guided request against the latest reply.');
+    if (target && validateGuidedTarget(target).index !== id) throw new Error('SillyTavern only runs an ordinary guided request against the latest reply.');
     if (!isReply(m) || m.is_system || (replacing && !m.extra?.[KEY] && !target)) throw new Error('A character reply must be the latest message.');
     if (replacing && !correction && !target && Array.isArray(m.swipes) && Number(m.swipe_id || 0) < m.swipes.length - 1) throw new Error('Move to the newest existing swipe first, then use Guide a swipe.');
     const prior = m.extra?.[KEY] || {};
@@ -1583,7 +1583,7 @@ async function guideHostTurn(operation, direction, { repeatOrders = false, keepM
         signal?.throwIfAborted();
         const run = () => replacing ? triggerSwipe({ append: !!correction || !!target }) : triggerContinuation();
         const ok = waitForResult || correction ? await withSingleHostRequest(run) : await run();
-        if (!ok) throw new Error(`The host could not start this ${replacing ? 'swipe' : 'continuation'}.`);
+        if (!ok) throw new Error(`SillyTavern could not start this ${replacing ? 'swipe' : 'continuation'}.`);
         if (guided === attempt && !attempt.started) {
             setTimeout(() => {
                 if (guided !== attempt || attempt.started) return;

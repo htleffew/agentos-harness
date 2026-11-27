@@ -58,7 +58,7 @@ const L = require('./lib.js');
         await tap(panel,'Back to chat');
         assert.equal(await first.locator('.extraMesButtonsHint, .ri-mes-button[data-ri-entry="correct"]').first().isVisible(),true,'the reply\'s menu is back on screen');
         await L.openReplyAction(page,'swipe');
-        assert.match(await sheet.getByRole('heading').innerText(),/Generate an alternate reply/i);
+        assert.match(await sheet.getByRole('heading').innerText(),/Swipe/i);
         await tap(sheet,'Close');
         await L.openMenuEntry(page,'correct',2);
         await panel.getByLabel('Correct story fact',{exact:true}).fill('The keeper left a sealed letter.');

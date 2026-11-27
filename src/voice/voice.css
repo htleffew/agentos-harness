@@ -11,4 +11,16 @@
 .ri-voice-url-problem:empty, .ri-voice-probe:empty, .ri-voice-result:empty { display: none; }
 .ri-voice-button:focus-visible { outline: 2px solid var(--ri-focus); outline-offset: 1px; }
 .ri-voice-button[data-ri-elapsed]::after { content: attr(data-ri-elapsed); font-family: inherit; font-weight: 400; font-size: 12px; margin-left: 2px; }
+/* V2: the Delivery fold and the Play sheet. */
+.ri-voice-range + .ri-voice-value { margin-right: calc(var(--ri-gap) * 2); }
+.ri-voice-sends { font-variant-numeric: tabular-nums; }
+.ri-voice-preset { width: 100%; max-width: 100%; }
+.ri-psheet-status { margin: 0; font-size: var(--ri-type-help); color: var(--ri-text); }
+.ri-psheet-status:empty { display: none; }
+.ri-psheet-row { display: flex; flex-wrap: wrap; gap: calc(var(--ri-gap) * 2); }
+.ri-psheet-moment[aria-pressed="true"] { border-color: var(--ri-select-line); color: var(--ri-text); box-shadow: inset 0 0 0 1px var(--ri-select-line); }
+.ri-psheet-moment[aria-pressed="true"]::before { content: "\2713"; margin-right: 2px; }
+.ri-psheet-note { margin: 0; font-size: var(--ri-type-help); color: var(--ri-text-muted); }
+.ri-psheet .ri-gsheet-label { margin: 0 0 4px; }
+@media (forced-colors: active) { .ri-psheet-moment[aria-pressed="true"] { border-color: Highlight; } }
 #ri-voice-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }

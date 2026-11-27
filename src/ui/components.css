@@ -67,6 +67,8 @@
 .ri-intro, .ri-help, .ri-muted, .ri-unit, .ri-kept, .ri-world-line { color: var(--ri-text-muted); font-size: var(--ri-type-help); font-weight: 500; }
 .ri-intro { margin-bottom: var(--ri-pad); }
 .ri-help { margin-top: var(--ri-gap); }
+/* How it works fold under a help line (DESIGN.md 2.3 item 3): the shared summary row, one gap above it. */
+.ri-how { margin-top: var(--ri-gap); }
 .ri-h2, .ri-sent-title, .ri-sent-name, .ri-log-what, .ri-card-name { color: var(--ri-text); font-weight: 700; font-size: var(--ri-type-body); }
 .ri-pre, .ri-token-raw, .ri-num input { font-family: var(--ri-font); font-size: var(--ri-type-data); font-variant-numeric: tabular-nums; }
 

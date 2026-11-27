@@ -5,10 +5,10 @@ import { historySourceMark } from './history-source.js';
 import { chainFor, detectRoutes, resolveRoute, runChain } from './routing.js';
 
 export const EXECUTION_OPERATIONS = Object.freeze({
-    playerDraft: { label:'Generate my draft',preserveDraft:true },
+    playerDraft: { label:'Write my next message',preserveDraft:true },
     playerChoices: { label:'Give me choices',preserveDraft:true },
     playerExpansion: { label:'Draft from this choice',preserveDraft:true },
-    historicalSwipe: { label:'Generate a historical swipe' },
+    historicalSwipe: { label:'Swipe an earlier reply' },
     historicalContinue: { label:'Continue a historical reply' },
     factRepair: { label:'Find source facts to repair' },
     chapterSummary: { label:'Write a chapter summary',
@@ -29,14 +29,14 @@ export const EXECUTION_OPERATIONS = Object.freeze({
     writerRewrite: { label:'Rewrite event items' },
     writerGoal: { label:'Draft a character goal' },
     writerWorld: { label:'Draft a Story World entry' },
-    bookKeywords: { label:'Suggest lorebook trigger phrases' },
-    presetParity: { label:'Compare preset blocks and extension modules' },
+    bookKeywords: { label:'Suggest Primary Keywords' },
+    presetParity: { label:'Compare preset blocks and extension features' },
 });
 
 export const EXECUTION_STAGES = Object.freeze({
     code: { label:'Runs in code', icon:'◇' },
     reply: { label:'Uses the reply request', icon:'↪' },
-    additional: { label:'Additional model request', icon:'▲' },
+    additional: { label:'Additional model call', icon:'▲' },
 });
 
 const recent = new Map();
@@ -78,7 +78,7 @@ export function setExecutionSetting(operation, change) {
     const functions = execution.functions ||= {};
     const entry = { ...(Object.hasOwn(functions,operation) ? functions[operation] : null) };
     const current = executionSetting(operation);
-    if (def.mainOnly && (change.profileId || change.mode==='auto' || change.fallback)) throw new Error('This function uses the host reply connection.');
+    if (def.mainOnly && (change.profileId || change.mode==='auto' || change.fallback)) throw new Error('This function uses the reply connection of SillyTavern.');
     if (change.mode !== undefined || change.profileId !== undefined || change.fallback !== undefined) {
         entry.mode = change.mode ?? (change.profileId !== undefined ? 'fixed' : current.mode);
         entry.profileId = String(change.profileId ?? current.profileId);
@@ -188,8 +188,8 @@ export function executionPreview(operation, { stage = 'additional', target, trig
     const profileId = chain[0]?.route==='override' ? chain[0].profileId : '';
     const profile = profileId ? listProfiles().find(item=>item.id===profileId) : null;
     const problem = profileId && !profile ? `The saved connection profile (${profileId}) is unavailable.`
-        : profileId && (mainOnly || def?.mainOnly) ? 'This host operation requires Main API.'
-        : profileId && !canUseProfiles() ? 'This host cannot send through the saved connection profile.' : '';
+        : profileId && (mainOnly || def?.mainOnly) ? 'This needs Main API.'
+        : profileId && !canUseProfiles() ? 'SillyTavern cannot send through the saved connection profile.' : '';
     const head = profile ? `Connection profile: ${profile.name}` : profileId ? `Unavailable profile (${profileId})` : mainConnection();
     const connection = kind === 'code' ? '' : setting?.mode==='auto' ? `Automatic: ${chainSummary(chain)}. Runs first today: ${firstStep(chain)}`
         : setting?.fallback ? `${head}. If it fails, falls back to ${chainSummary(chain.slice(1))}` : head;
@@ -224,7 +224,7 @@ export async function runAdditional(operation, { authorization, target, onReceip
         attempts:0, outcome:'pending', result:'' };
     const block = !def ? 'This model function is unknown.'
         : authorization !== 'manual' && (authorization !== 'automatic' || !automaticAllowed(operation)) ? 'Additional model work needs authorization.'
-        : preview.problem || (requireRaw && !preview.profileId && !preview.viaChain && typeof ctx().generateRaw!=='function' ? 'This host does not expose direct generation on Main API.' : '');
+        : preview.problem || (requireRaw && !preview.profileId && !preview.viaChain && typeof ctx().generateRaw!=='function' ? 'SillyTavern does not expose direct generation on Main API.' : '');
     if (block) {
         receipt.outcome = 'blocked';
         receipt.result = block;
@@ -240,7 +240,7 @@ export async function runAdditional(operation, { authorization, target, onReceip
     receipt.outcome = 'running';
     publish(receipt,onReceipt);
     const reply=operation==='instructionCheck' && Number.isInteger(target?.id) && ctx().chat?.[target.id];
-    const entry = record ? addLog({what:receipt.label,details:[`Additional model request · attempt 1 of 1.`, `Connection ${receipt.connection}.`],
+    const entry = record ? addLog({what:receipt.label,details:[`Additional model call · attempt 1 of 1.`, `Connection ${receipt.connection}.`],
         reply:reply && {scope:receipt.scope,index:target.id,fingerprint:historySourceMark(reply),swipe:Number(reply.swipe_id || 0)}}) : null;
     try {
         const value = await dispatch({profileId:receipt.profileId,receipt});

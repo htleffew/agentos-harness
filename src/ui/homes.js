@@ -10,7 +10,7 @@ export { HOMES };
 
 const pageLabel = {
     memory:'Setup, Memory', display:'Setup, Look', world:'Story, Story World', books:'Story, World Info', writing:'Direction, Writing',
-    v10:'Setup, Features', checks:'Direction, Action checks', portrayal:'Story, Characters', 'set-rules':'Direction, Random sets',
+    v10:'Setup, Features', portrayal:'Story, Characters', 'set-rules':'Direction, Random sets',
     context:'Review, Context', settings:'Setup, Connections', sets:'Direction, Random sets', presets:'Setup, Presets',
 };
 

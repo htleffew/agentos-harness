@@ -1,9 +1,9 @@
 // The menu tree of DESIGN.md 3.1: five top tabs, each with its nested tabs, and the pages that sit in them.
 // The shell in panel.js and the search in menu-search.js read this one list.
 export const taskLabels = {
-    alternate:'Generate an alternate reply',
-    generateAlternate:'Generate alternate reply',
-    continue:'Continue this reply',
+    alternate:'Swipe',
+    generateAlternate:'Swipe',
+    continue:'Continue',
     corrections:'Correct story facts',
     review:'Review this reply',
     browse:'Browse directions',
@@ -46,8 +46,8 @@ export const tabs = [
 // B6 merges them. A bridge stands in for a nested tab whose page another ticket builds, and links to
 // where its settings live today; a registered page with the nested tab's name replaces it.
 const PAGES = [
-    { id:'state', tab:'scene', label:'Current scene', help:'Review the active scene and character snapshots.' },
-    { id:'opening', tab:'scene', label:'Opening', help:'Choose a greeting or prepare an opening. It comes first while the chat holds only its first message.', aliases:'first message greeting' },
+    { id:'state', tab:'scene', label:'Current scene', help:'Review the active scene and character state.' },
+    { id:'opening', tab:'scene', label:'First message', help:'Choose a greeting or prepare a first message. It comes first while the chat holds only its first message.', aliases:'first message greeting' },
     { id:'corrections', tab:'scene', label:'Correct story facts', help:'Find, correct or undo a story fact.', aliases:'fix a fact correct source repair wrong facts' },
     { id:'portrayal', tab:'characters', label:'Portrayal & knowledge', help:'Pronouns, character portrayal and who knows a fact.', aliases:'persona character card npc pronouns' },
     { id:'emotion', tab:'characters', label:'Emotions & relationships', help:'Review a character or relationship pair.' },
@@ -65,15 +65,15 @@ const PAGES = [
     { id:'goals', tab:'goal', label:'Character goals', help:'Set a goal and order its steps.', aliases:'objective' },
     { id:'writing', tab:'writing', label:'Writing guidance', help:'Edit ongoing guidance and reply screening, including new NPC names to avoid.', aliases:'writing review diagnostics prose npc names avoid stock phrases' },
     { id:'bridge-bar', tab:'bar', label:'Bar', withoutChat:true, aliases:'pins composer toolbar',
-        bridge:{ page:'v10', anchor:'#ri-composer-settings', text:'The bar’s pins are set in Setup, Features, Composer quick actions until this page is built.' } },
+        bridge:{ page:'v10', anchor:'#ri-composer-settings', text:'The bar’s pins are set in Setup, Features, Quick action bar until this page is built.' } },
     { id:'bridge-library', tab:'library', label:'Library', withoutChat:true, aliases:'manage quick actions saved actions',
-        bridge:{ page:'v10', anchor:'#ri-composer-library', text:'The library opens from Setup, Features, Composer quick actions until this page is built.' } },
+        bridge:{ page:'v10', anchor:'#ri-composer-library', text:'The library opens from Setup, Features, Quick action bar until this page is built.' } },
     { id:'sent', tab:'replies', label:'What was sent', help:'Inspect a reply’s directions, sources and execution.', aliases:'receipt review reply notes swipe alternate version' },
     { id:'context', tab:'context', label:'Context & memory', help:'What this chat sends now, memory filing status and the next reply preview.', aliases:'summary recall history filing next reply preview token' },
     { id:'log', tab:'request-log', label:'Request log', help:'Inspect request outcomes or export the log.', withoutChat:true },
     { id:'v10', tab:'features', label:'Features', help:'Turn each feature on or off and edit the Roast voice.', aliases:'preset prompt impersonation modules extensions workflow roast reply plan version', withoutChat:true },
     { id:'bridge-presets', tab:'presets', label:'Presets', withoutChat:true,
-        bridge:{ page:'v10', match:'Active host preset', text:'The active preset is shown in Setup, Features until this page is built.' } },
+        bridge:{ page:'v10', match:'Active preset', text:'The active preset is shown in Setup, Features until this page is built.' } },
     { id:'bridge-memory', tab:'memory', label:'Memory', withoutChat:true, aliases:'budget recall',
         bridge:{ page:'memory', anchor:'#ri-memory-settings', text:'Memory settings sit in Setup, Memory.' } },
     { id:'settings', tab:'connections', label:'Connections', help:'Which connection each job uses and what the AI writes for you.', aliases:'connection profile provider request automation more room writer rules word list', withoutChat:true },

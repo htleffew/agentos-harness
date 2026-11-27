@@ -703,7 +703,7 @@ export function render() {
     if (!st.enabled) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, 'The extension is off. Nothing is added, changed or checked until you turn it on at the top.'));
     if (app.missing.length) app.body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `This version of SillyTavern is missing something this extension needs (${app.missing.join(', ')}). Update SillyTavern or TauriTavern to 1.19 or later.`));
     if (!isChatOpen() && !page.withoutChat) app.body.appendChild(h('div', { class: 'ri-note' },
-        ['v10','display'].includes(app.tab) ? 'Open a chat to change its workflow, module activation and display settings.' : 'Open a character chat to use the '+page.label+' controls.'));
+        ['v10','display'].includes(app.tab) ? 'Open a chat to change its workflow, feature switches and display settings.' : 'Open a character chat to use the '+page.label+' controls.'));
 
     renderPage(app.tab, app.body, app);
     breadcrumbs(crumbs, nested);
@@ -714,7 +714,13 @@ export function render() {
     app.root.append(head);
     if (app.searchOpen) app.root.append(searchPanel());
     app.root.append(app.body);
-    if (previous) restoreView(app.body,previous);
+    if (previous) {
+        restoreView(app.body,previous);
+        // A page that draws its body once it is in the document (Setup, Presets draws its stack in a microtask) is still
+        // short here, so the scroll above is clamped and a background redraw threw her to the top. Put it back once drawn.
+        const body=app.body;
+        queueMicrotask(()=>{ if (app.body===body && body.isConnected && body.scrollTop!==previous.scroll) body.scrollTop=previous.scroll; });
+    }
     if (searchFocused && app.searchOpen) app.root.querySelector('#ri-menu-search')?.focus({preventScroll:true});
     requestAnimationFrame(() => {
         if (!app.root) return;

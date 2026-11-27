@@ -8,7 +8,7 @@ const onOff = (value, change, label) => select([{ value: 'on', label: 'On' }, { 
 export function sceneMarkersSection() {
     const config = markerSettings();
     return section('Time skips and scene breaks',
-        field('Move the story clock', 'When your message has a line that starts "Time skip:" followed by an amount such as "three days", the story clock moves forward by that amount before the reply is written. If the amount cannot be read, the clock is marked unknown until the reply is filed. Scene: lines and *** breaks leave the clock alone.',
+        field('Move the story clock', 'A line in your message that starts "Time skip:" followed by an amount such as "three days" moves the story clock forward before the reply is written. If the amount cannot be read, the clock is marked unknown until the reply is filed.',
             onOff(config.clock, value => saveMarkerSettings({ clock: value }), 'Move the story clock')),
         field('Close the chapter', 'A "Time skip:" line, a "Scene:" line or a line of *** closes the open chapter at the newest reply, so your message starts a new one. The chapter is written the same way "Close the chapter here" writes it.',
             onOff(config.chapter, value => saveMarkerSettings({ chapter: value }), 'Close the chapter')),

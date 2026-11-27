@@ -106,7 +106,7 @@ const clearLog = (page) => page.evaluate(async (B) => (await import(`${B}/src/lo
         await L.send(page, 'Hello'); await L.waitChecks(page);
         e = await log(page);
         console.log(e.map(x => `${x.what} | ${x.ok} | ${x.result}`));
-        assert(e.some(x => x.what === 'Check that it happened' && x.ok === true && /marked 1 of 1 instruction as done/.test(x.result)), 'log: the check after a reply is logged with its result');
+        assert(e.some(x => x.what === 'Follow-through check' && x.ok === true && /marked 1 of 1 instruction as done/.test(x.result)), 'log: the check after a reply is logged with its result');
         // ----- the line about {{user}}'s words is said once per reply
         await L.makeSet(page, 'Once ' + Date.now(), [{ name: 'A', versions: ['A1'] }, { name: 'B', versions: ['B1'] }, { name: 'C', versions: ['C1'] }]);
         L.resetLog(); await L.send(page, 'Again'); await L.waitChecks(page);

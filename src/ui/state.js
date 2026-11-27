@@ -1,6 +1,6 @@
 import { replyCardHeader } from './reply-cards.js';
 import { slot, homeLink, home } from './homes.js';
-import { h, button } from './dom.js';
+import { h, button, howItWorks } from './dom.js';
 import { ctx, KEY, toast, confirmBox } from '../st.js';
 import { STATE_FIELDS, SCENE_FIELDS, stateAt, sceneAt, sceneProtected, editState, editScene, editSnapshot, editSceneSnapshot, blockedEventTags, setBlockedEventTags } from '../state.js';
 import { chatWorld, WORLD_KINDS, entries } from '../records.js';
@@ -26,7 +26,7 @@ export function stateEditor(id, person, onSaved, { historical = false } = {}) {
     }
     const changed = key => inputs[key].value.trim() !== (person.fields[key] || '');
     if (historical) {
-        form.append(h('div', { class: 'ri-help' }, 'Correct this snapshot alone, or apply the changes to the current state too. Later story text is not rewritten.'));
+        form.append(h('div', { class: 'ri-help' }, 'Correct this reply’s state alone, or apply the changes to the current state too. Later story text is not rewritten.'));
         const save = apply => {
             for (const [key] of STATE_FIELDS) if (changed(key)) {
                 editSnapshot(id, person.name, key, inputs[key].value);
@@ -34,7 +34,7 @@ export function stateEditor(id, person, onSaved, { historical = false } = {}) {
             }
             onSaved();
         };
-        form.append(button('Save snapshot only', () => save(false)), button('Save and apply to current state', () => save(true), { kind: 'ghost' }));
+        form.append(button('Save this reply only', () => save(false)), button('Save and apply to current state', () => save(true), { kind: 'ghost' }));
     } else form.append(button('Save state', () => {
         for (const [key] of STATE_FIELDS) if (changed(key) || locks[key].checked !== !!person.protected[key]) editState(id, person.name, key, inputs[key].value, locks[key].checked);
         onSaved();
@@ -82,8 +82,8 @@ export function characterStateCard(person, id, refresh, { historical = false, re
         if (replyCard && fields.childElementCount) content.append(fields);
         if (!Object.keys(person.fields).length) content.append(h('div', { class: 'ri-muted' }, 'No current state recorded.'));
         const foundation = Object.entries(person.foundation || {}).filter(([, value]) => value);
-        if (foundation.length) content.append(h('details', { class: 'ri-profile-who' }, h('summary', {}, 'Foundation at this reply'), foundation.map(([key, value]) => h('div', { class: 'ri-state-field' }, h('span', { class: 'ri-state-label' }, key), h('div', {}, value)))));
-        if (id >= 0 || !historical) content.append(button(historical ? 'Edit this snapshot' : 'Edit state', () => { content.replaceChildren(stateEditor(id, person, refresh, { historical })); }, { kind: 'ghost' }));
+        if (foundation.length) content.append(h('details', { class: 'ri-profile-who' }, h('summary', {}, 'Who they are'), foundation.map(([key, value]) => h('div', { class: 'ri-state-field' }, h('span', { class: 'ri-state-label' }, key), h('div', {}, value)))));
+        if (id >= 0 || !historical) content.append(button(historical ? 'Edit this state' : 'Edit state', () => { content.replaceChildren(stateEditor(id, person, refresh, { historical })); }, { kind: 'ghost' }));
         if (!historical) content.append(button('Save a lasting fact to Story World', () => { content.replaceChildren(worldEditor(person, show)); }, { kind: 'ghost' }));
     };
     show(); card.append(content); return card;
@@ -114,8 +114,8 @@ export function sceneEditor(scene, refresh, { historicalId = null } = {}) {
             }
             refresh();
         };
-        form.append(h('div', { class: 'ri-help' }, 'Correct only this snapshot, or also apply the changes to the current scene. Later story text is not rewritten.'),
-            button('Save snapshot only', () => save(false)), button('Save and apply to current scene', () => save(true), { kind: 'ghost' }));
+        form.append(h('div', { class: 'ri-help' }, 'Correct only this reply’s state, or also apply the changes to the current scene. Later story text is not rewritten.'),
+            button('Save this reply only', () => save(false)), button('Save and apply to current scene', () => save(true), { kind: 'ghost' }));
     } else form.append(button('Save scene', () => {
         if (!validDate()) return;
         for (const [key] of SCENE_FIELDS) if (inputs[key].value.trim() !== (scene[key] || '') || locks[key].checked !== sceneProtected(key)) editScene(key, inputs[key].value, locks[key].checked);
@@ -128,11 +128,11 @@ export function renderCurrentState(body, refresh) {
     body.appendChild(slot(['timingUpdate'], 'Customize the scene timing prompt'));
     const id = lastReply(), scene = sceneAt();
     const needsReview = !!ctx().chatMetadata?.[KEY]?.historyNeedsReview;
-    body.append(h('div', { class: 'ri-h2' }, 'Current story state'), h('div', { class: 'ri-help' }, 'These details guide future replies. Edits are protected until you allow automatic changes. Lasting facts can be saved to Story World.'));
+    body.append(h('div', { class: 'ri-h2' }, 'Current story state'), h('div', { class: 'ri-help' }, 'These details guide future replies, and your edits are protected until you allow automatic changes. Lasting facts can be saved to Story World.'));
     if (ctx().chatMetadata?.[KEY]?.branchHistoryNotice) body.append(h('div', { class: 'ri-note' }, 'This branch has its own story world. Review it for older edits or changes made outside this extension; those may not have a history to rewind.'), button('Dismiss branch note', () => { ctx().chatMetadata[KEY].branchHistoryNotice = false; try { ctx().saveMetadataDebounced?.(); } catch {} refresh(); }, { kind: 'ghost' }));
     if (needsReview) {
         const recovery = homeLink(null, 'catch-up', 'Rebuild from all chat history is in Setup, Memory, This chat.');
-        body.append(h('div', { class: 'ri-note ri-note-warn' }, 'A previous reply was edited. Its generated state and later automatic world changes were withdrawn. Overlapping chapter summaries are withheld until you mark the story reviewed. Review this state, Story World and any manually edited summaries.'), recovery, button('I have reviewed the story', () => { ctx().chatMetadata[KEY].historyNeedsReview = false; delete ctx().chatMetadata[KEY].historyInvalidFrom; try { ctx().saveMetadataDebounced?.(); } catch {} refresh(); }, { kind: 'ghost' }));
+        body.append(h('div', { class: 'ri-note ri-note-warn' }, ['A previous reply was edited, so its generated state and later automatic world changes were withdrawn. Review this state, Story World and any hand-edited summaries.', howItWorks('Overlapping chapter summaries are withheld until you mark the story reviewed.')]), recovery, button('I have reviewed the story', () => { ctx().chatMetadata[KEY].historyNeedsReview = false; delete ctx().chatMetadata[KEY].historyInvalidFrom; try { ctx().saveMetadataDebounced?.(); } catch {} refresh(); }, { kind: 'ghost' }));
     }
     const sceneCard = h('details', { class: 'ri-profile' }, h('summary', { class: 'ri-profile-name' }, 'Scene'));
     const content = h('div', { class: 'ri-state-body' });

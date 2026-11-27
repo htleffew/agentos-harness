@@ -181,14 +181,18 @@ export function quoteSpeakers(reply, { cast = [], main = null } = {}) {
         }
         if (!speaker && main) { speaker = main; how = 'main character'; }
         const inner = text.slice(span.start + 1, span.end - 1).trim();
-        out.push({ text: inner, speaker, how, paragraph, start: span.start, end: span.end });
+        // The narration beside the quote in its paragraph, up to the next quote either side (V2's line lift reads it).
+        const before = Math.max(lineStart, ...spans.filter(other => other.end <= span.start).map(other => other.end));
+        const after = Math.min(lineEnd, ...spans.filter(other => other.start >= span.end).map(other => other.start));
+        const around = `${text.slice(before, span.start)} ${text.slice(span.end, after)}`.replace(/\s+/g, ' ').trim();
+        out.push({ text: inner, speaker, how, paragraph, start: span.start, end: span.end, around });
     }
     return out;
 }
 
 /**
- * The lines a reply is read in: [{ text, said, speaker, how, pause, seedText }]. said is the quote as written; text is
- * the spelled-out line the voice reads. pause is the silence after the line.
+ * The lines a reply is read in: [{ text, said, speaker, how, pause, around }]. said is the quote as written; text is
+ * the spelled-out line the voice reads. pause is the silence after the line; around is the narration beside the quote.
  */
 export function replyLines(reply, options = {}) {
     const quotes = quoteSpeakers(String(reply || '').replace(/\*+([^*\n]+)\*+/g, '$1'), options);
@@ -199,7 +203,7 @@ export function replyLines(reply, options = {}) {
         pieces.forEach((piece, at) => {
             const last = at === pieces.length - 1;
             const pause = !last ? PAUSE[piece.end] : !next ? 0 : next.paragraph !== quote.paragraph ? PAUSE.paragraph : PAUSE.sentence;
-            lines.push({ text: piece.text, said: quote.text, speaker: quote.speaker, how: quote.how, pause });
+            lines.push({ text: piece.text, said: quote.text, speaker: quote.speaker, how: quote.how, pause, around: quote.around });
         });
     });
     return lines.filter(line => /[\p{L}\p{N}]/u.test(line.text));

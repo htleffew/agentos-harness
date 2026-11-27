@@ -2,15 +2,18 @@
 // and the Voices page under Story, Characters, where each character and her persona get a cloned voice. The page records
 // a clip with the phone's microphone or takes an uploaded one, checks it in code (length, level, clipping, noise and
 // silence), trims it, sends it to the desktop as that character's reference and plays a short test line so her ear
-// decides; Record again redoes it. Delivery folds open for an A/B against her King County settings.
+// decides; Record again redoes it. V2: Delivery folds open for Expressiveness, Steadiness and Pace (delivery.js), each
+// with a test line, an A/B against her King County settings and saved presets; Read aloud also opens the Play sheet.
 import { h, button, field, section, toggle } from '../ui/dom.js';
 import { registerPage } from '../ui/page-registry.js';
 import { ctx, isReply, on, toast } from '../st.js';
 import { voiceUrlProblem } from '../routing.js';
 import { RATE, checkClip, mixDown, resample, wavBytes } from './audio.js';
-import { KING_COUNTY, KNOBS, addVoice, forgetReach, probe, removeVoice, saveVoiceSettings, voiceSettings } from './client.js';
+import { addVoice, forgetReach, probe, removeVoice, saveVoiceSettings, voiceSettings } from './client.js';
 import { audioContext, castFor, dropReply, onVoiceState, playSample, readReply } from './player.js';
 import { seedFor } from './text.js';
+import { DELIVERY_DEFAULT, SLIDERS, TEST_LINES, deliveryOf, deliveryWords, isDefault, knobsFor, listPresets, removePreset, savePreset } from './delivery.js';
+import { openPlaySheet } from './play-sheet.js';
 
 export const PAGE_ID = 'voices';
 export const TEST_LINE = 'The rain had stopped by the time we reached the gate, and nobody said a word for a long while.';
@@ -92,7 +95,9 @@ function tapped(event) {
     event.preventDefault();
     event.stopPropagation();
     const id = Number(control.closest('.mes')?.getAttribute('mesid'));
-    if (Number.isInteger(id)) readReply(id).catch(error => toast('error', String(error?.message || error)));
+    if (!Number.isInteger(id)) return;
+    openPlaySheet(id, { returnFocus: control });
+    readReply(id).catch(error => toast('error', String(error?.message || error)));
 }
 
 // The Voices page.
@@ -113,10 +118,10 @@ export async function acceptRecording(member, samples, { fetcher, play = true } 
     const voices = voiceSettings().voices;
     const before = voices[member.key];
     voices[member.key] = { id: saved.voice_id, name: member.name, kind: member.kind, seconds: result.kept, speech: result.speechSeconds,
-        at: new Date().toISOString(), knobs: before?.knobs || {} };
+        at: new Date().toISOString(), delivery: deliveryOf(before) };
     saveVoiceSettings();
     let sample = null;
-    if (play) sample = await playSample({ text: TEST_LINE, voice: saved.voice_id, knobs: voices[member.key].knobs, fetcher }).catch(error => ({ error }));
+    if (play) sample = await playSample({ text: TEST_LINE, voice: saved.voice_id, delivery: voices[member.key].delivery, fetcher }).catch(error => ({ error }));
     return { ok: true, result, voice: voices[member.key], sample };
 }
 
@@ -192,7 +197,7 @@ function memberCard(member, main, redraw) {
     if (saved?.id) {
         row.append(button('Play test line', async () => {
             say('Rendering the test line on the desktop...');
-            try { const out = await playSample({ text: TEST_LINE, voice: saved.id, knobs: saved.knobs }); say(`Played ${out.seconds.toFixed(1)} s, seed ${out.info.seed}.`); }
+            try { const out = await playSample({ text: TEST_LINE, voice: saved.id, delivery: deliveryOf(saved) }); say(`Played ${out.seconds.toFixed(1)} s, seed ${out.info.seed}.`); }
             catch (error) { say(String(error?.message || error)); }
         }), button('Remove', async () => {
             try { await removeVoice(saved.id); } catch (error) { toast('warning', `The desktop kept the clip: ${error?.message || error}`); }
@@ -207,30 +212,87 @@ function memberCard(member, main, redraw) {
         h('p', { class: 'ri-help ri-voice-status' }, status), row, message, delivery);
 }
 
-/** Delivery: three sliders over her King County settings and an A/B of the test line. No speed control exists. */
+const sendsWords = knobs => `Sends exaggeration ${knobs.exaggeration}, cfg_weight ${knobs.cfg_weight}, temperature ${knobs.temperature}; never a speed value.`;
+
+/**
+ * Delivery (V2): Expressiveness, Steadiness and Pace over her King County settings, each with its own test line, an A/B
+ * of the card's test line, and presets she saves and reuses. Every change saves at once; no speed control exists.
+ */
 function deliveryFold(member, saved, say) {
-    const knobs = { ...saved.knobs };
-    const save = () => { voiceSettings().voices[member.key].knobs = { ...knobs }; saveVoiceSettings(); };
-    const rows = Object.entries(KNOBS).map(([name, spec]) => {
-        const value = h('span', { class: 'ri-voice-value' }, String(knobs[name] ?? KING_COUNTY[name]));
-        const range = h('input', { type: 'range', class: 'ri-voice-range', min: spec.min, max: spec.max, step: spec.step, value: knobs[name] ?? KING_COUNTY[name],
-            'aria-label': spec.label, oninput: () => { knobs[name] = Number(range.value); value.textContent = range.value; save(); } });
-        return field(spec.label, `King County: ${KING_COUNTY[name]}`, range, value);
-    });
-    const play = async (label, use) => {
+    const delivery = deliveryOf(saved);
+    const save = () => { voiceSettings().voices[member.key].delivery = { ...delivery }; saveVoiceSettings(); };
+    const body = h('div', { class: 'ri-fold-body' });
+    const play = async (label, text, use) => {
         say(`Rendering ${label} on the desktop...`);
-        try { const out = await playSample({ text: TEST_LINE, voice: saved.id, knobs: use }); say(`${label}: played ${out.seconds.toFixed(1)} s, seed ${out.info.seed}.`); }
-        catch (error) { say(String(error?.message || error)); }
+        try {
+            const out = await playSample({ text, voice: saved.id, delivery: use });
+            say(`${label}: played ${out.seconds.toFixed(1)} s, seed ${out.info?.seed}. ${sendsWords(out.knobs)}`);
+        } catch (error) { say(String(error?.message || error)); }
     };
-    return h('details', { class: 'ri-fold ri-voice-delivery' },
-        h('summary', { class: 'ri-fold-head' }, 'Delivery and A/B'),
-        h('div', { class: 'ri-fold-body' },
-            h('p', { class: 'ri-help' }, 'A plays the test line with your King County settings; B plays it with these sliders. Both use 24 vocoder steps and the tone-match EQ, and the same seed, so only the sliders differ. Speed is not offered: it distorted the voice.'),
-            rows,
+    const draw = () => {
+        const sends = h('p', { class: 'ri-help ri-voice-sends' }, sendsWords(knobsFor(delivery)));
+        const rows = Object.entries(SLIDERS).map(([name, spec]) => {
+            const value = h('span', { class: 'ri-voice-value', 'data-ri-value': name }, spec.words(delivery[name]));
+            const range = h('input', { type: 'range', class: 'ri-voice-range', min: spec.min, max: spec.max, step: spec.step, value: delivery[name],
+                'aria-label': spec.label, 'data-ri-slider': name, 'aria-valuetext': spec.words(delivery[name]),
+                oninput: () => {
+                    delivery[name] = Math.round(Number(range.value) * 100) / 100;
+                    value.textContent = spec.words(delivery[name]);
+                    range.setAttribute('aria-valuetext', value.textContent);
+                    sends.textContent = sendsWords(knobsFor(delivery));
+                    save();
+                } });
+            const hear = button('Hear it', () => play(`${spec.label}, ${spec.words(delivery[name]).toLowerCase()}`, TEST_LINES[name], { ...delivery }));
+            hear.setAttribute('aria-label', `Hear ${spec.label.toLowerCase()} on its test line`);
+            hear.dataset.riHear = name;
+            return field(spec.label, spec.help, range, value, hear);
+        });
+        const config = voiceSettings();
+        const presets = listPresets(config);
+        const choice = h('select', { class: 'ri-input ri-voice-preset', 'aria-label': 'Saved presets' },
+            presets.length ? presets.map(preset => h('option', { value: preset.name }, `${preset.name}: ${deliveryWords(preset)}`)) : h('option', { value: '' }, 'No presets saved yet'));
+        const name = h('input', { type: 'text', class: 'ri-input ri-voice-preset-name', placeholder: 'Hale, angry', maxLength: 60, 'aria-label': 'Preset name', autocomplete: 'off' });
+        const use = button('Use preset', () => {
+            const preset = presets.find(item => item.name === choice.value);
+            if (!preset) return;
+            for (const key of Object.keys(DELIVERY_DEFAULT)) delivery[key] = preset[key];
+            save();
+            say(`${member.name} now speaks with ${preset.name}: ${deliveryWords(delivery)}.`);
+            draw();
+        });
+        const remove = button('Delete preset', () => {
+            if (!choice.value) return;
+            removePreset(config, choice.value);
+            saveVoiceSettings();
+            say(`Deleted the preset ${choice.value}.`);
+            draw();
+        }, { kind: 'danger' });
+        use.disabled = remove.disabled = !presets.length;
+        const store = button('Save as preset', () => {
+            const problem = savePreset(config, name.value, delivery);
+            if (problem) { say(problem, [], true); return; }
+            saveVoiceSettings();
+            say(`Saved the preset ${name.value.replace(/\s+/g, ' ').trim()}. Any card can use it.`);
+            draw();
+        });
+        body.replaceChildren(
+            h('p', { class: 'ri-help' }, 'Each slider has a test line; Hear it plays it in this voice with the sliders as they stand. Speed is not offered: it distorted the voice, so Pace moves the voice model\'s pacing and the pauses between lines instead.'),
+            ...rows, sends,
+            h('p', { class: 'ri-help' }, 'A plays the card\'s test line with your King County settings, B with these. Both use 24 vocoder steps, the tone-match EQ and the same seed, so only the sliders differ.'),
             h('div', { class: 'ri-voice-actions' },
-                button('A: King County', () => play('A, King County settings', {})),
-                button('B: these settings', () => play('B, these settings', { ...knobs })),
-                button('Back to King County', () => { for (const name of Object.keys(KNOBS)) delete knobs[name]; save(); say('Back to the King County settings.'); }))));
+                button('A: King County', () => play('A, King County settings', TEST_LINE, null)),
+                button('B: these settings', () => play('B, these settings', TEST_LINE, { ...delivery })),
+                button('Reset to King County', () => { Object.assign(delivery, DELIVERY_DEFAULT); save(); say('Reset to the King County settings.'); draw(); })),
+            field('Presets', 'Save these settings under a name and use them on any card.', choice),
+            h('div', { class: 'ri-voice-actions' }, use, remove),
+            field('Preset name', '', name),
+            h('div', { class: 'ri-voice-actions' }, store));
+    };
+    draw();
+    const summary = isDefault(delivery) ? 'Delivery: King County' : `Delivery: ${deliveryWords(delivery)}`;
+    // Presets saved on another card appear when this fold opens.
+    return h('details', { class: 'ri-fold ri-voice-delivery', ontoggle: event => { if (event.target.open) draw(); } },
+        h('summary', { class: 'ri-fold-head' }, summary), body);
 }
 
 export function renderVoicesPage(body) {
@@ -263,6 +325,8 @@ export function renderVoicesPage(body) {
             field('Address', '', url), urlProblem, field('Key', '', key),
             field('Check each line by transcription', 'The desktop transcribes each line and renders it again with a new seed when the words differ. Names are listed in the receipt for your ear.',
                 toggle(config.verify !== false, value => saveVoiceSettings({ verify: !!value }), 'Check each line by transcription')),
+            field('More feeling on exclaimed and shouted lines', 'Off by default. A line with an exclamation or a word in capitals, or a quote the narration says was shouted, yelled or snapped, gets a little more expressiveness for that line only. Decided here in code; the receipt names each lift.',
+                toggle(config.lift === true, value => saveVoiceSettings({ lift: !!value }), 'More feeling on exclaimed and shouted lines')),
             h('div', { class: 'ri-voice-actions' }, test), status);
         const chatOpen = host.characterId !== undefined && host.characterId !== null || host.groupId;
         const { cast, main } = castFor({ name: host.name2 }, host);

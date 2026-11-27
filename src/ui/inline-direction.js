@@ -1,6 +1,6 @@
 // Inline notes, the parts she sees (B42): the Direction page with a switch for the marker and one for each wrap
 // button, and the refusal of a message that holds only a note. The bar's three wrap buttons are drawn in composer-bar.js.
-import { h, field, section, select } from './dom.js';
+import { h, field, section, select, howItWorks } from './dom.js';
 import { registerPage } from './page-registry.js';
 import { boxHoldsOnlyNotes, inlineActive, inlineSettings, saveInlineSettings, WRAPS } from '../inline-direction.js';
 import { ctx } from '../st.js';
@@ -19,7 +19,7 @@ export function renderInlineNotesPage(body) {
     const set = (key, value) => { saveInlineSettings({ [key]: value }); changed(); };
     body.append(
         section('Notes inside your message',
-            h('p', { class: 'ri-help' }, 'Write [[OOC: plain words]] anywhere in a message. The note is cut from the message before it is saved and goes out once, for that reply only, as a private direction that keeps its OOC: prefix. Several notes go in the order you wrote them.'),
+            h('p', { class: 'ri-help' }, ['Write [[OOC: plain words]] anywhere in a message. The note is cut from the message and goes out once, for that reply only, as a private direction.', howItWorks('The direction keeps its OOC: prefix, and several notes go in the order you wrote them.')]),
             field('Notes in [[OOC: ]]', 'Off leaves the brackets in your message like any other text.',
                 onOff(config.marker, value => set('marker', value), 'Notes in [[OOC: ]]'))),
         section('Wrap buttons on the bar',

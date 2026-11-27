@@ -26,7 +26,7 @@ export async function request({ operation, what, system = '', user = '', tokens 
     const preserveDraft=EXECUTION_OPERATIONS[operation]?.preserveDraft===true;
     const { value, receipt } = await runAdditional(operation,{authorization,onReceipt,target,label:what,requireRaw:true,signal,record:false,preserveDraft},async ({profileId,receipt})=>{
         const entry = addLog({ what,
-            details:[`Additional model request · attempt ${receipt.attempts} of ${receipt.expected}.`, `Sent through ${receipt.connection}.`,
+            details:[`Additional model call · attempt ${receipt.attempts} of ${receipt.expected}.`, `Sent through ${receipt.connection}.`,
                 `Room for the answer: ${room} tokens.`, `Size of what was sent: about ${Math.round((system.length + user.length) / 4)} tokens.`],
             sent:system ? `${system}\n\n${user}` : user });
         const started = Date.now();

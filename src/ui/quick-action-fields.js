@@ -242,7 +242,7 @@ export function renderActionEditor(host, { draft, original, pinned, onPinned, op
         const stats = statNames();
         if (draft.stat && !stats.includes(draft.stat)) stats.push(draft.stat);
         section('Action check',
-            field('Stat', 'Chosen from Direction, Action checks.', select([{ value: '', label: 'No stat' }, ...stats.map(name => ({ value: name, label: name }))], draft.stat || '', value => { draft.stat = value; }, { 'aria-label': 'Stat' })),
+            field('Stat', 'Chosen from Story, Characters, Stats.', select([{ value: '', label: 'No stat' }, ...stats.map(name => ({ value: name, label: name }))], draft.stat || '', value => { draft.stat = value; }, { 'aria-label': 'Stat' })),
             field('Difficulty', 'Leave empty for the usual outcome words.', h('input', { class: 'ri-input ri-input-num', type: 'number', inputMode: 'numeric', 'aria-label': 'Difficulty', value: String(draft.difficulty ?? ''),
                 oninput: event => { draft.difficulty = event.target.value === '' ? '' : Math.round(Number(event.target.value)); } })),
             field('Who rolls', '', select([{ value: 'user', label: 'Me' }, { value: 'char', label: 'The character' }], draft.who || 'user', value => { draft.who = value; }, { 'aria-label': 'Who rolls' })));

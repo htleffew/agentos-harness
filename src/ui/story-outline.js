@@ -1,6 +1,6 @@
 // The story outline, the parts she sees (B52): one page on Direction, Goal. She reads, edits and clears the outline,
 // chooses what the next run does with her edit, and writes it now through the Generate sheet (D1 decision 4).
-import { h, button, field, section, select, textArea, toggle } from './dom.js';
+import { h, button, field, section, select, textArea, toggle, howItWorks } from './dom.js';
 import { registerPage } from './page-registry.js';
 import { gateModelButtons } from './memory-settings.js';
 import { ROUTES } from '../routing.js';
@@ -30,7 +30,7 @@ export function statusText(state, count) {
 export function renderStoryOutlinePage(body, app) {
     const redraw = () => { if (app?.render) app.render(); else { body.replaceChildren(); renderStoryOutlinePage(body, app); } };
     const on = outlineOn();
-    const head = h('p', { class: 'ri-help' }, `Every ${EVERY} replies, one call on a free route (the desktop over Tailscale, a free tier or your NanoGPT plan) writes a short outline of possible next chapters from this chat's records, its open threads and their "ends when" lines. The writer reads it only inside the Director's desk entry of the Tracker book. With no free route the call waits and spends nothing.`);
+    const head = h('p', { class: 'ri-help' }, [`Every ${EVERY} replies, one call on a free route writes a short outline of possible next chapters. With no free route the call waits and spends nothing.`, howItWorks('Free routes are the desktop over Tailscale, a free tier or your NanoGPT plan. The outline comes from this chat’s records, its open threads and their "ends when" lines, and the writer reads it only inside the Director’s desk entry of the Tracker book.')]);
     const onSwitch = field('Story outline', 'Off stops the runs and takes the outline out of the Director\'s desk. The text stays on file.',
         toggle(on, async value => { await setOutlineOn(value); redraw(); }, 'Story outline on'));
     const state = currentOutline();

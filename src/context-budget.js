@@ -89,7 +89,7 @@ export function captureContext(messages, { items = [], ask = '', lore = [] } = {
     else result.updates.chars+=guidanceHit;
     const counted=new Set();
     for (const entry of lore) {
-        if (entry.managedSet || entry.delivery==='Story notes block') continue;
+        if (entry.managedSet || entry.delivery==='Recall block' || entry.delivery==='Story notes block') continue;
         const text=sub(entry.text || '').trim();
         if (!text || counted.has(text)) continue;
         counted.add(text);

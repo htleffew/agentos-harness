@@ -1,7 +1,7 @@
 import { BOOK_TRIGGER_SOURCES } from '../book-triggers.js';
 import { slot, homeLink } from './homes.js';
 // The instruction editor: one screen, top to bottom. Also the "Write versions with AI" sheet.
-import { h, button, select, choiceList, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear } from './dom.js';
+import { h, button, select, choiceList, numberInput, textInput, textArea, field, section, versionText, insertAtCursor, chip, clear, howItWorks } from './dom.js';
 import { SENT_AS, ACTORS, TARGETS, instructionActors, instructionTargets, editSet, deleteInstruction, setName, freeUid, writeInstruction, wrapText, listInstructions } from '../books.js';
 import { settings, saveSettings, pronounForms } from '../store.js';
 import { validateVersion, swapNames, pairingNote, actorNote } from '../validate.js';
@@ -85,7 +85,7 @@ export function renderEditor(body, app) {
 
     // ----- Name -----
     body.appendChild(section('Name',
-        field('Name of this instruction', 'Only you see this. It is the title in the list and in What Was Sent.',
+        field('Name of this instruction', 'Only you see this. It is the title in the list and in What was sent.',
             textInput(draft.name, (v) => { draft.name = v; dirty(); }, { placeholder: 'Example: Picks a fight' }))));
 
     // ----- When it can be sent -----
@@ -106,7 +106,7 @@ export function renderEditor(body, app) {
         h('div', { class: 'ri-grid2' },
             field('Only-one group', 'Instructions with the same group name compete: only one of them is sent per reply. Leave empty for no group.', textInput(draft.group, (v) => { draft.group = v; dirty(); }, { placeholder: 'No group' })),
             field('Weight in its Only-one group', 'A higher number wins more often. 100 is normal.', numberInput(draft.weight, { min: 1, max: 1000, unit: '' }, (n) => { draft.weight = n; dirty(); })),
-            field('Only once per chat', model ? 'On sends this guidance once per chat.' : 'On: once this has happened in a chat, it is retired and never sent again in that chat. With checking on, it retires when the check finds it happened. With checking off, it retires when it is sent.', select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], draft.once ? 'yes' : 'no', (v) => { draft.once = v === 'yes'; dirty(); })),
+            field('Only once per chat', model ? 'On sends this guidance once per chat.' : ['On: once this has happened in a chat, it is never sent again in that chat.', howItWorks('With checking on, it retires when the check finds it happened. With checking off, it retires when it is sent.')], select([{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }], draft.once ? 'yes' : 'no', (v) => { draft.once = v === 'yes'; dirty(); })),
             field('Send-together group', 'Used when the set is limited to "One Send-together group per reply". Instructions with the same name can go out together.', textInput(draft.sendTogether, (v) => { draft.sendTogether = v; dirty(); }, { placeholder: 'No group' })))));
 
     // ----- What it sends -----
@@ -142,7 +142,7 @@ export function renderEditor(body, app) {
         model && draft.sentAs === 'char' ? h('div', { class: 'ri-note ri-note-warn' }, 'This is set to a line spoken by the character. Choose System note to address the model directly.') : null,
         model ? h('div', { class: 'ri-help' }, 'This guidance goes with the regular reply request and skips the story-action check.') : null,
         pairing ? h('div', { class: 'ri-note ri-note-warn' }, pairing, ' You can keep it as it is.') : null,
-        h('div', { class: 'ri-help' }, 'Write with AI draws from these choices for each new version. In chat, the extension rotates saved versions. Existing wording stays as written.'),
+        h('div', { class: 'ri-help' }, 'Write with AI draws from these choices for each new version. In chat, the extension rotates your saved versions.'),
         field('Exactly what the AI will receive', draft.versions.length
             ? (isChatOpen() ? 'Shows the first saved or drafted version with this chat’s names.' : 'Shows the first version. Open a chat to fill in names.')
             : 'Example wording. Add a version to send this instruction during play.',
@@ -185,7 +185,7 @@ export function renderEditor(body, app) {
         draft.versions.length > 0 && functionExecution('writerVersionRewrite',{receipt:executionReceipt('writerVersionRewrite')}),
         h('div', { class: 'ri-help' }, model
             ? 'Each version tells the model how to compose the reply. Every version is used once before any repeats.'
-            : 'Each version is one way to give the order. Say what must happen. Every version is used once before any repeats.'),
+            : 'Each version is one way to give the order, saying what must happen. Every version is used once before any repeats.'),
         versionsBox,
         h('div', { class: 'ri-row' },
             button('Write versions with AI', () => { ui.sheet = { seed: ui.lastSeed || '', count: settings().writer.count, replace: false, results: null, busy: false, error: '' }; redraw(); }, { kind: 'primary' }),
@@ -240,7 +240,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
         h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Sent as'), h('span', { class: 'ri-v' }, SENT_AS[draft.sentAs].label)),
         h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Actor'), h('span', { class: 'ri-v' }, actors.map(value => ACTORS[value].label).join(' · '))),
         h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Target or subject'), h('span', { class: 'ri-v' }, targets.map(value => TARGETS[value].label).join(' · ')))));
-    box.appendChild(h('div', { class: 'ri-help' }, `These come from the instruction. Close this and change them there if needed. ${isChatOpen() ? nameHint() : ''}`));
+    box.appendChild(h('div', { class: 'ri-help' }, `These come from the instruction; change them there. ${isChatOpen() ? nameHint() : ''}`));
     box.appendChild(functionExecution('writerVersions',{receipt:executionReceipt('writerVersions')}));
 
     if (!sheet.results) {
@@ -268,12 +268,12 @@ function writerSheet(app, draft, ui, redraw, dirty) {
                 sheet.busy = false; redraw();
             }, { kind: 'primary', disabled: sheet.busy })),
             button('Cancel', close, { kind: 'ghost', disabled: sheet.busy })));
-        if (sheet.busy) box.appendChild(h('div', { class: 'ri-help' }, 'Waiting for the AI. This uses the connection chosen in Settings.'));
+        if (sheet.busy) box.appendChild(h('div', { class: 'ri-help' }, 'Waiting for the AI. This uses the connection chosen in Setup, Connections.'));
         return wrap;
     }
 
     // Review what came back.
-    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the versions to add. A version marked "Check" may have {{user}} acting. It starts unticked: read it, and tick it if it reads right to you.'));
+    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the versions to add. A version marked "Check" may have {{user}} acting, so it starts unticked.'));
     const list = h('div', { class: 'ri-versions' });
     sheet.results.forEach((r, i) => {
         const flags = flagsFor(r.text, r.actor || (actors.length === 1 ? actors[0] : ''));
@@ -285,7 +285,7 @@ function writerSheet(app, draft, ui, redraw, dirty) {
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: r.keep, disabled: flags.blocks.length > 0, onchange: () => { r.keep = tick.checked; } });
         list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : flags.checks.length ? 'ri-version-flagged' : ''}` },
             h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(r.text))),
-            r.actor !== undefined ? h('div', { class: 'ri-help' }, `Drawn for this version — actor: ${ACTORS[r.actor].label} · Target: ${TARGETS[r.target].label}`) : null,
+            r.actor !== undefined ? h('div', { class: 'ri-help' }, `Drawn for this version, actor: ${ACTORS[r.actor].label} · Target: ${TARGETS[r.target].label}`) : null,
             r.swaps ? h('div', { class: 'ri-flag ri-flag-info' }, `${r.swaps} ${r.swaps === 1 ? 'name was' : 'names were'} swapped for a placeholder (shown as a coloured label).`) : null,
             flags.node,
             h('div', { class: 'ri-row ri-row-tight' },

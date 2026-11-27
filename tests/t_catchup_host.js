@@ -163,7 +163,7 @@ const records = page => page.evaluate(async B => {
         // ---- 5. Continue in a new chat
         const parentReplies = await page.evaluate(() => SillyTavern.getContext().chat.filter(m => !m.is_user).slice(-50).map(m => m.mes));
         const writerBefore = L.requests('all').length;
-        await page.locator('#ri_panel_page [data-ri-continue] summary').tap();
+        await page.locator('#ri_panel_page [data-ri-continue] > summary').tap();
         await page.locator('#ri_panel_page [data-ri-continue] input[aria-label="Write an opening message too"]').check();
         await page.locator('#ri_panel_page [data-ri-continue]').scrollIntoViewIfNeeded();
         await shot(page, 'continue-form');

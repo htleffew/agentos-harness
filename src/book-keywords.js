@@ -6,10 +6,10 @@ export async function suggestEntryKeywords({ title, text }) {
     const content=String(text || '').trim();
     if (!content) throw new Error('Enter the entry’s text first.');
     const chat=ctx().getCurrentChatId?.();
-    const result=await request({operation:'bookKeywords',authorization:'manual',what:'Suggest lorebook trigger phrases',system:promptText('systemBookKeywords'),
+    const result=await request({operation:'bookKeywords',authorization:'manual',what:'Suggest Primary Keywords',system:promptText('systemBookKeywords'),
         user:`${promptText('bookKeywords')}\nReturn a JSON object with a keywords array of strings.\n${JSON.stringify({title,text:content.slice(0,8000)})}`,
         tokens:400});
-    if (ctx().getCurrentChatId?.()!==chat) throw new Error('The chat changed before suggestions arrived.');
+    if (ctx().getCurrentChatId?.()!==chat) throw new Error('The chat changed before the keywords arrived.');
     const value=parseJson(result.text,{object:true});
     if (!Array.isArray(value?.keywords)) {
         result.note('The keyword list could not be read.',false);
@@ -25,6 +25,6 @@ export async function suggestEntryKeywords({ title, text }) {
         phrases.push(phrase);
         if (phrases.length===12) break;
     }
-    result.note(`Prepared ${phrases.length} trigger phrase suggestions for review.`);
+    result.note(`Prepared ${phrases.length} Primary Keyword proposals for review.`);
     return phrases;
 }

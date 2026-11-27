@@ -3,7 +3,7 @@ import { separateReply } from './reply-format.js';
 import { settings, saveSettings } from './store.js';
 
 export const BOOK_TRIGGER_SOURCES = {
-    chat: 'Host’s recent chat scan',
+    chat: 'SillyTavern’s recent chat scan',
     user: 'Latest user message',
     assistant: 'Previous model reply',
 };

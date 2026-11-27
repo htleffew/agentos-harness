@@ -56,7 +56,7 @@ export const isHidden = m => !!m && m.is_system === true && !m.extra?.type && m.
 export const isReply = m => !!m && !m.is_user && (!m.is_system || isHidden(m));
 export function replyLabels(chat = ctx().chat || []) {
     let number = 0;
-    return chat.map((message, index) => index && isReply(message) ? `Reply ${++number}` : 'Opening');
+    return chat.map((message, index) => index && isReply(message) ? `Reply ${++number}` : 'First message');
 }
 /** A message of the story, yours or not, whether or not it is hidden from the AI now. */
 export const isStory = m => !!m && (!m.is_system || isHidden(m));
@@ -261,9 +261,9 @@ export async function askFull({ system = '', user = '', tokens = 600, profileId 
         let profile = null;
         if (profileId) {
             profile = profileDetails().find(p => p.id === String(profileId));
-            if (!canUseProfiles() || !profile) throw new Error('The saved connection profile is unavailable on this host. Choose an available connection in Execution settings.');
+            if (!canUseProfiles() || !profile) throw new Error('The saved connection profile is unavailable in this SillyTavern. Choose an available connection in Execution settings.');
         } else if (typeof c.ChatCompletionService?.processRequest !== 'function') {
-            throw new Error('This host cannot send a direct background request.');
+            throw new Error('SillyTavern cannot send a direct background request.');
         }
         const api = profile ? profile.api : String(source);
         let includeBody = '';
@@ -289,7 +289,7 @@ export async function askFull({ system = '', user = '', tokens = 600, profileId 
     }
     if (profileId) {
         if (!canUseProfiles() || !listProfiles().some(p => p.id === String(profileId))) {
-            throw new Error('The saved connection profile is unavailable on this host. Choose an available connection in Execution settings.');
+            throw new Error('The saved connection profile is unavailable in this SillyTavern. Choose an available connection in Execution settings.');
         }
         const r = await c.ConnectionManagerRequestService.sendRequest(String(profileId), msgs, tokens, {
             stream: false, extractData: true, includePreset: useProfilePreset, includeInstruct: true, signal,
@@ -297,7 +297,7 @@ export async function askFull({ system = '', user = '', tokens = 600, profileId 
         raw = String(typeof r === 'string' ? r : (r?.content ?? ''));
         reasoning = String((r && typeof r === 'object' && r.reasoning) || '');
     } else {
-        if (typeof c.generateRaw !== 'function') throw new Error('This host does not expose direct generation on Main API.');
+        if (typeof c.generateRaw !== 'function') throw new Error('SillyTavern does not expose direct generation on Main API.');
         raw = String(await c.generateRaw({ prompt: messages, systemPrompt: String(system), responseLength: tokens, trimNames: false }) ?? '');
     }
     const text = stripThinking(raw);
@@ -342,9 +342,9 @@ export async function deleteBook(name) {
     const host = ctx();
     const remove = typeof host.deleteWorldInfo==='function' ? host.deleteWorldInfo.bind(host) :
         (await import('../../../../world-info.js')).deleteWorldInfo;
-    if (typeof remove!=='function' || await remove(name) === false) throw new Error('The host could not delete this World Info book.');
+    if (typeof remove!=='function' || await remove(name) === false) throw new Error('SillyTavern could not delete this World Info book.');
     await refreshWorldList();
-    if (worldNames().includes(name)) throw new Error('The host still lists this book. Reload World Info before trying again.');
+    if (worldNames().includes(name)) throw new Error('SillyTavern still lists this book. Reload World Info before trying again.');
 }
 
 export async function refreshWorldList() {
@@ -362,7 +362,7 @@ export async function triggerSwipe({ append = false } = {}) {
     const c = ctx();
     const message = c.chat?.at(-1);
     if (append && message?.swipes?.length && Number(message.swipe_id || 0)<message.swipes.length-1) {
-        if (typeof c.swipe?.to!=='function') throw new Error('This host needs the newest swipe selected to generate another one.');
+        if (typeof c.swipe?.to!=='function') throw new Error('SillyTavern needs the newest swipe selected to generate another one.');
         await c.swipe.to(null,'right',{message,forceSwipeId:message.swipes.length});
         return true;
     }

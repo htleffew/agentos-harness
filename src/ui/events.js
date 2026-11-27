@@ -1,7 +1,7 @@
 import { slot, homeLink } from './homes.js';
 // Random Story Events tab and Random Writing Style tab. Both are a list of sets and an editor for one set:
 // categories of items, with dice settings. They differ in wording and in when the order is sent.
-import { h, button, toggle, select, choiceList, numberInput, textInput, textArea, field, section, versionText, chip, download } from './dom.js';
+import { h, button, toggle, select, choiceList, numberInput, textInput, textArea, field, section, versionText, chip, download, howItWorks } from './dom.js';
 import { loadSet, editSet, createSet, forgetSet, exportSet, setName, setInfo, wrapText, SENT_AS } from '../books.js';
 import { keptIn, removeText, deleteButton, onForChat } from './sets.js';
 import { MODES, newEvent, newStyle, newCategory, newId, findEventEntry, readEvent, writeEvent, rollEvent, snapshotSettings, loadSettings, pairList } from '../events.js';
@@ -55,7 +55,7 @@ const EVENTS = {
 };
 const STYLE = {
     kind: 'style', type: 'style', route: 'sroute', make: newStyle, tick: 'replies', set: 'writing style set', sets: 'writing style sets', Set: 'Writing style set',
-    intro: 'A writing style set changes how replies are written: mood, prose style, author, pacing, rules for one reply. It leaves the events of the story alone. While a set is on for a chat, one style order is sent with every reply, built from the categories that are on.',
+    intro: ['A writing style set changes how replies are written: mood, prose style, author, pacing. It leaves the story’s events alone.', howItWorks('While a set is on for a chat, one style order built from the categories that are on is sent with every reply.')],
     catTitle: 'Categories (each one that is on adds one line to the style order)',
     catHelp: 'Tap a category to open it. Each category keeps its pick for as long as you set, so a mood can last many replies while a rule changes every time.',
     newCat: 'Name for the new category (for example: Humour, Vocabulary, Paragraph length):', example: "Roll the next reply's style",
@@ -79,7 +79,7 @@ const go = (app, route, c = cfg) => { app[c.route] = route; app.resetScroll = tr
 export async function openEventSet(app, name, c, { created = false } = {}) {
     const data = await loadSet(name);
     const entry = findEventEntry(data, c.type, name);
-    if (!entry) { toast('error', `This lorebook is not a ${c.set}.`); return; }
+    if (!entry) { toast('error', `This World Info book is not a ${c.set}.`); return; }
     await app.openPage(c.kind === 'style' ? 'style' : 'events', { editor: { view: 'edit', name, draft: readEvent(entry, setName(name)), open: {}, created } });
 }
 
@@ -98,7 +98,7 @@ export function eventSetCard(app, name, c) {
     const info = h('div', { class: 'ri-grid' }, h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Categories'), h('span', { class: 'ri-v' }, '...')));
     loadSet(name).then((data) => {
         const entry = findEventEntry(data, c.type, name);
-        if (!entry) { info.replaceChildren(h('span', { class: 'ri-muted' }, `This lorebook is not a ${c.set}.`)); return; }
+        if (!entry) { info.replaceChildren(h('span', { class: 'ri-muted' }, `This World Info book is not a ${c.set}.`)); return; }
         const ev = readEvent(entry, setName(name));
         const on = ev.categories.filter(c => c.on);
         const kv = (k, v) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, k), h('span', { class: 'ri-v' }, v));
@@ -113,14 +113,14 @@ export function eventSetCard(app, name, c) {
             kv('Categories turned on', on.length ? on.map(c => `${c.name} (${c.items.filter(i => i.on).length})`).join(', ') : 'none'),
             ...leftRow,
             kv('How often', c.kind === 'style' ? 'With every reply while it is on for the chat' : `${ev.chance}% chance each reply${ev.wait ? `, then waits ${ev.wait} ${ev.wait === 1 ? 'reply' : 'replies'}` : ''}`));
-    }).catch(() => info.replaceChildren(h('span', { class: 'ri-muted' }, 'This lorebook could not be read.')));
+    }).catch(() => info.replaceChildren(h('span', { class: 'ri-muted' }, 'This World Info book could not be read.')));
     return h('div', { class: 'ri-card ri-setcard' },
         h('div', { class: 'ri-card-top' }, h('button', { type: 'button', class: 'ri-card-name', onclick: () => openEventSet(app, name, c) }, setName(name)), onForChat(name)),
         keptIn(name),
         info,
         h('div', { class: 'ri-row' },
             button('Open', () => openEventSet(app, name, c), { kind: 'primary', title: 'See and edit the categories and items' }),
-            button('Export', async () => { const data = await exportSet(name); if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.'); }, { kind: 'ghost' }),
+            button('Export', async () => { const data = await exportSet(name); if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this World Info book from the World Info screen.'); }, { kind: 'ghost' }),
             button('Remove from this list', async () => {
                 if (!await confirmBox(removeText(name))) return;
                 forgetSet(name);
@@ -135,10 +135,10 @@ export function eventSetCard(app, name, c) {
 
 function itemFlags(cat, text) {
     const { blocks, checks, warns } = validateVersion(text);
-    if (cat.driver && userDrives(text)) checks.push('This item makes {{user}} the one who drives the event. Events work best when someone else, or the surroundings, drives them. If it reads right to you, keep it.');
+    if (cat.driver && userDrives(text)) checks.push('This item makes {{user}} the one who drives the event. Events work best when someone else, or the surroundings, drive them; keep it if it reads right.');
     // Items are short phrases, so the checks for full orders that do not apply here are left out.
     const keep = warns.filter(w => !/makes this optional/.test(w));
-    if (cfg.kind === 'style' && /\b(arrives?|appears?|enters?|bursts? in|interrupts?|attacks?|a stranger|a storm|a letter|a knock|discovers?|finds? out|confess(?:es)?|reveals?)\b/i.test(text)) keep.push('This reads like something that happens in the story. Writing style items change how the reply is written. Story happenings belong in Random Story Events.');
+    if (cfg.kind === 'style' && /\b(arrives?|appears?|enters?|bursts? in|interrupts?|attacks?|a stranger|a storm|a letter|a knock|discovers?|finds? out|confess(?:es)?|reveals?)\b/i.test(text)) keep.push('This reads like something that happens in the story, and writing style items change how the reply is written. Story happenings belong in Direction, Random sets, Random story events.');
     return { blocks, checks, node: (blocks.length || checks.length || keep.length) ? h('div', { class: 'ri-flags' }, blocks.map(b => h('div', { class: 'ri-flag ri-flag-block' }, `Must fix: ${b}`)), checks.map(c => h('div', { class: 'ri-flag ri-flag-check' }, `Check: ${c}`)), keep.map(w => h('div', { class: 'ri-flag ri-flag-warn' }, w))) : null };
 }
 
@@ -191,7 +191,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         field('Option bank', cat.bank ? `Values come from "${bankInfo(cat.bank)?.name || cat.bank}" in the World Info book "${BANK_BOOK}". The pool and pick count are saved with this set.` : 'Its own list: the items below. Pick a bank to draw from a shared list of values instead.',
             select([{ value: '', label: 'Its own list' }, ...bankChoices(cfg.type, { adult: !!settings().banksAdult || !!bankInfo(cat.bank)?.adult }).map(b => ({ value: b.id, label: `${b.name} (${b.count})${b.adult ? ', adult' : ''}` }))],
                 cat.bank, (v) => { cat.bank = v; cat.pool = []; cat.fixed = ''; dirty(); redraw(); }, { 'aria-label': `Option bank for ${cat.name}` })),
-        field('Pool', 'Tick the values a roll may use. None ticked: every value that is on. One ticked: that value every time. Several: only those.', poolButton)));
+        field('Pool', 'Tick the values a roll may use. None ticked uses every value that is on; one ticked uses that value every time.', poolButton)));
     body.push(h('div', { class: 'ri-grid2' },
         field('How it changes', modeHelp[cat.mode], select(Object.keys(MODES).map(value => ({ value, label: modeLabel[value] })), cat.mode, (v) => { cat.mode = v; dirty(); redraw(); })),
         ...durationFields,
@@ -199,7 +199,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         cat.mode === 'keepFixed' ? field('Item to keep', tick === 'events' ? 'Every event uses this item.' : 'Every reply uses this item.', select([{ value: '', label: usable.length ? 'Choose an item' : 'Add an item first' }, ...usable.map(i => ({ value: i.id, label: i.text.slice(0, 70) }))], cat.fixed || '', (v) => { cat.fixed = v; dirty(); })) : null,
         cat.mode === 'keepFixed' ? null : field('Pick count', tick === 'events' ? 'How many different values from the pool go into one event. A count above the pool size uses the whole pool.' : 'How many different values from the pool are used at the same time. A count above the pool size uses the whole pool.', numberInput(cat.count, { min: 1, max: 5, unit: 'values', label: `Pick count for ${cat.name}` }, (n) => { cat.count = n; dirty(); redraw(); })),
         cat.mode === 'keepFixed' || cat.count < 2 ? null : field('How the picks share the reply', 'All together, one for each beat in turn, or one for each paragraph in turn.', select(Object.entries(SEND_RULES).map(([value, s]) => ({ value, label: s.label })), cat.send || 'together', (v) => { cat.send = v; dirty(); }, { 'aria-label': `How the picks of ${cat.name} share the reply` })),
-        cat.mode === 'keepFixed' || cfg.kind === 'style' ? null : field('Retire an item once it has happened', 'On: an item from this list that has happened in a chat never comes back in that chat. The first list that retires its items is the main list (Situation, to start with): when it is used up, the set sends no more events in that chat and you are told so. Any other list that is used up is simply left out of the events that follow. With checking on, an item retires when the check finds the event happened. With checking off, it retires when it is sent.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.burn ? 'on' : 'off', (v) => { cat.burn = v === 'on'; dirty(); })),
+        cat.mode === 'keepFixed' || cfg.kind === 'style' ? null : field('Retire an item once it has happened', ['On: an item from this list that has happened in a chat never comes back in that chat.', howItWorks('The first list that retires its items is the main list (Situation, to start with). When it is used up, the set sends no more events in that chat and you are told so; any other used-up list is left out of later events. With checking on, an item retires when the check finds the event happened; with checking off, it retires when it is sent.')], select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.burn ? 'on' : 'off', (v) => { cat.burn = v === 'on'; dirty(); })),
         cat.mode === 'keepFixed' ? null : field('Use every item before repeating', 'On: no item comes back until all the others have had a turn.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], cat.useAll ? 'on' : 'off', (v) => { cat.useAll = v === 'on'; dirty(); })),
         cat.mode === 'keepFixed' ? null : field('Wait before an item can return (picks)', 'An item that was just used sits out this many fresh picks. 0 turns this off.', numberInput(cat.itemWait, { min: 0, max: 50, unit: 'picks' }, (n) => { cat.itemWait = n; dirty(); })),
         cfg.kind !== 'style' || cat.mode === 'keepFixed' ? null : field('Chance to be used when a new pick is due (%)', '100 always uses this category. 50 leaves it out about half the time.', numberInput(cat.chance, { min: 0, max: 100, unit: '%' }, (n) => { cat.chance = n; dirty(); })),
@@ -218,7 +218,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
             const more = cfg.kind === 'style' ? [
                 h('div', { class: 'ri-label' }, 'While this item is the pick (all three are optional)'),
                 field('Added to every story event', 'One sentence that says how events are to go while this style is in use. Example for a tense style: "The event starts with no warning."', textInput(e.dEvent, (v) => { e.dEvent = v; }, { placeholder: 'Nothing is added' })),
-                field('Question asked about the reply', 'Asked when the reply is checked anyway, and shown in What Was Sent. It makes no extra AI request, so it is skipped when nothing else is checked. Example: "Does the reply end on something happening?"', textInput(e.dCheck, (v) => { e.dCheck = v; }, { placeholder: 'No question' })),
+                field('Question asked about the reply', 'Asked when the reply is checked anyway, with no extra model call, and shown in What was sent. Example: "Does the reply end on something happening?"', textInput(e.dCheck, (v) => { e.dCheck = v; }, { placeholder: 'No question' })),
                 field('Note sent with the reply after it', 'Sent once with the next reply. Example: "What was set up in the last reply now happens."', textInput(e.dNext, (v) => { e.dNext = v; }, { placeholder: 'No note' })),
             ] : [
                 field(cat.driver ? 'Where events driven by this come from' : 'Where this event comes from', cat.driver ? 'Items in the other lists that are marked with a place of origin are only used with a driver from the same place.' : 'Used only when the dice pick a driver from the same place. "Anyone or anything" fits every driver.', select(Object.entries(ORIGINS).map(([value, o]) => ({ value, label: o.label })), e.from, (v) => { e.from = v; })),
@@ -263,7 +263,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
         if (!cat.items.length) list.appendChild(h('div', { class: 'ri-empty' }, 'No items yet. Type one below, or press "Write items with AI".'));
         body.push(h('div', { class: 'ri-label' }, 'Items (weight +10 is about three times as likely, -10 is never rolled)'), list);
     }
-    body.push(h('div', { class: 'ri-help' }, `Tags are your own words for grouping items, separated by commas. They are used by "Never use items tagged" and "Never together".${cfg.kind === 'style' ? ' Four tags are also checked against the reply and shown in What Was Sent: rule:no-dialogue, rule:mostly-dialogue, rule:max-sentences-2 and rule:max-words-200 (any number works).' : ''}`));
+    body.push(h('div', { class: 'ri-help' }, ['Tags are your own words for grouping items, separated by commas. "Never use items tagged" and "Never together" read them.', cfg.kind === 'style' && howItWorks('Four tags are also checked against the reply and shown in What was sent: rule:no-dialogue, rule:mostly-dialogue, rule:max-sentences-2 and rule:max-words-200 (any number works).')]));
 
     const addBox = textInput(ui.adding, (v) => { ui.adding = v; }, { placeholder: cfg.itemPlaceholder });
     const addItem = () => {
@@ -276,7 +276,7 @@ function categoryCard(app, draft, cat, index, redraw, dirty) {
     addBox.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); addItem(); } });
     body.push(h('div', { class: 'ri-control' }, addBox), h('div', { class: 'ri-row' },
         button('Add this item', addItem),
-        cfg.kind === 'events' && !cat.bank && cat.items.length ? button('Make these work anywhere', () => { ui.rw = { busy: false, error: '', results: null, which: 'on' }; ui.ai = null; redraw(); }, { title: 'One AI request rewrites the items of this list so each works in any setting, keeping what it does to the people. You see every change before it is made.' }) : null,
+        cfg.kind === 'events' && !cat.bank && cat.items.length ? button('Make these work anywhere', () => { ui.rw = { busy: false, error: '', results: null, which: 'on' }; ui.ai = null; redraw(); }, { title: 'One model call rewrites the items of this list so each works in any setting, keeping what it does to the people. You see every change before it is made.' }) : null,
         button('Write items with AI', () => { ui.rw = null; ui.ai = { theme: app[cfg.route].lastTheme || '', count: 12, busy: false, error: '', results: null }; redraw(); }, { kind: 'primary' })));
 
     if (!ui.ai) body.push(itemWriterPrompts(cat));
@@ -303,7 +303,7 @@ function rewriteBox(draft, cat, ui, redraw, dirty) {
     if (!rw.results) {
         box.append(
             slot(['rewriteRules', ...itemContextPromptIds(cat), 'systemRewrite'], 'Customize rewrite prompts', { contextual: true }),
-            h('div', { class: 'ri-help' }, 'One AI request rewrites each item so that it makes sense wherever the scene is when it fires, and keeps what it does to the people. Items that already work anywhere come back as they were. Nothing changes until you choose.'),
+            h('div', { class: 'ri-help' }, 'One model call rewrites each item so it makes sense wherever the scene is when it fires. Nothing changes until you choose.'),
             field('Which items', '', select([{ value: 'on', label: `The items that are on (${cat.items.filter(i => i.on).length})` }, { value: 'all', label: `Every item (${cat.items.length})` }], rw.which, (v) => { rw.which = v; redraw(); })));
         if (rw.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, rw.error));
         box.appendChild(h('div', { class: 'ri-row' },
@@ -320,7 +320,7 @@ function rewriteBox(draft, cat, ui, redraw, dirty) {
         return box;
     }
     const changed = rw.results.filter(x => x.changed);
-    box.appendChild(h('div', { class: 'ri-help' }, changed.length ? `${changed.length} of ${rw.results.length} items were rewritten. Tick the rewrites to keep. An item keeps its weight, tags, marks and history.` : 'Every item already works anywhere, by the AI\'s judgment. Nothing needs to change.'));
+    box.appendChild(h('div', { class: 'ri-help' }, changed.length ? `${changed.length} of ${rw.results.length} items were rewritten. Tick the rewrites to keep; each item keeps its weight, tags, marks and history.` : 'Every item already works anywhere, by the AI\'s judgment. Nothing needs to change.'));
     const list = h('div', { class: 'ri-versions' });
     for (const x of changed) {
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: x.keep, onchange: () => { x.keep = tick.checked; } });
@@ -351,7 +351,7 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
                 field('How many items to write', '', numberInput(ai.count, { min: 1, max: 40, unit: 'items' }, (n) => { ai.count = n; })),
                 contextField()),
             cfg.kind === 'events' ? field('Let the AI read where the story is now', settings().writer.eventScene ? 'On: the recent messages and the story so far are shown too, when ticked above. Items can then lean toward the scene you are in.' : 'Off: the AI only reads the card, the scenario and your persona (when ticked above), so items fit your kind of story and work wherever the scene is when they fire.', select([{ value: 'off', label: 'Off (recommended)' }, { value: 'on', label: 'On' }], settings().writer.eventScene ? 'on' : 'off', (v) => { settings().writer.eventScene = v === 'on'; saveSettings(); redraw(); })) : null,
-            cfg.kind === 'events' ? field('Where these events come from', 'Tick the allowed origins. The writer draws one for each item. Event rolls use the saved origin to match items to the driver.', choiceList('Event origins', ORIGINS, ai.origins || [''], values => { ai.origins = values; })) : null);
+            cfg.kind === 'events' ? field('Where these events come from', 'Tick the allowed origins. The writer draws one for each item, and event rolls use it to match items to the driver.', choiceList('Event origins', ORIGINS, ai.origins || [''], values => { ai.origins = values; })) : null);
         if (ai.error) box.appendChild(h('div', { class: 'ri-note ri-note-warn' }, ai.error));
         box.appendChild(h('div', { class: 'ri-row' },
             executionAction(button(ai.busy ? 'Writing...' : 'Write the items', async () => {
@@ -368,14 +368,14 @@ function aiBox(app, draft, cat, ui, redraw, dirty) {
             button('Cancel', () => { ui.ai = null; redraw(); }, { kind: 'ghost', disabled: ai.busy })));
         return box;
     }
-    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the items to add. Everything the AI wrote is shown here; nothing is added until you press the button. An item marked "Check" starts unticked: tick it if it reads right to you.'));
+    box.appendChild(h('div', { class: 'ri-help' }, 'Tick the items to add; nothing is added until you press the button. An item marked "Check" starts unticked.'));
     if (ai.results.some(x => x.anywhere === false)) box.appendChild(h('div', { class: 'ri-note' }, `${ai.results.filter(x => x.anywhere === false).length} of ${ai.results.length} items need a particular setting, by the AI's own judgment.`));
     const list = h('div', { class: 'ri-versions' });
     ai.results.forEach((x) => {
         const flags = itemFlags(cat, x.text);
         if (flags.blocks.length) x.keep = false;
         const tick = h('input', { type: 'checkbox', class: 'ri-check', checked: x.keep, disabled: flags.blocks.length > 0, onchange: () => { x.keep = tick.checked; } });
-        const placeBound = x.anywhere === false ? h('div', { class: 'ri-flags' }, h('div', { class: 'ri-flag ri-flag-check' }, 'Check: the AI says this item needs a particular place, object or group, so it may not fit wherever the scene is when it fires. It starts unticked. Tick it if it reads right to you.')) : null;
+        const placeBound = x.anywhere === false ? h('div', { class: 'ri-flags' }, h('div', { class: 'ri-flag ri-flag-check' }, 'Check: the AI says this item needs a particular place, object or group, so it starts unticked. Tick it if it reads right to you.')) : null;
         list.appendChild(h('div', { class: `ri-version ${flags.blocks.length ? 'ri-version-blocked' : (flags.checks.length || placeBound) ? 'ri-version-flagged' : ''}` }, h('label', { class: 'ri-vpick' }, tick, h('span', { class: 'ri-vbody' }, versionText(x.text))), cfg.kind === 'events' ? chip(ORIGINS[x.from].label, 'ri-chip-group') : null, flags.node, placeBound));
     });
     box.append(list, h('div', { class: 'ri-row' },
@@ -408,7 +408,7 @@ function renderEdit(body, app) {
     if (r.created) body.append(h('p',{class:'ri-note',role:'status'},`${c.Set} created. Save any changes you make below.`));
 
     if (cfg.kind === 'style') body.appendChild(section('When it is sent',
-        h('div', { class: 'ri-help' }, 'With every reply, while this set is on for the chat. Each category below decides for itself how long its pick lasts. Writing style is sent as a style order and is not checked afterwards.'),
+        h('div', { class: 'ri-help' }, 'Sent with every reply while this set is on for the chat. Each category below decides how long its pick lasts.'),
         field('Sent as', SENT_AS[draft.sentAs].help, select([{ value: 'system', label: SENT_AS.system.label }, { value: 'ooc', label: SENT_AS.ooc.label }], draft.sentAs, (v) => { draft.sentAs = v; dirty(); redraw(); }))));
     else body.appendChild(section('When an event happens',
         h('div', { class: 'ri-grid2' },
@@ -416,7 +416,7 @@ function renderEdit(body, app) {
             field('Wait after an event (replies)', 'After an event, no new event from this set for this many replies.', numberInput(draft.wait, { min: 0, max: 500, unit: 'replies' }, (n) => { draft.wait = n; dirty(); })),
             field('Keep sending the event for (replies)', 'The same event order is sent again with this many more replies. 0 sends it once.', numberInput(draft.keep, { min: 0, max: 50, unit: 'replies' }, (n) => { draft.keep = n; dirty(); })),
             field('No events before reply number', '0 lets events happen from the start of the chat.', numberInput(draft.notBefore, { min: 0, max: 1000, unit: '' }, (n) => { draft.notBefore = n; dirty(); })),
-            field('Events from this set are big', settings().pace.quiet ? `On: after one has happened, nothing new starts for ${settings().pace.quiet} ${settings().pace.quiet === 1 ? 'reply' : 'replies'}, across every set (the number is in Settings, under Pacing). The story gets room to take the event in.` : 'On: after one has happened, nothing new starts for a number of replies. That number is 0 right now, so this does nothing until you set it in Settings, under Pacing.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], draft.big ? 'on' : 'off', (v) => { draft.big = v === 'on'; dirty(); })),
+            field('Events from this set are big', settings().pace.quiet ? `On: after one has happened, nothing new starts for ${settings().pace.quiet} ${settings().pace.quiet === 1 ? 'reply' : 'replies'}, across every set (the number is in Direction, Random sets). The story gets room to take the event in.` : 'On: after one has happened, nothing new starts for a number of replies. That number is 0 right now, so this does nothing until you set it in Direction, Random sets.', select([{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], draft.big ? 'on' : 'off', (v) => { draft.big = v === 'on'; dirty(); })),
             field('Sent as', SENT_AS[draft.sentAs].help, select([{ value: 'system', label: SENT_AS.system.label }, { value: 'ooc', label: SENT_AS.ooc.label }], draft.sentAs, (v) => { draft.sentAs = v; dirty(); redraw(); })))));
 
     const cats = h('div', {}, draft.categories.map((cat, i) => categoryCard(app, draft, cat, i, redraw, dirty)));
@@ -433,17 +433,17 @@ function renderEdit(body, app) {
             const cat = newCategory(STAKES_NAME, STAKES);
             const at = draft.categories.findIndex(c => c.driver);
             draft.categories.splice(at < 0 ? draft.categories.length : at, 0, cat); r.open[cat.id] = true; dirty(); redraw();
-        }, { title: 'A list of what an event puts at stake and for whom. It starts with ten items that work in any setting. The dice pick one with every event.' }) : null,
+        }, { title: 'A list of what an event puts at stake and for whom. It starts with ten items that work in any setting.' }) : null,
         button('Import options from a preset or plugin file', () => { r.importing = { open: true, found: null, error: '', done: '' }; redraw(); }, { title: 'Read value lists from a file on this device into the option banks. Nothing in the file is run or sent.' })),
         r.importing?.open ? importBox(r.importing, cfg.type, redraw) : null));
 
     // How a roll is built
     body.appendChild(section('How a roll is built',
-        h('div', { class: 'ri-help' }, 'Each roll draws from the pools in code, with no AI request, and saves a roll record with the reply.'),
+        h('div', { class: 'ri-help' }, 'Each roll draws from the pools in code, with no model call, and saves a roll record with the reply.'),
         h('div', { class: 'ri-grid2' },
             field('Most categories in one roll', 'Categories over this number wait for the next roll, in turn, so the order stays short.', numberInput(draft.cap || 6, { min: 1, max: 30, unit: 'categories', label: 'Most categories in one roll' }, (n) => { draft.cap = n; dirty(); })),
-            field('Smooth the rolled parts into prose', 'On: after a roll that fires, the rolled parts and the last reply go to the background model, which returns one or two sentences keeping every part. That is one extra AI request per fired roll. After 8 seconds or a failure the parts are sent as rolled.',
-                select([{ value: 'off', label: 'Off' }, { value: 'on', label: 'On (one AI request per fired roll)' }], draft.polish ? 'on' : 'off', (v) => { draft.polish = v === 'on'; dirty(); redraw(); })),
+            field('Smooth the rolled parts into prose', ['On: after a roll that fires, a background model blends the rolled parts into one or two sentences. That is one extra model call per fired roll.', howItWorks('The rolled parts and the last reply go to the background model, which keeps every part. After 8 seconds or a failure the parts are sent as rolled.')],
+                select([{ value: 'off', label: 'Off' }, { value: 'on', label: 'On (one model call per fired roll)' }], draft.polish ? 'on' : 'off', (v) => { draft.polish = v === 'on'; dirty(); redraw(); })),
             field('Show adult option banks', 'The adult banks ship off. On lists them in each category\'s Option bank choice.',
                 select([{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }], settings().banksAdult ? 'on' : 'off', (v) => { settings().banksAdult = v === 'on'; saveSettings(); redraw(); })))));
 
@@ -458,7 +458,7 @@ function renderEdit(body, app) {
     const csNow = chatState();
     const inUse = csNow?.presets?.[name] && names.includes(csNow.presets[name]) ? csNow.presets[name] : '';
     body.appendChild(section('Saved category settings',
-        h('div', { class: 'ri-help' }, 'Save how the categories are set up right now (which are on, how long each pick lasts, and so on) under a name, for example "Slow burn". Items are not part of it. A chat can then use one of the saved setups while the set itself stays as it is.'),
+        h('div', { class: 'ri-help' }, 'Save how the categories are set up right now under a name, for example "Slow burn". Items are not part of it, and a chat can use a saved setup while the set stays as it is.'),
         h('div', { class: 'ri-row' }, button('Save the current settings under a name', async () => {
             const n = await inputBox('Name for these settings (for example: Slow burn):');
             if (!n) return;

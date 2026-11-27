@@ -82,7 +82,7 @@ export function roastVoiceEditor(otherIds = [], title = 'Customize Roast voice')
             button('Export selected voice',()=>{
                 const voice=exportVoice(selectedVoice());
                 if (download(`${voice.name.replace(/[\\/:*?"<>|]/g,'-')}.json`,JSON.stringify(voice,null,2))) note.textContent='Export started.';
-                else note.textContent='This host could not start the download.';
+                else note.textContent='SillyTavern could not start the download.';
             })),note,...otherIds.map(id=>promptEditor(id)));
     watchPrompts(group,()=>{ if (group.isConnected) refreshLabels(); });
     showVoice();

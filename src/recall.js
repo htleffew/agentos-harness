@@ -30,7 +30,7 @@ export function readActivation(value) {
 
 export function recallTiming(rule) {
     if (!rule || rule.mode==='off') return '';
-    const mode = {always:'Always eligible',triggered:'Keyword triggered',window:`First ${rule.window} replies, then keywords`}[rule.mode];
+    const mode = {always:'Constant',triggered:'Normal',window:`First ${rule.window} replies, then keywords`}[rule.mode];
     return `${mode} · ${RECALL_SOURCES[rule.source]} · ${rule.chance}% chance · Sticky ${rule.sticky} · Cooldown ${rule.cooldown} replies`;
 }
 

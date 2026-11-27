@@ -196,7 +196,7 @@ const chatLore = (page, name) => page.evaluate((name) => { const c = globalThis.
         }, [L.BASE, Y, S]);
         assert(back.gone && back.added.join() === Y && back.here && back.info.shared, 'open: a set removed from the list comes back when its shared lorebook is opened, and sets already listed are not added twice');
         const clash = await page.evaluate(async ([B, S]) => { const K = await import(`${B}/src/books.js`); try { await K.createSet('Alpha', 'instructions', { entries: {} }, S); return 'made'; } catch (e) { return e.message; } }, [L.BASE, S]);
-        assert(/already in the shared lorebook/.test(clash), 'create: a second set with the same name in the same lorebook is refused with a reason: ' + clash);
+        assert(/already in the shared World Info book/.test(clash), 'create: a second set with the same name in the same lorebook is refused with a reason: ' + clash);
 
         // ----- K. the panel
         await L.setSettings(page, { home: S });
@@ -221,7 +221,7 @@ const chatLore = (page, name) => page.evaluate((name) => { const c = globalThis.
         assert(afterUi.length === 1 && afterUi[0].startsWith(S + '|'), 'panel: choosing a lorebook in Settings moves the set there');
         // a new set made with the panel's own button goes into the shared lorebook
         await L.addSet(page, 'instructions', 'Made in panel');
-        await page.waitForFunction(() => document.querySelector('#ri_root .ri-h2')?.textContent === 'Made in panel' && /Kept in the shared lorebook/.test(document.querySelector('#ri_root .ri-kept')?.textContent || ''), null, { timeout: 8000 });
+        await page.waitForFunction(() => document.querySelector('#ri_root .ri-h2')?.textContent === 'Made in panel' && /Kept in the shared World Info book/.test(document.querySelector('#ri_root .ri-kept')?.textContent || ''), null, { timeout: 8000 });
         const panelMade = await page.evaluate(async ([B, S]) => { const K = await import(`${B}/src/books.js`); const P = await import(`${B}/src/ui/panel.js`); return { route: P.app.route.name, info: K.setInfo(P.app.route.name), kept: document.querySelector('#ri_root .ri-kept').textContent, title: document.querySelector('#ri_root .ri-h2').textContent }; }, [L.BASE, S]);
         console.log('panel set:', JSON.stringify(panelMade));
         assert(panelMade.info.shared && panelMade.info.book === S && panelMade.title === 'Made in panel' && panelMade.kept.includes(S), 'panel: "Add instruction set" puts the new set into the shared lorebook and the card says where it is kept');
@@ -238,7 +238,7 @@ const chatLore = (page, name) => page.evaluate((name) => { const c = globalThis.
         data = await book(page, S);
         await makeIn(page, '', 'Standalone deletion ' + t, [{versions:['Z1']}]);
         await page.evaluate(async B => (await import(`${B}/src/ui/panel.js`)).app.render(), L.BASE);
-        const ownHasDelete = await page.evaluate(() => { const card = [...document.querySelectorAll('#ri_root .ri-setcard')].find(c => /Kept in a lorebook of its own/.test(c.textContent)); return card && [...card.querySelectorAll('button')].some(b => b.textContent.trim() === 'Delete this set'); });
+        const ownHasDelete = await page.evaluate(() => { const card = [...document.querySelectorAll('#ri_root .ri-setcard')].find(c => /Kept in a World Info book of its own/.test(c.textContent)); return card && [...card.querySelectorAll('button')].some(b => b.textContent.trim() === 'Delete this set'); });
         assert(!data.extensions.ri.groups['Made in panel'] && data.extensions.ri.groups.Alpha && Object.keys(data.entries).length === nBefore, 'delete: "Delete this set" removes the set from the shared lorebook and leaves the other sets alone');
         assert(ownHasDelete, 'delete: a set with a lorebook of its own also offers the delete control');
         await L.setSettings(page, { home: '' });

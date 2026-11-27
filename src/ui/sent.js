@@ -37,7 +37,7 @@ export function deliveredDirections(receipt) {
     const names = {evidenced:'Evidence found in this reply',missed:'Checked and unfulfilled',unverified:'Evidence pending'};
     return h('details',{},h('summary',{},'Directions sent with this reply'),
         receipt.directions.map(cue=>h('div',{class:'ri-quick-card'},
-            h('strong',{},cue.title || (cue.required ? 'Required direction':'Nudge')),
+            h('strong',{},cue.title || (cue.required ? 'Required direction':'Optional')),
             h('p',{},cue.text),
             h('p',{class:'ri-help'},[cue.visibility==='visible'?'Visible OOC':'Private guidance',
                 cue.required && names[cue.verification || 'unverified']].filter(Boolean).join(' · ')),
@@ -128,7 +128,7 @@ function itemRow(id, rec, it, index, withButtons) {
             ] : it.pace ? kv('Story phase', it.pace) : it.worldOrder ? kv('From the story world', it.worldOrder.label || it.name) : 'goalTask' in it ? (it.goalTask ? kv(it.goalTask.type === 'step' ? 'One-time step' : 'Repeatable action', it.goalTask.text) : null) : kv('Instruction set', setName(canonSet(it.set || it.world))),
             kv('Why it was sent', it.notes ? `This chat has a story world${it.repeat ? ', same as before the swipe' : ''}` : `${KIND[it.kind] || 'New'}${it.misses ? ` (reminder ${it.misses})` : ''}${it.repeat ? ', same as before the swipe' : ''}`),
             rule && kv('Instruction settings at selection',[
-                rule.when==='always' ? 'Always eligible' : `${rule.when==='pattern' ? 'Pattern' : 'Keyword'} · ${BOOK_TRIGGER_SOURCES[rule.triggerSource] || 'Recent chat'}`,
+                rule.when==='always' ? 'Constant' : `${rule.when==='pattern' ? 'Pattern' : 'Keyword'} · ${BOOK_TRIGGER_SOURCES[rule.triggerSource] || 'Recent chat'}`,
                 `${rule.chance}% configured chance`,
                 rule.keep>0 && `keep for ${rule.keep} ${rule.keep===1 ? 'reply' : 'replies'}`,
                 rule.wait>0 && `wait ${rule.wait} ${rule.wait===1 ? 'reply' : 'replies'}`,
@@ -190,22 +190,22 @@ function recordBody(id, rec, isLast, withButtons) {
                 button('Guidance receipt settings',()=>open('display','ri-keepTurnGuidance'),{kind:'ghost'}))),
         rec.cardIssues?.length ? h('div',{class:'ri-note ri-note-warn'},rec.cardIssues.map(issue=>h('p',{},issue))) : null,
         rec.v10Check ? h('div',{class:'ri-note'},checkText(rec.v10Check)) : null,
-        rec.v10Offer ? h('div',{class:'ri-note'},`Optional plot opportunity offered: ${rec.v10Offer}`) : null,
+        rec.v10Offer ? h('div',{class:'ri-note'},`Optional plot offer offered: ${rec.v10Offer}`) : null,
         rec.v10Lore?.length ? h('details',{class:'ri-sentitem'},h('summary',{},'World Info selections'),
             h('ul',{class:'ri-changes'},rec.v10Lore.map(entry=>h('li',{},[
                 `${entry.title} · ${entry.book || 'Story World'}${entry.role ? ` (${entry.role})` : ''}`,
                 entry.confirmed ? 'Confirmed in prompt' : 'Delivery unconfirmed', entry.delivery, entry.timing,
             ].filter(Boolean).join(' · '), ' ', loreEntryButton(entry,true))))) : null,
-        rec.guided ? h('div', { class: 'ri-note' }, `Guided swipe: ${rec.guided.direction} (${rec.guided.repeatOrders ? 'previous orders repeated' : 'previous orders left out'})`) : null,
+        rec.guided ? h('div', { class: 'ri-note' }, `Swipe: ${rec.guided.direction} (${rec.guided.repeatOrders ? 'previous orders repeated' : 'previous orders left out'})`) : null,
         rec.agency ? h('div', { class: 'ri-note ri-note-warn' }, `The reply wrote for you: "${rec.agency.quote}"`) : null,
         rec.note ? h('div', { class: 'ri-note' }, rec.note) : null,
         paceNote(rec),
-        rec.usedUp ? h('div', { class: 'ri-note ri-note-warn' }, `Used up in this chat with this reply: ${rec.usedUp.join(', ')}. Every item of its main list has happened. "Bring the used items back" in the Random Story Events tab starts it again for this chat.`) : null,
+        rec.usedUp ? h('div', { class: 'ri-note ri-note-warn' }, `Used up in this chat with this reply: ${rec.usedUp.join(', ')}. "Bring the used items back" in Direction, Random sets starts it again for this chat.`) : null,
         rec.items.map((it, i) => itemRow(id, rec, it, i, withButtons)),
         askedRows(rec),
         worldChanges(id, rec, withButtons),
         withButtons && isLast ? h('div', { class: 'ri-row' },
-            button('Pick again and write a new reply', () => pickAgainNow(), { title: 'Roll the instructions for this reply again and swipe to a new reply' }),
+            button('Regenerate', () => pickAgainNow(), { title: 'Roll the instructions for this reply again and swipe to a new reply' }),
             settings().check.mode !== 'off' && rec.items.some(item=>!item.noCheck) && executionAction(
                 button('Check this reply again', () => checkAgain(id), { kind:'ghost',disabled:rec.checking,title:'Use this after you edit the reply by hand' }))) : null,
         (rec.checkExecution || withButtons && isLast && settings().check.mode !== 'off' && rec.items.some(item=>!item.noCheck)) &&
@@ -220,10 +220,10 @@ function summaryLine(rec) {
     const orders = rec.items.filter(i => !i.noCheck);
     const n = orders.length;
     const also = [];
-    if (rec.items.some(i => i.notes)) also.push('story notes');
+    if (rec.items.some(i => i.notes)) also.push('Recall');
     if (rec.v10Request || rec.v10Guidance===true) also.push('story guidance');
     if (rec.v10Lore?.length) also.push('World Info');
-    if (rec.v10Offer) also.push('plot opportunity');
+    if (rec.v10Offer) also.push('plot offer');
     if (rec.v10Check) also.push('action check');
     if (rec.items.some(i => i.noCheck && !i.notes && !i.pace && !('goalTask' in i))) also.push('writing style');
     if (rec.items.some(i => i.noCheck && 'goalTask' in i)) also.push('goal');
@@ -243,12 +243,12 @@ export function renderSent(body, app) {
     if (!isChatOpen()) return;
     const st = settings();
     if (enabledV10()) body.append(h('div',{class:'ri-note'},
-        'Open World Info selections to see the source books and activation settings. Confirmed means the extension found the text in the assembled request. Entries marked Story notes block went through one shared block.',
+        'Open World Info selections to see the source books and activation settings. Confirmed means the extension found the text in the assembled request.',
         h('div',{class:'ri-row'},button('World Info display settings',()=>app.openPage('display'),{kind:'ghost'}))));
     const waiting = overdueList();
     if (waiting.length) body.appendChild(h('div', { class: 'ri-note ri-note-warn' }, `Waiting to be sent again with the next reply: ${waiting.map(o => o.name).join(', ')}.`,
         h('div', { class: 'ri-row ri-row-tight' }, button('Do not send these again', () => clearQueue(), { kind: 'ghost' }))));
-    if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Instruction follow-through checks are off. Turn on “Check that it happened” in Settings to see Done and Overdue for required instructions here.'));
+    if (st.check.mode === 'off') body.appendChild(h('div', { class: 'ri-note' }, 'Instruction follow-through checks are off. Turn on the follow-through check in Direction, Random sets to see Done and Overdue for required instructions here.'));
     // The way to carry the story into a new chat, kept where it is easy to find.
     body.appendChild(homeLink(app,'new-chapter','Carry the story into a new chat with a chapter summary and opening.'));
     const host=ctx(), requested=app.replyTarget;
@@ -403,11 +403,11 @@ function refreshV10Replies(chat) {
                 h('div',{},h('p',{},heading),h('ul',{},items.map(text=>h('li',{},text))))),
             diagnostics?.metrics && h('p',{},`${diagnostics.metrics.words} words · about ${diagnostics.metrics.dialogue}% in quotation marks.`),
             diagnostics?.auditRequested && !diagnostics.details.length && h('p',{},diagnostics.auditConfirmed===false
-                ? 'The host omitted the writing review prompt.' : 'The reply supplied no supported writing review findings.'),
+                ? 'SillyTavern omitted the writing review prompt.' : 'The reply supplied no supported writing review findings.'),
             hasDiagnostics && executionDetails([
-                {stage:'code',label:'Local prose screening',trigger:'When the reply is accepted.',attempts:0,outcome:'Complete'},
+                {stage:'code',label:'Reply screening',trigger:'When the reply is accepted.',attempts:0,outcome:'Complete'},
                 ...(diagnostics.usedReply ? [{stage:'reply',label:'Writing review and next-turn guidance',trigger:'On the ordinary story reply.',connection:diagnostics.connection,attempts:0,outcome:
-                    diagnostics.auditConfirmed===false ? 'Host omitted part of the requested guidance' : diagnostics.auditConfirmed===true ? 'Confirmed in the assembled request' : 'Selected for the reply request'}] : []),
+                    diagnostics.auditConfirmed===false ? 'SillyTavern omitted part of the requested guidance' : diagnostics.auditConfirmed===true ? 'Confirmed in the assembled request' : 'Selected for the reply request'}] : []),
             ]),
         ].flat().filter(Boolean);
         const saved = showConsole && native ? replyWorld(id) : null;

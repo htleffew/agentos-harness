@@ -1,7 +1,7 @@
 // Story rules, the parts she sees (B41): one home on Direction, Random sets, beside the sets, with a link row from Story,
 // Characters. A rule is built only from pickers, plus one text box for a direction's wording. The Sent card's lines come
 // from firedRuleLines below.
-import { h, button, field, section, select, textArea, numberInput, toggle } from './dom.js';
+import { h, button, field, section, select, textArea, numberInput, toggle, howItWorks } from './dom.js';
 import { registerPage } from './page-registry.js';
 import { ctx, isChatOpen, toast } from '../st.js';
 import { chatState } from '../store.js';
@@ -155,7 +155,7 @@ export function renderStoryRulesPage(body, app) {
     const ready = next?.fired?.length ? h('div', { class: 'ri-note', 'data-story-rules-next': '' }, h('strong', {}, 'With the next reply'),
         h('ul', { class: 'ri-changes' }, firedLines(next.fired).map(line => h('li', {}, line)))) : null;
     body.append(section('Story rules',
-        h('p', { class: 'ri-help' }, 'Each rule is one sentence: when a card value, a Pending thread or the reply count meets a condition, the next reply carries a private direction or an event item. Code checks the rules after each capture and before each reply; no rule asks the model anything. A rule that fired is stored with its reply, so a swipe or delete takes it back.'),
+        h('p', { class: 'ri-help' }, ['Each rule is one sentence: when a card value, a Pending thread or the reply count meets a condition, the next reply carries a private direction or an event item. No rule asks the model anything.', howItWorks('Code checks the rules after each capture and before each reply. A rule that fired is stored with its reply, so a swipe or delete takes it back.')]),
         field('Kept with', 'Rules kept with a story event set work in every chat where that set is on.',
             select([{ value: '', label: 'This chat' }, ...sets.map(id => ({ value: id, label: `Set: ${setName(id)}${active.has(id) ? '' : ' (off in this chat)'}` }))], scope,
                 v => { view.scope = v; redraw(); }, { 'aria-label': 'Rules kept with' })),

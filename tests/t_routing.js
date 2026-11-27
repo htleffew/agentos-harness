@@ -349,7 +349,7 @@ test('the on-phone model takes judgment calls and is skipped for writing jobs', 
     probeUp = false;
     const none = await runJob('judgment', { user: 'x', schema });
     assert.equal(none.ok, false);
-    assert.match(none.attempts[1].receipt, /no connection on this host carries this route/);
+    assert.match(none.attempts[1].receipt, /no connection here carries this route/);
 });
 
 test('saved per-operation profiles keep routing their operation', async () => {

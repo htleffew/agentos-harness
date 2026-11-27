@@ -39,9 +39,9 @@ const server = http.createServer((req, res) => {
   assert.equal(await page.evaluate(async () => (await import('/src/state.js')).sceneAt().where), 'Tower');
   await page.evaluate(async () => { const UI=await import('/src/ui/state.js'), S=await import('/src/state.js'); const card=UI.characterStateCard(S.snapshotState(0).hale, 0, () => {}, { historical:true }); document.querySelector('#root').replaceChildren(card); });
   await page.locator('summary', { hasText: 'Hale' }).click();
-  await page.getByRole('button', { name: 'Edit this snapshot', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit this state', exact: true }).click();
   await page.locator('.ri-state-editor textarea').first().fill('Historical correction');
-  await page.getByRole('button', { name: 'Save snapshot only', exact: true }).click();
+  await page.getByRole('button', { name: 'Save this reply only', exact: true }).click();
   assert.equal(await page.evaluate(async () => (await import('/src/state.js')).snapshotState(0).hale.fields.mind), 'Historical correction');
   assert.equal(await page.evaluate(async () => (await import('/src/state.js')).stateAt().hale.fields.mind), 'Guard the door');
   assert.deepEqual(errors, []);

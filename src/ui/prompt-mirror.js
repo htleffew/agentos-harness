@@ -225,7 +225,7 @@ export function mirroredPrompt(id, { onChange = () => {}, lazy = false, open = f
         exportButton = button('Export', run(() => {
             const entry = picked() || { name: def.label, value: box.value };
             const name = entry.name.replace(/[\\/:*?"<>|]/g, '-');
-            if (!download(`${name}.json`, JSON.stringify(variationFile(entry), null, 2))) throw new Error('This host could not start the download.');
+            if (!download(`${name}.json`, JSON.stringify(variationFile(entry), null, 2))) throw new Error('SillyTavern could not start the download.');
             say('Export started.');
         }));
         compareButton = button('Compare with default', () => { comparing = !comparing; refreshAll(); }, { kind: 'ghost' });

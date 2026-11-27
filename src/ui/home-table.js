@@ -1,7 +1,7 @@
 // The control homes of DESIGN.md 3.4 as data: the page that holds each control and the pages that link to it.
 // homes.js builds the links from it; tests read it without a browser.
 export const HOMES = {
-    'world-budget':      { page:'memory',  label:'Room for story notes',                links:['world'] },
+    'world-budget':      { page:'memory',  label:'Room for Recall',                links:['world'] },
     'state-budget':      { page:'memory',  label:'Current state prompt budget',         links:['settings'] },
     'write-chapter':     { page:'world',   label:'Write a chapter now',                 links:['context'] },
     'new-chapter':       { page:'world',   label:'Start a new chapter in a new chat',   links:['sent'] },
@@ -10,7 +10,7 @@ export const HOMES = {
     'world-delete':      { page:'books',   label:'Delete the Story World',              links:['world'] },
     'world-entries':     { page:'world',   label:'Story World entries',                 links:['books'] },
     'live-guidance':     { page:'writing', label:'Live writing guidance',               links:[] },
-    'scene-checks':      { page:'writing', label:'Scene and character checks',          links:[] },
+    'scene-checks':      { page:'writing', label:'Continuity guidance',          links:[] },
     'npc-avoid':         { page:'writing', label:'New NPC names to avoid',              links:['portrayal'] },
     'roast-voice':       { page:'v10',     label:'Roast commentator voice',             links:['display'] },
     'roast-switches':    { page:'v10',     label:'Roast on or off',                     links:['display'] },

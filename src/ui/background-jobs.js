@@ -2,7 +2,7 @@
 // Reset to the recommended chain, and Test per route (B55, memory DESIGN 12.2). Routing stays automatic with no approval
 // step (DECISIONS 2026-11-23); this section shows and adjusts. Test makes one request that lists a route's models, so it
 // costs nothing. It lives apart from connections-spend.js, which keeps no probes of its own (t_spend_ceiling.js).
-import { h } from './dom.js';
+import { h, howItWorks } from './dom.js';
 import { settings } from '../store.js';
 import { ctx, probeCustomUrl } from '../st.js';
 import { JOBS, RECOMMENDED_CHAINS, ROUTES, chainFor, resolveRoute, routeHealth, setJobChain } from '../routing.js';
@@ -129,7 +129,7 @@ export function jobsSection() {
     };
     redraw();
     return h('div', { class: 'ri-jobs' }, h('h4', { class: 'ri-spend-head' }, 'Jobs and their routes'),
-        hint('Routing is automatic. Each job tries its routes in this order and moves on when one does not answer; a fallback shows in the bar. Free and local routes come first, and paid routes count toward your monthly ceiling, US$5 unless you changed it. Test asks one route one question, which lists its models and costs nothing.'),
+        hint(['Routing is automatic: each job tries free and local routes first, then paid routes within your monthly ceiling. Test asks one route one question and costs nothing.', howItWorks('A job moves to its next route when one does not answer, and a fallback shows in the bar. The ceiling is US$5 unless you changed it.')]),
         list);
 }
 

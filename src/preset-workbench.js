@@ -131,7 +131,7 @@ export function validateBlockVariation(value) {
 
 function setBlockText(target, change) {
     if (!change.name.trim()) throw new Error('A preset block needs a name.');
-    if (target.marker) throw new Error('The host supplies the contents of this marker.');
+    if (target.marker) throw new Error('SillyTavern supplies the contents of this marker.');
     target.name=change.name.trim(); target.content=change.content;
     if (['system','user','assistant'].includes(change.role) && (target.role || 'system')!==change.role) target.role=change.role;
     if (!change.placement) return;
@@ -158,11 +158,11 @@ export async function editPresetBlock(preset,id,change) {
     const names = library?.preset_names;
     const presetIndex = Array.isArray(names) ? names.indexOf(preset) : own(names,preset);
     const stored = manager?.getCompletionPresetByName?.(preset) ?? library?.presets?.[presetIndex];
-    if (!stored || !manager?.savePreset) throw new Error('This host does not expose a writable Chat Completion preset.');
+    if (!stored || !manager?.savePreset) throw new Error('SillyTavern does not expose a writable Chat Completion preset.');
     const live = ctx().chatCompletionSettings;
     const data = {...copy(stored),prompts:copy(live.prompts),prompt_order:copy(live.prompt_order)};
     const order = sequence(data);
-    if (!order) throw new Error('The host has not exposed its prompt order.');
+    if (!order) throw new Error('SillyTavern has not exposed its prompt order.');
     const p = data.prompts.find(block=>block.identifier===id);
     const index = order.findIndex(e=>e.identifier===id);
     const before = original(data,id);
@@ -596,6 +596,30 @@ export function restoreWorkingCopy() {
     for (const text of snapshot.texts) text.prompt.content = text.value;
     for (const field of snapshot.fields || []) putFields(field.prompt, field.had);
     writeJournal(null);
+}
+
+// The generations that started with the working copy applied and have not built their prompt yet. SillyTavern can start a
+// dry run (a token count or prompt preview) while a reply is still being assembled, and an extension's generateRaw (the
+// scene and state jobs among them) fires CHAT_COMPLETION_PROMPT_READY with no GENERATION_STARTED. Restoring on either
+// took the stack's inserted blocks out of the live arrays before the reply read them, so a block went unsent. The copy
+// now stays applied until every Generate in flight has built its prompt (GENERATE_AFTER_DATA, which only Generate fires).
+let building = 0;
+/** GENERATION_STARTED: apply the stack, unless this is a dry run while a request is still being built on the copy. */
+export function onGenerationStarted(type = 'normal', dryRun = false) {
+    if (!(dryRun && building)) applyWorkingCopy(type);
+    // SillyTavern builds one real reply at a time, and a start that returned early (a slash command, no chat) never fires
+    // GENERATE_AFTER_DATA; a new real start clears any such leftover count so the copy still goes back after this reply.
+    building = dryRun ? building + 1 : 1;
+}
+/** GENERATE_AFTER_DATA: one Generate has built its prompt; the live arrays go back once none is still building. */
+export function onPromptBuilt() {
+    if (building > 0) building--;
+    if (!building) restoreWorkingCopy();
+}
+/** GENERATION_ENDED or GENERATION_STOPPED, or a failed apply: nothing is building any more. */
+export function onGenerationDone() {
+    building = 0;
+    restoreWorkingCopy();
 }
 
 /** When a preset or loadout becomes active: a loadout's saved stack goes back, then the owners follow the stack. */

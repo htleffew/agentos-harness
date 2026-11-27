@@ -62,7 +62,7 @@ function candidate(entry, recognized) {
     }
     if (existingTools[id]) return { ...answer, reason: 'Existing Roleplay Instructions workflow', tool: existingTools[id] };
     if (id === 3 && /\/(?:flushinject|uninject|inject)\b[^\r\n|]*\bkeel_oneshot\b/i.test(body)) {
-        return { ...answer, kind: 'Queue shortcut', reason: 'Opens pending directions. You select what to cancel.',
+        return { ...answer, kind: 'Queue direction', reason: 'Opens pending directions. You select what to cancel.',
             translation: { title: 'Cancel pending directions', family: 'steer', text: '', operation: 'queue' } };
     }
     if (!Object.hasOwn(shelf, id) && !Object.hasOwn(forms, id)) return answer;
@@ -108,8 +108,8 @@ function inspectBook(value, filename) {
     const entries = Object.values(value.entries);
     if (!entries.every(entry => record(entry) && /^(?:0|[1-9]\d*)$/.test(String(entry.uid)) && Number.isSafeInteger(Number(entry.uid))
         && typeof entry.content === 'string')) throw new Error('Each World Info entry needs a numeric UID and text content.');
-    if (new Set(entries.map(entry => Number(entry.uid))).size !== entries.length) throw new Error('The lorebook has duplicate UIDs.');
-    const name = cleanSetName(value.name || filename.replace(/\.json$/i, '') || 'Imported lorebook');
+    if (new Set(entries.map(entry => Number(entry.uid))).size !== entries.length) throw new Error('The World Info book has duplicate UIDs.');
+    const name = cleanSetName(value.name || filename.replace(/\.json$/i, '') || 'Imported World Info book');
     if (!name || ['__proto__', 'constructor', 'prototype'].includes(name)) throw new Error('Choose a different book name.');
     return { type: 'lorebook', name, original: clone(value), entries: entries.map(entry => ({
         id: Number(entry.uid), title: String(entry.comment || ('Entry ' + entry.uid)), kind: String(entry.extensions?.ri?.type || 'Instruction'),

@@ -24,19 +24,19 @@ export function impersonationSource() {
     if (api==='openai') {
         const preset = activePreset();
         const value = host.chatCompletionSettings?.[field];
-        if (typeof value!=='string') return {api,preset,kind:'opaque',status:'Host wording unavailable',source:'Chat Completion impersonation field',text:null,raw:null,writable:false};
+        if (typeof value!=='string') return {api,preset,kind:'opaque',status:'SillyTavern wording unavailable',source:'Chat Completion impersonation field',text:null,raw:null,writable:false};
         let writable = false;
         try {
             const access = managerFor(preset);
             writable = !!preset && !!access.presetData && typeof access.manager?.savePreset==='function';
         } catch { /* Some hosts expose a readable field only. */ }
         return {api,preset,kind:value.trim() ? 'prompt' : 'blank',source:'Chat Completion impersonation field',text:value,raw:value,writable,
-            status:value.trim() ? writable ? 'Editable in this preset' : 'Read-only host wording' : writable ? 'Blank host field' : 'Blank, read-only host field'};
+            status:value.trim() ? writable ? 'Editable in this preset' : 'Read-only SillyTavern wording' : writable ? 'Blank SillyTavern field' : 'Blank, read-only SillyTavern field'};
     }
     const instruct = activeInstruct();
     const cue = instruct?.last_input_sequence || instruct?.input_sequence;
-    if (instruct?.enabled && typeof cue==='string') return {api,preset:String(instruct.preset || ''),kind:'instruct',status:'Read-only formatting cue',source:'Instruct preset · last input sequence',text:cue,raw:cue,writable:false};
-    return {api,preset:String(instruct?.preset || ''),kind:'opaque',status:'Host wording unavailable',source:'Host impersonation',text:null,raw:null,writable:false};
+    if (instruct?.enabled && typeof cue==='string') return {api,preset:String(instruct.preset || ''),kind:'instruct',status:'Read-only formatting direction',source:'Instruct preset · last input sequence',text:cue,raw:cue,writable:false};
+    return {api,preset:String(instruct?.preset || ''),kind:'opaque',status:'SillyTavern wording unavailable',source:'SillyTavern impersonation',text:null,raw:null,writable:false};
 }
 
 export function draftImpersonation({ mode = 'helper', operation = 'playerDraft' } = {}) {
@@ -50,7 +50,7 @@ export function draftImpersonation({ mode = 'helper', operation = 'playerDraft' 
     }
     const editable = playerPrompt('playerDraft');
     const {text,expanded}=editable;
-    return {...host,kind:'extension',label:'Extension player draft instruction',source:'Extension player draft instruction',
+    return {...host,kind:'extension',label:'Extension Impersonate instruction',source:'Extension Impersonate instruction',
         status:local ? 'Extension template selected' : privateMacro ? 'Extension template used for player knowledge limits' : 'Extension template available',
         text,raw:text,expanded,include:true,host,operation,privateMacro:privateMacro || editable.privateMacro};
 }
@@ -93,12 +93,12 @@ export function readHostImpersonationDefault(source) {
     const control = globalThis.document?.querySelector('#impersonation_prompt_restore');
     const input = globalThis.document?.querySelector('#impersonation_prompt_textarea');
     const live = ctx().chatCompletionSettings;
-    if (!current.writable || !control || !live) throw new Error('This host does not expose its utility default.');
+    if (!current.writable || !control || !live) throw new Error('SillyTavern does not expose its utility default.');
     const inputValue = input?.value;
     try {
         control.click();
         const text=live[field];
-        if (typeof text!=='string') throw new Error('The host did not expose a text utility default.');
+        if (typeof text!=='string') throw new Error('SillyTavern did not expose a text utility default.');
         return text;
     } finally {
         live[field]=current.text;
@@ -110,7 +110,7 @@ export async function saveImpersonationField(source, text) {
     if (typeof text!=='string' || text.length>12000) throw new Error('Keep the impersonation field within 12,000 characters.');
     const now = impersonationSource();
     if (scopeFor(now)!==scopeFor(source) || now.text!==source.text) throw new Error('The preset or field changed. Reopen it to compare before saving.');
-    if (!now.writable) throw new Error('This host field is read-only.');
+    if (!now.writable) throw new Error('SillyTavern field is read-only.');
     if (now.text===text) return now;
     const host = ctx(), live = host.chatCompletionSettings;
     const {manager,presetData} = managerFor(now.preset);
@@ -124,7 +124,7 @@ export async function saveImpersonationField(source, text) {
         saveSettings();
         const afterSave = impersonationSource();
         if (scopeFor(afterSave)!==scopeFor(now) || afterSave.text!==now.text) {
-            throw new Error('The active preset or field changed during the save. The original preset was saved. Reopen it to inspect the result.');
+            throw new Error('The active preset or field changed during the save, and the original preset was saved. Reopen it to inspect the result.');
         }
         live[field] = text;
         const nativeInput = globalThis.document?.querySelector('#impersonation_prompt_textarea');

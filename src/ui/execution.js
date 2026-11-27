@@ -36,7 +36,7 @@ export function executionDetails(stage, { onSettings, allowSettings = true, summ
             const target = typeof item.target==='object' ? item.target?.label || item.target?.id : item.target;
             const history = typeof item.history==='string' ? item.history : item.history?.mode;
             const historyLabel = history==='substituted' ? 'Request-local history substitution'
-                : history==='retained' ? 'Host history retains prior prose' : history;
+                : history==='retained' ? 'SillyTavern history retains prior prose' : history;
             const observed = typeof item.history==='object' && item.history && Object.hasOwn(item.history,'observed')
                 ? item.history.observed ? ' · observed' : ' · delivery unverified' : '';
             const hasSettings=allowSettings && item.stage==='additional' && Object.hasOwn(EXECUTION_OPERATIONS,item.operation);
@@ -45,7 +45,7 @@ export function executionDetails(stage, { onSettings, allowSettings = true, summ
             return h('div',{class:'ri-execution-stage'},h('strong',{},item.label),
                 h('dl',{},detailsRow('Execution',type.label),detailsRow('Calls',count),detailsRow('Connection',item.connection),
                     detailsRow('Route',item.observedRoute || item.route),detailsRow('History',historyLabel && historyLabel+observed),
-                    detailsRow('Trigger',item.trigger),detailsRow('Target',target),detailsRow('Selected extra sources',extraSources || ''),detailsRow('Attempts used',item.attempts),
+                    detailsRow('Started by',item.trigger),detailsRow('Target',target),detailsRow('Selected extra sources',extraSources || ''),detailsRow('Attempts used',item.attempts),
                     detailsRow('Outcome',item.outcome),detailsRow('Result',item.result)),
                 item.partialText && h('details',{},h('summary',{style:{minHeight:'44px'}},'Partial output'),
                     h('pre',{style:{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}},item.partialText)),
@@ -96,6 +96,6 @@ export function executionSettings({ operation, receipt, onChange = () => {}, can
             refresh(receipt);
             return h('details',{id:`ri-operation-${id}`,class:'ri-card ri-tight','data-ri-operation':id,open:!!operation},
                 h('summary',{style:{minHeight:'44px',alignContent:'center'}},def.label),
-                def.mainOnly && h('p',{class:'ri-help'},'The host starts this generation through Main API.'),connection,disclosure,automatic);
+                def.mainOnly && h('p',{class:'ri-help'},'SillyTavern starts this generation through Main API.'),connection,disclosure,automatic);
         }));
 }

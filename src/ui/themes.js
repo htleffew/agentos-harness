@@ -384,7 +384,7 @@ export function renderStoryStylePage(body) {
     const host = h('div', { class: 'ri-look ri-story-style-page', id: 'ri-story-style' });
     const rerender = () => { const fresh = h('div'); renderStoryStylePage(fresh); host.replaceWith(fresh.firstChild); };
     add(host, [
-        h('p', { class: 'ri-help' }, 'Story cards in the reply tray take a style. The menus and the tray controls keep the terminal look. The style does not change the scene header line, which keeps SillyTavern\'s chat font.'),
+        h('p', { class: 'ri-help' }, 'Story cards in the reply tray take a style; the menus and tray controls keep the terminal look. The scene header line keeps SillyTavern’s chat font.'),
         h('h3', { class: 'ri-tray-subhead' }, 'Default for every chat'),
         styleChoices(defaultStoryStyle(), id => { setDefaultStoryStyle(id); rerender(); })]);
     if (chatOpen) {

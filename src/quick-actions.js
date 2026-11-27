@@ -9,10 +9,10 @@ import { chatWorld, DONE, isWorldEntry, listWorld, readScene, readWorldEntry, WO
 import { loadEffectiveWorld } from './worldflow.js';
 
 export const QUICK_ACTION_FAMILIES = {
-    steer: { name: 'Steer the next reply', add: 'Create saved nudge' },
-    swipe: { name: 'Generate an alternate reply', add: 'Create saved alternate direction' },
-    continue: { name: 'Continue this reply', add: 'Create saved continuation direction' },
-    draft: { name: 'Draft my reply', add: 'Create saved draft direction' },
+    steer: { name: 'Direction for the next reply', add: 'Create saved direction' },
+    swipe: { name: 'Swipe', add: 'Create saved swipe direction' },
+    continue: { name: 'Continue', add: 'Create saved continuation direction' },
+    draft: { name: 'Impersonate', add: 'Create saved draft direction' },
 };
 
 /**
@@ -22,7 +22,7 @@ export const QUICK_ACTION_FAMILIES = {
  */
 export const QUICK_ACTION_KINDS = Object.freeze({
     options: { name: 'Options', family: 'options', ink: 'direction', icon: 'fa-wand-magic-sparkles', call: 'extra', sheet: true,
-        boxLabel: 'Steer these options' },
+        boxLabel: 'Add to these options' },
     swipe: { name: 'Swipe', family: 'swipe', ink: 'reply', icon: 'fa-rotate', call: 'reply', sheet: true, boxLabel: 'Add to this swipe', generate: 'Swipe' },
     continue: { name: 'Continue', family: 'continue', ink: 'reply', icon: 'fa-forward-step', call: 'reply', sheet: true,
         boxLabel: 'Add to this continue', generate: 'Continue' },
@@ -69,7 +69,7 @@ export const QUICK_ACTION_VARIABLES = {
     scenario: 'Card scenario',
     direction: 'Direction supplied when used',
     seed: 'Selected planted detail',
-    secret: 'Selected secret cue',
+    secret: 'Selected secret direction',
     thread: 'Selected thread',
     twist: 'Selected twist',
     instruction: 'Selected instruction',
@@ -799,7 +799,7 @@ export function migrateComposerBar(library = actionLibrary(), cfg = settings()) 
             pin(legacyFamilyPins[value]);
             return;
         }
-        if (value === 'steer') { bar.notes.push('The Steer slot opens from More, All quick actions.'); return; }
+        if (value === 'steer') { bar.notes.push('Directions open from More, All quick actions.'); return; }
         if (typeof value === 'string' && value.startsWith('action:')) {
             const id = value.slice(7);
             if (!validId(id) || !publicAction(id, library.actions[id])) return;

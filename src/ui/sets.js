@@ -26,7 +26,7 @@ function limitControl(name, onDone) {
 /** One line that says which lorebook a set is kept in. */
 export function keptIn(id) {
     const i = setInfo(id);
-    return h('div', { class: 'ri-kept' }, i.shared ? `Kept in the shared lorebook "${i.book}"` : 'Kept in a lorebook of its own');
+    return h('div', { class: 'ri-kept' }, i.shared ? `Kept in the shared World Info book "${i.book}"` : 'Kept in a World Info book of its own');
 }
 
 export function onForChat(name) {
@@ -61,7 +61,7 @@ export function instructionSetCard(app, name) {
             h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Instructions'), h('span', { class: 'ri-v' }, `${list.length} (${list.filter(i => i.on).length} turned on)`)),
             h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'Size when one is sent'), h('span', { class: 'ri-v' }, avg ? `about ${avg} tokens` : 'nothing to send yet')),
             h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, 'How often'), h('span', { class: 'ri-v' }, frequencyText(list))));
-    }).catch(() => counts.replaceChildren(h('span', { class: 'ri-muted' }, 'This lorebook could not be read.')));
+    }).catch(() => counts.replaceChildren(h('span', { class: 'ri-muted' }, 'This World Info book could not be read.')));
 
     return h('div', { class: 'ri-card ri-setcard' },
         h('div', { class: 'ri-card-top' },
@@ -74,8 +74,8 @@ export function instructionSetCard(app, name) {
             button('Open', () => openSet(app, name), { kind: 'primary', title: 'See and edit the instructions in this set' }),
             button('Export', async () => {
                 const data = await exportSet(name);
-                if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this lorebook from the World Info screen.');
-            }, { kind: 'ghost', title: 'Download this set as a lorebook file' }),
+                if (!data || !download(`${setName(name)}.json`, JSON.stringify(data, null, 4))) toast('info', 'Export did not start here. You can also export this World Info book from the World Info screen.');
+            }, { kind: 'ghost', title: 'Download this set as a World Info book file' }),
             button('Remove from this list', async () => {
                 if (!await confirmBox(removeText(name))) return;
                 forgetSet(name);
@@ -101,7 +101,7 @@ export function deleteButton(app, id, label = 'Delete this set', onDone = app.re
         if (busy) return;
         busy = true;
         try {
-            if (!await confirmBox(`Delete "${i.name}" and its entries from "${i.book}"? This applies to every chat using the set. The World Info book is kept.`)) return;
+            if (!await confirmBox(`Delete "${i.name}" and its entries from "${i.book}"? This applies to every chat using the set; the World Info book is kept.`)) return;
             await deleteSet(id);
             const cs = chatState();
             if (cs) { cs.activeSets = cs.activeSets.filter(n => n !== id); saveChatState(); }
@@ -116,8 +116,8 @@ export function deleteButton(app, id, label = 'Delete this set', onDone = app.re
 export function removeText(id) {
     const i = setInfo(id);
     return i.shared
-        ? `Remove "${i.name}" from this list? Its entries stay in the shared lorebook "${i.book}", and opening that lorebook brings it back.`
-        : `Remove "${i.name}" from this list? The lorebook itself is kept and can be opened again.`;
+        ? `Remove "${i.name}" from this list? Its entries stay in the shared World Info book "${i.book}", and opening that World Info book brings it back.`
+        : `Remove "${i.name}" from this list? The World Info book itself is kept and can be opened again.`;
 }
 
 // ---------- one instruction set ----------
@@ -154,7 +154,7 @@ function renderSet(body, app) {
     body.appendChild(listBox);
 
     cached(app, name).then((data) => {
-        if (!data) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'This lorebook could not be read. It may have been renamed or deleted.')); return; }
+        if (!data) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'This World Info book could not be read. It may have been renamed or deleted.')); return; }
         const list = listInstructions(data, name);
         howOften.textContent = `How often: ${frequencyText(list)}`;
         if (!list.length) { listBox.replaceChildren(h('div', { class: 'ri-empty' }, 'No instructions in this set yet. Press "Add instruction" to make the first one.')); return; }
@@ -189,7 +189,7 @@ function renderSet(body, app) {
                     writeInstruction(fresh, copy, name);
                 }), { kind: 'ghost', title: 'Make a second instruction with the same settings and versions' }),
                 deleteInstructionButton(app, name, ins, app.render)))));
-    }).catch((e) => listBox.replaceChildren(h('div', { class: 'ri-empty' }, `This lorebook could not be read: ${e.message}`)));
+    }).catch((e) => listBox.replaceChildren(h('div', { class: 'ri-empty' }, `This World Info book could not be read: ${e.message}`)));
 
     if (!isChatOpen()) body.appendChild(h('div', { class: 'ri-help' }, 'Names and pronouns in versions are shown for the chat that is open. Open a chat to see them filled in.'));
 }

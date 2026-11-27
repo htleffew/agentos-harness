@@ -15,8 +15,8 @@ import { defaultWritingGuidance, effectiveModules, enabledV10, prefs, recordMap,
 import { rememberStoryTimeline } from './story-refresh.js';
 
 const modelFunctions = { draft: 'playerDraft', choices: 'playerChoices', expand: 'playerExpansion' };
-const modes = { swipe: 'Guide a swipe', continue: 'Continue this reply', draft: 'Generate my draft', choices: 'Give me choices', expand: 'Draft from this choice' };
-const labels = { substituted: 'Earlier prose replaced with factual context', retained: 'Host retains earlier prose', bounded: 'Selected earlier exchanges included' };
+const modes = { swipe: 'Guide a swipe', continue: 'Continue', draft: 'Write my next message', choices: 'Give me choices', expand: 'Draft from this choice' };
+const labels = { substituted: 'Earlier prose replaced with factual context', retained: 'SillyTavern retains earlier prose', bounded: 'Selected earlier exchanges included' };
 const choiceCount = 3;
 let running;
 
@@ -62,8 +62,8 @@ export function guidedPreview(family, { target, freshStart = false, mode = 'draf
     const nativeDraft = draft && mode === 'draft' && !forceHelper && nativeDraftAvailable(base);
     const nativeStory = story && nativeStoryAvailable(family, target);
     const operation = draft ? modelFunctions[mode] : nativeStory ? family : family === 'continue' ? 'historicalContinue' : 'historicalSwipe';
-    const route = nativeDraft ? 'Native impersonation' : nativeStory ? family === 'swipe' ? 'Host swipe' : 'Host continuation' :
-        suggestions ? 'Composer suggestions' : draft ? 'Player-only helper' : 'Bounded reply helper';
+    const route = nativeDraft ? 'Native impersonation' : nativeStory ? family === 'swipe' ? 'SillyTavern swipe' : 'SillyTavern continuation' :
+        suggestions ? 'Options' : draft ? 'Impersonate helper' : 'Bounded reply helper';
     const history = freshStart ? (nativeStory ? freshHistoryCapability() : 'substituted') : (nativeStory ? 'ordinary' : 'bounded');
     const targetPreview = target && { chatId: target.chatId, index: target.index, swipe: target.swipe,
         fingerprint: target.fingerprint, label: `${target.name} · swipe ${target.swipe + 1}` };
@@ -73,14 +73,14 @@ export function guidedPreview(family, { target, freshStart = false, mode = 'draf
     if (!settings().enabled) reason = 'Turn on Roleplay Instructions before running this action.';
     else if (!host.getCurrentChatId?.()) reason = 'Open a story chat to use this action.';
     else if (story && !target) reason = 'Select a visible character reply first.';
-    else if (story && !nativeStory && typeof host.saveChat !== 'function') reason = 'This host cannot save a new version of the selected reply.';
-    else if (!nativeStory && !nativeDraft && !execution.profileId && typeof host.generateRaw !== 'function') reason = 'This host does not expose a direct generation route on Main API.';
+    else if (story && !nativeStory && typeof host.saveChat !== 'function') reason = 'SillyTavern cannot save a new version of the selected reply.';
+    else if (!nativeStory && !nativeDraft && !execution.profileId && typeof host.generateRaw !== 'function') reason = 'SillyTavern does not expose a direct generation route on Main API.';
     else if (execution.problem) reason = execution.problem;
     const dependent = story && target ? timelineDependents(target.index) : null;
-    return { ...execution, available: !reason, reason, route, history, historyLabel: labels[history] || 'Host history',
+    return { ...execution, available: !reason, reason, route, history, historyLabel: labels[history] || 'SillyTavern history',
         budget: nativeStory ? 0 : 1, nativeStory, nativeDraft, dependent, fixFacts,
-        fallback: story && !nativeStory ? 'The host only generates ordinary requests on its latest supported reply. This helper uses the selected reply’s earlier timeline and saves the result on that reply.' :
-            draft && !nativeDraft ? 'This helper sends the player’s perspective on the saved connection. The chat composer retains its current draft.' : '' };
+        fallback: story && !nativeStory ? 'SillyTavern only generates ordinary requests on its latest supported reply. This helper uses the selected reply’s earlier timeline and saves the result on that reply.' :
+            draft && !nativeDraft ? 'This helper sends your perspective on the saved connection. The chat composer retains its current draft.' : '' };
 }
 
 const firstPersonSubject = /\b(?:i|we)(?:['’](?:m|ll|d|ve|re)\b|\s+\p{L})/iu;
@@ -308,7 +308,7 @@ async function nativePlayerDraft(prompt, options) {
             if (!observed || mismatch) receipt.attempts = 0;
             options.signal?.throwIfAborted();
             if (!canRestore()) throw new DOMException('The chat changed during drafting.', 'AbortError');
-            if (!observed || mismatch) throw Object.assign(new Error('The host impersonation prompt could not be verified. Retry through the player-only helper.'),
+            if (!observed || mismatch) throw Object.assign(new Error('SillyTavern impersonation prompt could not be verified. Retry with Impersonate.'),
                 { code: 'native-impersonation-unverified' });
             if (!output.trim()) {
                 const partial = partialText();
@@ -366,7 +366,7 @@ async function runPlayer(preview, context, options) {
         return { ok, receipt, ...result };
     }
     const text = candidateText(cleanGuidedProse(raw));
-    amendExecutionReceipt(receipt, { ...details, result: text ? 'One player draft is ready.' : 'The response needs manual editing before it can be used.',
+    amendExecutionReceipt(receipt, { ...details, result: text ? 'One Impersonate draft is ready.' : 'The response needs manual editing before it can be used.',
         ...(!text && { outcome: 'failed', partialText: raw }) }, onReceipt);
     note?.(receipt.result, !!text);
     return { ok: !!text, receipt, text, raw, partial: !text };
@@ -543,10 +543,10 @@ export function cancelGuidedTurn() {
     if (!running || !ownsChat(running.owner)) return '';
     if (running.controller.signal.aborted) return '';
     running.controller.abort(new DOMException('The guided action was cancelled.', 'AbortError'));
-    if (!running.dispatching) return 'Cancelled before the model request.';
+    if (!running.dispatching) return 'Cancelled before the model call.';
     if (running.native) {
         ctx().stopGeneration?.();
-        return 'Stopping the host generation.';
+        return 'Stopping SillyTavern generation.';
     }
     if (running.profile) return 'Stopping the guided request.';
     return 'The result will be discarded. Main API may finish the request.';

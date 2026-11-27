@@ -3,7 +3,7 @@
 // A fake SillyTavern context stands in for the host; the request a provider receives is modelled as the enabled
 // blocks of the global prompt order, each with the text of the first live prompt holding its identifier, at the moment
 // SillyTavern assembles the prompt (prepareOpenAIMessages reads them between GENERATION_STARTED and
-// CHAT_COMPLETION_PROMPT_READY in SillyTavern 1.19), plus effectiveModules() for the extension's own cards.
+// GENERATE_AFTER_DATA in SillyTavern 1.19), plus effectiveModules() for the extension's own cards.
 // Pass --write to rewrite presets/preset-families.json from the analyst map.
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -150,7 +150,7 @@ function request({ stop = false } = {}) {
     const rows = live.prompt_order[0].order.filter(entry => entry.enabled && prompts.has(entry.identifier))
         .map(entry => ({ id: entry.identifier, text: prompts.get(entry.identifier).marker ? null : prompts.get(entry.identifier).content }));
     const modules = effectiveModules();
-    // A stopped generation fires GENERATION_STOPPED and never reaches CHAT_COMPLETION_PROMPT_READY; both call restore.
+    // A stopped generation fires GENERATION_STOPPED and never reaches GENERATE_AFTER_DATA; both restore.
     wb.restoreWorkingCopy();
     return { rows, texts: rows.map(row => row.text).filter(text => text !== null), modules, count, stop };
 }
@@ -263,6 +263,43 @@ test('saved presets and the live arrays are byte-identical after five generation
     assert.equal(host.chatCompletionSettings.prompts, references[0], 'the live prompt array was replaced');
     assert.equal(host.chatCompletionSettings.prompt_order[0].order, references[1], 'the live order array was replaced');
     assert.equal(storage.size, 0, 'the crash journal outlived the generation');
+});
+
+test('a dry run or a background prompt that lands while a reply is being built leaves the stack applied for that reply', () => {
+    select('Sola');
+    const live = JSON.stringify(host.chatCompletionSettings);
+    const applied = () => JSON.stringify(host.chatCompletionSettings) !== live;
+    // The reply starts; SillyTavern then starts a dry run (a token count) before the reply has built its prompt.
+    wb.onGenerationStarted('normal', false);
+    assert.ok(applied(), 'the reply did not apply the stack');
+    const during = JSON.stringify(host.chatCompletionSettings);
+    wb.onGenerationStarted('normal', true);
+    assert.equal(JSON.stringify(host.chatCompletionSettings), during, 'the dry run reapplied the stack under the reply');
+    // The dry run builds its prompt first: the reply is still building, so its blocks stay in the live arrays.
+    wb.onPromptBuilt();
+    assert.equal(JSON.stringify(host.chatCompletionSettings), during, 'the dry run took the stack away from the reply');
+    wb.onPromptBuilt();
+    assert.equal(JSON.stringify(host.chatCompletionSettings), live, 'the live arrays stayed changed after the reply built its prompt');
+    // A stopped reply restores at once, and the count starts again from nothing.
+    wb.onGenerationStarted('normal', false);
+    wb.onGenerationStarted('normal', true);
+    wb.onGenerationDone();
+    assert.equal(JSON.stringify(host.chatCompletionSettings), live);
+    wb.onGenerationStarted('normal', false);
+    assert.ok(applied());
+    wb.onPromptBuilt();
+    assert.equal(JSON.stringify(host.chatCompletionSettings), live);
+    assert.equal(storage.size, 0, 'the crash journal outlived the generation');
+    // A start that returned early (a slash command) never builds a prompt; the next real reply still restores after its build.
+    wb.onGenerationStarted('normal', false);
+    wb.onGenerationStarted('normal', false);
+    wb.onPromptBuilt();
+    assert.equal(JSON.stringify(host.chatCompletionSettings), live, 'a start that returned early kept the stack applied after the next reply');
+    // A generateRaw prompt (a background scene or state job) fires CHAT_COMPLETION_PROMPT_READY without GENERATION_STARTED
+    // or GENERATE_AFTER_DATA; the page restores only on GENERATE_AFTER_DATA, GENERATION_ENDED and GENERATION_STOPPED.
+    const page = readFileSync(root + 'src/ui/presets-page.js', 'utf8');
+    assert.match(page, /on\('GENERATE_AFTER_DATA', onPromptBuilt\)/);
+    assert.doesNotMatch(page, /CHAT_COMPLETION_PROMPT_READY/, 'a background prompt would restore the copy under a reply');
 });
 
 test('owners follow the stack for recognised and unrecognised presets, and effectiveModules() follows them', () => {

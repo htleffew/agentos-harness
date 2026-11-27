@@ -275,7 +275,7 @@ function upkeepSection(app, legacy) {
             h('div', { class: 'ri-row' }, gateModelButtons(tidy)),
             more('More upkeep settings', legacy.upkeep),
             more('How it works', h('div', { 'data-ri-thresholds': '' },
-                h('p', { class: 'ri-help' }, `Code compares records within one subject. Tidy runs every ${EVERY.start} replies at first, halves the wait when a run finds six changes or more and doubles it when it finds one or none, between ${EVERY.min} and ${EVERY.max} replies. Near duplicates go to a model ruling in batches; only identical records merge in code.`),
+                h('p', { class: 'ri-help' }, `Tidy compares records within one subject, starting every ${EVERY.start} replies and adapting between ${EVERY.min} and ${EVERY.max}. It halves the wait after six changes or more, doubles it after one or none, and merges only identical records in code.`),
                 Object.entries(THRESHOLDS).map(([key, t]) => h('div', { class: 'ri-kv' }, h('span', { class: 'ri-k' }, THRESHOLD_WORDS[key] || key), h('span', { class: 'ri-v' }, `${t.value} (${t.measure})`))))),
         ]);
 }

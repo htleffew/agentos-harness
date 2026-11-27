@@ -45,7 +45,7 @@ async function updateBook(name, entries, action) {
     },{propagate:true});
 }
 
-const BOOK_MODES = { off:'Disabled', always:'Always eligible', triggered:'Keyword triggered', vector:'Vector matching' };
+const BOOK_MODES = { off:'Disabled', always:'Constant', triggered:'Normal', vector:'Vector matching' };
 const bookMode = entry => entry.disable ? 'off' : entry.constant ? 'always' : entry.vectorized ? 'vector' : 'triggered';
 const chanceOf = entry => entry.useProbability ? entry.probability ?? 100 : 100;
 const titleOf = entry => entry.comment || `Entry ${entry.uid}`;
@@ -74,7 +74,7 @@ function keywordHelp(keys, source, whenApplied = () => {}) {
     const suggestions=h('div');
     const execution=h('div');
     const updateExecution=()=>execution.replaceChildren(functionExecution('bookKeywords',{receipt:executionReceipt('bookKeywords')}));
-    const generate=executionAction(button('Suggest trigger phrases with AI',async()=>{
+    const generate=executionAction(button('Suggest Primary Keywords with AI',async()=>{
         generate.disabled=true;
         suggestions.replaceChildren();
         status.textContent='Reading this entry…';
@@ -82,7 +82,7 @@ function keywordHelp(keys, source, whenApplied = () => {}) {
             const phrases=await suggestEntryKeywords(source());
             if (!phrases.length) { status.textContent='No suitable phrases were returned.'; return; }
             const checks=phrases.map(phrase=>({phrase,control:toggle(phrase,true)}));
-            status.textContent='Review the suggestions before adding them to the draft.';
+            status.textContent='Review the proposed keywords before adding them to the draft.';
             suggestions.append(...checks.map(({phrase,control})=>checkbox(phrase,control)),
                 button('Add checked phrases to draft',()=>{
                     const selected=checks.filter(({control})=>control.checked).map(({phrase})=>phrase);
@@ -97,9 +97,9 @@ function keywordHelp(keys, source, whenApplied = () => {}) {
         finally { generate.disabled=false; updateExecution(); }
     },{kind:'ghost'}));
     updateExecution();
-    return h('details',{},h('summary',{},'Help choosing triggers'),
-        h('p',{class:'ri-help'},'One optional model request reads the entry’s title and text. Review and edit its suggestions before saving.'),
-        execution,generate,status,suggestions,slot(['bookKeywords','systemBookKeywords'],'Customize keyword suggestion prompts'));
+    return h('details',{},h('summary',{},'Help choosing Primary Keywords'),
+        h('p',{class:'ri-help'},'One optional model call reads the entry’s title and text. Review and edit the proposed keywords before saving.'),
+        execution,generate,status,suggestions,slot(['bookKeywords','systemBookKeywords'],'Customize keyword prompts'));
 }
 
 function editEntry(name, entry, target, refresh, reusable, adding = false, cancel = () => target.replaceChildren()) {
@@ -118,13 +118,13 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
         const aliases = input('Aliases',row.aliases.join('\n'),textArea);
         const keep = toggle('Protect from automated updates',row.locked);
         const existing = row.activation;
-        const labels = {default:'Use the entry type’s normal rules',always:'Always eligible',triggered:'When a trigger matches',window:'For an initial window, then on triggers',off:'Never recall'};
+        const labels = {default:'Use the entry type’s normal rules',always:'Constant',triggered:'Normal',window:'For an initial window, then Normal',off:'Never recall'};
         const mode = select(ACTIVATION_MODES.map(key=>option(key,labels[key])),existing?.mode || 'default',()=>{}, {'aria-label':'Activation'});
-        const keys = input('Trigger phrases',(existing?.keys || row.aliases).join('\n'),textArea);
-        const sticky = number('Keep active for replies',existing?.sticky || 0,0,100);
+        const keys = input('Primary Keywords',(existing?.keys || row.aliases).join('\n'),textArea);
+        const sticky = number('Sticky',existing?.sticky || 0,0,100);
         const cooldown = number('Cooldown (replies)',existing?.cooldown || 0,0,1000);
         const triggerSource = select(sourceChoices(RECALL_SOURCES),existing?.source || 'chat',()=>{},{'aria-label':'Keyword source'});
-        const chance = number('Chance (%)',existing?.chance ?? 100,0,100);
+        const chance = number('Trigger %',existing?.chance ?? 100,0,100);
         const window = number('Initial window (replies)',existing?.window ?? 6,0,200);
         const structured = parseJson(row.fields.data,{object:true});
         const inputs = WORLD_KINDS[row.kind].fields.filter(item=>item.key!=='data' || !structured)
@@ -136,13 +136,13 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
         add(panel, [recordText && field('Record text','',recordText),
             field('Aliases','One per line.',aliases),checkbox('Protect from automated updates',keep),
             field('Activation','Uses the extension’s recall budget and applicable knowledge and plot rules.',mode),
-            field('Trigger phrases','One word, phrase or /pattern/i per line.',keys),
-            field('Keyword source','Choose which conversation text the triggers scan.',triggerSource),
+            field('Primary Keywords','One word, phrase or /pattern/i per line.',keys),
+            field('Keyword source','Choose which conversation text the Primary Keywords scan.',triggerSource),
             keywordHelp(keys,()=>({title:title.value,text:recordText?.value || inputs.map(([,control])=>control.value).filter(Boolean).join('\n')}),
                 ()=>{if (mode.value==='default') mode.value='triggered';}),
-            field('Keep active for replies','Number of later replies after a fresh match.',sticky),
+            field('Sticky','Number of later replies after a fresh match.',sticky),
             field('Cooldown (replies)','Wait this many replies after the active replies before the entry can start again.',cooldown),
-            field('Chance (%)','Applied once to each eligible turn.',chance),
+            field('Trigger %','Applied once to each eligible turn.',chance),
             field('Initial window (replies)','Applies to the window mode. Editing an existing rule keeps its original starting reply.',window),
             status && field('Story status','',status),
             ...inputs.map(([,control,label])=>field(label,'',control)),
@@ -165,7 +165,7 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
             row.activation=readActivation({mode:mode.value,keys:terms(keys.value),sticky:Number(sticky.value),
                 source:triggerSource.value,cooldown:Number(cooldown.value),chance:Number(chance.value),window:Number(window.value),
                 after:existing?.mode==='window' ? existing.after : (ctx().chat || []).slice(1).filter(isReply).length});
-            if (row.activation?.mode==='triggered' && !row.activation.keys.length) throw new Error('Enter at least one trigger phrase.');
+            if (row.activation?.mode==='triggered' && !row.activation.keys.length) throw new Error('Enter at least one Primary Keyword.');
             const group=entry.extensions?.ri?.set;
             writeWorldEntry(data,row,group ? sharedId(name,group) : name);
         };
@@ -177,25 +177,25 @@ function editEntry(name, entry, target, refresh, reusable, adding = false, cance
         const sourceOptions = Object.entries(BOOK_TRIGGER_SOURCES).filter(([key]) => key === 'chat' || ctx().registerMacro);
         const triggerSource = select(sourceOptions.map(([key,label]) => option(key,label)), bookTriggerSource(entry), () => {}, {'aria-label':'Keyword source'});
         const keys = input('Primary triggers',(entry.key || []).join('\n'),textArea);
-        const secondary = input('Secondary triggers',(entry.keysecondary || []).join('\n'),textArea);
+        const secondary = input('Optional Filter',(entry.keysecondary || []).join('\n'),textArea);
         const logic = select(['Any secondary','At least one absent','None present','All present'].map((name,i)=>option(String(i),name)),
-            String(entry.selectiveLogic || 0),()=>{},{'aria-label':'Secondary trigger rule'});
-        const chance = number('Chance (%)',chanceOf(entry),0,100);
+            String(entry.selectiveLogic || 0),()=>{},{'aria-label':'Optional Filter rule'});
+        const chance = number('Trigger %',chanceOf(entry),0,100);
         const sticky = number('Native sticky messages',entry.sticky || 0,0,1000);
-        const cooldown = number('Cooldown (host messages)',entry.cooldown || 0,0,1000);
+        const cooldown = number('Cooldown (messages)',entry.cooldown || 0,0,1000);
         const content = input('Entry content',entry.content || '',textArea);
         const extensionData = input('Extension data',JSON.stringify(entry.extensions || {},null,2),textArea);
         panel.append(field('Entry content','',content),
-            field('Activation','Always eligible uses chance and timing alone. Keyword triggered requires a match. Vector matching uses the host’s World Info vector search when enabled.',activation),
+            field('Activation','Constant is always sent, Normal needs a Primary Keyword match, and Vectorized matches by meaning when SillyTavern’s vector search is on.',activation),
             field('Keyword source', ctx().registerMacro
-                ? 'Keyword-triggered entries can match the latest visible message of one role.'
-                : 'This host supports the recent-chat scan. Role-specific matching requires host macro support.',triggerSource),
+                ? 'Normal entries can match the latest visible message of one role.'
+                : 'SillyTavern supports the recent-chat scan. Role-specific matching requires SillyTavern macro support.',triggerSource),
             field('Primary triggers','One word, phrase, or /pattern/i per line.',keys),
             keywordHelp(keys,()=>({title:title.value,text:content.value})),
-            field('Secondary triggers','One per line.',secondary),field('Secondary trigger rule','',logic),
-            field('Chance (%)','The host rolls for activation.',chance),
-            field('Sticky (host messages)','Uses the host’s message-based timing.',sticky),
-            field('Cooldown (host messages)','Wait before it can activate again.',cooldown),
+            field('Optional Filter','One per line.',secondary),field('Optional Filter rule','',logic),
+            field('Trigger %','SillyTavern rolls for activation.',chance),
+            field('Sticky (messages)','Uses SillyTavern’s message-based timing.',sticky),
+            field('Cooldown (messages)','Wait before it can activate again.',cooldown),
             h('details',{},h('summary',{},'Advanced extension data'),field('Extension data','JSON metadata used by the existing set or other extensions.',extensionData)));
         apply = data => {
             const uid = adding ? freeUid(data) : entry.uid;
@@ -246,7 +246,7 @@ export function receiptEntryEditor(receipt, back, entryOptions) {
         h('p',{class:'ri-help'},'This reply recorded the selection shown below. Saved edits change how the entry works in future replies wherever the book is used.'),
         h('p',{class:'ri-help'},[receipt.confirmed ? 'Confirmed in prompt' : 'Delivery unconfirmed',receipt.delivery,receipt.timing].filter(Boolean).join(' · ')),
         status,target,scope);
-    controls.append(button(receipt.fromReview ? 'Back to What Was Sent' : 'Back to World Info books',back,{kind:'ghost'}));
+    controls.append(button(receipt.fromReview ? 'Back to What was sent' : 'Back to World Info books',back,{kind:'ghost'}));
     const saved = () => {
         target.replaceChildren();
         status.textContent = 'Entry saved.';
@@ -315,11 +315,11 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
             count.textContent = ` · ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`;
             const checked = new Set();
             const remove = button('Delete selected entries', () => removeEntriesFromBook(entries.filter(entry=>checked.has(entry.uid)), remove), {disabled:true});
-            const batchMode = select([option('','Keep current activation'),option('always','Always eligible'),option('triggered','When a trigger matches'),option('off','Off')],'',()=>{},
+            const batchMode = select([option('','Keep current activation'),option('always','Constant'),option('triggered','Normal'),option('off','Off')],'',()=>{},
                 {'aria-label':'Selected entries activation'});
             const batchKeys = input('Selected entries triggers','',textArea);
-            const clearKeys = toggle('Clear triggers for selected entries',false);
-            const batchChance = number('Selected entries chance (%)','',0,100);
+            const clearKeys = toggle('Clear Primary Keywords for selected entries',false);
+            const batchChance = number('Selected entries Trigger %','',0,100);
             const batchSticky = number('Selected entries sticky','',0,100);
             const batchCooldown = entries.some(entry=>!isWorldEntry(entry))
                 ? number('Selected entries cooldown','',0,1000) : null;
@@ -345,10 +345,10 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
                     ? readWorldEntry(entry).activation?.keys || readWorldEntry(entry).aliases : entry.key || [];
                 if (selected.some(entry=>(mode==='triggered' || !mode && isWorldEntry(entry) && readWorldEntry(entry).activation?.mode==='triggered') &&
                     !(setKeys ? keys : currentKeys(entry)).length)) {
-                    problem(new Error('Each keyword-triggered entry needs at least one trigger phrase.')); return;
+                    problem(new Error('Each Normal entry needs at least one Primary Keyword.')); return;
                 }
                 if (source && source!=='chat' && !ctx().registerMacro && selected.some(entry=>!isWorldEntry(entry))) {
-                    problem(new Error('This host cannot scan a single role for native entries.')); return;
+                    problem(new Error('SillyTavern cannot scan a single role for native entries.')); return;
                 }
                 if (!mode && (setKeys || chance!==undefined || sticky!==undefined || managedWait!==undefined || source) &&
                     selected.some(entry=>isWorldEntry(entry) && !readWorldEntry(entry).activation)) {
@@ -396,11 +396,11 @@ export function bookEntryEditor(name, { reusable = false, entryOptions = null } 
                 h('div',{class:'ri-row'},checkbox('Select all entries',all),remove),
                 h('details',{},h('summary',{},'Change recall settings for selected entries'),
                     h('p',{class:'ri-help'},'Only the settings you fill in are changed. Check each entry’s row for its saved activation and chance.'),
-                    field('Activation','',batchMode),field('Triggers','One phrase per line. Leave blank to keep current triggers.',batchKeys),
-                    checkbox('Clear triggers for selected entries',clearKeys),
+                    field('Activation','',batchMode),field('Primary Keywords','One phrase per line. Leave blank to keep current triggers.',batchKeys),
+                    checkbox('Clear Primary Keywords for selected entries',clearKeys),
                     batchSource && field('Keyword source', '', batchSource),
-                    field('Chance (%)','Leave blank to keep each entry’s current chance.',batchChance),field('Sticky','Replies for Story World entries. Host messages for native entries. Leave blank to keep the current value.',batchSticky),
-                    batchCooldown && field('Cooldown (host messages)','Applies to native entries. Leave blank to keep the current cooldown.',batchCooldown),
+                    field('Trigger %','Leave blank to keep each entry’s current chance.',batchChance),field('Sticky','Leave blank to keep the current value. Story World entries count replies; other entries count messages.',batchSticky),
+                    batchCooldown && field('Cooldown (messages)','Applies to native entries. Leave blank to keep the current cooldown.',batchCooldown),
                     managedCooldown && field('Cooldown (replies)','Applies to Story World entries. Leave blank to keep the current cooldown.',managedCooldown),
                     batch),
                 h('ul',{class:'ri-chat-books'},entries.map((entry,index)=>{

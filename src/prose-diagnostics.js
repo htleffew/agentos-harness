@@ -334,7 +334,7 @@ export function proseDiagnosticsNotes(chat, index, {avoid, metrics = false} = {}
         });
     }
     if (current && saved.delivery) {
-        const outcome = {confirmed:'Included in the reply request', selected:'Selected for the reply request (delivery unavailable)', omitted:'Omitted by the host'}[saved.delivery.outcome];
+        const outcome = {confirmed:'Included in the reply request', selected:'Selected for the reply request (delivery unavailable)', omitted:'Omitted by SillyTavern'}[saved.delivery.outcome];
         details.push({ heading:`Writing guidance · ${outcome}`,items:saved.delivery.findings.map(nudgeText) });
     }
     return { notes, details, metrics:metrics ? metricsFor(owner.prose) : current ? saved.metrics : null,

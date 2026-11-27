@@ -97,10 +97,10 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         auto.disabled = busy || manual;
         manualHint.hidden = !manual;
         const requests = Number(auto.checked) + Number(regenerate.checked);
-        cost.textContent = requests === 0 ? 'Saves the correction for future replies. No model requests.'
-            : requests === 2 ? 'Up to 2 model requests · one to trace sources and one to generate an alternate reply.'
-                : auto.checked ? 'Up to 1 model request to find and update sources.' : '1 model request to generate an alternate reply.';
-        save.textContent=regenerate.checked ? 'Repair facts and generate alternate' : auto.checked ? 'Find and apply source edits' : 'Apply correction';
+        cost.textContent = requests === 0 ? 'Saves the correction for future replies. No model calls.'
+            : requests === 2 ? 'Up to 2 model calls · one to trace sources and one to swipe.'
+                : auto.checked ? 'Up to 1 model call to find and update sources.' : '1 model call to swipe.';
+        save.textContent=regenerate.checked ? 'Repair facts and swipe' : auto.checked ? 'Find and apply source edits' : 'Apply correction';
         save.disabled = busy || !truth.value.trim() || rows.some(row=>row.check());
         audit.disabled = busy;
         search.disabled = busy || (!truth.value.trim() && !wording.value.trim());
@@ -110,7 +110,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
     };
     const doc = () => ({truth:truth.value,wording:wording.value,focus});
     const showRetry = (correction, requestedTarget, traceNote) => {
-        results.replaceChildren(button('Retry guided regeneration',async event=>{
+        results.replaceChildren(button('Regenerate',async event=>{
             const latest = correctionSwipeTarget();
             if (!latest || executionScope()!==scope || latest.chatId!==startChat || latest.message!==requestedTarget.message) {
                 status.textContent='The latest reply changed. Open Corrections on the intended reply.';
@@ -263,7 +263,7 @@ export function correctionEditor({focus = -1, onSaved = () => {}} = {}) {
         status,
         h('details',{class:'ri-correction-sources'},h('summary',{},'Find and edit source records'),
             h('label',{class:'ri-field'},'Wrong wording, optional',wording),
-            h('p',{class:'ri-help'},'Search by exact wording or by the corrected fact. Saving needs the corrected fact. AI tracing can propose source edits in one additional request.'),
+            h('p',{class:'ri-help'},'Search by exact wording or by the corrected fact; saving needs the corrected fact. Tracing sources with the AI takes one more model call.'),
             h('div',{class:'ri-row'},search,trace),
             executionSettings({operation:'factRepair'})),
         slot(['traceCorrection','correctionSwipe','correctionCanon'],'Customize correction prompts'),
