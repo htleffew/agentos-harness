@@ -54,7 +54,7 @@ Under the form, each saved correction shows its fact, the reply and version it w
 ## Model calls and cost
 
 - Saving with nothing extra ticked, **Find source matches** and **Repair facts only** [run in code](help:model-calls).
-- **Find and update sources with AI** and **Trace and draft with AI** are 1 model call each, marked with the amber dot. They use the route set for corrections in [Setup, Connections](page:settings), which starts on Automatic and tries the routes in [Setup, Background jobs](page:background-jobs) in order; a paid route counts toward the monthly ceiling in [Setup, Spend](page:spend).
+- **Find and update sources with AI** and **Trace and draft with AI** are 1 model call each, marked with the amber dot. They use the route set for corrections in [Setup, Connections](page:settings), which starts on Automatic and tries the routes in [Setup, Background jobs](page:background-jobs) in order; a paid route counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend).
 - **Regenerate the latest reply** is 1 model call, a swipe through SillyTavern's reply request on the Main API with the correction as its Direction.
 - Saved corrections ride later replies inside SillyTavern's reply request.
 

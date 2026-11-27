@@ -85,9 +85,9 @@ The review list shows each item that waits for you: a clash between the story an
 
 ## Model calls and cost
 
-- Filing after each reply, Tidy, chapters that close on their own and catch-up run as background jobs on the routes set in [Setup, Background jobs](page:background-jobs). They are metered: a paid route's cost counts toward the monthly ceiling in [Setup, Spend](page:spend).
+- Filing after each reply, Tidy, chapters that close on their own and catch-up run as background jobs on the routes set in [Setup, Background jobs](page:background-jobs). They are metered: a paid route's cost counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend).
 - **Tidy now**, **Catch up this chat**, **Rebuild from all chat history** and **Write the synopsis and start** carry an amber dot and a cost chip, and open the Generate sheet before the call. Tidy now and Write the synopsis and start are 1 model call each; catch-up and rebuild show their count once the route is checked.
-- Tidy now, catch-up and rebuild are metered like the background jobs. Write the synopsis and start uses the Continue in a new chat routes and is not metered, so it stays outside the ceiling.
+- Tidy now, catch-up and rebuild are metered like the background jobs. Write the synopsis and start uses the Continue in a new chat routes and is metered the same way.
 - Recall, the budgets and the review list run in code.
 
 ## Why it works this way

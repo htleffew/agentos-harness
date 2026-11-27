@@ -1,21 +1,21 @@
 # Spend
 
-Spend shows this month's paid background spend against your monthly ceiling, the calls and health of each route, and any notes about a route that stopped answering. A route is one place a model call can go, such as your desktop over Tailscale, a free tier or a paid provider ([how model calls work](help:model-calls)). Open Spend when the Quick action bar above the message box shows a spend note, when background work seems paused, or to change the ceiling.
+Spend shows this month's paid spend against your monthly ceiling, the calls and health of each route, and any notes about a route that stopped answering. A route is one place a model call can go, such as your desktop over Tailscale, a free tier or a paid provider ([how model calls work](help:model-calls)). Open Spend when the Quick action bar above the message box shows a spend note, when background work seems paused or a button says the ceiling is reached, or to change the ceiling.
 
 ## What it does
 
-The top line reads, for example, "US$1.12 of US$5.00 used, US$3.88 left, 3,214 calls", with a meter under it. Past the warning point a line says so. At the ceiling, paid background calls pause until the first of next month or until you raise the ceiling, while free and local routes carry on.
+The top line reads, for example, "US$1.12 of US$5.00 used, US$3.88 left, 3,214 calls", with a meter under it. Past the warning point a line says so. At the ceiling, paid calls pause until the first of next month or until you raise the ceiling, while free and local routes carry on.
 
 ### How it works
 
-The meter resets on the first of each month. Background calls are the ones no tap starts:
+The meter resets on the first of each month. Every paid model call the extension makes counts, tapped or not. Background calls are the ones no tap starts:
 
 - filing each reply into memory, catch-up and upkeep
 - the Follow-through check, which checks that a reply did what it was told
 - roll judgments, the call before a reply that decides whether an attempt needs a dice roll
 - Options for the Choices card after each reply
 
-A paid route's calls for these count toward the ceiling. Calls made through the jobs in [Setup, Connections](page:settings) are metered the same way, while a few buttons send their call unmetered; each page says which of its buttons count. Chat replies through your main connection stay outside the ceiling.
+Tapped calls count the same way, among them the functions in [Setup, Connections](page:settings), Write a chapter now, Close the chapter here, Write the synopsis and start, Draft entries and help questions. The Main API counts when your chat connection is a paid provider; it reports no price, so its calls show at US$0.00, and at the ceiling a tap fixed to it is refused. At the ceiling a tap with no free or local route left sends nothing and says the ceiling is reached. Chat replies through your main connection stay outside the ceiling.
 
 ### Notices
 
@@ -37,11 +37,11 @@ One row per route: Desktop, On-phone model, NanoGPT plan, OpenRouter free model,
 - when it last answered, and when and why it last failed
 - Skipped until a time, while it rests after not answering
 
-Each job tries the desktop first, then the NanoGPT plan, then free tiers, then paid routes within the ceiling, then the Main API. A route that does not answer is skipped for 10 minutes and checked again only when a job needs it.
+Each job tries the desktop first, then the NanoGPT plan, then free tiers, then paid routes within the ceiling, then the Main API, which counts toward the ceiling when your chat connection is a paid provider. A route that does not answer is skipped for 10 minutes and checked again only when a job needs it.
 
 When jobs wait on the ceiling, **Paused jobs** lists them with "Paused, monthly ceiling reached".
 
-### Paid background calls this month
+### Paid calls this month
 
 A fold, with the count in its name, lists the last 20 paid calls, newest first, with route, model, job, time and cost.
 
@@ -51,6 +51,7 @@ Nothing on this page calls a model; it reads the meter. The order of routes per 
 
 ## Why it works this way
 
-- Background work has a US$5 ceiling and a US$4 warning, and free routes come first, so spend stays small without your watching it.
-- At the ceiling only paid background calls pause; free and local routes carry on, so memory keeps working.
+- Paid calls have a US$5 ceiling and a US$4 warning, and free routes come first, so spend stays small without your watching it.
+- At the ceiling only paid calls pause; free and local routes carry on, so memory keeps working.
+- Every paid call counts, whether you tapped a button or it ran in the background, so one meter shows all of the extension's spend.
 - One note per outage, a back note when the route returns, and calls and cost per route show where each call went.

@@ -17,7 +17,7 @@ A job that shares another job's routes says so on its card, and its order is cha
 
 ## Model calls and cost
 
-Each run of a job is one model call on the first route that answers ([how model calls work](help:model-calls)). Paid steps count toward the monthly ceiling in [Setup, Spend](page:spend) and are skipped once it is reached; the job then waits for a free or local route. Test on a route asks it for its list of models, which costs nothing.
+Each run of a job is one model call on the first route that answers ([how model calls work](help:model-calls)). Paid steps count toward the monthly ceiling in [Setup, Connections, Spend](page:spend) and are skipped once it is reached; the job then waits for a free or local route. Test on a route asks it for its list of models, which costs nothing.
 
 ## Why it works this way
 

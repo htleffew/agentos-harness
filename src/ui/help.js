@@ -6,7 +6,7 @@ import { registerPage } from './page-registry.js';
 import { settings, saveSettings, chatState, saveChatState } from '../store.js';
 import { ctx, isChatOpen, profileDetails } from '../st.js';
 import { RECOMMENDED_CHAINS, ROUTES } from '../routing.js';
-import { askHelp, defaultHelpChain, entryFor, guideIndex, loadGuide, redactSettings, stackSummary } from '../help.js';
+import { addMainToSavedHelpChain, askHelp, defaultHelpChain, entryFor, guideIndex, loadGuide, redactSettings, stackSummary } from '../help.js';
 import { fitBottom } from './generate-sheet.js';
 
 export const HELP_PAGE = 'help';
@@ -64,7 +64,9 @@ function routeChoices() {
 }
 
 export function helpChain() {
-    const saved = settings().help?.chain;
+    const help = settings().help;
+    if (addMainToSavedHelpChain(help)) saveSettings();
+    const saved = help?.chain;
     return Array.isArray(saved) && saved.length ? saved.map(entry => ({ ...entry })) : defaultHelpChain(RECOMMENDED_CHAINS);
 }
 
@@ -73,6 +75,8 @@ export function setHelpChain(chain) {
     st.help ||= {};
     if (chain === null) delete st.help.chain;
     else st.help.chain = chain.map(entry => ({ ...entry }));
+    // A list she saves from here on already offered the Main API, so the one-time addition never runs over it.
+    st.help.mainAdded = true;
     saveSettings();
 }
 
@@ -253,7 +257,7 @@ function renderHelpPage(body, app) {
         content,
         h('details', { class: 'ri-help-settings-fold' }, h('summary', {}, 'Help settings'),
             h('p', { class: 'ri-help' }, 'Each question goes to the first route that answers, in this order.'),
-            howItWorks(h('p', {}, 'One question is 1 model call. The desktop model comes first; when it does not answer, the next route takes the question, and a note says which one did. A paid route counts toward your monthly ceiling in Setup, Spend.')),
+            howItWorks(h('p', {}, 'One question is 1 model call. The desktop model comes first, then the NanoGPT plan, a free OpenRouter model and last the Main API; when a route does not answer, the next one takes the question, and a note says which one did. A paid route, the Main API on a paid provider included, counts toward your monthly ceiling in Setup, Connections, Spend.')),
             settingsBox));
     guide().then(loaded => { guideState = loaded; draw(view.doc ? '[data-help-title]' : ''); }, error => { guideState = { error: String(error?.message || error) }; fill(); });
     fill();

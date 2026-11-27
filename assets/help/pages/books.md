@@ -56,7 +56,7 @@ A World Info entry opened from Review opens in its own editor on this page, with
 
 ## Model calls and cost
 
-Inside **Edit or delete entries**, **Suggest Primary Keywords with AI** is [1 model call](help:model-calls), marked with the amber dot. It uses the route set for Suggest Primary Keywords in [Setup, Connections](page:settings), which starts on Automatic and tries the routes in [Setup, Background jobs](page:background-jobs) in order; a paid route counts toward the monthly ceiling in [Setup, Spend](page:spend). Everything else on the page runs in code.
+Inside **Edit or delete entries**, **Suggest Primary Keywords with AI** is [1 model call](help:model-calls), marked with the amber dot. It uses the route set for Suggest Primary Keywords in [Setup, Connections](page:settings), which starts on Automatic and tries the routes in [Setup, Background jobs](page:background-jobs) in order; a paid route counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend). Everything else on the page runs in code.
 
 ## Why it works this way
 

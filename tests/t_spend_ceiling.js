@@ -248,14 +248,14 @@ test('chat replies through the main connection never count toward the ceiling', 
     const reply = await askFull({ user: 'The reply the chat model writes.', tokens: 100 });
     assert.ok(reply.text !== undefined);
     assert.equal(spend.spendState().total, 0, 'a main-connection request is not metered');
-    // A tapped action through a paid main connection is outside the ceiling; the same job in the background is not.
+    // B59: a tapped action through a paid main connection is metered like the same job in the background.
     const tapped = await runChain([{ route: 'main' }], { job: 'capture', user: 'x', schema, background: false });
     assert.equal(tapped.ok, true);
-    assert.equal(spend.spendState().routes.main, undefined, 'a tapped call is not metered');
+    assert.equal(spend.spendState().routes.main.calls, 1, 'a tapped call on a paid main connection is metered');
     assert.deepEqual(view.activeNotes(), [], 'and raises no note');
     const background = await runChain([{ route: 'main' }], { job: 'capture', user: 'x', schema });
     assert.equal(background.ok, true);
-    assert.equal(spend.spendState().routes.main.calls, 1, 'a background call on a paid main connection is metered');
+    assert.equal(spend.spendState().routes.main.calls, 2, 'a background call on a paid main connection is metered');
 });
 
 // ---- The route notices ----

@@ -266,7 +266,7 @@ export function createCarryOver(deps) {
             job: 'carryOver', system: plan.request.system, user: plan.request.user, schema: { name: SYNOPSIS_SCHEMA.name, value: plan.request.schema, read: plan.request.read },
             tokens: 1800, signal, background: false, label: 'Continue in a new chat, synopsis',
         });
-        if (!res.ok) throw new Error(res.waiting ? 'Continue in a new chat waits: the monthly ceiling is reached and no free route answers.' : `No route answered the Writer call. ${res.reason || ''}`.trim());
+        if (!res.ok) throw new Error(res.waiting ? res.reason : `No route answered the Writer call. ${res.reason || ''}`.trim());
         const read = readSynopsis(res.value, plan.runs);
         if (wordsOf(read.synopsis).length < 40) throw new Error('The synopsis came back too short after the checks. Nothing was started; try again.');
         const bookData = bookEntries(plan.data, read.synopsis, plan.runs, { leaveSecretsOut });

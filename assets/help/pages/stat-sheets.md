@@ -26,7 +26,7 @@ The persona and character sheets are inferred once, at the start of a chat with 
 
 - **Infer again** is [1 model call](help:model-calls), marked with the amber dot.
 - The first inference at the start of a chat with dice on is 1 model call that runs by itself.
-- Both use the stat sheet route order in [Setup, Background jobs](page:background-jobs); a paid route counts toward the monthly ceiling in [Setup, Spend](page:spend).
+- Both use the stat sheet route order in [Setup, Background jobs](page:background-jobs); a paid route counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend).
 - Typing values, releasing them and editing the list of stats run in code.
 
 ## Why it works this way

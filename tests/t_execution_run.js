@@ -190,8 +190,12 @@ test('a paid route is skipped at the ceiling, for a Fixed pick and for Automatic
     probeUp = false;
     replies.set(NANO_MODEL, { status: 500, message: 'plan unavailable' });
     replies.set('inclusionai/ling-3.2-flash:free', { status: 429, message: 'rate limited' });
-    await assert.rejects(ask(), error => /Paused, monthly ceiling reached/.test(error.message));
+    // B59: a tap reads the ceiling line alone; the same check run automatically reads the paused line.
+    await assert.rejects(ask(), error => error.message === spend.CEILING_LINE);
     assert.deepEqual(models(), [NANO_MODEL, 'inclusionai/ling-3.2-flash:free'], 'only the plan and free routes were tried');
+    resetRouteHealth();
+    setExecutionSetting('instructionCheck', { automatic: true });
+    await assert.rejects(ask('automatic'), error => /Paused, monthly ceiling reached/.test(error.message));
     replies.clear();
 });
 

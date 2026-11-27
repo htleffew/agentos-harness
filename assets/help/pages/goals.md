@@ -54,7 +54,7 @@ Type an action and press **Add this action**. An action is sent for one reply an
 
 ## Model calls and cost
 
-The goal line and its tasks ride SillyTavern's reply request, and picking a task [runs in code](help:model-calls). **Write the goal** is 1 model call, marked with the amber dot. It starts on Automatic, which tries the free and local routes in [Setup, Background jobs](page:background-jobs) first and ends on the Main API, or it uses a Connection Profile you fix in [Setup, Connections](page:settings); the call is metered, so a paid route counts toward the ceiling in [Setup, Spend](page:spend). Ticking off a step uses the Follow-through check, 1 model call after a reply that carried a step.
+The goal line and its tasks ride SillyTavern's reply request, and picking a task [runs in code](help:model-calls). **Write the goal** is 1 model call, marked with the amber dot. It starts on Automatic, which tries the free and local routes in [Setup, Background jobs](page:background-jobs) first and ends on the Main API, or it uses a Connection Profile you fix in [Setup, Connections](page:settings); the call is metered, so a paid route counts toward the ceiling in [Setup, Connections, Spend](page:spend). Ticking off a step uses the Follow-through check, 1 model call after a reply that carried a step.
 
 ## Why it works this way
 

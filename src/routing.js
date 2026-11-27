@@ -6,7 +6,7 @@
 import { askFull, ctx, isLocalUrl, parseJson, probeCustomUrl, profileDetails } from './st.js';
 import { settings, saveSettings } from './store.js';
 import { addLog, updateLog } from './log.js';
-import { canSpend, catalogCost, recordSpend, releaseSpend, reserveSpend } from './spend.js';
+import { CEILING_LINE, canSpend, catalogCost, recordSpend, releaseSpend, reserveSpend } from './spend.js';
 
 export const PROBE_MS = 4000;
 export const DOWN_MS = 10 * 60 * 1000;
@@ -244,6 +244,31 @@ export function profileCostClass(target) {
     return target?.api === 'nanogpt' ? 'plan' : 'paid';
 }
 
+/** How one chain step is billed once resolved: the Main API follows the chat model, a named route its own class, a profile its source. */
+export function stepCostClass(entry, target) {
+    if (target?.kind === 'main') return mainCostClass();
+    return ROUTES[entry?.route]?.cost || profileCostClass(target);
+}
+
+/**
+ * B59: meter one call made outside runChain (a Fixed Main API or Connection Profile that a tap or an automatic function
+ * sends to directly). A paid call reserves its estimate, is refused with CEILING_LINE at the ceiling (kind 'ceiling', no
+ * request sent), and settles at the cost the provider reports, else the estimate. Free, plan and local calls pass through.
+ */
+export async function meterCall({ cost = 'paid', route = 'main', model = '', job = '', estimate = 0 } = {}, send) {
+    if (cost !== 'paid') return send();
+    const reservation = reserveSpend({ route, estimate });
+    if (!reservation) throw Object.assign(new Error(CEILING_LINE), { kind: 'ceiling' });
+    let res;
+    try { res = await send(); }
+    catch (error) { releaseSpend(reservation); throw error; }
+    const reported = Number.isFinite(res?.cost) ? res.cost : null;
+    const usage = res?.usage || null;
+    recordSpend({ route, model, cost: reported ?? estimate, basis: reported !== null ? 'usage' : 'unpriced', reservation, job,
+        tokens: usage ? { in: Number(usage.prompt_tokens) || 0, out: Number(usage.completion_tokens) || 0 } : null });
+    return res;
+}
+
 // How well a saved profile fits a route, so the best one is picked when several match. The desktop route prefers a
 // profile on the tailnet with the resident model, since that one reaches the desktop from the phone at home and away.
 const FIT = {
@@ -373,7 +398,8 @@ function timed(promise, ms, controller) {
  * Run one job on a chain. Returns { ok, value, text, route, model, attempts, waiting, reason }.
  * value is the parsed schema answer when a schema is given, else the text. waiting is true when no route can take the
  * job now and a paid route was skipped at the spend ceiling, so the job waits for a free or local route.
- * background: a call no tap started; only these count against the ceiling. clock: test hook for time.
+ * Every paid step counts against the ceiling (B59). background: a call no tap started; it decides the receipt words and
+ * the route notices, and a tapped call refused at the ceiling reads CEILING_LINE. clock: test hook for time.
  */
 export async function runChain(chain, { job = 'capture', system = '', user = '', schema = null, tokens = 800, signal, background = true,
     toolName = 'commit_memory_ops', label = '', probeMs = PROBE_MS, clock = Date.now, onAttempt } = {}) {
@@ -403,8 +429,7 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
         const now = clock();
         if (state.downUntil > now) { note({ ...base, outcome: 'skipped', reason: `down until ${new Date(state.downUntil).toLocaleTimeString()}` }); continue; }
         if (item.warmOnly && now - state.lastOk > WARM_MS) { note({ ...base, outcome: 'skipped', reason: 'the desktop is cold and someone is waiting' }); continue; }
-        const cost = target.kind === 'main' ? mainCostClass() : route.cost || profileCostClass(target);
-        const paid = cost === 'paid' && background;
+        const paid = stepCostClass(item, target) === 'paid';
         const estimate = paid ? catalogCost(item.price, Math.ceil((system.length + user.length) / 4), tokens) ?? 0 : 0;
         if (paid && !canSpend(estimate)) { ceilingSkipped = true; note({ ...base, outcome: 'skipped', reason: 'the monthly spend ceiling is reached' }); continue; }
         // A local route is probed before it is used, so a desktop that is off costs at most the probe's limit.
@@ -427,12 +452,39 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
         const stop = () => controller.abort(signal?.reason);
         signal?.addEventListener?.('abort', stop, { once: true });
         const started = clock();
-        const send = ({ system: s, user: u, tokens: t }) => {
-            if (target.kind === 'phone') return phoneModel({ system: s, user: u, schema, tokens: t, signal: controller.signal });
-            if (target.kind === 'main') return askFull({ system: s, user: u, tokens: t, signal: controller.signal });
-            return askFull({ system: s, user: u, tokens: t, signal: controller.signal, model: item.model || '', effort,
+        // Every answer the provider sent back on this step, so each paid request is billed once, a repair request and an
+        // answer that could not be used included (B59).
+        const answered = [];
+        const send = async ({ system: s, user: u, tokens: t }) => {
+            let res;
+            if (target.kind === 'phone') res = await phoneModel({ system: s, user: u, schema, tokens: t, signal: controller.signal });
+            else if (target.kind === 'main') res = await askFull({ system: s, user: u, tokens: t, signal: controller.signal });
+            else res = await askFull({ system: s, user: u, tokens: t, signal: controller.signal, model: item.model || '', effort,
                 ...(target.kind === 'profile' ? { profileId: target.profileId } : { source: target.source }),
                 ...(schema && mode !== 'prompt' ? { schema, mode, toolName } : {}) });
+            answered.push(res);
+            return res;
+        };
+        // Record each answered request at the provider's cost, else the catalog price, else the estimate. A request that
+        // timed out keeps its estimate as spent. Returns the total. The reservation settles with the first record.
+        const bill = ({ timedOut = false } = {}) => {
+            let total = 0, held = reservation;
+            const record = (cost, basis, tokens = null) => {
+                recordSpend({ route: item.route, model: item.model || '', cost, basis, reservation: held, job, tokens });
+                held = '';
+                total += cost;
+            };
+            for (const res of answered) {
+                const usage = res?.usage || {};
+                const fromCatalog = catalogCost(item.price, Number(usage.prompt_tokens) || 0, Number(usage.completion_tokens) || 0);
+                const reported = Number.isFinite(res?.cost) ? res.cost : null;
+                const usd = reported ?? (res?.usage ? fromCatalog : null) ?? estimate;
+                const basis = reported !== null ? 'usage' : res?.usage && fromCatalog !== null ? 'catalog' : item.price ? 'catalog' : 'unpriced';
+                record(usd, basis, res?.usage ? { in: Number(usage.prompt_tokens) || 0, out: Number(usage.completion_tokens) || 0 } : null);
+            }
+            if (timedOut) record(estimate, 'reserved');
+            if (held) releaseSpend(held);
+            return total;
         };
         try {
             const work = (async () => {
@@ -450,16 +502,7 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
             const ms = clock() - started;
             state.lastOk = clock();
             state.downUntil = 0;
-            let usd = 0;
-            if (paid) {
-                const usage = res.usage || {};
-                const fromCatalog = catalogCost(item.price, Number(usage.prompt_tokens) || 0, Number(usage.completion_tokens) || 0);
-                const reported = Number.isFinite(res.cost) ? res.cost : null;
-                usd = reported ?? (res.usage ? fromCatalog : null) ?? estimate;
-                const basis = reported !== null ? 'usage' : res.usage && fromCatalog !== null ? 'catalog' : item.price ? 'catalog' : 'unpriced';
-                recordSpend({ route: item.route, model: item.model || '', cost: usd, basis, reservation, job,
-                    tokens: res.usage ? { in: Number(usage.prompt_tokens) || 0, out: Number(usage.completion_tokens) || 0 } : null });
-            }
+            const usd = paid ? bill() : 0;
             note({ ...base, outcome: 'completed', reason: '', ms, cost: usd });
             updateLog(entry, { ok: true, result: `Answered on attempt ${n} of ${of}.`, got: res.raw || res.text || '' });
             reportChainResult({ job, background, ok: true, route: item.route, model: item.model || '', waiting: false, attempts });
@@ -468,10 +511,8 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
             const ms = clock() - started;
             const cancelled = signal?.aborted;
             const outcome = cancelled ? 'cancelled' : classify(error, error?.timedOut);
-            if (paid && reservation) {
-                if (outcome === 'timeout') recordSpend({ route: item.route, model: item.model || '', cost: estimate, basis: 'reserved', reservation, job });
-                else releaseSpend(reservation);
-            }
+            // A provider may bill a request that timed out, and bills one whose answer came back unusable.
+            if (paid && reservation) bill({ timedOut: outcome === 'timeout' });
             if (BREAKS.has(outcome)) {
                 state.downUntil = clock() + DOWN_MS;
                 state.reason = outcome;
@@ -483,7 +524,7 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
         }
     }
     const waiting = ceilingSkipped && !signal?.aborted;
-    const reason = signal?.aborted ? 'Cancelled.' : waiting ? 'Paused, monthly ceiling reached. The job waits for a free or local route.' : 'No route in the chain answered.';
+    const reason = signal?.aborted ? 'Cancelled.' : waiting ? (background ? 'Paused, monthly ceiling reached. The job waits for a free or local route.' : CEILING_LINE) : 'No route in the chain answered.';
     updateLog(entry, { ok: false, status: signal?.aborted ? 'Cancelled' : waiting ? 'Waiting' : 'Failed', result: reason });
     reportChainResult({ job, background, ok: false, route: '', model: '', waiting, attempts });
     return { ok: false, value: null, text: '', route: '', model: '', attempts, waiting, reason };

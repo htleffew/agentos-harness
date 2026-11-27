@@ -59,7 +59,7 @@ Under the stack, a check list shows notes found in code, each linking to the car
 
 ## Model calls and cost
 
-Only **Check conflicts** calls a model: 1 model call ([how model calls work](help:model-calls)). Its connection is set under Compare preset blocks and extension features in [Setup, Connections](page:settings), and by default it uses the routes of the Tidy job in [Setup, Background jobs](page:background-jobs). A paid route's call counts toward the monthly ceiling in [Setup, Spend](page:spend). Everything else on the page runs in code.
+Only **Check conflicts** calls a model: 1 model call ([how model calls work](help:model-calls)). Its connection is set under Compare preset blocks and extension features in [Setup, Connections](page:settings), and by default it uses the routes of the Tidy job in [Setup, Background jobs](page:background-jobs). A paid route's call counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend). Everything else on the page runs in code.
 
 ## Why it works this way
 

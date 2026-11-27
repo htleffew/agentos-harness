@@ -46,7 +46,7 @@ Nothing on this page calls a model, but the cards decide what later calls carry 
 
 - The cards' values come from the call that files each reply into memory, a background call on the routes in [Setup, Background jobs](page:background-jobs). A card, section or field switched off is left out of that call.
 - The Choices card adds 1 model call after each reply while it is on, an Options call that counts as background spend.
-- A paid route's calls count toward the monthly ceiling in [Setup, Spend](page:spend).
+- A paid route's calls count toward the monthly ceiling in [Setup, Connections, Spend](page:spend).
 - The scene header rides SillyTavern's reply request; checking it and drawing the tray run in code.
 
 ## Why it works this way

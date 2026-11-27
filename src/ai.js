@@ -1,8 +1,10 @@
 import { promptText } from './prompts.js';
-import { askFull } from './st.js';
+import { askFull, profileDetails } from './st.js';
 import { settings } from './store.js';
 import { addLog, updateLog } from './log.js';
-import { amendExecutionReceipt, executionScope, EXECUTION_OPERATIONS, runAdditional, runOperationChain } from './execution.js';
+import { amendExecutionReceipt, chainJob, executionScope, EXECUTION_OPERATIONS, runAdditional, runOperationChain } from './execution.js';
+import { mainCostClass, meterCall, profileCostClass } from './routing.js';
+import { CEILING_LINE } from './spend.js';
 
 // Exclude helper prompts from the ordinary reply recorder, including overlapping requests.
 const inFlight = new Map();
@@ -37,9 +39,16 @@ export async function request({ operation, what, system = '', user = '', tokens 
             try {
                 if (receipt.viaChain) {
                     const run = await runOperationChain(operation,{receipt,system,user,tokens:room,signal,label:what});
-                    if (!run.ok) throw new Error(`${run.reason} ${run.attempts.map(item=>item.receipt).join(' ')}`.trim());
+                    // B59: a tap refused at the ceiling shows the ceiling line alone; it sent no paid request.
+                    if (!run.ok) throw new Error(run.waiting && authorization!=='automatic' ? CEILING_LINE : `${run.reason} ${run.attempts.map(item=>item.receipt).join(' ')}`.trim());
                     res = { text:run.text, raw:run.text, thinking:0 };
-                } else res = await askFull({system,user,tokens:room,profileId,useProfilePreset,signal});
+                } else {
+                    // B59: a Fixed Main API or Connection Profile is metered like a chain step, tapped or automatic.
+                    const profile = profileId ? profileDetails().find(item=>item.id===String(profileId)) : null;
+                    const cost = profileId ? profileCostClass(profile) : mainCostClass();
+                    res = await meterCall({cost,route:profileId ? 'override' : 'main',job:chainJob(operation)},
+                        ()=>askFull({system,user,tokens:room,profileId,useProfilePreset,signal}));
+                }
             }
             finally { inFlight.delete(receipt.id); }
             if (signal?.aborted) {

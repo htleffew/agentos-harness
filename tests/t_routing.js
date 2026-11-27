@@ -266,9 +266,13 @@ test('paid spend is metered: a warning at US$4 once, and paid entries skipped at
     assert.equal(blocked.ok, false);
     assert.equal(blocked.waiting, true);
     assert.match(blocked.attempts[0].receipt, /skipped, the monthly spend ceiling is reached/);
-    // A tapped action stays outside the ceiling and is not metered.
+    // B59: a tapped action counts too; at the ceiling it is refused with the ceiling line and sends nothing.
+    const sentBefore = requests.length;
     const tapped = await runChain(paid, { job: 'capture', user: 'x', schema, background: false });
-    assert.equal(tapped.ok, true);
+    assert.equal(tapped.ok, false);
+    assert.equal(tapped.waiting, true);
+    assert.equal(tapped.reason, spend.CEILING_LINE);
+    assert.equal(requests.length, sentBefore, 'no paid request is sent');
     assert.equal(spend.spendState().routes.openrouter.calls, 4);
     // The meter resets on the first of the month.
     const next = new Date(); next.setMonth(next.getMonth() + 1, 1);

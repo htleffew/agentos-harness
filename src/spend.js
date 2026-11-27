@@ -1,5 +1,6 @@
-// The monthly meter for paid background calls (memory DESIGN 9.4 and 10). Every paid call reserves its estimated
-// cost before it is sent and settles at the provider's reported cost, or the catalog price when none comes back.
+// The monthly meter for paid model calls (memory DESIGN 9.4 and 10). Every paid call, background or tapped (B59),
+// reserves its estimated cost before it is sent and settles at the provider's reported cost, or the catalog price when
+// none comes back.
 // A call that timed out keeps its reservation as spent, because the provider may still bill it. At the warning point
 // one notice shows per month; at the ceiling every paid entry in a chain is skipped until the first of next month.
 import { settings, saveSettings } from './store.js';
@@ -7,6 +8,9 @@ import { toast } from './st.js';
 
 export const DEFAULT_CEILING = 5;
 export const DEFAULT_WARNING = 4;
+
+/** B59: the line a paid call refused at the ceiling shows, with where to raise it. */
+export const CEILING_LINE = 'The monthly spend ceiling is reached. Raise it in Setup, Connections, Spend.';
 
 const listeners = new Set();
 const reservations = new Map();
@@ -103,7 +107,7 @@ export function recordSpend({ route = '', model = '', cost = 0, basis = 'usage',
     saveSettings();
     const state = spendState(now);
     if (warning) {
-        toast('warning', `Background spend this month is ${usd(state.total)} of the ${usd(state.ceiling)} ceiling. Paid background calls pause at the ceiling.`);
+        toast('warning', `Paid spend this month is ${usd(state.total)} of the ${usd(state.ceiling)} ceiling. Paid calls pause at the ceiling.`);
         for (const fn of listeners) { try { fn({ type: 'warning', state }); } catch { /* a listener must not stop the meter */ } }
     }
     if (state.atCeiling) for (const fn of listeners) { try { fn({ type: 'ceiling', state }); } catch { /* as above */ } }

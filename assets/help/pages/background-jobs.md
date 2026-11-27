@@ -8,7 +8,7 @@ Open it when a job keeps falling back, when a paid route sits ahead of a free on
 
 ### How it works
 
-Each job tries free and local routes first, then paid routes within your monthly ceiling. When a route does not answer, the job moves to the next one and a note shows in the Quick action bar above the message box. The ceiling is US$5 unless you changed it in [Setup, Spend](page:spend).
+Each job tries free and local routes first, then paid routes within your monthly ceiling. When a route does not answer, the job moves to the next one and a note shows in the Quick action bar above the message box. The ceiling is US$5 unless you changed it in [Setup, Connections, Spend](page:spend).
 
 ### Jobs and their routes
 
@@ -48,7 +48,7 @@ A row shows whether the on-phone model (Gemma 4 E2B, a 2.0 GB download) is on th
 
 ## Model calls and cost
 
-Test makes one request that lists a route's models and calls no model. The jobs listed here are where the extension's background model calls run, each 1 model call per run, and they are metered: a paid route's cost, judgment calls with the key included, counts toward the monthly ceiling in Setup, Spend. Story outline never uses a paid route. Changing the order runs in code.
+Test makes one request that lists a route's models and calls no model. The jobs listed here are where the extension's background model calls run, each 1 model call per run, and they are metered: a paid route's cost, judgment calls with the key included, counts toward the monthly ceiling in Setup, Connections, Spend. Story outline never uses a paid route. Changing the order runs in code.
 
 ## Why it works this way
 

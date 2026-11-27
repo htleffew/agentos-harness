@@ -16,7 +16,7 @@ Each entry is a fold headed by what the request was, its outcome, the time and t
 
 ## Model calls and cost
 
-Nothing on this page calls a model; it lists calls made elsewhere ([how model calls work](help:model-calls)). Each route a background task tries leaves an entry here, so a paid attempt shows here as well as in [Setup, Spend](page:spend).
+Nothing on this page calls a model; it lists calls made elsewhere ([how model calls work](help:model-calls)). Each route a background task tries leaves an entry here, so a paid attempt shows here as well as in [Setup, Connections, Spend](page:spend).
 
 ## Why it works this way
 

@@ -210,7 +210,8 @@ test('askHelp sends one request per question, and none for a question no entry m
     const yes = await H.askHelp({ question: 'Where is the spend ceiling?', guide, index, chain, run });
     assert.equal(calls.length, 1, 'one request');
     assert.equal(calls[0].chain, chain, 'on the chain given');
-    assert.equal(calls[0].options.background, true, 'metered: a paid route counts toward the ceiling');
+    // A tap: runChain meters every paid step whatever background says (B59), and a tap refused at the ceiling reads the ceiling line.
+    assert.equal(calls[0].options.background, false, 'a question is a tap');
     assert.equal(calls[0].options.job, 'help');
     assert.ok(yes.covered && yes.sources.length >= 1, 'covered, with its sources');
     const not = await H.askHelp({ question: 'Kilimanjaro?', guide, index, chain, run });
@@ -233,10 +234,30 @@ test('live state leaves out keys, tokens and saved chat text, and the stack is n
     assert.ok(!stack.includes('SECRET BODY'));
 });
 
-test('the default help chain starts on the desktop and holds only free routes', async () => {
+test('the default help chain is desktop, NanoGPT plan, free OpenRouter, then the Main API (B59)', async () => {
     const H = await load('src/help.js');
     const { RECOMMENDED_CHAINS, ROUTES } = await load('src/routing.js');
     const chain = H.defaultHelpChain(RECOMMENDED_CHAINS);
-    assert.equal(chain[0].route, 'desktop');
-    assert.ok(chain.every(entry => ['local', 'plan', 'free'].includes(ROUTES[entry.route].cost)), 'no paid route and no Main API');
+    assert.deepEqual(chain.map(entry => entry.route), ['desktop', 'nanogpt', 'openrouterFree', 'main']);
+    assert.ok(chain.slice(0, -1).every(entry => ['local', 'plan', 'free'].includes(ROUTES[entry.route].cost)), 'no paid route before the Main API');
+});
+
+test('a help route list saved in 10.0.51 gains the Main API at its end once (B59)', async () => {
+    const H = await load('src/help.js');
+    const saved = { chain: [{ route: 'nanogpt' }, { route: 'desktop', timeoutMs: 60000 }] };
+    assert.equal(H.addMainToSavedHelpChain(saved), true);
+    assert.deepEqual(saved.chain.map(entry => entry.route), ['nanogpt', 'desktop', 'main']);
+    assert.equal(H.addMainToSavedHelpChain(saved), false, 'the addition runs once');
+    assert.equal(saved.chain.filter(entry => entry.route === 'main').length, 1);
+    // She removes it afterwards: it stays removed.
+    saved.chain = saved.chain.filter(entry => entry.route !== 'main');
+    assert.equal(H.addMainToSavedHelpChain(saved), false);
+    assert.deepEqual(saved.chain.map(entry => entry.route), ['nanogpt', 'desktop']);
+    // A 10.0.51 list that already held the Main API keeps one, in her place.
+    const own = { chain: [{ route: 'main' }, { route: 'desktop' }] };
+    assert.equal(H.addMainToSavedHelpChain(own), true);
+    assert.deepEqual(own.chain.map(entry => entry.route), ['main', 'desktop']);
+    // No saved list: the default already ends on the Main API, nothing to add.
+    assert.equal(H.addMainToSavedHelpChain({}), false);
+    assert.equal(H.addMainToSavedHelpChain(undefined), false);
 });

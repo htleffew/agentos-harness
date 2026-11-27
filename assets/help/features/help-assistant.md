@@ -35,11 +35,11 @@ Nothing from your chats or World Info entries goes with it.
 
 ### The route
 
-Questions use the routes in Help settings on [Setup, Help](page:help), tried in order. The list starts with the desktop model over Tailscale, then the NanoGPT plan and the free OpenRouter model. You can add the Main API, other named routes and any saved Connection Profile, and put them in any order.
+Questions use the routes in Help settings on [Setup, Help](page:help), tried in order. The list starts with the desktop model over Tailscale, then the NanoGPT plan, the free OpenRouter model and last the Main API, so a question still gets an answer when the others are down. If a list you saved earlier has no Main API, it is added at the end once; if you remove it, it stays removed. You can add other named routes and any saved Connection Profile, and put them in any order.
 
 ## Model calls and cost
 
-Each question is 1 model call, and the **Ask** button carries the amber dot; [how model calls work](help:model-calls) explains the dot and the routes. Opening the sheet, finding the entries, the links and the answer for a question no entry matches make no call. A paid route counts toward the monthly ceiling in [Setup, Spend](page:spend).
+Each question is 1 model call, and the **Ask** button carries the amber dot; [how model calls work](help:model-calls) explains the dot and the routes. Opening the sheet, finding the entries, the links and the answer for a question no entry matches make no call. A paid route, the Main API on a paid provider included, counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend).
 
 ## Why it works this way
 

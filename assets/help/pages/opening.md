@@ -44,7 +44,7 @@ Edits apply in every chat and show in [Setup, Prompts](page:prompts) at once.
 
 ## Model calls and cost
 
-**Generate opening** and **Read state from selected greeting** are each [1 model call](help:model-calls), marked with the amber dot. **Use this opening** adds 1 more only when it has to read an unread greeting first. These use the route set for the opening in [Setup, Connections](page:settings). It starts on Automatic, which tries your routes in the order shown in [Setup, Background jobs](page:background-jobs) and ends on the Main API; a paid route there counts toward the monthly ceiling in [Setup, Spend](page:spend). After you use the opening, the extension reads it the way it reads every reply, which is the usual background call after a reply.
+**Generate opening** and **Read state from selected greeting** are each [1 model call](help:model-calls), marked with the amber dot. **Use this opening** adds 1 more only when it has to read an unread greeting first. These use the route set for the opening in [Setup, Connections](page:settings). It starts on Automatic, which tries your routes in the order shown in [Setup, Background jobs](page:background-jobs) and ends on the Main API; a paid route there counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend). After you use the opening, the extension reads it the way it reads every reply, which is the usual background call after a reply.
 
 ## Why it works this way
 

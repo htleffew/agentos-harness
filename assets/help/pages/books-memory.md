@@ -39,7 +39,7 @@ The extension writes two books for each chat from its records, the Story World b
 
 ## Model calls and cost
 
-**Draft entries** is [1 model call](help:model-calls), marked with the amber dot; a draft that fails its checks is asked for once more. It uses the route order for behavior book drafts in [Setup, Background jobs](page:background-jobs). Its call is not metered, so it stays outside the monthly ceiling in [Setup, Spend](page:spend). The switches, Export and the additions themselves run in code; additions come from records the story has already filed.
+**Draft entries** is [1 model call](help:model-calls), marked with the amber dot; a draft that fails its checks is asked for once more. It uses the route order for behavior book drafts in [Setup, Background jobs](page:background-jobs). A paid route's cost counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend); at the ceiling a free or local route still drafts, and with none left the button says the ceiling is reached. The switches, Export and the additions themselves run in code; additions come from records the story has already filed.
 
 ## Why it works this way
 

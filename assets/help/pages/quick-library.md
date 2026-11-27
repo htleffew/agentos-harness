@@ -62,7 +62,7 @@ Action check has **Stat**, **Difficulty** and **Who rolls** (Me or The character
 
 ## Model calls and cost
 
-Editing the library [runs in code](help:model-calls). When used, Options is 1 model call with the amber dot, on the connection chosen for Give me choices in [Setup, Connections](page:settings) (the Main API until you choose a Connection Profile or Automatic). It is metered: when a paid route answers, including a Main API on a paid provider, the cost counts toward the monthly ceiling in [Setup, Spend](page:spend). The Choices card in the reply tray is separate; it fills itself after each reply on the Capture list in [Setup, Background jobs](page:background-jobs). Swipe, Continue and Impersonate ride SillyTavern's reply request. Action check, Review and Direction run in code.
+Editing the library [runs in code](help:model-calls). When used, Options is 1 model call with the amber dot, on the connection chosen for Give me choices in [Setup, Connections](page:settings) (the Main API until you choose a Connection Profile or Automatic). It is metered: when a paid route answers, including a Main API on a paid provider, the cost counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend). The Choices card in the reply tray is separate; it fills itself after each reply on the Capture list in [Setup, Background jobs](page:background-jobs). Swipe, Continue and Impersonate ride SillyTavern's reply request. Action check, Review and Direction run in code.
 
 ## Why it works this way
 

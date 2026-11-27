@@ -1,5 +1,5 @@
 // Setup, Connections: the Spend and Background jobs sections (DESIGN.md 9, B19), carrying out the 23 November rulings
-// (DECISIONS.md): paid background calls pause at a monthly ceiling of US$5 with a warning at US$4, free and local routes
+// (DECISIONS.md): paid calls pause at a monthly ceiling of US$5 with a warning at US$4 (every paid call counts, B59), free and local routes
 // come first, a route that stops answering shows one dismissible note per outage and a "back" note when it returns, and
 // routes are checked only when a job needs them. The meter is src/spend.js (MB1) and the route chains are src/routing.js;
 // this file reads both, keeps a small ledger of calls per route, and draws the sections and the notes.
@@ -32,7 +32,7 @@ const NAMES = {
     openrouter: { name: 'OpenRouter', phrase: 'OpenRouter', kind: 'Paid' },
     main: { name: 'Main API', phrase: 'the Main API', kind: 'Main connection' },
 };
-const nameOf = route => NAMES[route]?.name || ROUTES[route]?.label || String(route);
+const nameOf = route => NAMES[route]?.name || ROUTES[route]?.label || (route === 'override' || route === 'profile' ? 'Connection Profile' : String(route));
 const phraseOf = route => NAMES[route]?.phrase || nameOf(route);
 const isLocal = route => ROUTES[route]?.cost === 'local';
 
@@ -165,10 +165,10 @@ function spendEvent(event, now = Date.now()) {
     const month = state.month;
     if (event.type === 'warning' && v.warnedMonth !== month) {
         v.warnedMonth = month;
-        addNote(v, { id: `warning:${month}`, kind: 'warning', text: `${usd(state.total)} of ${usd(state.ceiling)} used this month; paid background calls pause at the ceiling` }, now);
+        addNote(v, { id: `warning:${month}`, kind: 'warning', text: `${usd(state.total)} of ${usd(state.ceiling)} used this month; paid calls pause at the ceiling` }, now);
     } else if (event.type === 'ceiling' && v.ceilingMonth !== month) {
         v.ceilingMonth = month;
-        addNote(v, { id: `ceiling:${month}`, kind: 'ceiling', text: `${usd(state.ceiling)} monthly ceiling reached; paid background calls are paused, free and local routes carry on` }, now);
+        addNote(v, { id: `ceiling:${month}`, kind: 'ceiling', text: `${usd(state.ceiling)} monthly ceiling reached; paid calls are paused, free and local routes carry on` }, now);
     } else return;
     saveSettings();
     changed();
@@ -303,7 +303,7 @@ export function renderSpendPage(body) {
         const now = Date.now();
         const state = spendState(now);
         const used = state.ceiling > 0 ? Math.min(1, state.total / state.ceiling) : 1;
-        const bar = h('div', { class: 'ri-spend-meter', role: 'meter', 'aria-label': 'Paid background spend this month', 'aria-valuemin': '0', 'aria-valuemax': String(state.ceiling), 'aria-valuenow': String(state.total), 'data-state': state.atCeiling ? 'ceiling' : state.overWarning ? 'warning' : 'ok' },
+        const bar = h('div', { class: 'ri-spend-meter', role: 'meter', 'aria-label': 'Paid spend this month', 'aria-valuemin': '0', 'aria-valuemax': String(state.ceiling), 'aria-valuenow': String(state.total), 'data-state': state.atCeiling ? 'ceiling' : state.overWarning ? 'warning' : 'ok' },
             h('div', { class: 'ri-spend-meter-fill', style: { width: `${Math.round(used * 100)}%` } }));
         const notes = activeNotes(now);
         // The standing line stays until a note says the same thing, so a dismissed note never hides the state.
@@ -313,9 +313,9 @@ export function renderSpendPage(body) {
         const rows = spendRows(now);
         host.replaceChildren(...[
             h('p', { class: 'ri-spend-summary', id: 'ri-spend-summary' }, summaryLine(now)), bar,
-            hint(['This month’s paid background spend resets on the first. Taps and chat replies through your main connection stay outside the ceiling.', howItWorks('Background work means calls the extension makes that no tap starts: capture, filing, catch-up, upkeep, follow-through checks, roll judgments and Options.')]),
-            state.overWarning && !stated ? h('p', { class: 'ri-spend-warning', role: 'note' }, state.atCeiling ? `${usd(state.ceiling)} ceiling reached. Paid background calls pause until the first of next month or until you raise it; free and local routes carry on.`
-                : `${usd(state.warning)} warning point passed. Paid background calls pause at ${usd(state.ceiling)}.`) : null,
+            hint(['This month’s paid spend resets on the first. Every paid model call the extension makes counts toward the ceiling, tapped or in the background; chat replies through your main connection stay outside it.', howItWorks('Paid calls are the extension’s model calls on a paid route, the Main API on a paid provider included. They cover background work such as capture, filing, catch-up, upkeep, follow-through checks, roll judgments and Options, and the buttons you tap, such as Write a chapter now and help questions. At the ceiling a paid route is skipped and a free or local route takes the call; a tap with none left says the ceiling is reached.')]),
+            state.overWarning && !stated ? h('p', { class: 'ri-spend-warning', role: 'note' }, state.atCeiling ? `${usd(state.ceiling)} ceiling reached. Paid calls pause until the first of next month or until you raise it; free and local routes carry on.`
+                : `${usd(state.warning)} warning point passed. Paid calls pause at ${usd(state.ceiling)}.`) : null,
             notes.length ? h('div', { class: 'ri-spend-notices', role: 'group', 'aria-label': 'Notices' }, notes.map(noticeRow)) : null,
             h('h4', { class: 'ri-spend-head' }, 'Limits'), limitsForm(draw, status), status,
             h('h4', { class: 'ri-spend-head' }, 'This month, by route'),
@@ -325,10 +325,10 @@ export function renderSpendPage(body) {
                 h('ul', { class: 'ri-spend-rows' }, paused.map(job => h('li', { class: 'ri-spend-row' }, h('span', { class: 'ri-spend-route' }, job.label), ' ',
                     h('span', { class: 'ri-spend-fact' }, job.text), ' ',
                     h('a', { href: '#ri-spend-summary', class: 'ri-spend-link', onclick: event => { event.preventDefault(); host.querySelector('#ri-spend-summary')?.scrollIntoView({ block: 'start' }); } }, 'Spend'))))) : null,
-            h('details', { class: 'ri-spend-calls-list' }, h('summary', {}, `Paid background calls this month (${state.calls.length})`),
+            h('details', { class: 'ri-spend-calls-list' }, h('summary', {}, `Paid calls this month (${state.calls.length})`),
                 paidCalls.length ? h('ul', { class: 'ri-spend-rows' }, paidCalls.map(call => h('li', { class: 'ri-spend-row' },
                     h('span', { class: 'ri-spend-route' }, nameOf(call.route)), ' ', h('span', { class: 'ri-spend-fact' }, `${call.model || 'model not named'}, ${call.job || 'job'}, ${new Date(call.time).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`), ' ',
-                    h('span', { class: 'ri-spend-calls' }, usd(call.usd, call.usd && call.usd < 0.01 ? 4 : 2))))) : hint('No paid background call yet this month.'))].filter(Boolean));
+                    h('span', { class: 'ri-spend-calls' }, usd(call.usd, call.usd && call.usd < 0.01 ? 4 : 2))))) : hint('No paid call yet this month.'))].filter(Boolean));
     };
     draw();
     body.append(host);
@@ -413,7 +413,7 @@ export function mountConnectionsSpend() {
     if (mounted || !globalThis.SillyTavern?.getContext) return;
     mounted = true;
     registerPage({ id: SPEND_PAGE, group: 'setup', tab: 'connections', subgroup: 'Connections', label: 'Spend', withoutChat: true, order: 1,
-        help: 'This month\'s paid background spend per route against your monthly ceiling, and the health of each route.',
+        help: 'This month\'s paid spend per route against your monthly ceiling, every paid call counted, tapped or in the background, and the health of each route.',
         aliases: 'spend ceiling budget cost money paid routes health fallback warning paused', render: renderSpendPage });
     registerPage({ id: JOBS_PAGE, group: 'setup', tab: 'connections', subgroup: 'Connections', label: 'Background jobs', withoutChat: true, order: 2,
         help: 'Each background job and the routes it tries in order, with Test per route, the OpenRouter key for jev-1.13, the on-phone model and the desktop guide.',

@@ -64,7 +64,7 @@ Links to the one home of each setting:
 
 ## Model calls and cost
 
-Each job in the list is 1 model call when it runs, on the connection or route list set here ([how model calls work](help:model-calls)). Automatically replace a missed reply is one more SillyTavern Swipe through Main API. These calls are metered: when a paid route answers, including a Main API on a paid provider or a fixed paid Connection Profile, the cost counts toward the monthly ceiling in [Setup, Spend](page:spend). Two buttons on [Story, Story World](page:world) are the exception; Write a chapter now and Close the chapter here send their calls unmetered, except Write a chapter now in an older chat still on the earlier memory. The word list and the backup run in code.
+Each job in the list is 1 model call when it runs, on the connection or route list set here ([how model calls work](help:model-calls)). Write my next message, Swipe an earlier reply, Continue a historical reply and Automatically replace a missed reply ride SillyTavern's reply request through Main API, so like every chat reply they stay outside the ceiling. The other calls are metered: when a paid route answers, including a Main API on a paid provider or a fixed paid Connection Profile, the cost counts toward the monthly ceiling in [Setup, Connections, Spend](page:spend). Every button that starts one of these calls is metered the same way, Write a chapter now and Close the chapter here on [Story, Story World](page:world) included. The word list and the backup run in code.
 
 ## Why it works this way
 

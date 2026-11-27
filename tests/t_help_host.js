@@ -248,7 +248,8 @@ async function phone(width, height, run) {
         await setChain(page, null);
         const start = await chainNow();
         assert.equal(start[0], 'desktop', 'the help chain starts on the desktop model');
-        assert.ok(!start.includes('openrouter') && !start.includes('main'), 'the default chain holds no paid route');
+        assert.ok(!start.includes('openrouter'), 'the default chain holds no paid OpenRouter route');
+        assert.equal(start.at(-1), 'main', 'the Main API is the last fallback (B59)');
         await page.locator('#ri-help-page details.ri-help-settings-fold > summary').tap();
         await page.locator('[data-help-add]').selectOption('profile:p-other');
         await page.locator('.ri-help-chain').getByRole('button', { name: 'Add', exact: true }).tap();

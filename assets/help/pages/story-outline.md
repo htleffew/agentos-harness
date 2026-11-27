@@ -20,7 +20,7 @@ The call uses free routes only; the desktop over Tailscale, a free tier, or your
 
 ## Model calls and cost
 
-Each run is 1 model call ([how model calls work](help:model-calls)), marked with the amber dot on **Write the outline now**. The free routes it may use, and their order, are in [Setup, Background jobs](page:background-jobs) under Story outline; paid routes are left out, so it never spends and never counts toward the ceiling in [Setup, Spend](page:spend). The automatic run comes every 40 replies, after a reply is read into memory.
+Each run is 1 model call ([how model calls work](help:model-calls)), marked with the amber dot on **Write the outline now**. The free routes it may use, and their order, are in [Setup, Background jobs](page:background-jobs) under Story outline; paid routes are left out, so it never spends and never counts toward the ceiling in [Setup, Connections, Spend](page:spend). The automatic run comes every 40 replies, after a reply is read into memory.
 
 ## Why it works this way
 

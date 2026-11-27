@@ -24,7 +24,7 @@ Every page header in the menu has a **Help** link beside its status; it opens th
 
 ### Help settings
 
-**Help settings** holds the routes a question tries, in order. A route is a way to reach a model, such as the desktop model over Tailscale (your own computer, reached from the phone through Tailscale) or a saved Connection Profile; [how model calls work](help:model-calls) explains each one. The list starts with the desktop model, then the NanoGPT plan (a subscription that costs nothing per call) and the free OpenRouter model. A route with no saved connection on this device is skipped.
+**Help settings** holds the routes a question tries, in order. A route is a way to reach a model, such as the desktop model over Tailscale (your own computer, reached from the phone through Tailscale) or a saved Connection Profile; [how model calls work](help:model-calls) explains each one. The list starts with the desktop model, then the NanoGPT plan (a subscription that costs nothing per call), the free OpenRouter model and last the Main API. A route with no saved connection on this device is skipped.
 
 - **Add a route** lists the named routes (Desktop over Tailscale, NanoGPT plan, OpenRouter free model, Google AI Studio free tier, OpenRouter paid, Main API) and each saved Connection Profile by its name. **Add** puts the choice at the end of the list.
 - **Up** and **Down** move a route. **Remove** takes it out; the only route left cannot be removed.
@@ -32,11 +32,11 @@ Every page header in the menu has a **Help** link beside its status; it opens th
 
 ## Model calls and cost
 
-Search, the entries, the links and the list of entries make no model call. A question is 1 model call, and the **Ask** button carries the amber dot that marks a tap which can start one. The question goes to the first route in Help settings that answers; when an earlier route does not answer, a note under the answer says which route did. A paid route counts toward your monthly ceiling in [Setup, Spend](page:spend), and once the ceiling is reached a paid route is skipped.
+Search, the entries, the links and the list of entries make no model call. A question is 1 model call, and the **Ask** button carries the amber dot that marks a tap which can start one. The question goes to the first route in Help settings that answers; when an earlier route does not answer, a note under the answer says which route did. The list starts with the desktop model, the NanoGPT plan, the free OpenRouter model and last the Main API. A paid route, the Main API on a paid provider included, counts toward your monthly ceiling in [Setup, Connections, Spend](page:spend), and once the ceiling is reached a paid route is skipped.
 
 ## Why it works this way
 
 - The guide ships inside the extension, so it matches the version you run and works without a connection.
-- The routes are yours to order. The list starts on the local desktop model, which costs nothing, with free routes after it; you can add your Connection Profiles and the Main API.
+- The routes are yours to order. The list starts on the local desktop model, which costs nothing, with free routes after it; the Main API comes last, and you can add your Connection Profiles.
 - The assistant reads and explains; you make every change, and each answer links to the control.
 - A question costs one call, and a question no guide entry matches is answered at once with no call.

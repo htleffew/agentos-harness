@@ -232,17 +232,31 @@ export function stackSummary(stack) {
 
 // ---------------------------------------------------------------- the route
 
-/** The help chain she starts with: the desktop model, then the free routes of MB1's capture chain. */
+/**
+ * The help chain she starts with: the desktop model, then the free routes of MB1's capture chain, then the Main API as
+ * the last fallback (B59).
+ */
 export function defaultHelpChain(recommended) {
     const free = new Set(['nanogpt', 'openrouterFree', 'googleFree']);
-    return (recommended?.capture || []).filter(entry => entry.route === 'desktop' || free.has(entry.route))
-        .map(entry => (entry.route === 'desktop' ? { ...entry, timeoutMs: 60000 } : { ...entry }));
+    return [...(recommended?.capture || []).filter(entry => entry.route === 'desktop' || free.has(entry.route))
+        .map(entry => (entry.route === 'desktop' ? { ...entry, timeoutMs: 60000 } : { ...entry })), { route: 'main' }];
+}
+
+/**
+ * B59: a help route list saved in 10.0.51 gains the Main API at its end once. help is settings().help; mainAdded marks
+ * the list as seen, so a Main API she removes afterwards stays removed. Returns true when the settings changed.
+ */
+export function addMainToSavedHelpChain(help) {
+    if (!help || !Array.isArray(help.chain) || !help.chain.length || help.mainAdded) return false;
+    if (!help.chain.some(entry => entry?.route === 'main')) help.chain.push({ route: 'main' });
+    help.mainAdded = true;
+    return true;
 }
 
 /**
  * Ask one question. Ranks the guide, builds the request and sends it once through the help chain (routing.runChain,
  * which tries each route in order). A question no entry matches gets the not-covered answer with no request.
- * Paid routes count toward the monthly ceiling, as background calls do.
+ * A paid route, the Main API on a paid provider included, counts toward the monthly ceiling like every paid call.
  */
 export async function askHelp({ question, guide, index, chain, live = '', reply = '', signal, onAttempt, run }) {
     const entries = rankEntries(index, question);
@@ -250,6 +264,6 @@ export async function askHelp({ question, guide, index, chain, live = '', reply 
     const request = helpRequest({ question, entries, live, reply });
     const runChain = run || (await import('./routing.js')).runChain;
     const result = await runChain(chain, { job: 'help', label: 'Help question', system: request.system, user: request.user, tokens: 700,
-        signal, background: true, onAttempt });
+        signal, background: false, onAttempt });
     return { ...result, called: true, covered: result.ok && !saysNotCovered(result.text), sources: request.sources, entries, request };
 }

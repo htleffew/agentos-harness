@@ -73,7 +73,7 @@ The three set editors in [All sets](page:sets) follow these rules. The per-reply
 
 ## Model calls and cost
 
-Each Follow-through check is 1 model call ([how model calls work](help:model-calls)), made after a reply that carried an instruction to check. It starts on Automatic, which tries the free and local routes in [Setup, Background jobs](page:background-jobs) first and ends on the Main API, or it uses a Connection Profile you fix in Setup, Connections. The call is metered, so a paid route counts toward the ceiling in [Setup, Spend](page:spend). **Check that the reply did not write for you** rides the same call. **Regenerate when an instruction did not happen** and the write-a-new-reply choice make one more Swipe, which is SillyTavern's reply request. A chapter closed by a time skip costs the same call as closing a chapter by hand. Everything else here runs in code.
+Each Follow-through check is 1 model call ([how model calls work](help:model-calls)), made after a reply that carried an instruction to check. It starts on Automatic, which tries the free and local routes in [Setup, Background jobs](page:background-jobs) first and ends on the Main API, or it uses a Connection Profile you fix in Setup, Connections. The call is metered, so a paid route counts toward the ceiling in [Setup, Connections, Spend](page:spend). **Check that the reply did not write for you** rides the same call. **Regenerate when an instruction did not happen** and the write-a-new-reply choice make one more Swipe, which is SillyTavern's reply request. A chapter closed by a time skip costs the same call as closing a chapter by hand. Everything else here runs in code.
 
 ## Why it works this way
 

@@ -145,7 +145,7 @@ Rolling a set [runs in code](help:model-calls), and what a set sends rides Silly
 - **Make these work anywhere**
 - **Rewrite with AI** on one saved version
 
-They start on Automatic, which tries the free and local routes first and ends on the Main API; the route order is in [Setup, Background jobs](page:background-jobs), and you can fix one button to a saved Connection Profile in [Setup, Connections](page:settings). Paid routes on Automatic count toward the monthly ceiling in [Setup, Spend](page:spend) and are skipped once it is reached. **Smooth the rolled parts into prose** adds 1 model call to every roll that fires; after 8 seconds or a failure, the parts go out as rolled.
+They start on Automatic, which tries the free and local routes first and ends on the Main API; the route order is in [Setup, Background jobs](page:background-jobs), and you can fix one button to a saved Connection Profile in [Setup, Connections](page:settings). Paid routes on Automatic count toward the monthly ceiling in [Setup, Connections, Spend](page:spend) and are skipped once it is reached. **Smooth the rolled parts into prose** adds 1 model call to every roll that fires; after 8 seconds or a failure, the parts go out as rolled.
 
 ## Why it works this way
 

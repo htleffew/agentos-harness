@@ -40,7 +40,7 @@ The title names the reply and its version, with a summary line such as "2 instru
 
 ## Model calls and cost
 
-Reading the receipts [runs in code](help:model-calls). **Check this reply again** is 1 model call, the Follow-through check. It starts on Automatic, which tries the free and local routes in [Setup, Background jobs](page:background-jobs) first and ends on the Main API, or it uses a Connection Profile you fix in [Setup, Connections](page:settings); the call is metered, so a paid route counts toward the ceiling in [Setup, Spend](page:spend). **Regenerate** and **Pick again** write a new reply with SillyTavern's reply request. The other buttons change a record in code.
+Reading the receipts [runs in code](help:model-calls). **Check this reply again** is 1 model call, the Follow-through check. It starts on Automatic, which tries the free and local routes in [Setup, Background jobs](page:background-jobs) first and ends on the Main API, or it uses a Connection Profile you fix in [Setup, Connections](page:settings); the call is metered, so a paid route counts toward the ceiling in [Setup, Connections, Spend](page:spend). **Regenerate** and **Pick again** write a new reply with SillyTavern's reply request. The other buttons change a record in code.
 
 ## Why it works this way
 

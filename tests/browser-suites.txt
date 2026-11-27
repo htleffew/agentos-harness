@@ -81,3 +81,4 @@ t_voice
 t_voice_delivery
 t_legacy_parity
 t_help_host
+t_spend_taps_host
