@@ -637,6 +637,7 @@ function keepActiveInView(row) {
 export function render() {
     if (!app.root) return;
     app.chatPending=false;
+    held.page=false;
     app.displayScope=draftScope();
     const st = settings();
     const expanded = app.root.classList.contains('ri-expanded');
@@ -735,6 +736,48 @@ export function render() {
     });
 }
 
+// ---------- Background redraws (B63) ----------
+// A background update (capture, upkeep, any job that ends while the menu is open) redraws the open page and the trays
+// under the replies. Drawn while her finger was down, it replaced the control under it: the tap went to the new copy or
+// nowhere (a mouse click lands on the parent both copies share), and on her phone a tap could be lost. The update now
+// waits until every pointer is up and the click it makes has run; the page redraw also waits while she types in a field
+// of the menu. Then it is applied once, keeping the scroll, open folds and focus (captureView).
+const RELEASE_MS = 150;     // a tap's click follows its release within this time
+const STUCK_MS = 5000;      // a press with no release seen (the pointer left the window) stops holding after this
+const held = { pointers: new Map(), releasedAt: -Infinity, page: false, trays: false, timer: 0, watching: false };
+
+function pressing() {
+    const now = performance.now();
+    for (const [id, since] of held.pointers) if (now - since > STUCK_MS) held.pointers.delete(id);
+    return held.pointers.size > 0 || now - held.releasedAt < RELEASE_MS;
+}
+
+/** A field she types or picks in has focus inside the menu (a switch or button with focus does not hold a redraw). */
+function typingInMenu() {
+    const active = globalThis.document?.activeElement;
+    if (!active || !app.root?.contains(active)) return false;
+    if (active.isContentEditable || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT') return true;
+    return active.tagName === 'INPUT' && !/^(button|checkbox|radio|range|reset|submit|color|file|image)$/i.test(active.type || '');
+}
+
+function watchPresses(flush) {
+    const doc = globalThis.document;
+    if (!doc || held.watching) return;
+    held.watching = true;
+    const soon = ms => { clearTimeout(held.timer); held.timer = setTimeout(flush, ms); };
+    doc.addEventListener('pointerdown', event => { held.pointers.set(event.pointerId, performance.now()); }, true);
+    const release = event => {
+        if (!held.pointers.delete(event.pointerId)) return;
+        held.releasedAt = performance.now();
+        soon(RELEASE_MS);
+    };
+    doc.addEventListener('pointerup', release, true);
+    doc.addEventListener('pointercancel', release, true);
+    // The click a press makes has run once its listeners return; the held update follows in the next task.
+    doc.addEventListener('click', () => { if (!held.pointers.size) { held.releasedAt = -Infinity; soon(0); } }, true);
+    doc.addEventListener('focusout', () => soon(0), true);
+}
+
 export function mount(missing) {
     app.missing = missing || [];
     loadShellStyles();
@@ -758,7 +801,19 @@ export function mount(missing) {
 
     let timer = null;
     const focusInField = () => app.root?.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
-    onLog(() => { if (app.tab === 'log') { clearTimeout(timer); timer = setTimeout(render, 80); } });
+    // A background update redraws the open page and the trays under the replies once her finger is up (B63).
+    const flush = () => {
+        clearTimeout(held.timer);
+        if (!held.page && !held.trays) return;
+        if (pressing()) { held.timer = setTimeout(flush, 100); return; }
+        if (held.trays) { held.trays = false; refreshUnderReplies(); }
+        if (!held.page || !app.chatPending && typingInMenu()) return;
+        held.page = false;
+        if (app.chatPending || !app.root?.querySelector('[data-ri-dirty]') && !(V10_PAGES.has(app.tab) && focusInField())) render();
+    };
+    watchPresses(flush);
+    const redrawSoon = () => { clearTimeout(timer); timer = setTimeout(() => { held.page = true; flush(); }, 80); };
+    onLog(() => { if (app.tab === 'log') redrawSoon(); });
     onChange((what) => {
         const presetChanged=what==='preset' && app.displayScope!==draftScope();
         if (what==='chat' || presetChanged) keepInterruptedDraft();
@@ -780,7 +835,8 @@ export function mount(missing) {
             // chat. The reopen rule keeps arrivedByLink, so closing and opening the menu still returns to the tab page.
             if (!settings().menuPage && !app.userNavigated) app.tab=initialPage();
         }
-        refreshUnderReplies();
+        held.trays = true;
+        flush();
         // Setup controls save immediately and their handlers belong to the displayed preset.
         if (presetChanged) {
             const key=editorRoutes[app.tab];
@@ -805,9 +861,6 @@ export function mount(missing) {
         if (app.tab === 'state' && what !== 'chat' && app.root?.querySelector('.ri-state-editor')) return;
         if (app.tab === 'context' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement?.tagName || '')) return;
         if (app.tab === 'goals' && what !== 'chat' && app.root?.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
-        clearTimeout(timer);
-        timer = setTimeout(()=>{
-            if (app.chatPending || !app.root?.querySelector('[data-ri-dirty]') && !(V10_PAGES.has(app.tab) && focusInField())) render();
-        },80);
+        redrawSoon();
     });
 }

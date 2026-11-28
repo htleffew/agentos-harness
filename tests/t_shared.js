@@ -85,7 +85,8 @@ const chatLore = (page, name) => page.evaluate((name) => { const c = globalThis.
         const cap = []; for (let i = 0; i < 4; i++) cap.push((await sendAndMarks(page, 'cap' + i)).marks);
         await L.setSettings(page, { perReply: 0 });
         console.log('cap 1:', JSON.stringify(cap));
-        assert(cap.every(m => m.length === 1) && new Set(cap.flat()).size >= 2, 'shared: with "one thing per reply", one instruction goes out per reply across the sets in the lorebook');
+        // Follow-through may send the same pick on consecutive replies, so the check is one per reply from the lorebook's sets.
+        assert(cap.every(m => m.length === 1 && ['A1', 'B1', 'C1', 'D1'].includes(m[0])), 'shared: with "one thing per reply", one instruction goes out per reply from the sets in the lorebook');
 
         // ----- E. story events and writing style inside the shared lorebook
         await L.openChat(page);

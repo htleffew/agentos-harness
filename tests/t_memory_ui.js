@@ -449,8 +449,15 @@ const fold = (page, id) => page.evaluate(async ({ B, id }) => {
         await tray.waitFor({ timeout: 30000 });
         const line = tray.locator('.ri-tray-line', { hasText: 'Plot' });
         const tab = tray.getByRole('tab', { name: /^Plot/ });
-        const target = await line.isVisible().catch(() => false) ? line : tab;
-        if (!await target.isVisible().catch(() => false)) await tray.locator('.ri-tray-summary').tap();
+        // A tray on the Strip shows neither; tapping its summary opens it, and only then is the Plot line or tab chosen.
+        const shown = async () => await line.first().isVisible().catch(() => false) || await tab.first().isVisible().catch(() => false);
+        if (!await shown() && await tray.getAttribute('data-view') === 'strip') {
+            await tray.locator('.ri-tray-summary').tap();
+            await page.waitForFunction(() => document.querySelector('#chat .last_mes .ri-tray:not(.ri-tray-loading)')?.dataset.view !== 'strip', null, { timeout: 10000 });
+        }
+        // Compact lists only the cards with a first line; Expanded has a tab for every card.
+        if (!await shown()) await tray.locator('.ri-tray-view[aria-label="Expanded"]').tap();
+        const target = await line.first().isVisible().catch(() => false) ? line : tab;
         await target.first().tap({ timeout: 10000 });
         await page.waitForTimeout(800);
         const plotText = await tray.textContent();

@@ -137,6 +137,7 @@ These scripts drive a local SillyTavern with headless Chrome and a mock model, o
 | `t_import_report.js` | node | B46 |
 | `t_import_report_host.js` | browser (390 x 780) | B46 |
 | `t_block_gates.js` | browser (`RI_WIDTH`, default 390 x 780, touch): import keeps gate, depth, reply types and role with no report rows; a notBefore 5 block out of replies 1 to 4 (and a swipe of 4) and in from 5; a depth 2 block two chat messages from the end with its role; the card chips; the Placement editor's change reaching the next request; a pre-B56 record and stack sent as before (request recorder) | B56 |
+| `t_redraw_tap.js` | browser (`RI_WIDTH`, default 412 x 915, touch; `RI_TRIES`, default 20; `RI_CARDS`, default 10): on Setup, Presets a 200 ms touch on the Stack and Bank switch as a mock reply lands, and a 200 ms mouse press as a background update lands, take effect every try with the pressed element still in the page; the page redraws after release with its scroll kept; the Sent card tapped as a reply lands stays open and filled | B63 |
 | `t_item_weights.js` | node for the odds; also a browser check at 390 x 780 when `RI_HOST_URL` is set | B51 |
 | `t_story_rules_host.js` | browser | B41 |
 | `t_story_outline.js` | node (`node --test`), and browser when run with plain `node` and `RI_HOST_URL` set (`RI_WIDTH`, default 390) | B52 |
