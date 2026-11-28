@@ -55,4 +55,8 @@
 .ri-tray-style-open[aria-expanded="true"] { border-color: var(--ri-select-line); }
 .ri-tray-style-picker { padding: 6px var(--ri-pad); border: 1px solid var(--ri-line-faint); border-top: 0; background: var(--ri-surface); font-family: var(--ri-font); }
 .ri-tray-style-picker .ri-style-grid { margin: 0; }
+/* B61: the model suggestion row sits under the style list; at 360 px the buttons wrap among themselves and the note takes its own line. */
+.ri-style-model { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ri-gap); margin: 6px 0 0; }
+.ri-style-model .ri-bar-btn { flex: 0 1 auto; min-width: 0; }
+.ri-style-model .ri-style-model-note { flex: 1 1 100%; margin: 0; }
 .ri-tray-style-picker .ri-tray-link { margin-top: 4px; }

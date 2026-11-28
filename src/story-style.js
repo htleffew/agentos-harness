@@ -1,5 +1,6 @@
 // Story styles (DESIGN.md 1.12): the per-chat choice, the Setup default, and the one-time suggestion read from the
-// character card and the chat's World Info books. No model call is made anywhere in this file.
+// character card and the chat's World Info books. The automatic suggestion is word matching in code and makes no model
+// call. The only model call in this file is the one she taps for in the picker (B61, askModelStyle).
 import { chatState, saveChatState, saveSettings, settings } from './store.js';
 import { ctx, isChatOpen, loadBook, LOG } from './st.js';
 
@@ -164,4 +165,73 @@ export function dismissSuggestion() {
     cs.storyStyleSuggestion = { ...cs.storyStyleSuggestion, state: 'done' };
     saveChatState();
     changed();
+}
+
+// ---------- the suggestion she asks a model for (B61) ----------
+
+export const MODEL_CARD_CAP = 2500;
+export const MODEL_BOOK_CAP = 3500;
+const MODEL_JOB = 'styleSuggest';
+
+export const STYLE_SYSTEM = [
+    'You choose how the story cards of a roleplay look. Read the setting text and pick the one style that fits it best.',
+    'The styles, each as id: face.',
+    ...STORY_STYLES.map(style => `${style.id}: ${style.face}`),
+    `Answer with exactly one id from this list and nothing else: ${STORY_STYLES.map(style => style.id).join(', ')}.`,
+].join('\n');
+
+/** The request for the tapped suggestion: the card text and the World Info book text, each capped. */
+export function buildStyleRequest({ card = '', books = '' } = {}) {
+    const clip = (text, cap) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, cap);
+    return { system: STYLE_SYSTEM, user: `Character card:\n${clip(card, MODEL_CARD_CAP) || '(none)'}\n\nWorld Info books:\n${clip(books, MODEL_BOOK_CAP) || '(none)'}\n\nThe style id:` };
+}
+
+/** The id a reply names, or '' when the reply is anything but one of the four ids (quotes, backticks and an end mark allowed). */
+export function readStyleAnswer(text) {
+    const word = String(text ?? '').trim().replace(/^[\s"'`*]+|[\s"'`*.!]+$/g, '').toLowerCase();
+    return STORY_STYLES.find(style => style.id === word)?.id || '';
+}
+
+let asked = { key: '', state: 'idle', style: '', note: '' };
+const chatKey = () => ctx().getCurrentChatId?.() || '';
+
+/** What the picker shows for the model suggestion in this chat: state is idle, asking, done, unusable, ceiling or failed. */
+export function modelSuggestion() {
+    return asked.key === chatKey() ? { ...asked } : { key: chatKey(), state: 'idle', style: '', note: '' };
+}
+
+export function clearModelSuggestion() {
+    asked = { key: '', state: 'idle', style: '', note: '' };
+    changed();
+}
+
+/**
+ * She tapped Suggest with a model. One request goes through the route chain (routing.runChain, free and local routes
+ * first; a paid step counts toward the monthly ceiling). The answer is kept as a suggestion; nothing is applied.
+ * run and chain: test hooks for runChain and the chain it runs on.
+ */
+export async function askModelStyle({ run, chain } = {}) {
+    if (!isChatOpen() || asked.state === 'asking' && asked.key === chatKey()) return modelSuggestion();
+    const key = chatKey();
+    asked = { key, state: 'asking', style: '', note: 'Asking a model...' };
+    changed();
+    let outcome;
+    try {
+        const request = buildStyleRequest({ card: cardText(), books: await bookText() });
+        const routing = await import('./routing.js');
+        const send = run || ((steps, options) => routing.runChain(steps, options));
+        const result = await send(chain || routing.chainFor('capture'), { job: MODEL_JOB, label: 'Story style suggestion (you asked)',
+            ...request, tokens: 20, background: false });
+        const style = result.ok ? readStyleAnswer(result.text) : '';
+        if (style) outcome = { state: 'done', style, note: '' };
+        else if (result.ok) outcome = { state: 'unusable', style: '', note: 'The model gave no usable answer. The style stays as it is.' };
+        else if (result.waiting) outcome = { state: 'ceiling', style: '', note: result.reason };
+        else outcome = { state: 'failed', style: '', note: `${result.reason || 'No route answered.'} The style stays as it is.` };
+    } catch (error) {
+        console.warn(LOG, 'story style model suggestion', error);
+        outcome = { state: 'failed', style: '', note: 'The request could not be sent. The style stays as it is.' };
+    }
+    if (chatKey() === key) asked = { key, ...outcome };
+    changed();
+    return modelSuggestion();
 }

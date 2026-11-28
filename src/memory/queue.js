@@ -8,6 +8,7 @@
 import { askFull, on, toast } from '../st.js';
 import { chainFor, resolveRoute } from '../routing.js';
 import { autoDownloadPhoneModel } from './phone-model.js';
+import { recordRequest } from '../request-stats.js';
 
 /** Lower runs first. Judgment calls are dropped when they are late. */
 export const PRIORITY = Object.freeze({
@@ -362,11 +363,16 @@ export async function warmDesktop(model = RESIDENT[0]) {
     if (!target || target.kind !== 'profile') return false;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(new Error('The warm-up ran past its time limit.')), WARM_TIMEOUT_MS);
+    let res = null;
     try {
-        const res = await askFull({ user: 'Reply with OK.', tokens: 4, profileId: target.profileId, model, effort: 'none', signal: controller.signal });
+        res = await askFull({ user: 'Reply with OK.', tokens: 4, profileId: target.profileId, model, effort: 'none', signal: controller.signal });
         return !!String(res?.text || '').trim();
     } catch { return false; }
-    finally { clearTimeout(timer); }
+    finally {
+        clearTimeout(timer);
+        // B62: the warm-up is one entry in the request stats, answered or not.
+        recordRequest({ job: 'warmUp', route: 'desktop', model, usage: res?.usage || null, inChars: 14, outChars: String(res?.raw ?? '').length, ok: !!res });
+    }
 }
 
 /** Add a function that lists the missing work of a chat: (chat, chatId) => candidates for enqueue. */

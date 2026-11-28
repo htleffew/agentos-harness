@@ -7,7 +7,7 @@ import { h } from './dom.js';
 import { registerPage } from './page-registry.js';
 import { renderCardSettings } from './tray-settings.js';
 import { dismissSuggestion, effectiveStoryStyle, ensureSuggestion, onStoryStyleChange, pendingSuggestion, setChatStoryStyle, styleLabel } from '../story-style.js';
-import { loadThemeSheets, mountThemes, styleChoices } from './themes.js';
+import { loadThemeSheets, modelSuggestControl, mountThemes, styleChoices } from './themes.js';
 import { fallbackNote, headerMode, headerSetting, headerState, HEADER_MODES, setHeaderSetting, tryHeaderInReplyAgain } from '../scene-header.js';
 
 export const TRAY_VIEWS = Object.freeze({ strip: 'Strip', compact: 'Compact', expanded: 'Expanded' });
@@ -262,6 +262,7 @@ function stylePicker(close) {
     const suggested = pendingSuggestion();
     return h('div', { class: 'ri-tray-style-picker' },
         styleChoices(effectiveStoryStyle(), id => { setChatStoryStyle(id); close(); }, { suggested }),
+        modelSuggestControl(id => { setChatStoryStyle(id); close(); }),
         suggested ? h('button', { type: 'button', class: 'ri-tray-link', onclick: () => { dismissSuggestion(); close(); } }, 'Keep the default for this chat') : null);
 }
 

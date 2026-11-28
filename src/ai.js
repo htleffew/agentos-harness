@@ -38,7 +38,7 @@ export async function request({ operation, what, system = '', user = '', tokens 
             let res;
             try {
                 if (receipt.viaChain) {
-                    const run = await runOperationChain(operation,{receipt,system,user,tokens:room,signal,label:what});
+                    const run = await runOperationChain(operation,{receipt,system,user,tokens:room,signal,label:what,statJob:operation});
                     // B59: a tap refused at the ceiling shows the ceiling line alone; it sent no paid request.
                     if (!run.ok) throw new Error(run.waiting && authorization!=='automatic' ? CEILING_LINE : `${run.reason} ${run.attempts.map(item=>item.receipt).join(' ')}`.trim());
                     res = { text:run.text, raw:run.text, thinking:0 };
@@ -46,7 +46,7 @@ export async function request({ operation, what, system = '', user = '', tokens 
                     // B59: a Fixed Main API or Connection Profile is metered like a chain step, tapped or automatic.
                     const profile = profileId ? profileDetails().find(item=>item.id===String(profileId)) : null;
                     const cost = profileId ? profileCostClass(profile) : mainCostClass();
-                    res = await meterCall({cost,route:profileId ? 'override' : 'main',job:chainJob(operation)},
+                    res = await meterCall({cost,route:profileId ? 'override' : 'main',job:chainJob(operation),statJob:operation,chars:String(system).length+String(user).length},
                         ()=>askFull({system,user,tokens:room,profileId,useProfilePreset,signal}));
                 }
             }

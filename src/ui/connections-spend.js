@@ -13,6 +13,8 @@ import { PHONE_MODEL, deletePhoneModel, onPhoneModel, phoneModelStatus, tapDownl
 import { hasJevKey, setJevKey } from '../memory/decide.js';
 import { jobsSection } from './background-jobs.js';
 import { desktopQueue } from '../memory/queue.js';
+import { clearRequestStats, dailyStats, dayOf, onRequestStats, weeklyJobStats } from '../request-stats.js';
+import { EXECUTION_OPERATIONS } from '../execution.js';
 
 export const SPEND_PAGE = 'spend';
 export const JOBS_PAGE = 'background-jobs';
@@ -295,10 +297,76 @@ function noticeRow(note) {
         h('button', { type: 'button', class: 'ri-btn ri-btn-ghost ri-spend-dismiss', 'aria-label': `Dismiss ${label}`, onclick: () => dismissNote(note.id) }, 'Dismiss'));
 }
 
+// ---- Request stats (B62) ----
+
+const STAT_NAMES = { help: 'Help question', styleSuggest: 'Story style from a model', warmUp: 'Desktop warm-up', other: 'Other' };
+/** The name a job or function shows in the request stats. */
+export const statJobName = job => JOBS[job]?.label || EXECUTION_OPERATIONS[job]?.label || STAT_NAMES[job] || String(job);
+
+// Token counts read short at 360 px: 950, 12.4k, 1.2M. An estimate carries a leading ~.
+const tokensText = (value, estimated = false) => {
+    const n = Number(value || 0);
+    const text = n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n);
+    return estimated ? `~${text}` : text;
+};
+const costText = value => (value ? usd(value, value < 0.01 ? 4 : 2) : 'free');
+
+/** The day a row names: Today, Yesterday, else the short date. */
+export function dayName(day, now = Date.now()) {
+    if (day === dayOf(now)) return 'Today';
+    if (day === dayOf(now - 24 * 60 * 60 * 1000)) return 'Yesterday';
+    const [y, m, d] = day.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function statsSection(redraw, status, open) {
+    const now = Date.now();
+    const days = dailyStats(now);
+    const week = weeklyJobStats(now);
+    const cell = (text, attrs = {}) => h('td', attrs, text);
+    const head = (...names) => h('thead', {}, h('tr', {}, names.map(name => h('th', { scope: 'col' }, name))));
+    const dayRows = days.flatMap(row => {
+        const expanded = open.day === row.day;
+        const label = dayName(row.day, now);
+        const toggle = h('button', { type: 'button', class: 'ri-stats-day', 'aria-expanded': String(expanded), 'data-day': row.day,
+            'aria-label': `${label}, ${row.requests} ${row.requests === 1 ? 'request' : 'requests'}. ${expanded ? 'Hide' : 'Show'} the jobs`,
+            onclick: () => { open.day = expanded ? '' : row.day; redraw(row.day); } },
+        h('i', { class: `fa-solid ${expanded ? 'fa-chevron-down' : 'fa-chevron-right'}`, 'aria-hidden': 'true' }), label);
+        const line = h('tr', { class: 'ri-stats-dayrow', 'data-day': row.day },
+            h('th', { scope: 'row' }, toggle), cell(count(row.requests), { 'data-cell': 'requests' }),
+            cell(tokensText(row.tokensIn, row.estimated > 0)), cell(tokensText(row.tokensOut, row.estimated > 0)), cell(costText(row.usd)));
+        if (!expanded) return [line];
+        return [line, ...row.jobs.map(job => h('tr', { class: 'ri-stats-job', 'data-day': row.day, 'data-job': job.job },
+            cell(statJobName(job.job)), cell(count(job.requests), { 'data-cell': 'requests' }),
+            cell(tokensText(job.tokensIn, job.estimated > 0)), cell(tokensText(job.tokensOut, job.estimated > 0)), cell(costText(job.usd))))];
+    });
+    const clear = button('Clear stats', async () => {
+        if (!await confirmBox('Clear the request stats? The counts for every day and job are removed; the spend meter stays.')) return;
+        open.day = '';
+        clearRequestStats();
+        status.textContent = 'Request stats cleared.';
+    }, { kind: 'ghost' });
+    return [
+        h('h4', { class: 'ri-spend-head', id: 'ri-stats-head' }, 'Requests by day'),
+        hint(['Every model call the extension sends counts here, free, local and paid. Replies you write through SillyTavern itself are not counted.',
+            howItWorks('Each request adds one entry with its job, route, model, tokens in and out, and its cost when the route is paid. Token counts come from the provider when it reports them; a count marked ~ is estimated from the length of the text. The last 31 days are kept. Tap a day to see its jobs.')]),
+        days.length ? h('table', { class: 'ri-stats-table', id: 'ri-stats-days', 'aria-labelledby': 'ri-stats-head' },
+            head('Day', 'Requests', 'In', 'Out', 'Cost'), h('tbody', {}, dayRows)) : hint('No requests in the last 31 days.'),
+        h('h4', { class: 'ri-spend-head', id: 'ri-stats-week-head' }, 'Requests by job, last 7 days'),
+        week.length ? h('table', { class: 'ri-stats-table', id: 'ri-stats-week', 'aria-labelledby': 'ri-stats-week-head' },
+            head('Job', 'Requests', 'Per day', 'Median tokens'),
+            h('tbody', {}, week.map(job => h('tr', { 'data-job': job.job }, h('th', { scope: 'row' }, statJobName(job.job)),
+                cell(count(job.requests), { 'data-cell': 'requests' }), cell(String(job.perDay)), cell(tokensText(job.medianTokens)))))) : hint('No requests in the last 7 days.'),
+        days.length ? h('div', { class: 'ri-row' }, clear) : null,
+    ];
+}
+
 /** Setup, Connections, Spend. */
 export function renderSpendPage(body) {
     const host = h('div', { class: 'ri-spend', id: 'ri-spend' });
     const status = h('p', { class: 'ri-help', role: 'status', id: 'ri-spend-status' });
+    const statsStatus = h('p', { class: 'ri-help', role: 'status', id: 'ri-stats-status' });
+    const open = { day: '' };
     const draw = () => {
         const now = Date.now();
         const state = spendState(now);
@@ -321,6 +389,7 @@ export function renderSpendPage(body) {
             h('h4', { class: 'ri-spend-head' }, 'This month, by route'),
             h('ul', { class: 'ri-spend-rows', 'aria-label': 'Calls, cost and health per route' }, rows.map(row => rowView(row, now))),
             hint('Each background job tries the desktop first, then the NanoGPT plan, then free tiers, then paid routes within the ceiling, then the Main API. A route that does not answer is skipped for 10 minutes and checked again only when a job needs it.'),
+            ...statsSection(day => { draw(); host.querySelector(`.ri-stats-day[data-day="${day}"]`)?.focus(); }, statsStatus, open), statsStatus,
             paused.length ? h('div', { class: 'ri-spend-paused' }, h('h4', { class: 'ri-spend-head' }, 'Paused jobs'),
                 h('ul', { class: 'ri-spend-rows' }, paused.map(job => h('li', { class: 'ri-spend-row' }, h('span', { class: 'ri-spend-route' }, job.label), ' ',
                     h('span', { class: 'ri-spend-fact' }, job.text), ' ',
@@ -332,12 +401,17 @@ export function renderSpendPage(body) {
     };
     draw();
     body.append(host);
-    const stop = onSpendView(() => {
-        if (!host.isConnected) { stop(); return; }
+    const redraw = () => {
+        if (!host.isConnected) { stop(); stopStats(); return; }
         // A redraw would pull the number field out from under a thumb.
         if (host.contains(document.activeElement) && document.activeElement?.matches?.('input')) return;
+        // A tapped day keeps its focus through the redraw.
+        const day = document.activeElement?.matches?.('.ri-stats-day') && host.contains(document.activeElement) ? document.activeElement.dataset.day : '';
         draw();
-    });
+        if (day) host.querySelector(`.ri-stats-day[data-day="${day}"]`)?.focus();
+    };
+    const stop = onSpendView(redraw);
+    const stopStats = onRequestStats(redraw);
 }
 
 function phoneRow(host) {
@@ -413,8 +487,8 @@ export function mountConnectionsSpend() {
     if (mounted || !globalThis.SillyTavern?.getContext) return;
     mounted = true;
     registerPage({ id: SPEND_PAGE, group: 'setup', tab: 'connections', subgroup: 'Connections', label: 'Spend', withoutChat: true, order: 1,
-        help: 'This month\'s paid spend per route against your monthly ceiling, every paid call counted, tapped or in the background, and the health of each route.',
-        aliases: 'spend ceiling budget cost money paid routes health fallback warning paused', render: renderSpendPage });
+        help: 'This month\'s paid spend per route against your monthly ceiling, every paid call counted, tapped or in the background, the health of each route, and the count, tokens and frequency of every request per day and per job.',
+        aliases: 'spend ceiling budget cost money paid routes health fallback warning paused requests stats statistics tokens frequency usage per day per job clear', render: renderSpendPage });
     registerPage({ id: JOBS_PAGE, group: 'setup', tab: 'connections', subgroup: 'Connections', label: 'Background jobs', withoutChat: true, order: 2,
         help: 'Each background job and the routes it tries in order, with Test per route, the OpenRouter key for jev-1.13, the on-phone model and the desktop guide.',
         aliases: 'jobs routes chain reorder reset recommended test probe jev key openrouter on-phone model gemma download delete desktop ollama tailscale guide', render: renderBackgroundJobsPage });

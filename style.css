@@ -330,6 +330,15 @@ button.ri-glance-card:hover { border-color: var(--ri-style-accent); }
 .ri-spend-key-form { display: grid; gap: 4px; }
 .ri-spend input.ri-spend-key { width: 100%; max-width: 28em; min-height: var(--ri-hit-size, 32px); font-size: max(16px, 1em); }
 .ri-spend button { min-height: var(--ri-hit-size, 32px); }
+/* B62: request stats, plain tables that fit 360 px */
+.ri-stats-table { width: 100%; border-collapse: collapse; table-layout: auto; font-size: var(--ri-type-data, 13px); font-variant-numeric: tabular-nums; }
+.ri-stats-table th, .ri-stats-table td { padding: 4px 0 4px 8px; border-top: 1px solid var(--ri-line-faint); text-align: right; vertical-align: baseline; }
+.ri-stats-table thead th { font-size: var(--ri-type-label, 12px); font-weight: 400; color: var(--ri-text-muted); }
+.ri-stats-table th:first-child, .ri-stats-table td:first-child { padding-left: 0; text-align: left; overflow-wrap: anywhere; }
+.ri-spend .ri-stats-day { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: var(--ri-hit-size, 32px); color: var(--ri-review); font-weight: 700; }
+.ri-spend .ri-stats-day:focus-visible { outline: 2px solid var(--ri-review); outline-offset: 1px; }
+.ri-stats-job td { color: var(--ri-text-muted); }
+.ri-stats-job td:first-child { padding-left: 14px; }
 .ri-job-list, .ri-job-chain { list-style: none; margin: 0; padding: 0; display: grid; }
 .ri-job { border-top: 1px solid var(--ri-line); padding: 8px 0; display: grid; gap: 4px; min-width: 0; }
 .ri-job-head, .ri-job-route-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }

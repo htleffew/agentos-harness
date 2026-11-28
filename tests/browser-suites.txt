@@ -82,3 +82,6 @@ t_voice_delivery
 t_legacy_parity
 t_help_host
 t_spend_taps_host
+t_recording_prompts_host
+t_story_style_model_host
+t_request_stats_host

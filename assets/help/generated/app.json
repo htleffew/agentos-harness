@@ -353,7 +353,7 @@
    "nested": "Connections",
    "sub": false,
    "lead": false,
-   "help": "This month's paid spend per route against your monthly ceiling, every paid call counted, tapped or in the background, and the health of each route."
+   "help": "This month's paid spend per route against your monthly ceiling, every paid call counted, tapped or in the background, the health of each route, and the count, tokens and frequency of every request per day and per job."
   },
   {
    "id": "background-jobs",

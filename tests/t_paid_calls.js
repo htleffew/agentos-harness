@@ -75,6 +75,7 @@ const INVENTORY = {
     'src/routing.js': { counts: { askFull: 2, runChain: 1, runJob: 1, phoneModel: 1 }, how: ['transport', 'chain'], note: 'runChain itself' },
     'src/st.js': { counts: { askFull: 1, sendRequest: 2, processRequest: 1, generateRaw: 1, hostGenerate: 2 }, how: ['transport', 'reply'], note: 'askFull, and Continue' },
     'src/stat-sheets.js': { counts: { runJob: 3 }, how: ['chain'], note: 'Stat sheets at chat start and per new character' },
+    'src/story-style.js': { counts: { runChain: 1 }, how: ['chain'], note: 'Suggest with a model in the story style picker (B61, tapped, capture chain)' },
     'src/story-outline.js': { counts: { runChain: 1 }, how: ['chain'], note: 'Story outline (free routes only)' },
     'src/ui/cards/choices.js': { counts: { runChain: 1 }, how: ['chain'], note: 'The Choices card' },
     'src/v10.js': { counts: { aiRequest: 1 }, how: ['ai'], note: 'Draft or read an opening' },
@@ -127,7 +128,7 @@ test('each check the inventory names is in the code', () => {
     assert.match(routing, /const reservation = paid \? reserveSpend/);
     // ai.js: the direct path is wrapped in meterCall; the chain path goes through runOperationChain.
     const ai = source('src/ai.js');
-    assert.match(ai, /meterCall\(\{cost,route:profileId \? 'override' : 'main',job:chainJob\(operation\)\},\s*\(\)=>askFull\(/);
+    assert.match(ai, /meterCall\(\{cost,route:profileId \? 'override' : 'main',job:chainJob\(operation\)[^}]*\},\s*\(\)=>askFull\(/);
     // decide.js: the Jev decisions endpoint reserves before it sends.
     const decide = source('src/memory/decide.js');
     assert.ok(decide.indexOf('reserveSpend({ route: \'openrouter\'') < decide.indexOf('await fetchImpl(JEV_ENDPOINT'));

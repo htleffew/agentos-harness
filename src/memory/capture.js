@@ -231,6 +231,9 @@ const HEADER_RULE = 'The reply opens with a scene header line. Copy place, time 
 const DUE_RULE = 'Pending threads listed as due during the time skip fell due while the story jumped ahead. Use op complete, op revise or no op for each, by what the newest reply shows.';
 const dueOf = rec => { const b = rec?.v10SceneBreak; return b && b.ruled !== true && Array.isArray(b.due) ? b.due.filter(d => d && String(d.text || '').trim()) : []; };
 const STEP_RULE = 'Meters and levels report movement. Each emotion axis (tenderness, fury, dread, yearning) and each relationship level is { step, reason }: step is a whole number from -5 to 5 for how far the newest reply moved it, 0 when it moved nothing; reason is a quote from the reply or an action a character takes in it. Code keeps the running value.';
+// The Recording prompts she can edit on the Prompts page (B60). They sit with the stable rules, after them and before the
+// field list, so they change the prefix only when she edits one or switches a module.
+const RECORDING_RULE = 'Recording guidance from the player\'s settings. Follow it within the answer form above:';
 const SUSPECT_RULE = 'rulings: for each suspect listed, "keep" when it is a separate record, "drop" when it repeats the record it resembles, "replaces" when its newer state replaces that record.';
 
 const fieldLine = f => `${f.card}.${f.field} (${f.label}, ${f.type})${f.hint ? `: ${f.hint}` : ''}`;
@@ -255,8 +258,9 @@ export function recordsFor(text, records, { budget = RECORDS_BUDGET_CHARS, prese
  * The capture request for one exchange, or for a batch. Returns { system, user, schema }.
  *   exchanges: [{ prose, player, header, roll, fired, reply }]
  *   records: the fold's records; suspects: records held as suspects; fields: from captureFields; cast: names
+ *   recording: the Recording prompt texts of the modules that are on (src/v10.js recordingPrompts, B60)
  */
-export function buildCaptureRequest({ exchanges, records = [], fields = [], suspects = [], cast = [], headerReliable = true }) {
+export function buildCaptureRequest({ exchanges, records = [], fields = [], suspects = [], cast = [], headerReliable = true, recording = [] }) {
     const batch = exchanges.length > 1;
     const askFields = askedFields(fields);
     const system = [
@@ -266,6 +270,7 @@ export function buildCaptureRequest({ exchanges, records = [], fields = [], susp
         askFields.length && headerReliable && askFields.some(f => f.card === 'scene' && SCENE_FROM_HEADER.includes(f.field)) && HEADER_RULE,
         suspects.length && SUSPECT_RULE,
         exchanges.some(x => x.dueSkip?.length) && DUE_RULE,
+        recording.length && `${RECORDING_RULE}\n${recording.join('\n')}`,
         batch && 'Several exchanges follow, numbered. Give each op the number of the exchange its quote comes from in "exchange", and give state one object per exchange with its number.',
         askFields.length ? `Fields to fill in state:\n${askFields.map(fieldLine).join('\n')}` : 'No state fields are switched on; return state as {}.',
     ].filter(Boolean).join('\n');
@@ -592,6 +597,18 @@ async function hostParts() {
     return host;
 }
 
+/**
+ * The Recording prompts a capture carries for these modules, in her saved wording (B60). Without modules (the chapter call's
+ * remainder) it reads the chat's modules as capture after a reply does. A host that cannot supply them sends none.
+ */
+async function recordingFor(modules) {
+    try {
+        const v10 = await import('../v10.js');
+        const mods = modules || await (await import('./inject.js')).hostCaptureModules(v10.effectiveModules());
+        return v10.recordingPrompts(mods || {});
+    } catch (error) { console.warn('Roleplay Instructions could not read the Recording prompts for capture.', error); return []; }
+}
+
 const listeners = new Set();
 /** Tell the tray and the Strip when a capture starts or ends: fn({ index, phase: 'capturing'|'done'|'failed'|'waiting' }). */
 export function onCapture(fn) { listeners.add(fn); return () => listeners.delete(fn); }
@@ -611,14 +628,14 @@ export function captureEvery(settingsValue, fields) {
 }
 
 /** The pieces a capture call reads for some replies, with the request built. */
-export function captureCall(chat, indices, { records, suspects = [], fields = [], cast = [], headerReliable = true, rollOf = () => '', firedOf = () => [], key = '' } = {}) {
+export function captureCall(chat, indices, { records, suspects = [], fields = [], cast = [], headerReliable = true, recording = [], rollOf = () => '', firedOf = () => [], key = '' } = {}) {
     const exchanges = indices.map(index => {
         const ex = exchangeOf(chat, index);
         const header = headerReliable ? parseSceneHeader(chat[index]?.mes) : null;
         const rec = key ? chat[index]?.extra?.[key] : null;
         return { ...ex, reply: replyNumber(chat, index), headerFields: header, header: header ? [header.place, header.time, header.weather, header.present?.join(', ')].filter(Boolean).join(' · ') : '', roll: rollOf(rec, chat[index]), fired: firedOf(rec, chat[index]), dueSkip: dueOf(rec), cast };
     });
-    return { exchanges, ...buildCaptureRequest({ exchanges, records, fields, suspects, cast, headerReliable }) };
+    return { exchanges, ...buildCaptureRequest({ exchanges, records, fields, suspects, cast, headerReliable, recording }) };
 }
 
 /**
@@ -679,7 +696,7 @@ export async function runCapture(indices, { signal, chain, runChainFn, context, 
     const foldResult = foldChat(chat, c.chatMetadata || {});
     const cast = [...new Set([H.st.names().char, H.st.names().user].filter(Boolean))];
     const call = captureCall(chat, live, {
-        records: foldResult.records, suspects: suspectsIn(foldResult, chat), fields, cast, headerReliable: reliable, key,
+        records: foldResult.records, suspects: suspectsIn(foldResult, chat), fields, cast, headerReliable: reliable, key, recording: await recordingFor(modules),
         // The turn's dice rolls (MB14, src/memory/rolls.js), else a roll saved before degrees.
         rollOf: (rec, message) => captureRollLines(message) || rollLine(rec?.v10Check || rec?.roll), firedOf: firedForCapture,
     });
@@ -735,7 +752,7 @@ export async function remainderForChapter(upTo, options = {}) {
     const st = options.settingsValue || H.store.settings();
     const fields = enabledFields(st, options.modules || {});
     const foldResult = foldChat(chat, c.chatMetadata || {});
-    const call = captureCall(chat, indices, { records: foldResult.records, fields, cast: [H.st.names().char, H.st.names().user].filter(Boolean), headerReliable: headerMode() !== 'tray', key: H.st.KEY });
+    const call = captureCall(chat, indices, { records: foldResult.records, fields, cast: [H.st.names().char, H.st.names().user].filter(Boolean), headerReliable: headerMode() !== 'tray', key: H.st.KEY, recording: await recordingFor(options.modules) });
     const chatId = String(c.getCurrentChatId?.() || '');
     return {
         indices, request: call,

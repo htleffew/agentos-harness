@@ -30,6 +30,8 @@ Every paid model call the extension makes counts toward the ceiling, whether you
 - The meter starts with a US$5 ceiling and a warning at US$4, and resets on the first of each month.
 - At the ceiling every paid route is skipped, so free and local routes keep working. A tapped button with no free or local route left sends nothing and says the monthly spend ceiling is reached; you raise it in [Setup, Connections, Spend](page:spend).
 
+Every model call, free, local or paid, also counts in the request stats on [Setup, Spend](page:spend): requests, tokens and cost per day, and per job over the last 7 days. Chat replies through SillyTavern itself are not counted there.
+
 ## Model calls and cost
 
 Each page entry names the calls its own buttons make.

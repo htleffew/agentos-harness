@@ -1,6 +1,6 @@
 # Spend
 
-Spend shows this month's paid spend against your monthly ceiling, the calls and health of each route, and any notes about a route that stopped answering. A route is one place a model call can go, such as your desktop over Tailscale, a free tier or a paid provider ([how model calls work](help:model-calls)). Open Spend when the Quick action bar above the message box shows a spend note, when background work seems paused or a button says the ceiling is reached, or to change the ceiling.
+Spend shows this month's paid spend against your monthly ceiling, the calls and health of each route, any notes about a route that stopped answering, and how many model calls are sent, how large they are and how often, per day and per job. A route is one place a model call can go, such as your desktop over Tailscale, a free tier or a paid provider ([how model calls work](help:model-calls)). Open Spend when the Quick action bar above the message box shows a spend note, when background work seems paused or a button says the ceiling is reached, to change the ceiling, or to see which jobs send the most requests.
 
 ## What it does
 
@@ -39,6 +39,18 @@ One row per route: Desktop, On-phone model, NanoGPT plan, OpenRouter free model,
 
 Each job tries the desktop first, then the NanoGPT plan, then free tiers, then paid routes within the ceiling, then the Main API, which counts toward the ceiling when your chat connection is a paid provider. A route that does not answer is skipped for 10 minutes and checked again only when a job needs it.
 
+### Requests by day
+
+Every model call counts here, free, local and paid: background jobs, judgment calls, the desktop warm-up, the buttons you tap and help questions. The replies you write through SillyTavern itself are its own requests and are not counted.
+
+A table lists one row per day, today first, with its requests, tokens in, tokens out and paid cost. Tap a day to show one row per job under it; tap it again to hide them. Token counts come from the provider when it reports them; a count marked ~ is estimated from the length of the text, at about four characters to a token. The last 31 days are kept.
+
+### Requests by job, last 7 days
+
+One row per job for the last 7 days, today included, with its requests, its requests per day on average, and its median request size in tokens in and out together.
+
+**Clear stats** asks first, then removes the counts for every day and job. The spend meter and the rows above stay.
+
 When jobs wait on the ceiling, **Paused jobs** lists them with "Paused, monthly ceiling reached".
 
 ### Paid calls this month
@@ -47,7 +59,7 @@ A fold, with the count in its name, lists the last 20 paid calls, newest first, 
 
 ## Model calls and cost
 
-Nothing on this page calls a model; it reads the meter. The order of routes per job is set in [Setup, Background jobs](page:background-jobs), and the connection for each tapped job in Setup, Connections.
+Nothing on this page calls a model; it reads the meter and the request stats. The order of routes per job is set in [Setup, Background jobs](page:background-jobs), and the connection for each tapped job in Setup, Connections.
 
 ## Why it works this way
 
@@ -55,3 +67,4 @@ Nothing on this page calls a model; it reads the meter. The order of routes per 
 - At the ceiling only paid calls pause; free and local routes carry on, so memory keeps working.
 - Every paid call counts, whether you tapped a button or it ran in the background, so one meter shows all of the extension's spend.
 - One note per outage, a back note when the route returns, and calls and cost per route show where each call went.
+- The request stats show how many calls go out, how large and how often, free and local ones included, per day and per job, so a busy job shows even when it costs nothing. They keep 31 days, so the settings file stays small.

@@ -7,6 +7,7 @@ import { askFull, ctx, isLocalUrl, parseJson, probeCustomUrl, profileDetails } f
 import { settings, saveSettings } from './store.js';
 import { addLog, updateLog } from './log.js';
 import { CEILING_LINE, canSpend, catalogCost, recordSpend, releaseSpend, reserveSpend } from './spend.js';
+import { recordRequest } from './request-stats.js';
 
 export const PROBE_MS = 4000;
 export const DOWN_MS = 10 * 60 * 1000;
@@ -255,17 +256,28 @@ export function stepCostClass(entry, target) {
  * sends to directly). A paid call reserves its estimate, is refused with CEILING_LINE at the ceiling (kind 'ceiling', no
  * request sent), and settles at the cost the provider reports, else the estimate. Free, plan and local calls pass through.
  */
-export async function meterCall({ cost = 'paid', route = 'main', model = '', job = '', estimate = 0 } = {}, send) {
-    if (cost !== 'paid') return send();
+export async function meterCall({ cost = 'paid', route = 'main', model = '', job = '', estimate = 0, chars = 0, statJob = '' } = {}, send) {
+    // B62: every request sent here is one entry in the request stats, under statJob (the function) when given; chars is
+    // the prompt's length, for the estimate.
+    const stat = (res, usd, ok) => recordRequest({ job: statJob || job, route, model, usage: res?.usage || null, inChars: chars,
+        outChars: String(res?.raw ?? res?.text ?? '').length, usd, ok });
+    if (cost !== 'paid') {
+        let res;
+        try { res = await send(); }
+        catch (error) { stat(null, 0, false); throw error; }
+        stat(res, 0, true);
+        return res;
+    }
     const reservation = reserveSpend({ route, estimate });
     if (!reservation) throw Object.assign(new Error(CEILING_LINE), { kind: 'ceiling' });
     let res;
     try { res = await send(); }
-    catch (error) { releaseSpend(reservation); throw error; }
+    catch (error) { releaseSpend(reservation); stat(null, 0, false); throw error; }
     const reported = Number.isFinite(res?.cost) ? res.cost : null;
     const usage = res?.usage || null;
     recordSpend({ route, model, cost: reported ?? estimate, basis: reported !== null ? 'usage' : 'unpriced', reservation, job,
         tokens: usage ? { in: Number(usage.prompt_tokens) || 0, out: Number(usage.completion_tokens) || 0 } : null });
+    stat(res, reported ?? estimate, true);
     return res;
 }
 
@@ -399,10 +411,11 @@ function timed(promise, ms, controller) {
  * value is the parsed schema answer when a schema is given, else the text. waiting is true when no route can take the
  * job now and a paid route was skipped at the spend ceiling, so the job waits for a free or local route.
  * Every paid step counts against the ceiling (B59). background: a call no tap started; it decides the receipt words and
- * the route notices, and a tapped call refused at the ceiling reads CEILING_LINE. clock: test hook for time.
+ * the route notices, and a tapped call refused at the ceiling reads CEILING_LINE. clock: test hook for time. statJob: the
+ * name each request goes under in the request stats (B62), when it is not the job (a function of Setup, Connections).
  */
 export async function runChain(chain, { job = 'capture', system = '', user = '', schema = null, tokens = 800, signal, background = true,
-    toolName = 'commit_memory_ops', label = '', probeMs = PROBE_MS, clock = Date.now, onAttempt } = {}) {
+    toolName = 'commit_memory_ops', label = '', probeMs = PROBE_MS, clock = Date.now, onAttempt, statJob = '' } = {}) {
     const def = JOBS[job] || { tier: 'quick', label: job };
     const tier = TIERS[def.tier] || TIERS.quick;
     const of = chain.length;
@@ -455,13 +468,32 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
         // Every answer the provider sent back on this step, so each paid request is billed once, a repair request and an
         // answer that could not be used included (B59).
         const answered = [];
+        // What one answered request cost: the provider's figure, else the catalog price for its usage, else the estimate.
+        const priceOf = res => {
+            const usage = res?.usage || {};
+            const fromCatalog = catalogCost(item.price, Number(usage.prompt_tokens) || 0, Number(usage.completion_tokens) || 0);
+            const reported = Number.isFinite(res?.cost) ? res.cost : null;
+            const usd = reported ?? (res?.usage ? fromCatalog : null) ?? estimate;
+            const basis = reported !== null ? 'usage' : res?.usage && fromCatalog !== null ? 'catalog' : item.price ? 'catalog' : 'unpriced';
+            return { usd, basis };
+        };
         const send = async ({ system: s, user: u, tokens: t }) => {
             let res;
-            if (target.kind === 'phone') res = await phoneModel({ system: s, user: u, schema, tokens: t, signal: controller.signal });
-            else if (target.kind === 'main') res = await askFull({ system: s, user: u, tokens: t, signal: controller.signal });
-            else res = await askFull({ system: s, user: u, tokens: t, signal: controller.signal, model: item.model || '', effort,
-                ...(target.kind === 'profile' ? { profileId: target.profileId } : { source: target.source }),
-                ...(schema && mode !== 'prompt' ? { schema, mode, toolName } : {}) });
+            // B62: every request this step sends is one entry in the request stats, answered or not, free or paid.
+            const stat = (answer, ok) => recordRequest({ job: statJob || job, route: item.route, model: item.model || '', usage: answer?.usage || null,
+                inChars: String(s || '').length + String(u || '').length, outChars: String(answer?.raw ?? answer?.text ?? '').length,
+                usd: paid && answer ? priceOf(answer).usd : 0, ok });
+            try {
+                if (target.kind === 'phone') res = await phoneModel({ system: s, user: u, schema, tokens: t, signal: controller.signal });
+                else if (target.kind === 'main') res = await askFull({ system: s, user: u, tokens: t, signal: controller.signal });
+                else res = await askFull({ system: s, user: u, tokens: t, signal: controller.signal, model: item.model || '', effort,
+                    ...(target.kind === 'profile' ? { profileId: target.profileId } : { source: target.source }),
+                    ...(schema && mode !== 'prompt' ? { schema, mode, toolName } : {}) });
+            } catch (error) {
+                stat(null, false);
+                throw error;
+            }
+            stat(res, true);
             answered.push(res);
             return res;
         };
@@ -476,10 +508,7 @@ export async function runChain(chain, { job = 'capture', system = '', user = '',
             };
             for (const res of answered) {
                 const usage = res?.usage || {};
-                const fromCatalog = catalogCost(item.price, Number(usage.prompt_tokens) || 0, Number(usage.completion_tokens) || 0);
-                const reported = Number.isFinite(res?.cost) ? res.cost : null;
-                const usd = reported ?? (res?.usage ? fromCatalog : null) ?? estimate;
-                const basis = reported !== null ? 'usage' : res?.usage && fromCatalog !== null ? 'catalog' : item.price ? 'catalog' : 'unpriced';
+                const { usd, basis } = priceOf(res);
                 record(usd, basis, res?.usage ? { in: Number(usage.prompt_tokens) || 0, out: Number(usage.completion_tokens) || 0 } : null);
             }
             if (timedOut) record(estimate, 'reserved');

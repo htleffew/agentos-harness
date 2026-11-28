@@ -705,6 +705,25 @@ export function updateContract(modules, opening = false, { fieldsOnly = false } 
 }
 
 /**
+ * The Recording prompts of the modules that are on, in the contract's order and with the contract's gates, read through
+ * promptText so her saved wording is what goes out (B60). Capture after each reply carries them; its own rules and schema
+ * take the place of the contract's story_update fields, so only the prompt text travels.
+ */
+export function recordingPrompts(modules = {}) {
+    const group = riGroup();
+    return orderedSections([
+        ['state', modules.state && promptText('timingUpdate')],
+        ['state', RECORD_KINDS.some(kind => modules[KIND_MODULE[kind]]) && promptText('structuredFacts')],
+        ['state', modules.state && promptText('structuredPortrayal')],
+        ['relationships', modules.relationships && promptText('structuredRelationships')],
+        ['knowledge', modules.knowledge && promptText('structuredKnowledge')],
+        ['emotions', modules.emotions && promptText('structuredEmotions')],
+        ['plots', (modules.plots || modules.worldEvents) && promptText('structuredOutcomes')],
+        ['worldEvents', modules.plots && modules.worldEvents && promptText('structuredSchedule')],
+    ], group ? group.order : prefs()?.moduleOrder).map(text => String(text).trim()).filter(Boolean);
+}
+
+/**
  * What a reply may carry besides its prose and scene header: the Roast, in one <roast> block the extension lifts out of the
  * reply, while the Roast card is on. Story state is captured after the reply (memory DESIGN 5.1).
  */

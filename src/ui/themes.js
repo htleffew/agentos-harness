@@ -3,7 +3,8 @@
 // Setup, Look, Story style. Colors live in src/ui/theme/themes/*.css and src/ui/theme/story-styles/*.css.
 import { chatState, saveChatState, saveSettings, settings } from '../store.js';
 import { confirmBox, ctx, inputBox, isChatOpen, LOG, on, toast } from '../st.js';
-import { STORY_STYLES, STYLE_FILES, chatStoryStyle, defaultStoryStyle, setChatStoryStyle, setDefaultStoryStyle } from '../story-style.js';
+import { STORY_STYLES, STYLE_FILES, askModelStyle, chatStoryStyle, clearModelSuggestion, defaultStoryStyle, effectiveStoryStyle, modelSuggestion, onStoryStyleChange,
+    setChatStoryStyle, setDefaultStoryStyle, styleLabel } from '../story-style.js';
 import { add, download, h } from './dom.js';
 import { registerPage } from './page-registry.js';
 
@@ -378,6 +379,31 @@ export function styleChoices(current, choose, { suggested = '' } = {}) {
     }));
 }
 
+/**
+ * B61: the Suggest with a model button, the status line under it and, once a usable answer is in, a button that applies
+ * it. Nothing is sent until she taps; the answer is a suggestion and the chat's style changes only on the second tap.
+ * apply(id) makes the choice. The state lives in story-style.js, so a redraw of the tray keeps it.
+ */
+export function modelSuggestControl(apply) {
+    const box = h('div', { class: 'ri-style-model' });
+    const draw = () => {
+        const now = modelSuggestion();
+        const busy = now.state === 'asking';
+        const kids = [h('button', { type: 'button', class: 'ri-bar-btn', id: 'ri-style-ask-model', disabled: busy, 'aria-busy': String(busy),
+            onclick: () => { askModelStyle(); } }, h('span', { class: 'ri-call-dot', 'aria-label': 'Extension model call' }), 'Suggest with a model')];
+        if (now.state === 'done') {
+            const same = now.style === effectiveStoryStyle();
+            kids.push(same ? null : h('button', { type: 'button', class: 'ri-bar-btn', id: 'ri-style-use-model', onclick: () => { clearModelSuggestion(); apply(now.style); } }, `Use ${styleLabel(now.style)}`));
+        }
+        const text = now.state === 'done' ? (now.style === effectiveStoryStyle() ? `A model suggests ${styleLabel(now.style)}, which this chat already uses.` : `A model suggests ${styleLabel(now.style)}. Tap Use to apply it.`) : now.note;
+        kids.push(text ? h('p', { class: 'ri-help ri-style-model-note', id: 'ri-style-model-note', role: 'status', 'data-state': now.state }, text) : null);
+        box.replaceChildren(...kids.filter(Boolean));
+    };
+    draw();
+    const off = onStoryStyleChange(() => { if (!box.isConnected) off(); else draw(); });
+    return box;
+}
+
 export function renderStoryStylePage(body) {
     loadThemeSheets();
     const chatOpen = isChatOpen();
@@ -391,6 +417,7 @@ export function renderStoryStylePage(body) {
         const own = chatStoryStyle();
         add(host, [h('h3', { class: 'ri-tray-subhead' }, 'This chat'),
             styleChoices(own || defaultStoryStyle(), id => { setChatStoryStyle(id); rerender(); }),
+            modelSuggestControl(id => { setChatStoryStyle(id); rerender(); }),
             h('p', { class: 'ri-help' }, own ? 'This chat has its own style.' : 'This chat follows the default.'),
             own ? h('button', { type: 'button', class: 'ri-bar-btn', id: 'ri-style-use-default', onclick: () => { setChatStoryStyle(''); rerender(); } }, 'Use the default for this chat') : null]);
     }

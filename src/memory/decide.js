@@ -13,6 +13,7 @@ import { chainFor, reportChainResult, resolveRoute, routeHealth, runChain, schem
 import { saveSettings, settings } from '../store.js';
 import { catalogCost, recordSpend, releaseSpend, reserveSpend } from '../spend.js';
 import { askOneWord, phoneModelReady } from './phone-model.js';
+import { recordRequest } from '../request-stats.js';
 import { desktopQueue } from './queue.js';
 
 export const DESKTOP_LIMIT_MS = 1000;
@@ -211,7 +212,10 @@ async function askDesktop({ system, user, schema, signal }) {
     const entry = chainFor('judgment').find(item => item.route === 'desktop') || { route: 'desktop', model: 'gemma4:12b' };
     const target = resolveRoute(entry);
     if (!target || target.kind !== 'profile') return { skipped: 'no desktop connection on this host' };
-    const res = await askFull({ system, user, tokens: 120, profileId: target.profileId, model: entry.model, schema, mode: 'schema', effort: 'none', signal });
+    let res = null;
+    // B62: the request is one entry in the request stats, answered or not.
+    try { res = await askFull({ system, user, tokens: 120, profileId: target.profileId, model: entry.model, schema, mode: 'schema', effort: 'none', signal }); }
+    finally { recordRequest({ job: 'judgment', route: 'desktop', model: entry.model, usage: res?.usage || null, inChars: String(system).length + String(user).length, outChars: String(res?.raw ?? '').length, ok: !!res }); }
     return { ...res, model: entry.model };
 }
 
@@ -234,8 +238,15 @@ export async function askJevDecision({ def, input = {}, screen = {}, signal, fet
     let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; controller.abort(new Error('jev-1.13 ran past its time limit.')); }, JEV_TIMEOUT_MS);
     try {
-        const response = await fetchImpl(JEV_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body, signal: controller.signal });
-        const data = await response.json().catch(() => null);
+        let response = null, data = null;
+        try {
+            response = await fetchImpl(JEV_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body, signal: controller.signal });
+            data = await response.json().catch(() => null);
+        } finally {
+            // B62: the request is one entry in the request stats, with the cost the provider reported or the catalog price.
+            const u = data?.usage, c = u && Number.isFinite(Number(u.cost)) && u.cost !== null ? Number(u.cost) : catalogCost(JEV_PRICE, Number(u?.input_tokens) || 0, Number(u?.output_tokens) || 0);
+            recordRequest({ job: 'judgment', route: 'openrouter', model: JEV_MODEL, usage: u || null, inChars: body.length, usd: u ? c ?? 0 : 0, ok: !!response?.ok && !data?.error });
+        }
         if (!response.ok || data?.error) throw new Error(`OpenRouter answered ${response.status}${data?.error?.message ? `: ${data.error.message}` : ''}`);
         const usage = data?.usage || {};
         const tokens = { in: Number(usage.input_tokens) || 0, out: Number(usage.output_tokens) || 0 };
@@ -358,7 +369,11 @@ async function runJudgment(def, input, deps) {
             const answers = {};
             for (const item of def.phone) {
                 if (item.when && !item.when(answers)) continue;
-                const word = await d.phoneAsk(item.question(input), item.options, {});
+                const question = item.question(input);
+                let word = null;
+                // B62: each one-word item is one request to the on-phone model, one entry in the request stats.
+                try { word = await d.phoneAsk(question, item.options, {}); }
+                finally { recordRequest({ job: 'judgment', route: 'phone', model: 'gemma-4-e2b-litert', inChars: String(question).length, outChars: String(word ?? '').length, ok: word !== null }); }
                 if (!word) throw new Error(`no allowed answer for ${item.key}`);
                 answers[item.key] = word;
             }
